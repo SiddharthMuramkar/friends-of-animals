@@ -36,5 +36,6 @@ export const config = {
     "/guardian",
     "/guardian/:path*",
     "/consent/:path*",
+    "/donate/checkout/:path*",
   ],
 };

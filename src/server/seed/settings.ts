@@ -16,9 +16,13 @@ import type { SeedDeps } from "./types";
  * are seeded, and they capture every text (smsSenderFor), so sign-in by
  * phone is on there: #58's journey uses it. Staging and production are
  * never seeded and keep the default, off, until DLT approval (HR-14).
+ * Donations are on there too (#106); production keeps them off until
+ * HR-15 and HR-47.
  */
 const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "sms.enabled": true,
+  // Local runs and previews pay through the test checkout (#106).
+  "donations.enabled": true,
 };
 
 /**

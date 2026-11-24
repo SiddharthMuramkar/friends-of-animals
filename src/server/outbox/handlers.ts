@@ -38,9 +38,16 @@ import { fanOutAnnouncement } from "../modules/announcements/fan-out";
 import { sendCancellationToFamily } from "../modules/competitions/cancellation-message";
 import {
   ledgerWorker,
+  postDonation,
+  postForeignDonation,
   postPaymentCapture,
   postRefund,
 } from "../modules/ledger/consumers";
+import {
+  sendReceiptLink,
+  sendRefundNotice,
+  sendThankYou,
+} from "../modules/donations/messages";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import { fanOutBreachNotices } from "../modules/breaches/fan-out";
@@ -119,6 +126,16 @@ export const HANDLERS: Handlers = {
   "ledger.post_refund": async (deps, { payload }) => {
     await postRefund({ ...deps, actor: ledgerWorker }, payload);
   },
+  // Donations (#106): their postings, and the donor's messages.
+  "ledger.post_donation": async (deps, { payload }) => {
+    await postDonation({ ...deps, actor: ledgerWorker }, payload);
+  },
+  "ledger.post_foreign_donation": async (deps, { payload }) => {
+    await postForeignDonation({ ...deps, actor: ledgerWorker }, payload);
+  },
+  "donations.send_thank_you": sendThankYou,
+  "donations.send_receipt_link": sendReceiptLink,
+  "donations.send_refund_notice": sendRefundNotice,
   // Sends the messages the event's route rows name (#69).
   "notifications.dispatch": dispatchEvent,
   "consent_links.deliver": (deps, { payload }) =>

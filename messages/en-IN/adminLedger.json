@@ -82,6 +82,8 @@
       "payment_capture": "Online payment",
       "offline_payment": "Offline payment",
       "refund": "Refund",
+      "donation": "Donation",
+      "foreign_donation": "Foreign payment",
       "manual": "Manual entry",
       "reversal": "Manual reversal",
       "other": "Other posting"
@@ -90,6 +92,10 @@
       "payment_capture": "Online registration fees",
       "offline_payment": "Offline registration fees",
       "refund": "Registration fee refund",
+      "donation": "Online donation",
+      "foreign_donation": "Foreign payment to return",
+      "donation_refund": "Donation refund",
+      "foreign_refund": "Foreign payment returned",
       "reversal": "Reversal of posting {seq}"
     },
     "errors": {

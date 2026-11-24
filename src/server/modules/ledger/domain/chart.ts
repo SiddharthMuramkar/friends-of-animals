@@ -57,8 +57,14 @@ export const SYSTEM_ACCOUNT_CODES = {
   bank: "1000",
   cash: "1010",
   gatewayClearing: "1100",
+  /** Foreign money held until it goes back (FCRA off, #106). */
+  foreignContributions: "2100",
   accumulatedFund: "3000",
   registrationFees: "4100",
+  /** Donations by donor type (#106). */
+  individualDonations: "4200",
+  corporateDonations: "4210",
+  csrDonations: "4220",
 } as const;
 
 export type SeededAccount = {
@@ -94,6 +100,13 @@ export const SEEDED_ACCOUNTS: readonly SeededAccount[] = [
     publicGroup: null,
   },
   {
+    code: "2100",
+    name: "Foreign contributions to return",
+    kind: "liability",
+    isSystem: true,
+    publicGroup: null,
+  },
+  {
     code: "3000",
     name: "Accumulated fund",
     kind: "equity",
@@ -103,6 +116,27 @@ export const SEEDED_ACCOUNTS: readonly SeededAccount[] = [
   {
     code: "4100",
     name: "Registration fees",
+    kind: "income",
+    isSystem: true,
+    publicGroup: "income",
+  },
+  {
+    code: "4200",
+    name: "Donations from individuals",
+    kind: "income",
+    isSystem: true,
+    publicGroup: "income",
+  },
+  {
+    code: "4210",
+    name: "Donations from companies",
+    kind: "income",
+    isSystem: true,
+    publicGroup: "income",
+  },
+  {
+    code: "4220",
+    name: "CSR donations",
     kind: "income",
     isSystem: true,
     publicGroup: "income",

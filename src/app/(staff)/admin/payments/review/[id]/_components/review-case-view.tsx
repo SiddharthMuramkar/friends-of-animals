@@ -4,7 +4,7 @@ import { FormAlert, SubmitButton } from "@/components/form";
 import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { SiteLink } from "@/components/site/site-link";
-import { adminPaymentBatchPath } from "@/lib/app-routes";
+import { adminDonationPath, adminPaymentBatchPath } from "@/lib/app-routes";
 import type { PaymentReviewCaseView } from "@/server/modules/payments";
 import {
   formatCapturedAmount,
@@ -111,7 +111,9 @@ async function Details({
         </div>
         <div className={row}>
           <dt className="font-semibold">{t("case.details.competition")}</dt>
-          <dd className="wrap-anywhere">{reviewCase.competitionName}</dd>
+          <dd className="wrap-anywhere">
+            {reviewCase.competitionName ?? t("case.details.donation")}
+          </dd>
         </div>
         <div className={row}>
           <dt className="font-semibold">{t("case.details.received")}</dt>
@@ -156,12 +158,21 @@ async function Details({
         ) : null}
       </dl>
       <p className="mt-4">
-        <SiteLink
-          href={adminPaymentBatchPath(reviewCase.batchId)}
-          className={LINK}
-        >
-          {t("case.details.batchLink")}
-        </SiteLink>
+        {reviewCase.donationId ? (
+          <SiteLink
+            href={adminDonationPath(reviewCase.donationId)}
+            className={LINK}
+          >
+            {t("case.details.donationLink")}
+          </SiteLink>
+        ) : (
+          <SiteLink
+            href={adminPaymentBatchPath(reviewCase.batchId)}
+            className={LINK}
+          >
+            {t("case.details.batchLink")}
+          </SiteLink>
+        )}
       </p>
     </section>
   );

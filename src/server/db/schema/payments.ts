@@ -43,6 +43,7 @@ import {
 import {
   PAYMENT_BATCH_STATUSES,
   PAYMENT_CAPTURE_METHODS,
+  PAYMENT_PURPOSES,
 } from "../../modules/payments/domain/batch-status";
 import { OFFLINE_PAYMENT_METHODS } from "../../modules/payments/domain/offline-payment";
 import { WEBHOOK_OUTCOMES } from "../../modules/payments/domain/outcomes";
@@ -70,6 +71,9 @@ export const paymentCaptureMethodEnum = pgEnum(
   PAYMENT_CAPTURE_METHODS
 );
 
+/** #106: what a batch pays for. Every value is in its first migration. */
+export const paymentPurposeEnum = pgEnum("payment_purpose", PAYMENT_PURPOSES);
+
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -78,10 +82,15 @@ export const paymentBatch = pgTable(
   {
     /** UUIDv7; also the gateway order's receipt. */
     id: uuid().primaryKey(),
-    route: participationRouteEnum().notNull(),
-    competitionId: uuid("competition_id")
-      .notNull()
-      .references(() => competition.id, { onDelete: "restrict" }),
+    /** Registration fees (#77) or a donation (#106). A donation's batch
+     * has no route, competition or items: the donation is its subject. */
+    purpose: paymentPurposeEnum().notNull().default("registration_fee"),
+    /** Null on a donation's batch. */
+    route: participationRouteEnum(),
+    /** Null on a donation's batch. */
+    competitionId: uuid("competition_id").references(() => competition.id, {
+      onDelete: "restrict",
+    }),
     /** The paying institution; null on the individual route (#78). */
     institutionId: uuid("institution_id").references(() => institution.id, {
       onDelete: "restrict",
@@ -122,6 +131,12 @@ export const paymentBatch = pgTable(
     check("payment_batch_amount_positive", sql`${table.amountMinor} > 0`),
     // FOA takes domestic INR only (#55).
     check("payment_batch_currency_inr", sql`${table.currency} = 'INR'`),
+    // A fee batch is for one competition's registrations; a donation's
+    // batch is for no competition.
+    check(
+      "payment_batch_purpose_matches_subject",
+      sql`(${table.purpose} = 'registration_fee') = (${table.competitionId} IS NOT NULL AND ${table.route} IS NOT NULL)`
+    ),
     check(
       "payment_batch_institution_matches_route",
       sql`(${table.route} = 'institution') = (${table.institutionId} IS NOT NULL AND ${table.institutionRegistrationId} IS NOT NULL)`

@@ -372,6 +372,15 @@ const ANNOUNCEMENT_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Donations (#106): money records, with the donor as they gave. */
+const DONATION_RECORD = {
+  policy: "donationRecords",
+  periodKey: "donationRecords",
+  basis:
+    "Financial records: FOA answers for each donation and its receipt to the donor, its auditors and the tax authorities",
+  toConfirm: true,
+} as const;
+
 /** A competition-scoped consent: what a signed form or code link recorded. */
 const COMPETITION_CONSENT_RECORD = {
   ...CONSENT_RECORD,
@@ -1193,6 +1202,34 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Donations (#106): the donor as they gave, the wall name they chose,
+  // and the receipt that froze their name. Kept as financial records.
+  ...(
+    [
+      ["user_id", "identity", "set_null"],
+      ["name_ciphertext", "identity", "retain"],
+      ["email_ciphertext", "contact", "retain"],
+      ["email_hash", "contact", "retain"],
+      ["organisation_name", "identity", "retain"],
+    ] as const
+  ).map(([column, category, onExpiry]) =>
+    rowsOf("donor", {
+      subject: { kind: "donor", via: "id" },
+      retention: DONATION_RECORD,
+      onExpiry,
+    })(column, category)
+  ),
+  rowsOf("donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  rowsOf("receipt", {
+    subject: { kind: "donor", via: "donation_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "retain",
+  })("snapshot", "identity"),
+  actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

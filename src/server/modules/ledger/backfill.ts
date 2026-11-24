@@ -1,7 +1,8 @@
-import { and, eq, gt, ne, notExists, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, ne, notExists, sql } from "drizzle-orm";
 
 import { authorize, type PolicyContext } from "../../access/can";
 import {
+  donation,
   ledgerPosting,
   offlinePayment,
   paymentBatch,
@@ -10,7 +11,13 @@ import {
 import type { ScheduleDefinition } from "../../outbox/schedules";
 import type { ErrorReporter } from "../../ports/errors";
 
-import { ledgerWorker, postPaymentCapture, postRefund } from "./consumers";
+import {
+  ledgerWorker,
+  postDonation,
+  postForeignDonation,
+  postPaymentCapture,
+  postRefund,
+} from "./consumers";
 import {
   captureSource,
   eligibleCapture,
@@ -22,7 +29,7 @@ const PAGE_SIZE = 100;
 
 async function postMissing(
   errors: ErrorReporter,
-  sourceType: "payment_batch" | "refund",
+  sourceType: "payment_batch" | "refund" | "donation" | "foreign_donation",
   nextPage: (after: string | undefined) => PromiseLike<{ id: string }[]>,
   post: (id: string) => Promise<{ outcome: string }>
 ): Promise<number> {
@@ -82,6 +89,77 @@ export async function backfillLedgerFromPayments(
         .limit(PAGE_SIZE),
     (batchId) => postPaymentCapture(ctx, { batchId })
   );
+  // Donations (#106) before refunds, which reverse their postings.
+  const donationsPosted = await postMissing(
+    errors,
+    "donation",
+    (after) =>
+      db
+        .select({ id: donation.id })
+        .from(donation)
+        .where(
+          and(
+            isNotNull(donation.capturedAt),
+            after === undefined ? undefined : gt(donation.id, after),
+            notExists(
+              db
+                .select({ id: ledgerPosting.id })
+                .from(ledgerPosting)
+                .where(
+                  and(
+                    eq(ledgerPosting.sourceType, "donation"),
+                    eq(ledgerPosting.sourceId, sql`${donation.id}::text`)
+                  )
+                )
+            )
+          )
+        )
+        .orderBy(donation.id)
+        .limit(PAGE_SIZE),
+    (donationId) => postDonation(ctx, { donationId })
+  );
+  const foreignPosted = await postMissing(
+    errors,
+    "foreign_donation",
+    (after) =>
+      db
+        .select({ id: refund.id })
+        .from(refund)
+        .where(
+          and(
+            eq(refund.kind, "foreign_payment"),
+            after === undefined ? undefined : gt(refund.id, after),
+            notExists(
+              db
+                .select({ id: ledgerPosting.id })
+                .from(ledgerPosting)
+                .where(
+                  and(
+                    eq(ledgerPosting.sourceType, "foreign_donation"),
+                    eq(ledgerPosting.sourceId, refund.gatewayPaymentId)
+                  )
+                )
+            )
+          )
+        )
+        .orderBy(refund.id)
+        .limit(PAGE_SIZE),
+    async (refundId) => {
+      const [refused] = await db
+        .select({
+          donationId: donation.id,
+          gatewayPaymentId: refund.gatewayPaymentId,
+        })
+        .from(refund)
+        .innerJoin(donation, eq(donation.paymentBatchId, refund.batchId))
+        .where(eq(refund.id, refundId));
+      if (!refused?.gatewayPaymentId) return { outcome: "ignored" };
+      return postForeignDonation(ctx, {
+        donationId: refused.donationId,
+        gatewayPaymentId: refused.gatewayPaymentId,
+      });
+    }
+  );
   const refundsPosted = await postMissing(
     errors,
     "refund",
@@ -111,7 +189,7 @@ export async function backfillLedgerFromPayments(
         .limit(PAGE_SIZE),
     (refundId) => postRefund(ctx, { refundId })
   );
-  return { capturesPosted, refundsPosted };
+  return { capturesPosted, donationsPosted, foreignPosted, refundsPosted };
 }
 
 export const reconcileLedgerSchedule: ScheduleDefinition = {

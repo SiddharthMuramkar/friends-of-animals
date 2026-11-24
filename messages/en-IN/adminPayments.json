@@ -16,7 +16,8 @@
       "batch_superseded": "Replaced payment",
       "paid_while_in_review": "Paid again during review",
       "participation_consent_required": "Participation check",
-      "participation_unavailable": "Minor participation paused"
+      "participation_unavailable": "Minor participation paused",
+      "donation_expired": "Donation expired"
     },
     "reasonBodies": {
       "already_paid": "These registrations were already paid for, so this money is a second payment.",
@@ -26,7 +27,8 @@
       "batch_superseded": "The payer started a newer payment for these registrations, then paid this older one.",
       "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked.",
       "participation_consent_required": "Accepting this payment requires guardian consent on the competition’s current participation document.",
-      "participation_unavailable": "Individual participation for minors is paused. This payment cannot confirm the registration right now."
+      "participation_unavailable": "Individual participation for minors is paused. This payment cannot confirm the registration right now.",
+      "donation_expired": "This donation's money arrived after its checkout expired. Accepting it captures the donation and issues its receipt."
     },
     "outcomes": {
       "confirm": "Accept the money",
@@ -132,6 +134,8 @@
         "arrived": "Arrived",
         "batch": "Payment",
         "batchLink": "See the whole payment",
+        "donation": "A donation",
+        "donationLink": "See the donation",
         "batchStatus": "Payment status",
         "others": "Other payments to review for the same registrations"
       },

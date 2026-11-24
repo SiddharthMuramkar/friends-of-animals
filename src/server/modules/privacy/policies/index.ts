@@ -108,6 +108,12 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryPendingText",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
+  /**
+   * Donations (#106): the donor, the donation and its receipt, kept as
+   * financial records for 8 years after the end of their financial year
+   * (a statutory floor, HR-31, HR-47); no job yet. A receipt is frozen.
+   */
+  "donationRecords",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];
