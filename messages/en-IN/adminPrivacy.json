@@ -94,7 +94,8 @@
         "entryPendingText": "Until the replacement passes, fails or is superseded",
         "announcements": "While the competition's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
-        "privacyRequests": "While the request is open, then 3 years after it is closed"
+        "privacyRequests": "While the request is open, then 3 years after it is closed",
+        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
       },
       "purposes": {
         "account": {
@@ -474,6 +475,11 @@
         "privacy_request_note": {
           "body_ciphertext": "The grievance officer's internal notes on the request",
           "author_user_id": "Records which grievance officer wrote the note"
+        },
+        "erasure_record": {
+          "subject_id": "Names the account or child's profile that was erased",
+          "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
+          "profile_ids": "Names every participant profile the erasure covered, for the same reason"
         }
       }
     },
@@ -666,6 +672,10 @@
         "announcements": {
           "name": "Announcements",
           "rule": "While the competition's records are kept. No daily job yet."
+        },
+        "erasureRecords": {
+          "name": "Erasure records",
+          "rule": "Kept as the proof of each erasure. They hold ids only, never a name or a contact."
         }
       }
     },

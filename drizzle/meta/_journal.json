@@ -575,6 +575,20 @@
       "when": 1795503491592,
       "tag": "0081_115_privacy_request_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1795505024007,
+      "tag": "0082_115_erasure_record",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1795505037875,
+      "tag": "0083_115_erasure_notice",
+      "breakpoints": true
     }
   ]
 }

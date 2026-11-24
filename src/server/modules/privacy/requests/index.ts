@@ -11,8 +11,14 @@ import {
   cancelPrivacyRequest,
   getMyPrivacyRequest,
   listMyPrivacyRequests,
+  listPrivacyRequestSubjects,
 } from "./my-requests";
 import { flagOverduePrivacyRequests } from "./overdue";
+import { executeErasure, previewErasure } from "./subject-data/erasure";
+import {
+  buildSubjectExport,
+  getPrivacyExportLink,
+} from "./subject-data/export";
 import {
   getGrievanceRequest,
   listGrievanceQueue,
@@ -53,6 +59,22 @@ export type {
   MoveResult,
 } from "./work";
 export type { PersonRef } from "./people";
+export type {
+  ErasurePreview,
+  ExecuteErasureResult,
+  PreviewErasureResult,
+} from "./subject-data/erasure";
+export type {
+  ErasureAction,
+  ErasureCategory,
+  ErasureCategoryKey,
+  ErasurePlan,
+  RetentionBasis,
+} from "./subject-data/erasure-plan";
+export type {
+  BuildSubjectExportResult,
+  GetPrivacyExportLinkResult,
+} from "./subject-data/export";
 export type { RequestEvent } from "./domain/request-status";
 export {
   CORRECTION_DETAILS_MAX,
@@ -71,6 +93,7 @@ export const privacyRequestUseCases = (ctx: UseCaseContext) => ({
   submitPrivacyRequest: (input: SubmitPrivacyRequestInput) =>
     submitPrivacyRequest(ctx, input),
   listMyPrivacyRequests: () => listMyPrivacyRequests(ctx),
+  listPrivacyRequestSubjects: () => listPrivacyRequestSubjects(ctx),
   getMyPrivacyRequest: (input: { id: string }) =>
     getMyPrivacyRequest(ctx, input),
   cancelPrivacyRequest: (input: { id: string }) =>
@@ -89,4 +112,10 @@ export const privacyRequestUseCases = (ctx: UseCaseContext) => ({
   completeCorrection: (input: { id: string; resolution: string }) =>
     completeCorrection(ctx, input),
   flagOverduePrivacyRequests: () => flagOverduePrivacyRequests(ctx),
+  buildSubjectExport: (input: { id: string }) => buildSubjectExport(ctx, input),
+  getPrivacyExportLink: (input: { id: string }) =>
+    getPrivacyExportLink(ctx, input),
+  previewErasure: (input: { id: string }) => previewErasure(ctx, input),
+  executeErasure: (input: { id: string; fingerprint: string }) =>
+    executeErasure(ctx, input),
 });

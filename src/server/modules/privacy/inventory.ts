@@ -445,6 +445,15 @@ const PRIVACY_REQUEST_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Erasure records (#115b): kept as the proof of each erasure. */
+const ERASURE_RECORD = {
+  policy: "erasureRecords",
+  periodKey: "erasureRecords",
+  basis:
+    "FOA shows it erased what a person asked, and erases it again if a backup is restored (DPDP Act 2023; HR-30)",
+  toConfirm: true,
+} as const;
+
 const privacyRequestColumn = rowsOf("privacy_request", {
   subject: { kind: "user", via: "subject_kind + subject_id" },
   retention: PRIVACY_REQUEST_RECORD,
@@ -1232,6 +1241,17 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "delete_row",
   })("body_ciphertext", "content"),
   actorColumn("privacy_request_note", "author_user_id", PRIVACY_REQUEST_RECORD),
+  // Erasure records (#115b): ids of the accounts and profiles erased.
+  ...(["subject_id", "user_ids", "profile_ids"] as const).map((column) =>
+    rowsOf("erasure_record", {
+      subject: {
+        kind: "user",
+        via: "subject_kind + subject_id, user_ids, profile_ids",
+      },
+      retention: ERASURE_RECORD,
+      onExpiry: "retain",
+    })(column, "identity")
+  ),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

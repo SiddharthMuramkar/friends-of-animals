@@ -64,8 +64,11 @@ const reviewWorkflowClosed = sql`NOT EXISTS (
     AND ${paymentReviewCase.resolvedAt} IS NULL
 )`;
 
-/** The batch's last activity: the instant its financial year is read from. */
-const lastActivity = instant(
+/**
+ * The batch's last activity: the instant its financial year is read from.
+ * Erasure (#115b) dates a payment's floor by it too.
+ */
+export const lastActivity = instant(
   sql`GREATEST(
     ${paymentBatch.updatedAt},
     (SELECT max(${refund.updatedAt}) FROM ${refund} WHERE ${refund.batchId} = ${paymentBatch.id}),

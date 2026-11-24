@@ -206,6 +206,11 @@ function subjectUserOf(delivery: Delivery): string | null {
       // A request's requester (`privacy_requester`), the grievance
       // officers (`grievance_officers`, `grievance_digest`), #115.
       return null;
+    case "privacy_request.export_requested":
+    case "privacy_request.export_expired":
+    case "privacy_request.erasure_approved":
+      // The export and erasure jobs (#115b); no route row names them.
+      return null;
   }
 }
 
@@ -612,6 +617,9 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: DIGEST_VARIABLES,
     load: async (_db, { payload }) => digestValues(payload),
   },
+  "privacy_request.export_requested": { names: [], load: async () => ({}) },
+  "privacy_request.export_expired": { names: [], load: async () => ({}) },
+  "privacy_request.erasure_approved": { names: [], load: async () => ({}) },
   "competition.announcement_sent": {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>

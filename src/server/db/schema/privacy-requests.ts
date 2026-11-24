@@ -123,8 +123,13 @@ export const privacyRequest = pgTable(
       { onDelete: "set null" }
     ),
     erasureApprovedAt: timestamptz("erasure_approved_at"),
-    /** Why an approved erasure didn't run: the plan changed meanwhile. */
-    erasureFailure: text("erasure_failure").$type<"plan_changed">(),
+    /**
+     * Why an approved erasure didn't run: the plan changed meanwhile, or
+     * erasure was switched off (privacy.erasureEnabled).
+     */
+    erasureFailure: text("erasure_failure").$type<
+      "plan_changed" | "erasure_disabled"
+    >(),
     /** What an erasure kept, and why: categories only, never records. */
     retained: jsonb().$type<RetainedCategory[]>(),
     createdAt: timestamptz("created_at").notNull(),
@@ -224,3 +229,47 @@ export const privacyOverdueDigest = pgTable("privacy_overdue_digest", {
   overdue: integer().notNull(),
   sentAt: timestamptz("sent_at").notNull(),
 });
+
+/** One kind of record and what an erasure did with it (#115b). */
+export type ErasureCategoryRecord = {
+  key: string;
+  action: "withdraw" | "delete" | "anonymise" | "retain";
+  basis: string | null;
+  until: string | null;
+  count: number;
+};
+
+/**
+ * The record of an erasure (#115b): whose, when, what was done with each
+ * kind of record and what was kept. It outlives the request, so a backup
+ * restored later can be erased again (an owner procedure, HR-30), and
+ * holds ids only, never a name or a contact.
+ */
+export const erasureRecord = pgTable(
+  "erasure_record",
+  {
+    id: uuid().primaryKey(),
+    /** Null once retention deletes the request. */
+    requestId: uuid("request_id").references(() => privacyRequest.id, {
+      onDelete: "set null",
+    }),
+    subjectKind: privacySubjectKindEnum("subject_kind").notNull(),
+    subjectId: uuid("subject_id").notNull(),
+    /** Every account and profile the erasure covered. */
+    userIds: uuid("user_ids").array().notNull(),
+    profileIds: uuid("profile_ids").array().notNull(),
+    outcome: text().$type<"completed" | "partially_completed">().notNull(),
+    categories: jsonb().$type<ErasureCategoryRecord[]>().notNull(),
+    /** The latest date a kept kind's basis lapses; null if none does. */
+    retainedUntil: timestamptz("retained_until"),
+    erasedAt: timestamptz("erased_at").notNull(),
+  },
+  (table) => [
+    check(
+      "erasure_record_outcome",
+      sql`${table.outcome} IN ('completed', 'partially_completed')`
+    ),
+    index("erasure_record_request_idx").on(table.requestId),
+    index("erasure_record_subject_idx").on(table.subjectKind, table.subjectId),
+  ]
+);

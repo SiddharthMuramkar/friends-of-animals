@@ -110,6 +110,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryPendingText",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
+  /** Erasure records (#115b): kept as the proof of an erasure (HR-30). */
+  "erasureRecords",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

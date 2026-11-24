@@ -216,7 +216,7 @@ export type GrievanceRequestView = QueueItem & {
   exportState: "none" | "preparing" | "ready" | "expired";
   erasure: {
     approvedAt: Date | null;
-    failure: "plan_changed" | null;
+    failure: "plan_changed" | "erasure_disabled" | null;
   };
   notes: GrievanceNote[];
   /** The officers it can be assigned to. */

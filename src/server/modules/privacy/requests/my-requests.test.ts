@@ -125,3 +125,24 @@ describe("cancelPrivacyRequest", () => {
     expect((await requestRows(h))[0]?.status).toBe("submitted");
   });
 });
+
+describe("listPrivacyRequestSubjects", () => {
+  it("offers a verified guardian their children, and refuses a visitor", async () => {
+    const h = await createHarness();
+    const family = await h.seed.guardian({
+      children: [{ fullName: "Ira Rao", age: 9 }],
+    });
+    const guardian = await h.signIn(family.account);
+    const member = await h.signIn(await h.seed.member());
+
+    expect(await h.as(guardian).listPrivacyRequestSubjects()).toEqual({
+      children: [{ id: family.childIds[0], name: "Ira Rao" }],
+    });
+    expect(await h.as(member).listPrivacyRequestSubjects()).toEqual({
+      children: [],
+    });
+    await expect(
+      h.as(h.visitor()).listPrivacyRequestSubjects()
+    ).rejects.toMatchObject({ name: "DomainError", code: "forbidden" });
+  });
+});

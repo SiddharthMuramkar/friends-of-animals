@@ -385,6 +385,24 @@ export type DomainEvent =
       payload: { requestId: string };
     }
   | {
+      /** The grievance officer asked for an access request's export (#115b). */
+      type: "privacy_request.export_requested";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** Delayed to when an export's link stops: its object is deleted. */
+      type: "privacy_request.export_expired";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** The grievance officer approved an erasure's plan (#115b). */
+      type: "privacy_request.erasure_approved";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
       /**
        * The daily overdue digest for one grievance officer (#115): counts
        * only, never who a request is about.
@@ -548,6 +566,9 @@ export const EVENT_PAYLOADS = {
   "privacy_request.submitted": z.object({ requestId: z.uuid() }),
   "privacy_request.rejected": z.object({ requestId: z.uuid() }),
   "privacy_request.completed": z.object({ requestId: z.uuid() }),
+  "privacy_request.export_requested": z.object({ requestId: z.uuid() }),
+  "privacy_request.export_expired": z.object({ requestId: z.uuid() }),
+  "privacy_request.erasure_approved": z.object({ requestId: z.uuid() }),
   "privacy_request.overdue_digest": z.object({
     officerUserId: z.uuid(),
     day: z.iso.date(),
@@ -681,6 +702,11 @@ export const SUBSCRIBERS = {
   "privacy_request.rejected": ["notifications.dispatch"],
   "privacy_request.completed": ["notifications.dispatch"],
   "privacy_request.overdue_digest": ["notifications.dispatch"],
+  // The export and erasure jobs, in the worker (#115b). Each is safe to
+  // repeat: a finished export or erasure is left alone.
+  "privacy_request.export_requested": ["privacy.build_export"],
+  "privacy_request.export_expired": ["privacy.expire_export"],
+  "privacy_request.erasure_approved": ["privacy.execute_erasure"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
   // guardians' go by route row (#80).

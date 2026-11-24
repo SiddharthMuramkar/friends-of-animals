@@ -598,6 +598,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "rubric_id",
     "weight",
   ],
+  erasure_record: [
+    "categories",
+    "erased_at",
+    "id",
+    "outcome",
+    "request_id",
+    "retained_until",
+    "subject_kind",
+  ],
   privacy_overdue_digest: ["day", "overdue", "sent_at"],
   privacy_request: [
     "closed_at",

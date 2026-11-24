@@ -179,6 +179,24 @@ export async function listMyPrivacyRequests(
   return rows.map((row) => itemOf(row, userId, children, names));
 }
 
+/** Whose data the user may file about: themselves, and these children. */
+export async function listPrivacyRequestSubjects(
+  ctx: UseCaseContext
+): Promise<{ children: { id: string; name: string }[] }> {
+  await authorize(
+    ctx,
+    "privacy_request.view_own",
+    ctx.actor.kind === "user" ? ME_ONLY(ctx.actor.userId) : {}
+  );
+  const children = await guardedChildren(ctx.db, signedInUserId(ctx));
+  return {
+    children: children.map((child) => ({
+      id: child.profileId,
+      name: child.name,
+    })),
+  };
+}
+
 /** The request, if `userId` may read it; refused as forbidden otherwise. */
 async function readableRequest(
   ctx: UseCaseContext,
