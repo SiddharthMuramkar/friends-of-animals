@@ -463,12 +463,10 @@ describe("executeErasure", () => {
 
     // Approved again, then switched off before the worker runs.
     const again = await previewOf(h, filed.officer, filed.requestId);
-    await h
-      .as(filed.officer.actor)
-      .executeErasure({
-        id: filed.requestId,
-        fingerprint: again.plan.fingerprint,
-      });
+    await h.as(filed.officer.actor).executeErasure({
+      id: filed.requestId,
+      fingerprint: again.plan.fingerprint,
+    });
     await h.settings.set("privacy.erasureEnabled", false);
     await h.drain();
     expect((await requestRows(h))[0]).toMatchObject({
