@@ -86,8 +86,8 @@ test("searches from the browser's location, the same as from its pin code", asyn
 }) => {
   const violations = await recordCspViolations(page);
   await page.goto("/ngos?pin=411018&radius=10");
+  await expect(card(page, RESCUER)).toBeVisible();
   const byPin = await results(page).allInnerTexts();
-  expect(byPin.join("\n")).toContain(RESCUER);
 
   // Pimpri's pin-code centre, to more places than the search keeps.
   await context.grantPermissions(["geolocation"]);
