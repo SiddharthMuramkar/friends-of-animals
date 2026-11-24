@@ -40,8 +40,10 @@ drawings apart because they promise different things:
     and keep it.
 - **What an Illustration may show.**
   - No children, people, faces or hands.
-  - No Entry, and nothing that could pass for a child's drawing. The gallery
-    frames stay empty until real, consented Entries exist (owner decision 1).
+  - The home gallery can show professional, individually labelled AI
+    illustrations as prompts for competition activities. These prompts
+    cannot be presented as Entries or imitate a child's drawing.
+    FOA shows children's Entries only with permission.
   - No real place, no baked-in text, and never the FOA logo or its tiles.
   - Only behaviour the site's own copy recommends, such as water bowls. Never
     feeding or handling street animals, and no distressed animal.

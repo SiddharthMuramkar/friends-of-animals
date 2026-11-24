@@ -37,11 +37,16 @@ describe("SEASONAL_MONTHS", () => {
 
   it("gives a month a photo or an illustration, never both", () => {
     const drawn = SEASONAL_MONTHS.find((m) => m.artId);
-    const photo = SEASONAL_MONTHS.find((m) => m.imageId);
-    expect(drawn && photo).toBeTruthy();
+    expect(drawn).toBeDefined();
     expect(seasonalMonthSchema.safeParse(drawn).success).toBe(true);
-    const both = { ...drawn, imageId: photo!.imageId };
+    const photo = { ...drawn, artId: undefined, imageId: "se-kites-uttarayan" };
+    expect(seasonalMonthSchema.safeParse(photo).success).toBe(true);
+    const both = { ...drawn, imageId: photo.imageId };
     expect(seasonalMonthSchema.safeParse(both).success).toBe(false);
+  });
+
+  it("illustrates every month for the calendar", () => {
+    for (const m of SEASONAL_MONTHS) expect(m.artId, m.slug).toBeDefined();
   });
 
   it("gives every month 2 to 4 actions and known sources", () => {
