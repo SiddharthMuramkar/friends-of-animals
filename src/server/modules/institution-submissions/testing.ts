@@ -44,8 +44,10 @@ export async function confirmedSchool(
     ...(code ? { code } : {}),
     ...(name ? { name } : {}),
   });
-  const paid = await school.pay();
-  if (!paid.ok) throw new Error(`Could not confirm: ${JSON.stringify(paid)}`);
+  if (students > 0) {
+    const paid = await school.pay();
+    if (!paid.ok) throw new Error(`Could not confirm: ${JSON.stringify(paid)}`);
+  }
   const unconfirmedIds: string[] = [];
   for (let n = 1; n <= unconfirmed; n++) {
     unconfirmedIds.push(await enrol(h, school, students + n));

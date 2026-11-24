@@ -42,3 +42,4 @@ export * from "./announcements";
 export * from "./contact";
 export * from "./public-forms";
 export * from "./privacy";
+export * from "./conduct-certification";
