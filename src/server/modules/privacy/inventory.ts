@@ -122,6 +122,15 @@ const WHILE_INSTITUTION_TAKES_PART = {
   toConfirm: true,
 } as const;
 
+/** A directory listing (#127): an organisation's, or an individual's own. */
+const WHILE_LISTED = {
+  policy: "directoryListings",
+  periodKey: "directoryListings",
+  basis:
+    "FOA shows people where to find help for an animal, and answers for what it verified and published",
+  toConfirm: true,
+} as const;
+
 const AFTER_INVITATION_CLOSES = {
   policy: "coordinatorInvitations",
   periodKey: "coordinatorInvitations",
@@ -471,6 +480,12 @@ const verification = rowsOf("verification", {
 const institution = rowsOf("institution", {
   subject: { kind: "institution", via: "id" },
   retention: WHILE_INSTITUTION_TAKES_PART,
+  onExpiry: "delete_row",
+});
+
+const listing = rowsOf("directory_listing", {
+  subject: { kind: "directory_listing", via: "id" },
+  retention: WHILE_LISTED,
   onExpiry: "delete_row",
 });
 
@@ -833,6 +848,25 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     subject: { kind: "user", via: "verified_by" },
     onExpiry: "set_null",
   }),
+  // NGO directory listings (#127): an individual rescuer's or foster
+  // caregiver's listing is about them, so its details are personal data.
+  listing("slug", "identity"),
+  listing("name", "identity"),
+  listing("description", "content"),
+  listing("address_ciphertext", "contact"),
+  listing("city", "contact"),
+  listing("state", "contact"),
+  listing("pin_code", "contact"),
+  listing("contact_phone_ciphertext", "contact"),
+  listing("contact_email_ciphertext", "contact"),
+  listing("website", "contact"),
+  listing("public_contact_fields", "preference"),
+  listing("status_reason", "content"),
+  listing("owner_user_id", "identity", {
+    subject: { kind: "user", via: "owner_user_id" },
+    onExpiry: "retain",
+  }),
+  actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
   // Coordinator invitations (#74)
   coordinatorInvitation("identifier_ciphertext", "contact"),
   coordinatorInvitation("identifier_hash", "technical"),
