@@ -609,6 +609,21 @@ certificate or an identity proof. It is a File only Staff can open, not even
 the person who uploaded it.
 _Avoid_: Attachment, KYC document
 
+## Adoption
+
+**Adoption listing**:
+One animal a Directory listing offers for adoption: who it is, its health
+and vaccination notes, the adoption conditions and where it is. It stays a
+private draft until a representative publishes it with a photo, and it is
+public only while its Directory listing is verified. FOA facilitates; the
+listing organisation is responsible for the animal.
+_Avoid_: Pet listing, animal profile, adoption post
+
+**Adoptable animal**:
+What the public sees of a published Adoption listing on /adopt and its own
+page.
+_Avoid_: Pet, available animal
+
 ## Engineering
 
 **Seed builder**:
