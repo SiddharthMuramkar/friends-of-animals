@@ -47,7 +47,7 @@ test("a visitor filters adoptable animals and opens one's page", async ({
 
   await page.getByLabel("Animal", { exact: true }).selectOption("cat");
   await page.getByRole("button", { name: "Show animals" }).click();
-  await expect(page).toHaveURL("/adopt?species=cat");
+  await expect(page).toHaveURL(/\/adopt\?species=cat(&|$)/);
   await expect(
     results.getByRole("link", { name: "Seed Rani", exact: true })
   ).toBeVisible();

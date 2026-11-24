@@ -25,8 +25,9 @@ import { indianStateName } from "@/server/modules/adoption/domain/details";
 import { ADOPTION_PHOTO_LIMITS } from "@/server/modules/adoption/domain/photos";
 
 import { NotYours, unlessForbidden } from "../_components/forbidden";
-import { PHOTO_UPLOAD_ERRORS, PhotoUpload } from "../_components/photo-upload";
+import { PhotoUpload } from "../_components/photo-upload";
 import { changePhotoAction, moveAnimalAction } from "../_lib/actions";
+import { PHOTO_UPLOAD_ERRORS } from "../_lib/photo-upload-errors";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adoption.manage.animal.meta");
