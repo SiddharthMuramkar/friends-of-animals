@@ -5,9 +5,11 @@
       "description": "The personal-data fields FOA keeps and their purposes and retention periods."
     },
     "title": "Data inventory",
-    "lead": "Find each personal-data field by its database table. Retention periods are pending confirmation with counsel.",
+    "lead": "Review how long FOA keeps personal data, the legal holds in force, and each personal-data field by its database table. Retention periods are pending confirmation with counsel.",
     "loading": "Loading the data inventory…",
     "inventory": {
+      "title": "Personal data fields",
+      "lead": "Every column of personal data, with why FOA keeps it and for how long by default.",
       "columns": "{count, plural, one {# column} other {# columns}}",
       "purpose": "Purpose",
       "kind": "Category",
@@ -28,7 +30,8 @@
         "recipient": "Recipient",
         "safeguarding_report": "Person in the safeguarding report",
         "user": "Account holder",
-        "visitor": "Visitor"
+        "visitor": "Visitor",
+        "held_subject": "Account, participant or institution under the hold"
       },
       "kept": "Default retention",
       "categories": {
@@ -87,7 +90,8 @@
         "entryMedia": "Until 90 days after the competition ends",
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
-        "announcements": "While the competition's records are kept"
+        "announcements": "While the competition's records are kept",
+        "releasedLegalHolds": "While the hold is in force, then 365 days after it is released"
       },
       "purposes": {
         "account": {
@@ -428,7 +432,235 @@
           "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
           "created_by": "Records which competition manager wrote the announcement",
           "sent_by": "Records which competition manager sent the announcement"
+        },
+        "legal_hold": {
+          "subject_id": "Names the account, participant or institution whose records are held",
+          "reason": "Why FOA must keep the records, in the super admin's words (a claim, an inquiry)",
+          "placed_by_user_id": "Records which super admin placed the hold",
+          "released_by_user_id": "Records which super admin released the hold"
         }
+      }
+    },
+    "status": {
+      "enforcedTitle": "The daily run removes expired records",
+      "enforced": "At 02:15 IST it deletes or anonymises expired records outside a legal hold and writes the counts in the audit log.",
+      "countingTitle": "The daily run only counts",
+      "counting": "It records in the audit log how many records it would remove, and removes none. A super admin turns on “Delete expired records” in the settings once FOA's counsel has confirmed the periods.",
+      "settingsLink": "Change the periods in the settings"
+    },
+    "policies": {
+      "title": "Retention policies",
+      "lead": "FOA's counsel still needs to confirm these periods.",
+      "caption": "Retention policies, with what they keep and how long",
+      "policy": "Policy",
+      "rule": "How long",
+      "enforcedBy": "Removed by",
+      "daily": "The daily run",
+      "lifecycle": "Its record or account",
+      "floor": "A legal floor applies: no setting can shorten it.",
+      "items": {
+        "expiredVerifications": {
+          "name": "Expired sign-in codes",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after the code or link expires."
+        },
+        "expiredSessions": {
+          "name": "Expired sessions",
+          "rule": "Deleted, with the network address and browser they recorded, {days, plural, one {# day} other {# days}} after the session expires."
+        },
+        "capturedMessages": {
+          "name": "Captured test messages",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after capture. Only local runs and previews capture messages."
+        },
+        "messageDeliveries": {
+          "name": "Message log",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after the message was queued."
+        },
+        "readInboxItems": {
+          "name": "Read in-app messages",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after the person reads them. Unread ones stay while the account is open."
+        },
+        "quarantinedFiles": {
+          "name": "Quarantined files",
+          "rule": "The upload and its stored object are deleted {days, plural, one {# day} other {# days}} after quarantine. A payment's proof stays with its payment record."
+        },
+        "dispatchedOutbox": {
+          "name": "Finished background jobs",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after the job ran. A failed job stays until staff resolve it."
+        },
+        "coordinatorInvitationLinks": {
+          "name": "Expired coordinator invitation links",
+          "rule": "The link is cleared on acceptance or withdrawal, or {days, plural, one {# day} other {# days}} after an unanswered invitation expires."
+        },
+        "guardianInvitationLinks": {
+          "name": "Expired guardian invitation links",
+          "rule": "The link is cleared on acceptance or withdrawal, or {days, plural, one {# day} other {# days}} after an unanswered invitation expires."
+        },
+        "coordinatorInvitations": {
+          "name": "Closed coordinator invitations",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after the invitation is accepted, withdrawn or expires."
+        },
+        "guardianInvitations": {
+          "name": "Closed guardian invitations and requests",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after the invitation or request is accepted, withdrawn or expires."
+        },
+        "orphanedProfiles": {
+          "name": "Profiles left without an account",
+          "rule": "Deleted at the next run once the owner's account is gone, if the person never entered a competition."
+        },
+        "contactMessages": {
+          "name": "Contact messages",
+          "rule": "Kept while the message is open. The message and its staff notes are deleted {months, plural, one {# month} other {# months}} after it closes."
+        },
+        "safeguardingReports": {
+          "name": "Safeguarding reports",
+          "rule": "Deleted, with their incident log, 7 years after they are resolved or when the child turns 25, whichever is later."
+        },
+        "financialRecords": {
+          "name": "Payment records",
+          "rule": "The payer's details are removed {days, plural, one {# day} other {# days}} after the payment's last activity, and never before 8 years after the end of its financial year."
+        },
+        "releasedLegalHolds": {
+          "name": "Released legal holds",
+          "rule": "Kept while the hold is in force, then deleted {days, plural, one {# day} other {# days}} after it is released."
+        },
+        "accounts": {
+          "name": "Accounts",
+          "rule": "Deleted with the person's account."
+        },
+        "institutions": {
+          "name": "Institutions",
+          "rule": "Kept while the institution takes part, then 3 years after its last competition. No daily job yet."
+        },
+        "posts": {
+          "name": "Blog posts and stories",
+          "rule": "Deleted with the post."
+        },
+        "registrations": {
+          "name": "Institution registrations",
+          "rule": "Kept while the institution takes part, then 3 years after the competition ends. No daily job yet."
+        },
+        "participants": {
+          "name": "Participants",
+          "rule": "Kept until 3 years after the participant's last competition. No daily job yet."
+        },
+        "guardians": {
+          "name": "Guardians",
+          "rule": "Kept while a linked child's profile exists, then 1 year. A guardian with no child is deleted with their account."
+        },
+        "staffRecords": {
+          "name": "Who on staff did what",
+          "rule": "Kept with the record, and cleared when the staff member's account is deleted."
+        },
+        "auditLog": {
+          "name": "Audit log",
+          "rule": "Kept in the append-only audit log. Only the database owner can remove entries."
+        },
+        "consentRecords": {
+          "name": "Consent records",
+          "rule": "Kept as the proof of each consent given or withdrawn."
+        },
+        "files": {
+          "name": "Uploaded files",
+          "rule": "Kept as long as the record the file belongs to, such as an entry, proof or post. Flagged uploads follow the quarantine policy."
+        },
+        "paymentProofs": {
+          "name": "Payment proofs",
+          "rule": "Kept with the payment record, including a proof the scanner quarantined."
+        },
+        "rateLimitWindows": {
+          "name": "Rate limits",
+          "rule": "Removed by the next request once the window ends, within a day."
+        },
+        "cmsRevisionAuthorship": {
+          "name": "Who wrote each post revision",
+          "rule": "Kept with the revision, including after the staff account is deleted."
+        },
+        "cmsRevisionContent": {
+          "name": "Post revisions",
+          "rule": "Kept with the revision. Published revisions are immutable."
+        },
+        "consentDocumentAuthorship": {
+          "name": "Who published each consent version",
+          "rule": "Kept with the published consent version, including after the staff account is deleted."
+        },
+        "consentDocumentContent": {
+          "name": "Consent versions",
+          "rule": "Kept with the published consent version, which is immutable."
+        },
+        "signedConsentForms": {
+          "name": "Signed consent forms",
+          "rule": "While the consent applies, then 3 years. For forms that did not grant consent, 3 years after closure. No daily job yet."
+        },
+        "consentLinkContacts": {
+          "name": "Consent link contacts",
+          "rule": "90 days after the link is answered, revoked or expires. No daily job yet."
+        },
+        "consentLinkSecrets": {
+          "name": "Consent link codes",
+          "rule": "Until the link is used, revoked or expires. Cleared by the consent module."
+        },
+        "ledgerCategories": {
+          "name": "Ledger categories",
+          "rule": "Kept with the ledger category, including after it is deactivated."
+        },
+        "entries": {
+          "name": "Competition entries",
+          "rule": "3 years after the competition ends. No daily job yet."
+        },
+        "entryMedia": {
+          "name": "Entry images",
+          "rule": "Until 90 days after the competition ends. No daily job yet."
+        },
+        "entryUploadGrants": {
+          "name": "Entry upload grants",
+          "rule": "Until the upload URL expires after 10 minutes and cleanup runs."
+        },
+        "entryPendingText": {
+          "name": "Pending entry text",
+          "rule": "Until the replacement passes, fails or is superseded."
+        },
+        "announcements": {
+          "name": "Announcements",
+          "rule": "While the competition's records are kept. No daily job yet."
+        }
+      }
+    },
+    "holds": {
+      "pages": "Legal hold pages",
+      "firstPage": "First page of holds",
+      "nextPage": "Next page of holds",
+      "title": "Legal holds in force",
+      "lead": "While a hold is in force, the daily run keeps every record about that account, participant or institution.",
+      "none": "No holds are in force.",
+      "subject": "{type, select, user {Account} participant_profile {Participant} other {Institution}} {id}",
+      "reason": "Reason",
+      "placed": "Placed",
+      "placedBy": "{date}, by {name}",
+      "placedOn": "{date}",
+      "form": {
+        "title": "Place a legal hold",
+        "type": "Subject type",
+        "chooseType": "Choose a subject type",
+        "types": {
+          "user": "Account",
+          "participant_profile": "Participant",
+          "institution": "Institution"
+        },
+        "id": "Subject ID",
+        "idHint": "Enter the UUID of the account, participant profile or institution.",
+        "reasonHint": "Keep this brief. The reason is visible to staff admins.",
+        "place": "Place hold",
+        "placing": "Placing hold…",
+        "release": "Release hold",
+        "releasing": "Releasing hold…",
+        "placed": "The hold is in force.",
+        "released": "The hold was released.",
+        "invalid_input": "Check the subject type, UUID and reason before submitting.",
+        "subject_not_found": "No subject of that type has this ID.",
+        "already_held": "A hold is already in force for this subject.",
+        "not_found": "This hold could not be found.",
+        "already_released": "This hold has already been released.",
+        "forbidden": "Only a super admin can place or release a legal hold."
       }
     }
   }

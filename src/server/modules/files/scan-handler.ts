@@ -49,7 +49,7 @@ import {
   sniffContentType,
   type SniffedContentType,
 } from "./domain/sniff";
-import { quarantineKeyFor, storagePrefixOf } from "./domain/storage-key";
+import { quarantineKeyOf } from "./domain/storage-key";
 
 export type ScanDeps = {
   db: AppDb;
@@ -88,7 +88,7 @@ export async function scanUploadedFile(
   if (!current) return;
   if (current.status === "quarantined" || current.status === "rejected") {
     // Settled by an earlier attempt whose storage step may not have finished.
-    await finishStorage(deps, current);
+    await finishStorage(deps, fileId);
     return;
   }
   const file = await startScan(deps, current);
@@ -265,7 +265,7 @@ async function settle(
   });
   // Someone else settled it first; their attempt does the storage step.
   if (!settled) return;
-  await finishStorage(deps, { ...file, status });
+  await finishStorage(deps, file.id);
 }
 
 /**
@@ -275,38 +275,37 @@ async function settle(
  */
 async function finishStorage(
   { db, clock, storage }: ScanDeps,
-  file: FileAssetRow
+  fileId: string
 ): Promise<void> {
-  if (file.status === "rejected") {
-    await storage.delete({ bucket: file.bucket, key: file.storageKey });
-    return;
-  }
-  const to = quarantineKeyOf(file);
-  if (file.storageKey === to) return;
-  try {
-    await storage.move({ bucket: file.bucket, from: file.storageKey, to });
-  } catch (error) {
-    // An earlier attempt may have moved it and failed before the row
-    // followed: then the object is already where it belongs.
-    const alreadyMoved =
-      error instanceof ObjectMissingError &&
-      (await storage.head({ bucket: file.bucket, key: to })) !== null;
-    if (!alreadyMoved) throw error;
-  }
-  await db
-    .update(fileAsset)
-    .set({ storageKey: to, updatedAt: clock.now() })
-    .where(
-      and(
-        eq(fileAsset.id, file.id),
-        eq(fileAsset.status, "quarantined"),
-        eq(fileAsset.storageKey, file.storageKey)
-      )
-    );
-}
-
-function quarantineKeyOf(file: FileAssetRow): string {
-  return quarantineKeyFor({ prefix: storagePrefixOf(file), fileId: file.id });
+  await db.transaction(async (tx) => {
+    // The quarantine purge takes the same lock before deleting an object.
+    const [file] = await tx
+      .select()
+      .from(fileAsset)
+      .where(eq(fileAsset.id, fileId))
+      .for("update");
+    if (file?.status === "rejected") {
+      await storage.delete({ bucket: file.bucket, key: file.storageKey });
+      return;
+    }
+    if (file?.status !== "quarantined" || file.quarantinePurgePending) return;
+    const to = quarantineKeyOf(file);
+    if (file.storageKey === to) return;
+    try {
+      await storage.move({ bucket: file.bucket, from: file.storageKey, to });
+    } catch (error) {
+      // An earlier attempt may have moved it and failed before the row
+      // followed: then the object is already where it belongs.
+      const alreadyMoved =
+        error instanceof ObjectMissingError &&
+        (await storage.head({ bucket: file.bucket, key: to })) !== null;
+      if (!alreadyMoved) throw error;
+    }
+    await tx
+      .update(fileAsset)
+      .set({ storageKey: to, updatedAt: clock.now() })
+      .where(eq(fileAsset.id, fileId));
+  });
 }
 
 /** Writes the verdict if the file is still as read; false if it wasn't. */

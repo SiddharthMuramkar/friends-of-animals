@@ -34,6 +34,7 @@ import { seedRefunds } from "./refunds";
 import { seedParticipants } from "./participants";
 import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
+import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
@@ -58,6 +59,7 @@ const seeders: readonly Seeder[] = [
   seedSettings,
   seedSafeguarding,
   seedInstitutions,
+  seedPrivacy,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
   // After the institutions and competitions seeds: it needs both.

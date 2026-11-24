@@ -40,3 +40,4 @@ export * from "./posts";
 export * from "./announcements";
 export * from "./contact";
 export * from "./public-forms";
+export * from "./privacy";

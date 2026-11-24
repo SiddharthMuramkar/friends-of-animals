@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { E164Phone } from "@/lib/phone";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
+import { createHarness } from "@/test/harness";
 
 import { readCapturedEmail } from "./email-capture";
 import { captureSmsSender, readCapturedSms } from "./sms-capture";
@@ -57,9 +58,11 @@ describe("captureSmsSender", () => {
     ).toEqual([]);
   });
 
-  it("drops captured messages more than seven days old", async () => {
-    const db = await createTestDb();
-    const clock = new FakeClock();
+  it("drops older captures through the sweep when retention is set to seven days", async () => {
+    const h = await createHarness();
+    const { db, clock } = h;
+    await h.settings.set("retention.enforce", true);
+    await h.settings.set("retention.capturedMessagesDays", 7);
     const sender = captureSmsSender({ db, clock });
 
     await sender.send({ ...message, text: "first" });
@@ -68,6 +71,7 @@ describe("captureSmsSender", () => {
 
     const kept = await readCapturedSms({ db, clock }, { to: ASHA });
     expect(kept.map((received) => received.text)).toEqual(["a week on"]);
+    await h.as({ kind: "system", process: "worker" }).runRetentionSweep();
     const { rows } = await db.$client.query<{ kept: number }>(
       "select count(*)::int as kept from captured_message"
     );

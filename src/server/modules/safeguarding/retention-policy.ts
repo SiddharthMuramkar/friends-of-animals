@@ -5,12 +5,9 @@
 // with that period, in the platform's data inventory
 // (src/server/modules/privacy/inventory.ts).
 //
-// #114's policy registry and sweep aren't on main yet: it registers
-// SAFEGUARDING_RETENTION_POLICY when it lands.
-//
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, gt, lte } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import { safeguardingReport } from "../../db/schema";
@@ -23,18 +20,17 @@ import {
 export const SAFEGUARDING_RETENTION_POLICY = {
   key: "safeguardingReports",
   action: "delete",
-  candidates: safeguardingRetentionCandidates,
+  candidates: safeguardingRetentionPage,
 } as const;
 
 /**
- * Resolved reports whose retention date (./domain/retention.ts) has
- * passed at `now`, by id. Open reports are never picked. Deleting one
- * takes its incident log with it (ON DELETE CASCADE).
+ * Scan resolved reports in id order, locking each report before computing
+ * its retention date. The cursor includes reports the child's age protects.
  */
-export async function safeguardingRetentionCandidates(
+export async function safeguardingRetentionPage(
   db: AppDb,
-  now: Date
-): Promise<string[]> {
+  { now, after, limit }: { now: Date; after: string | null; limit: number }
+) {
   // No report can go before 7 years after its resolution; check the
   // child's age rule only on those.
   const resolvedBefore = new Date(now.getTime());
@@ -44,6 +40,7 @@ export async function safeguardingRetentionCandidates(
   const rows = await db
     .select({
       id: safeguardingReport.id,
+      assignee: safeguardingReport.assignedToUserId,
       reportedAt: safeguardingReport.createdAt,
       resolvedAt: safeguardingReport.resolvedAt,
       subjectAge: safeguardingReport.subjectAge,
@@ -52,14 +49,21 @@ export async function safeguardingRetentionCandidates(
     .where(
       and(
         eq(safeguardingReport.status, "resolved"),
-        lte(safeguardingReport.resolvedAt, resolvedBefore)
+        lte(safeguardingReport.resolvedAt, resolvedBefore),
+        after === null ? undefined : gt(safeguardingReport.id, after)
       )
     )
-    .orderBy(asc(safeguardingReport.id));
-  return rows
-    .filter((row) => {
-      const until = reportRetainedUntil(row);
-      return until !== null && until <= now;
-    })
-    .map((row) => row.id);
+    .orderBy(asc(safeguardingReport.id))
+    .limit(limit)
+    .for("update");
+  const reports = rows.flatMap((row) => {
+    const anchor = reportRetainedUntil(row);
+    return anchor !== null && anchor <= now
+      ? [{ id: row.id, assignee: row.assignee, anchor }]
+      : [];
+  });
+  return {
+    reports,
+    next: rows.length === limit ? (rows.at(-1)?.id ?? null) : null,
+  };
 }

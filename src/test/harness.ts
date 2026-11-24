@@ -165,9 +165,9 @@ export const TEST_FILES = {
 export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
 
 export async function createHarness(
-  options: { now?: Date | string; appEnv?: Deps["appEnv"] } = {}
+  options: { now?: Date | string; appEnv?: Deps["appEnv"]; db?: TestDb } = {}
 ): Promise<Harness> {
-  const db = await createTestDb();
+  const db = options.db ?? (await createTestDb());
   // Close the database when the test ends. Left open, Postgres's timers,
   // set by the faked Date, sit weeks ahead once Date is real again, and
   // Node prints TimeoutOverflowWarning for each. (So call createHarness()

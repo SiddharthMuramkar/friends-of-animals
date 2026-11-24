@@ -1,25 +1,19 @@
 // The capture adapter for the SMS port: every environment except
 // production stores each text in the capture mailbox (channel "sms")
 // instead of sending it, so no real SMS leaves staging, previews or a local
-// run, and staff and the Seam 2 journeys can read sign-in codes. Messages
-// are kept as long as emails (CAPTURE_RETENTION_MS).
+// run, and staff and the Seam 2 journeys can read sign-in codes.
 //
 // Loads under plain Node (seed script), so no "server-only" here.
 
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 
 import type { E164Phone } from "../../lib/phone";
 import type { DbWithClock } from "../db/app-db";
 import { capturedMessage } from "../db/schema";
 import { sqlState } from "../errors";
 import { monotonicUuidv7 } from "../ids";
-import { CAPTURE_RETENTION_MS, CaptureFailedError } from "./email-capture";
+import { captureMailboxSince, CaptureFailedError } from "./email-capture";
 import type { ReceivedSms, SmsSender } from "./sms";
-
-/** Messages captured at or after this instant are still kept. */
-function keptSince(now: Date): Date {
-  return new Date(now.getTime() - CAPTURE_RETENTION_MS);
-}
 
 export function captureSmsSender({ db, clock }: DbWithClock): SmsSender {
   // Messages sent in the same millisecond get ids in send order, which
@@ -29,9 +23,6 @@ export function captureSmsSender({ db, clock }: DbWithClock): SmsSender {
     async send(message) {
       const now = clock.now();
       try {
-        await db
-          .delete(capturedMessage)
-          .where(lt(capturedMessage.createdAt, keptSince(now)));
         await db.insert(capturedMessage).values({
           id: nextId(now),
           channel: "sms",
@@ -65,7 +56,7 @@ export async function readCapturedSms(
         and(
           eq(capturedMessage.channel, "sms"),
           eq(capturedMessage.toAddress, to),
-          gte(capturedMessage.createdAt, keptSince(clock.now()))
+          gte(capturedMessage.createdAt, captureMailboxSince(clock.now()))
         )
       )
       .orderBy(desc(capturedMessage.createdAt), desc(capturedMessage.id))

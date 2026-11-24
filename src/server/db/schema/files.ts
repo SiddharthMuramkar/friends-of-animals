@@ -9,6 +9,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
   index,
   pgEnum,
@@ -50,6 +51,10 @@ export const fileAsset = pgTable(
     /** `<prefix><purpose>/<id>`, or under quarantine/ once flagged. */
     storageKey: text("storage_key").notNull().unique(),
     status: fileAssetStatus().notNull().default("pending_upload"),
+    /** Recorded before a retention sweep starts removing the objects. */
+    quarantinePurgePending: boolean("quarantine_purge_pending")
+      .notNull()
+      .default(false),
     /** Hex SHA-256 of the bytes, recorded by the scan. */
     sha256: text(),
     /** What the scanner said: "OK", or the signature it found. */
@@ -62,6 +67,10 @@ export const fileAsset = pgTable(
   },
   (table) => [
     check("file_asset_size_bytes_positive", sql`${table.sizeBytes} > 0`),
+    check(
+      "file_asset_quarantine_purge_status",
+      sql`NOT ${table.quarantinePurgePending} OR ${table.status} = 'quarantined'`
+    ),
     index("file_asset_owner_created_idx").on(
       table.ownerUserId,
       table.createdAt.desc()
