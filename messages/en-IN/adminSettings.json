@@ -132,6 +132,16 @@
           "description": "Lets finance download the ledger as a CSV journal for FOA's accountant. Keep it off until the accountant has confirmed the columns and the date rules."
         }
       },
+      "reminders": {
+        "entrySubmissionDueFirstHours": {
+          "label": "First reminder before submissions close",
+          "description": "How many hours before a competition's submission deadline the first reminder goes to everyone who still owes an entry: an adult who entered, a child's guardian, or a school's coordinators. Use 0 for no first reminder. A change applies to reminders not yet sent."
+        },
+        "entrySubmissionDueSecondHours": {
+          "label": "Second reminder before submissions close",
+          "description": "How many hours before the submission deadline the second reminder goes, to whoever still owes an entry then. Use 0 for no second reminder."
+        }
+      },
       "retention": {
         "enforce": {
           "label": "Delete expired records",

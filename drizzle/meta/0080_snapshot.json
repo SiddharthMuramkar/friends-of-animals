@@ -1,6 +1,6 @@
 {
-  "id": "62b5c1b8-74cb-45c1-93f3-8bf5b6d2dda9",
-  "prevId": "e6ab8154-a0f8-4f32-bc54-dfe7aa43c1a1",
+  "id": "bfcbc7da-a053-42dc-a266-391b731c7846",
+  "prevId": "78faa2eb-0526-45c4-80a2-1fe0d361f2f7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2169,224 +2169,6 @@
         "ledger_posting_minimum_line_count": {
           "name": "ledger_posting_minimum_line_count",
           "value": "\"ledger_posting\".\"expected_line_count\" >= 2"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.finance_approval": {
-      "name": "finance_approval",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "operation": {
-          "name": "operation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "finance_approval_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "requested_by_user_id": {
-          "name": "requested_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_at": {
-          "name": "requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decided_by_user_id": {
-          "name": "decided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decision_reason": {
-          "name": "decision_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "executed_posting_id": {
-          "name": "executed_posting_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "finance_approval_pending_requested_at_idx": {
-          "name": "finance_approval_pending_requested_at_idx",
-          "columns": [
-            {
-              "expression": "requested_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "where": "\"finance_approval\".\"status\" = 'pending'",
-          "concurrently": false
-        },
-        "finance_approval_executed_posting_id_idx": {
-          "name": "finance_approval_executed_posting_id_idx",
-          "columns": [
-            {
-              "expression": "executed_posting_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "finance_approval_operation_format": {
-          "name": "finance_approval_operation_format",
-          "value": "\"finance_approval\".\"operation\" ~ '^[a-z][a-z_]{0,39}$'"
-        },
-        "finance_approval_expires_after_request": {
-          "name": "finance_approval_expires_after_request",
-          "value": "\"finance_approval\".\"expires_at\" > \"finance_approval\".\"requested_at\""
-        },
-        "finance_approval_decision_matches_status": {
-          "name": "finance_approval_decision_matches_status",
-          "value": "CASE \"finance_approval\".\"status\"\n        WHEN 'pending' THEN \"finance_approval\".\"decided_at\" IS NULL AND \"finance_approval\".\"decided_by_user_id\" IS NULL\n        WHEN 'approved' THEN \"finance_approval\".\"decided_at\" IS NOT NULL AND \"finance_approval\".\"decided_by_user_id\" IS NOT NULL AND \"finance_approval\".\"decided_by_user_id\" <> \"finance_approval\".\"requested_by_user_id\"\n        WHEN 'rejected' THEN \"finance_approval\".\"decided_at\" IS NOT NULL AND \"finance_approval\".\"decided_by_user_id\" IS NOT NULL AND \"finance_approval\".\"decided_by_user_id\" <> \"finance_approval\".\"requested_by_user_id\"\n        WHEN 'cancelled' THEN \"finance_approval\".\"decided_at\" IS NOT NULL AND \"finance_approval\".\"decided_by_user_id\" = \"finance_approval\".\"requested_by_user_id\"\n        WHEN 'expired' THEN \"finance_approval\".\"decided_at\" IS NOT NULL AND \"finance_approval\".\"decided_by_user_id\" IS NULL\n      END"
-        },
-        "finance_approval_reason_only_when_rejected": {
-          "name": "finance_approval_reason_only_when_rejected",
-          "value": "(\"finance_approval\".\"status\" = 'rejected') = (\"finance_approval\".\"decision_reason\" IS NOT NULL AND btrim(\"finance_approval\".\"decision_reason\") <> '')"
-        },
-        "finance_approval_reason_length": {
-          "name": "finance_approval_reason_length",
-          "value": "char_length(\"finance_approval\".\"decision_reason\") <= 500"
-        },
-        "finance_approval_posting_only_when_approved": {
-          "name": "finance_approval_posting_only_when_approved",
-          "value": "\"finance_approval\".\"executed_posting_id\" IS NULL OR \"finance_approval\".\"status\" = 'approved'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.ledger_period": {
-      "name": "ledger_period",
-      "schema": "",
-      "columns": {
-        "month": {
-          "name": "month",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "ledger_period_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "locked_at": {
-          "name": "locked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "locked_by_user_id": {
-          "name": "locked_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_unlocked_at": {
-          "name": "last_unlocked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_unlocked_by_user_id": {
-          "name": "last_unlocked_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_unlock_reason": {
-          "name": "last_unlock_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "ledger_period_month_format": {
-          "name": "ledger_period_month_format",
-          "value": "\"ledger_period\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        },
-        "ledger_period_locked_fields_match_status": {
-          "name": "ledger_period_locked_fields_match_status",
-          "value": "(\"ledger_period\".\"status\" = 'locked') = (\"ledger_period\".\"locked_at\" IS NOT NULL AND \"ledger_period\".\"locked_by_user_id\" IS NOT NULL)"
-        },
-        "ledger_period_unlock_fields_together": {
-          "name": "ledger_period_unlock_fields_together",
-          "value": "(\"ledger_period\".\"last_unlocked_at\" IS NULL) = (\"ledger_period\".\"last_unlocked_by_user_id\" IS NULL) AND (\"ledger_period\".\"last_unlocked_at\" IS NULL) = (\"ledger_period\".\"last_unlock_reason\" IS NULL)"
-        },
-        "ledger_period_unlock_reason_length": {
-          "name": "ledger_period_unlock_reason_length",
-          "value": "char_length(\"ledger_period\".\"last_unlock_reason\") BETWEEN 1 AND 500"
         }
       },
       "isRLSEnabled": false
@@ -11946,6 +11728,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.reminder_job": {
+      "name": "reminder_job",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reminder_name": {
+          "name": "reminder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_hours": {
+          "name": "offset_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deadline_at": {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fire_at": {
+          "name": "fire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reminder_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reminder_job_planned_once": {
+          "name": "reminder_job_planned_once",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "offset_hours",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deadline_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"reminder_job\".\"status\" IN ('scheduled', 'fired')",
+          "concurrently": false
+        },
+        "reminder_job_subject_idx": {
+          "name": "reminder_job_subject_idx",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reminder_job_name_format": {
+          "name": "reminder_job_name_format",
+          "value": "\"reminder_job\".\"reminder_name\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "reminder_job_offset_hours": {
+          "name": "reminder_job_offset_hours",
+          "value": "\"reminder_job\".\"offset_hours\" BETWEEN 1 AND 720"
+        },
+        "reminder_job_fire_at": {
+          "name": "reminder_job_fire_at",
+          "value": "\"reminder_job\".\"fire_at\" = \"reminder_job\".\"deadline_at\" - make_interval(hours => \"reminder_job\".\"offset_hours\")"
+        },
+        "reminder_job_fired_stamped": {
+          "name": "reminder_job_fired_stamped",
+          "value": "(\"reminder_job\".\"status\" = 'fired') = (\"reminder_job\".\"fired_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.legal_hold": {
       "name": "legal_hold",
       "schema": "",
@@ -12282,25 +12212,6 @@
         "equity",
         "income",
         "expense"
-      ]
-    },
-    "public.finance_approval_status": {
-      "name": "finance_approval_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "approved",
-        "rejected",
-        "cancelled",
-        "expired"
-      ]
-    },
-    "public.ledger_period_status": {
-      "name": "ledger_period_status",
-      "schema": "public",
-      "values": [
-        "open",
-        "locked"
       ]
     },
     "public.institution_invitation_channel": {
@@ -12919,6 +12830,16 @@
       "values": [
         "draft",
         "sent"
+      ]
+    },
+    "public.reminder_job_status": {
+      "name": "reminder_job_status",
+      "schema": "public",
+      "values": [
+        "scheduled",
+        "fired",
+        "cancelled",
+        "superseded"
       ]
     }
   },

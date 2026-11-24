@@ -358,6 +358,14 @@ export async function updateCompetition(
             values.keyDates
           )
         );
+        // Its reminders follow the new dates (#84); a draft has none yet.
+        if (stored.row.status !== "draft") {
+          await emit(tx, ctx.clock, {
+            type: "competition.key_dates_changed",
+            aggregate: { type: "competition", id: competitionId },
+            payload: { competitionId },
+          });
+        }
       }
       if (
         changed.includes("disciplines") &&

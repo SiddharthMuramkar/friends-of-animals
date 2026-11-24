@@ -31,6 +31,8 @@ describe("the settings seed", () => {
       { key: "org.pan", value: "" },
       { key: "org.registrationNumber", value: "" },
       { key: "org.registrationType", value: "" },
+      { key: "reminders.entrySubmissionDueFirstHours", value: 72 },
+      { key: "reminders.entrySubmissionDueSecondHours", value: 24 },
       { key: "retention.capturedMessagesDays", value: 30 },
       { key: "retention.contactMessagesMonths", value: 24 },
       { key: "retention.coordinatorInvitationLinksDays", value: 1 },

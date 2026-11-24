@@ -40,6 +40,7 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedReminders } from "./reminders";
 import { seedSettings } from "./settings";
 import type { Seeder } from "./types";
 
@@ -97,6 +98,8 @@ const seeders: readonly Seeder[] = [
   seedConsentLinks,
   // After every registration seed: the sent one's count comes from them.
   seedAnnouncements,
+  // After every competition seed: their reminders, as publishing plans them (#84).
+  seedReminders,
   seedNotifications,
   seedContact,
   seedCms,

@@ -158,6 +158,8 @@ describe("resolveAllSettings", () => {
       ["ledger.manualEntryApprovalThresholdRupees", 50_000, "default"],
       ["ledger.approvalExpiryDays", 7, "default"],
       ["ledger.accountantExport", false, "default"],
+      ["reminders.entrySubmissionDueFirstHours", 72, "default"],
+      ["reminders.entrySubmissionDueSecondHours", 24, "default"],
       ["retention.enforce", false, "default"],
       ["retention.expiredVerificationsDays", 1, "default"],
       ["retention.expiredSessionsDays", 30, "default"],
