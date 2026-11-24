@@ -147,10 +147,8 @@ export type ErasureTargets = {
 const isWithdrawable = (purpose: string): purpose is WithdrawablePurpose =>
   (WITHDRAWABLE_PURPOSES as readonly string[]).includes(purpose);
 
-async function rowsCount(
-  _db: AppDb,
-  query: Promise<{ n: number }[]>
-): Promise<number> {
+/** The `n` of a one-row count query. */
+async function rowsCount(query: Promise<{ n: number }[]>): Promise<number> {
   const [row] = await query;
   return row?.n ?? 0;
 }
@@ -241,7 +239,6 @@ async function accountKeeper(
   }
   const evidence =
     (await rowsCount(
-      db,
       db
         .select({ n: count() })
         .from(consentForm)
@@ -250,7 +247,6 @@ async function accountKeeper(
         )
     )) +
     (await rowsCount(
-      db,
       db
         .select({ n: count() })
         .from(consentEvent)
@@ -315,7 +311,7 @@ export async function gatherErasure(
   );
 
   const consents = await givenConsents(db, live);
-  const n = (query: Promise<{ n: number }[]>) => rowsCount(db, query);
+  const n = (query: Promise<{ n: number }[]>) => rowsCount(query);
 
   const entryRows = await db
     .select({ id: entry.id })
