@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 
 import { typeNameKeys } from "@/app/account/files/_lib/upload";
 import type { UploadRule } from "@/server/modules/entries/domain/upload-rules";
-import type { ImageDiscipline } from "@/server/modules/entries/rules";
+import type { Discipline } from "@/server/modules/competitions/domain/vocabulary";
 
 import { EntryUploadForm } from "./entry-upload-form";
 
@@ -11,7 +11,7 @@ type Props = Omit<
   ComponentProps<typeof EntryUploadForm>,
   "labels" | "options"
 > & {
-  options: readonly { value: ImageDiscipline; rule: UploadRule }[];
+  options: readonly { value: Discipline; rule: UploadRule }[];
 };
 
 export async function EntryUpload({ options, ...props }: Props) {
@@ -68,6 +68,7 @@ export async function EntryUpload({ options, ...props }: Props) {
           empty: errors("empty"),
           wrong_type: errors("wrong_type"),
           too_large: errors("too_large"),
+          too_long: errors("too_long"),
           submission_not_open: errors("submission_not_open"),
           deadline_passed: errors("deadline_passed"),
           entry_locked: errors("entry_locked"),

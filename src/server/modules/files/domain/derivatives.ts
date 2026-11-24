@@ -24,6 +24,36 @@ export const DERIVATIVE_KINDS = {
 
 export type DerivativeKind = keyof typeof DERIVATIVE_KINDS;
 
+/**
+ * Each kind of derived copy of a video (#86), made by worker-media with
+ * ffmpeg (./video-transcode.ts plans their sizes). Neither carries any of
+ * the original's metadata.
+ */
+export const VIDEO_DERIVATIVE_KINDS = {
+  /** The copy people watch: H.264 and AAC in MP4, at most 1080p. */
+  video_mp4: { contentType: "video/mp4", extension: "mp4" },
+  /** One frame of it, shown before it plays. */
+  video_poster: { contentType: "image/jpeg", extension: "jpg" },
+} as const;
+
+export type VideoDerivativeKind = keyof typeof VIDEO_DERIVATIVE_KINDS;
+
+/** Any stored derivative: an image's copy or a video's. */
+export type StoredDerivativeKind = DerivativeKind | VideoDerivativeKind;
+
+/** Every stored derivative kind, for input checks. */
+export const STORED_DERIVATIVE_KINDS = [
+  ...(Object.keys(DERIVATIVE_KINDS) as DerivativeKind[]),
+  ...(Object.keys(VIDEO_DERIVATIVE_KINDS) as VideoDerivativeKind[]),
+] as [StoredDerivativeKind, ...StoredDerivativeKind[]];
+
+/** The file extension a derivative of `kind` is stored and served with. */
+export function derivativeExtension(kind: StoredDerivativeKind): string {
+  return Object.hasOwn(VIDEO_DERIVATIVE_KINDS, kind)
+    ? VIDEO_DERIVATIVE_KINDS[kind as VideoDerivativeKind].extension
+    : "webp";
+}
+
 export type PixelSize = { width: number; height: number };
 
 export type PlannedDerivative = PixelSize & {

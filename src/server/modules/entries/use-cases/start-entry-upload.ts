@@ -1,11 +1,13 @@
-// startEntryUpload({ registrationId, discipline?, file }) (#85): the first
-// step of submitting, replacing or retrying an entry's picture. The
-// participant or their verified guardian asks to
-// upload one file, described as the browser sees it; the server checks it
-// against the discipline's rule (the same check the form runs), the
-// registration and the submission window, then presigns a private upload
-// under the Files module's `entry_image` purpose. Nothing about the entry
-// changes until completeEntryUpload.
+// startEntryUpload({ registrationId, discipline?, file }) (#85, #86): the
+// first step of submitting, replacing or retrying an entry's file: a
+// picture, a video or an essay's PDF, as the discipline takes. The
+// participant or their verified guardian asks to upload one file,
+// described as the browser sees it (with a video's length when the browser
+// could read it); the server checks it against the discipline's rule (the
+// same check the form runs), the registration and the submission window,
+// then presigns a private upload under the Files module's purpose for that
+// kind of file (`entry_image`, `entry_video`, `entry_document`). Nothing
+// about the entry changes until completeEntryUpload.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -20,9 +22,10 @@ import {
   participationRefusals,
   lockParticipationPins,
 } from "../../consent/participation-gate";
+import type { EntryFilePurpose } from "../../files/domain/purposes";
 import { uploadKeyFor } from "../../files/domain/storage-key";
 import { presignUpload } from "../../files/use-cases/upload";
-import { checkUpload } from "../domain/upload-rules";
+import { checkUpload, type UploadKind } from "../domain/upload-rules";
 import { decideUpload } from "../domain/submission";
 import { chooseDiscipline, uploadRuleFor } from "../rules";
 import {
@@ -33,7 +36,7 @@ import {
 import { lockEntryOfRegistration, snapshotOf } from "../store";
 import {
   canIssueUploadGrant,
-  lockEntryImage,
+  lockEntryUpload,
   pendingUploadFileId,
   scheduleUploadGrantCleanup,
   validUploadGrant,
@@ -41,10 +44,18 @@ import {
 
 export type StartEntryUploadInput = {
   registrationId: string;
-  /** One of the competition's picture disciplines; fixed after the first upload. */
+  /** One of the competition's disciplines; fixed after the first submission. */
   discipline?: string;
-  /** The chosen file as the browser describes it. */
-  file: { name: string; type: string; size: number };
+  /**
+   * The chosen file as the browser describes it, with a video's length in
+   * milliseconds when the browser could read it (#86).
+   */
+  file: {
+    name: string;
+    type: string;
+    size: number;
+    durationMs?: number | null | undefined;
+  };
   /** A pending grant for an earlier file selection by this uploader. */
   replacesFileId?: string | undefined;
   /** A fresh form can restart this uploader's pending grant. */
@@ -60,6 +71,7 @@ export type EntryUploadRefusal =
   | "empty"
   | "wrong_type"
   | "too_large"
+  | "too_long"
   | "submission_not_open"
   | "deadline_passed"
   | "entry_locked"
@@ -86,8 +98,16 @@ export const startEntryUploadInput = z.object({
     name: z.string().max(255),
     type: z.string().max(255),
     size: z.number().int().min(0),
+    durationMs: z.number().min(0).max(Number.MAX_SAFE_INTEGER).nullish(),
   }),
 });
+
+/** The Files module's purpose for each kind of entry file. */
+export const ENTRY_UPLOAD_PURPOSES = {
+  image: "entry_image",
+  video: "entry_video",
+  document: "entry_document",
+} as const satisfies Record<UploadKind, EntryFilePurpose>;
 
 export async function startEntryUpload(
   ctx: UseCaseContext,
@@ -133,7 +153,8 @@ export async function startEntryUpload(
       current: current?.row.discipline,
     });
     if (!chosen.ok) return chosen;
-    const check = checkUpload(file, uploadRuleFor(chosen.discipline)!);
+    const rule = uploadRuleFor(chosen.discipline)!;
+    const check = checkUpload(file, rule);
     if (!check.ok) return { ok: false, error: check.reason };
     const window = facts.competition.window;
     if (!window) return { ok: false, error: "submission_not_open" };
@@ -151,7 +172,7 @@ export async function startEntryUpload(
         ? await pendingUploadFileId(tx, ownerId, registrationId, now)
         : undefined);
     const previous = previousFileId
-      ? await lockEntryImage(tx, previousFileId, ownerId)
+      ? await lockEntryUpload(tx, previousFileId, ownerId)
       : null;
     const retiringFileId =
       previous?.file.status === "pending_upload" &&
@@ -175,15 +196,16 @@ export async function startEntryUpload(
         .where(eq(entryUploadGrant.fileAssetId, retiringFileId));
     }
 
+    const purpose = ENTRY_UPLOAD_PURPOSES[rule.kind];
     const presigned = await presignUpload(ctx, tx, {
-      purpose: "entry_image",
+      purpose,
       contentType: check.contentType,
       sizeBytes: file.size,
     });
     if (!presigned.ok) {
       // The rule above is narrower than the purpose's, so this is a bug.
       throw new Error(
-        `The entry_image purpose refused an upload: ${presigned.error}`
+        `The ${purpose} purpose refused an upload: ${presigned.error}`
       );
     }
     const { fileId, expiresAt } = presigned;

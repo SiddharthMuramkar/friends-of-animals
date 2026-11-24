@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { MediaError } from "@/server/ports/media";
-import { mediaProcessorContract } from "@/server/ports/media.contract";
+import {
+  mediaProcessorContract,
+  streamOf,
+  videoProcessorContract,
+} from "@/server/ports/media.contract";
 import { readMediaFixture } from "@/test/media-fixtures";
 
 import { FakeMediaProcessor } from "./media";
@@ -9,6 +13,34 @@ import { FakeMediaProcessor } from "./media";
 mediaProcessorContract("FakeMediaProcessor", async () => ({
   processor: new FakeMediaProcessor(),
 }));
+
+videoProcessorContract("FakeMediaProcessor", async () => ({
+  processor: new FakeMediaProcessor(),
+}));
+
+describe("FakeMediaProcessor videos", () => {
+  it("probes as a test says, and refuses past the limit by the shared rule", async () => {
+    const media = new FakeMediaProcessor();
+    media.nextVideo({ durationMs: 181_000, width: 1080, height: 1920 });
+    media.nextVideo({ durationMs: 181_001 });
+    media.nextVideo("no_video_stream");
+    const call = () =>
+      media.processVideo({
+        source: streamOf(readMediaFixture("gpsMov")),
+        maxDurationMs: 180_000,
+      });
+
+    const fits = await call();
+    expect(fits.derivatives[0]).toMatchObject({ width: 1080, height: 1920 });
+    await expect(call()).rejects.toMatchObject({ code: "video_too_long" });
+    await expect(call()).rejects.toMatchObject({ code: "no_video_stream" });
+    expect(media.videos).toEqual([
+      { sizeBytes: readMediaFixture("gpsMov").length, maxDurationMs: 180_000 },
+      { sizeBytes: readMediaFixture("gpsMov").length, maxDurationMs: 180_000 },
+      { sizeBytes: readMediaFixture("gpsMov").length, maxDurationMs: 180_000 },
+    ]);
+  });
+});
 
 describe("FakeMediaProcessor", () => {
   it("records every input it was given, oldest first", async () => {

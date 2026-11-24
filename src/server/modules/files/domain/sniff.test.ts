@@ -39,7 +39,7 @@ describe("sniffContentType", () => {
     expect(sniffContentType(heif)).toBe("image/heif");
   });
 
-  it("doesn't take an AVIF or a video for a HEIF", () => {
+  it("doesn't take an AVIF or a video for a HEIF, and takes the video for one (#86)", () => {
     const avif = new Uint8Array(24);
     avif.set(bytes(0, 0, 0, 24), 0);
     avif.set(ascii("ftypmif1"), 4);
@@ -48,7 +48,16 @@ describe("sniffContentType", () => {
     mp4.set(bytes(0, 0, 0, 24), 0);
     mp4.set(ascii("ftypisom"), 4);
     expect(sniffContentType(avif)).toBeNull();
-    expect(sniffContentType(mp4)).toBeNull();
+    expect(sniffContentType(mp4)).toBe("video/mp4");
+  });
+
+  it("recognises the phone video fixtures (#86)", () => {
+    expect(sniffContentType(readMediaFixture("gpsMov").subarray(0, 64))).toBe(
+      "video/quicktime"
+    );
+    expect(sniffContentType(readMediaFixture("clipWebm").subarray(0, 64))).toBe(
+      "video/webm"
+    );
   });
 
   it("recognises a PDF", () => {

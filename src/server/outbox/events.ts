@@ -85,6 +85,21 @@ export type DomainEvent =
       payload: { fileId: string };
     }
   | {
+      /** A clean video has a copy and a poster to make: worker-media's job (#86). */
+      type: "files.video_processing_requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /**
+       * The scan passed a file that gets no derivatives: it is ready as
+       * stored (an essay's PDF, #86).
+       */
+      type: "files.file_ready";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
       /** Every derivative of the file is stored. */
       type: "files.file_processed";
       aggregate: { type: "file_asset"; id: string };
@@ -422,6 +437,8 @@ export const EVENT_PAYLOADS = {
     competitionId: z.uuid().nullable(),
   }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
+  "files.video_processing_requested": z.object({ fileId: z.uuid() }),
+  "files.file_ready": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),
   "files.file_processing_failed": z.object({
     fileId: z.uuid(),
@@ -559,6 +576,13 @@ export const SUBSCRIBERS = {
     "files.process_image",
     "entries.apply_file_outcome",
   ],
+  // files.process_video runs in worker-media only, like process_image (#86).
+  "files.video_processing_requested": [
+    "files.process_video",
+    "entries.apply_file_outcome",
+  ],
+  // A file that needs no derivatives is ready once its scan passes (#86).
+  "files.file_ready": ["entries.apply_file_outcome"],
   // A post image's public copies follow its derivatives (#112).
   "files.file_processed": [
     "cms.publish_post_image",

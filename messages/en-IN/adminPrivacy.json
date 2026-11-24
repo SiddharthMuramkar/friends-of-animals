@@ -245,7 +245,8 @@
           "file_asset_id": "Links to privately stored artwork and the safe copies made from it",
           "uploaded_by_user_id": "Records who uploaded each version of the work",
           "pending_text": "Keeps a replacement's proposed text with the image being checked",
-          "receipt_title": "Keeps the adult participant's receipt tied to the submitted title"
+          "receipt_title": "Keeps the adult participant's receipt tied to the submitted title",
+          "essay_body": "Keeps the essay a participant typed as their entry, for review and judging"
         },
         "entry_transition": {
           "entry_id": "Associates a change in status with the participant's entry",

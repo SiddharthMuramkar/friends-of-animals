@@ -70,6 +70,7 @@
       "empty": "Choose an image that contains some data.",
       "wrong_type": "Choose an image in one of the listed file types.",
       "too_large": "The image is larger than the listed limit.",
+      "too_long": "The video is longer than the listed limit. Choose a shorter clip.",
       "submission_not_open": "Submissions aren’t open yet.",
       "deadline_passed": "The submission deadline has passed.",
       "entry_locked": "This entry can no longer be changed.",

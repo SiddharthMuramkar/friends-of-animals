@@ -1,7 +1,8 @@
 // Shared set-up for the entries module's Seam 1 tests: a participant with a
-// confirmed registration (an adult's own, or a guardian's child's), and an
-// image uploaded the way the browser does it: start, PUT to the storage
-// fake, complete. Test code only; nothing in the app imports it.
+// confirmed registration (an adult's own, or a guardian's child's), and a
+// file (a picture, a video or an essay's PDF) uploaded the way the browser
+// does it: start, PUT to the storage fake, complete; or an essay typed
+// into the form (#86). Test code only; nothing in the app imports it.
 
 import type { Actor } from "@/server/actor";
 import {
@@ -16,6 +17,19 @@ import { readMediaFixture } from "@/test/media-fixtures";
 
 /** A real JPEG (2000 x 1500, with GPS): what a phone sends. */
 export const PHOTO = readMediaFixture("gpsJpeg");
+
+/** A real QuickTime clip (1 s, with GPS): what an iPhone sends (#86). */
+export const CLIP = readMediaFixture("gpsMov");
+
+/** The start of a PDF: what the scan's sniffer looks for (#86). */
+export const PDF = new TextEncoder().encode(
+  "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
+);
+
+/** A typed essay of `words` words (#86). */
+export function essayOf(words: number): string {
+  return Array.from({ length: words }, (_, at) => `word${at + 1}`).join(" ");
+}
 
 /** The words every test entry has unless it says otherwise. */
 export const ENTRY_TEXT = {
@@ -106,8 +120,27 @@ export type UploadOptions = {
   name?: string;
   type?: string;
   discipline?: string;
+  /** A video's length as the browser read it (#86). */
+  durationMs?: number | null;
   text?: { title: string; description: string; statement?: string };
 };
+
+/** A video upload's options (#86): the QuickTime clip, 40 s by the browser. */
+export const VIDEO_UPLOAD = {
+  bytes: CLIP,
+  name: "IMG_0042.MOV",
+  type: "video/quicktime",
+  discipline: "videography",
+  durationMs: 40_000,
+} as const satisfies UploadOptions;
+
+/** An essay's PDF upload options (#86). */
+export const ESSAY_PDF_UPLOAD = {
+  bytes: PDF,
+  name: "my-essay.pdf",
+  type: "application/pdf",
+  discipline: "essay",
+} as const satisfies UploadOptions;
 
 /** The first two browser steps, with the request ready to complete. */
 export async function putEntryImage(
@@ -118,13 +151,19 @@ export async function putEntryImage(
     name = "tea-stall-dog.jpg",
     type = "image/jpeg",
     discipline = "photography",
+    durationMs,
     text = ENTRY_TEXT,
   }: UploadOptions = {}
 ) {
   const started = await h.as(who.actor).startEntryUpload({
     registrationId: who.registrationId,
     discipline,
-    file: { name, type, size: bytes.length },
+    file: {
+      name,
+      type,
+      size: bytes.length,
+      ...(durationMs === undefined ? {} : { durationMs }),
+    },
   });
   if (!started.ok) throw new Error(`not started: ${JSON.stringify(started)}`);
   const stored = await h.storage.put(started.uploadUrl, bytes, started.headers);
@@ -159,4 +198,23 @@ export async function submittedImage(
     throw new Error(`not completed: ${JSON.stringify(completed)}`);
   }
   return completed.entryCode;
+}
+
+/** A typed essay (#86), which must be accepted; returns the entry's code. */
+export async function typedEssay(
+  h: Harness,
+  who: { actor: Actor; registrationId: string },
+  essay = "Water bowls on our street.\n\nEvery summer we fill them.",
+  text: { title: string; description: string; statement?: string } = ENTRY_TEXT
+): Promise<string> {
+  const submitted = await h.as(who.actor).submitEssayText({
+    registrationId: who.registrationId,
+    discipline: "essay",
+    ...text,
+    essay,
+  });
+  if (!submitted.ok) {
+    throw new Error(`essay not submitted: ${JSON.stringify(submitted)}`);
+  }
+  return submitted.entryCode;
 }

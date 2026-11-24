@@ -13,8 +13,11 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { eq } from "drizzle-orm";
+
 import { authorize, can } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
+import { fileAsset } from "../../../db/schema";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { fileIdInput } from "../inputs";
@@ -24,7 +27,10 @@ import {
   downloadFilenameFor,
   type DeliveryRefusal,
 } from "../domain/delivery";
-import { isFilePurposeAvailable } from "../domain/purposes";
+import {
+  isFilePurposeAvailable,
+  STORABLE_CONTENT_TYPES,
+} from "../domain/purposes";
 import { hasCleanScan } from "./clean-scan";
 import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
@@ -107,6 +113,46 @@ export async function getFileDownloadUrl(
   }
   return {
     ok: true,
+    url,
+    expiresAt: new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000),
+  };
+}
+
+/**
+ * For a module that authorized the reader itself (an essay's PDF, which a
+ * guardian may read though another guardian uploaded it, #86): a signed
+ * URL for a clean file as stored, or null if it isn't clean or isn't a
+ * type that is ever served as stored (a video's original never is).
+ * Nothing is audited here; the module records staff reads if it must.
+ */
+export async function moduleFileUrl(
+  ctx: Pick<FilesContext, "db" | "clock" | "storage">,
+  fileId: string
+): Promise<{ url: string; expiresAt: Date } | null> {
+  const [file] = await ctx.db
+    .select()
+    .from(fileAsset)
+    .where(eq(fileAsset.id, fileId));
+  if (
+    file?.status !== "clean" ||
+    !(STORABLE_CONTENT_TYPES as readonly string[]).includes(file.contentType)
+  ) {
+    return null;
+  }
+  const now = ctx.clock.now();
+  const { url } = await ctx.storage.presignGet({
+    bucket: file.bucket,
+    key: file.storageKey,
+    expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS,
+    contentType: file.contentType,
+    disposition: dispositionFor(file.contentType),
+    filename: downloadFilenameFor({
+      purpose: file.purpose,
+      fileId,
+      contentType: file.contentType,
+    }),
+  });
+  return {
     url,
     expiresAt: new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000),
   };

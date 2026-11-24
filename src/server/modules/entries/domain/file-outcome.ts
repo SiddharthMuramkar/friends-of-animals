@@ -14,6 +14,11 @@ export type FileState = {
   status: FileStatus;
   /** The media job's status, or null if it has none. */
   processing: "queued" | "done" | "failed" | null;
+  /**
+   * Whether the file gets a media job at all. One that doesn't (an essay's
+   * PDF, #86) is ready as soon as its scan passes.
+   */
+  hasMediaJob: boolean;
 };
 
 export function outcomesOf(file: FileState): FileOutcome[] {
@@ -21,8 +26,8 @@ export function outcomesOf(file: FileState): FileOutcome[] {
     case "quarantined":
       return ["scan_infected"];
     case "rejected":
-      // The scanner passed it, but its bytes aren't the picture it was
-      // declared as: as good as a picture that can't be opened.
+      // The scanner passed it, but its bytes aren't the type it was
+      // declared as: as good as a file that can't be opened.
       return ["scan_clean", "processing_failed"];
     case "clean":
       switch (file.processing) {
@@ -31,7 +36,9 @@ export function outcomesOf(file: FileState): FileOutcome[] {
         case "failed":
           return ["scan_clean", "processing_failed"];
         default:
-          return ["scan_clean"];
+          return file.hasMediaJob
+            ? ["scan_clean"]
+            : ["scan_clean", "processed"];
       }
     default:
       return [];

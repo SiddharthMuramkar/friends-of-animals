@@ -16,7 +16,7 @@ import {
   checkUpload,
   type UploadRule,
 } from "@/server/modules/entries/domain/upload-rules";
-import type { ImageDiscipline } from "@/server/modules/entries/rules";
+import type { Discipline } from "@/server/modules/competitions/domain/vocabulary";
 
 import {
   completeEntryUploadAction,
@@ -60,7 +60,7 @@ type UploadLabels = {
 };
 
 type DisciplineOption = {
-  value: ImageDiscipline;
+  value: Discipline;
   label: string;
   rule: UploadRule;
   hint: string;
@@ -108,7 +108,7 @@ export function EntryUploadForm({
   labels: UploadLabels;
 }) {
   const first = options[0]!;
-  const [discipline, setDiscipline] = useState<ImageDiscipline | "">(
+  const [discipline, setDiscipline] = useState<Discipline | "">(
     options.length === 1 ? first.value : ""
   );
   const [file, setFile] = useState<File>();
