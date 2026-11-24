@@ -48,6 +48,13 @@ describe("the competitions seed", () => {
         participation: "institutions",
         status: "school_judging",
       },
+      // The school-route submissions seed's (#87).
+      {
+        code: "TREES27",
+        slug: "trees-for-birds",
+        participation: "institutions",
+        status: "registration_closed",
+      },
       // Cancelled after it was published (#80): still listed, as cancelled.
       {
         code: "WINGS26",
@@ -101,7 +108,7 @@ describe("the competitions seed", () => {
     ).toBeNull();
   });
 
-  it("seeds a global competition manager who sees all seven", async () => {
+  it("seeds a global competition manager who sees all eight", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = await h.signIn(SEED_COMPETITION_MANAGER);
@@ -112,6 +119,7 @@ describe("the competitions seed", () => {
       "cancelled",
       "draft",
       "published",
+      "registration_closed",
       "registration_closed",
       "registration_closed",
       "registration_open",
@@ -146,6 +154,13 @@ describe("the competitions seed", () => {
           openingPassed: true,
           closingPassed: true,
           submissionsClosed: true,
+        },
+        // Open for the school's submissions (#87).
+        {
+          status: "registration_closed",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: false,
         },
         // Cancelled while registration was open (#80): its dates stay as
         // they were, and nothing moves it.
@@ -244,7 +259,7 @@ describe("the competitions seed", () => {
         await h.as(manager).verifySecondFactor({ code: h.totpCode() }),
         account.email
       ).toEqual({ ok: true });
-      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(7);
+      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(8);
     }
   });
 
@@ -260,7 +275,7 @@ describe("the competitions seed", () => {
     expect(await h.db.select({ id: competition.id }).from(competition)).toEqual(
       ids
     );
-    expect(once).toMatchObject({ competitions: 7 });
+    expect(once).toMatchObject({ competitions: 8 });
   });
 });
 

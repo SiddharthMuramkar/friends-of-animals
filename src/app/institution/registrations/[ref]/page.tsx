@@ -14,6 +14,7 @@ import { Section } from "@/components/site/section";
 import {
   APP_ROUTES,
   institutionCompetitionsPath,
+  institutionSubmissionsPath,
   newStudentPath,
   payFeesPath,
   studentImportPath,
@@ -171,6 +172,9 @@ async function Students({
     done === "enrolled" || done === "enrolledIgnored" || done === "withdrawn";
   const { enrolment } = list;
   const consentWords = await getTranslations("coordinatorConsents");
+  const submissionWords = await getTranslations(
+    "institutionSubmissions.roster"
+  );
   const open = enrolment === "open";
   const formScope = {
     institutionId,
@@ -241,6 +245,16 @@ async function Students({
           scope={formScope}
           declaredAt={forms.participationDeclaredAt}
         />
+      ) : null}
+
+      {list.counts.confirmed > 0 ? (
+        <p>
+          <ButtonLink
+            href={institutionSubmissionsPath(list.reference, institutionId)}
+          >
+            {submissionWords("dashboardLink")}
+          </ButtonLink>
+        </p>
       ) : null}
 
       {consentLinksActive(appEnv()) ? (
