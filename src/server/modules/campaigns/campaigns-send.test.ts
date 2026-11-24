@@ -351,7 +351,7 @@ describe("previewCampaign", () => {
       inApp: { subject: SAMPLE_CONTENT.subject },
     });
     expect(preview.ok && preview.email.body).toContain(
-      "To stop these messages, open this link:"
+      "To stop these messages, open this link: http://localhost:3000/withdraw/…"
     );
   });
 });

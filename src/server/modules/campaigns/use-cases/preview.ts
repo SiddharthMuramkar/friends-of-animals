@@ -6,6 +6,7 @@
 
 import { z } from "zod";
 
+import { WITHDRAWAL_PREFIX } from "../../../../lib/app-routes";
 import { authorize } from "../../../access/can";
 import type { AppDb } from "../../../db/app-db";
 import type { UseCaseContext } from "../../../use-cases";
@@ -55,7 +56,7 @@ export async function previewCampaign(
   // A sample recipient: the preview shows where their name and link go.
   const values = campaignValues(row, {
     name: "{{recipient.name}}",
-    withdrawalUrl: new URL("/withdraw/…", ctx.auth.baseUrl).href,
+    withdrawalUrl: `${new URL(WITHDRAWAL_PREFIX, ctx.auth.baseUrl).href}/…`,
   });
   const counts =
     row.plannedCounts ?? (await planSegment(ctx.db, row.segment)).counts;

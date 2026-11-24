@@ -42,8 +42,7 @@ export type {
 export type { AudienceCounts } from "./domain/audience";
 export type { CampaignStatus } from "./domain/campaign";
 export type { SegmentDefinition, SegmentRole } from "./domain/segment";
-export { SEGMENT_LIMITS, SEGMENT_ROLES } from "./domain/segment";
-export { CAMPAIGN_LIMITS } from "./domain/campaign";
+export { SEGMENT_ROLES } from "./domain/segment";
 export { CAMPAIGNS_POLICY, type CampaignsAction } from "./policy";
 
 export const campaignsUseCases = (ctx: UseCaseContext) => ({
