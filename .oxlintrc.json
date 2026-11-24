@@ -58,7 +58,7 @@
       }
     },
     {
-      "files": ["src/**/*.test.tsx", "src/components/ui/**"],
+      "files": ["src/**/*.test.tsx"],
       "rules": {
         "react/jsx-no-literals": "off"
       }
