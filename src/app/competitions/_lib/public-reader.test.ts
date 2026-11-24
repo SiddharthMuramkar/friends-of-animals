@@ -6,8 +6,8 @@ import { createHarness } from "@/test/harness";
 import { PUBLIC_READER } from "./public-reader";
 
 // What the public pages read, through the real read model on the preview
-// seed: three public competitions (published, registration open, and in
-// school judging since its submissions closed) and one draft.
+// seed: five public competitions, including two that accept entry uploads
+// after registration closes, and one draft.
 describe("the public pages' reader", () => {
   it("lists the published competitions as cards, never the draft or a sample", async () => {
     const h = await createHarness();
@@ -19,6 +19,8 @@ describe("the public pages' reader", () => {
     expect(list.map((c) => [c.slug, c.status, c.sample])).toEqual([
       ["kinder-skies", "SCHOOL_JUDGING", false],
       ["neighbours-on-my-street", "REGISTRATION_OPEN", false],
+      ["life-on-the-rooftops", "REGISTRATION_CLOSED", false],
+      ["birds-in-our-gardens", "REGISTRATION_CLOSED", false],
       ["a-bowl-of-water", "PUBLISHED", false],
     ]);
     expect(await reader.publishedCompetitionSlugs()).not.toContain(

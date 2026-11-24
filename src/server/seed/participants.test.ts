@@ -48,6 +48,28 @@ describe("the participants seed", () => {
     expect(ashas).toEqual([
       expect.objectContaining({
         competition: {
+          name: "Birds in Our Gardens",
+          slug: "birds-in-our-gardens",
+        },
+        route: "individual",
+        status: "confirmed",
+        participantCode: "FOA-P-265EED01",
+        registrationNumber: "BIRDS27-R-5EEDA1",
+        amountDue: null,
+      }),
+      expect.objectContaining({
+        competition: {
+          name: "Life on the Rooftops",
+          slug: "life-on-the-rooftops",
+        },
+        route: "individual",
+        status: "confirmed",
+        participantCode: "FOA-P-265EED01",
+        registrationNumber: "ROOF27-R-5EEDA1",
+        amountDue: null,
+      }),
+      expect.objectContaining({
+        competition: {
           name: "Neighbours on My Street",
           slug: "neighbours-on-my-street",
         },

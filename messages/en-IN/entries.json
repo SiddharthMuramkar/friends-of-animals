@@ -1,0 +1,87 @@
+{
+  "entries": {
+    "list": {
+      "title": "My entries",
+      "empty": "You haven’t submitted an entry yet."
+    },
+    "new": {
+      "title": "Submit an entry",
+      "forCompetition": "Submit an entry for {competition}"
+    },
+    "detail": {
+      "meta": "Competition entry",
+      "code": "Entry ID",
+      "submittedOn": "Submitted on {date}",
+      "statement": "Statement",
+      "pictureAlt": "Submitted image for {title}",
+      "pictureUnavailable": "There is no image preview for this entry.",
+      "replace": "Replace image",
+      "retry": "Try another image"
+    },
+    "backToCompetitions": "Back to my competitions",
+    "backToEntries": "Back to my entries",
+    "seeEntries": "My entries",
+    "viewEntry": "View entry {code}",
+    "submitWork": "Submit work for {competition}",
+    "forChild": "For {name}",
+    "deadline": "Submissions close {date} (India time).",
+    "status": {
+      "processing": "Checking image",
+      "submitted": "Submitted",
+      "rejected": "Image rejected",
+      "failed": "Image could not be processed",
+      "school_shortlisted": "School shortlisted",
+      "not_shortlisted": "Not shortlisted",
+      "submitted_to_foa": "Submitted to FOA",
+      "foa_verified": "Verified by FOA",
+      "sent_back": "Sent back"
+    },
+    "outcome": {
+      "pending": "We’re checking the uploaded image for safety.",
+      "processing": "The safety check passed. We’re preparing the image.",
+      "rejected": "The image did not pass its safety check. Choose another image.",
+      "failed": "We couldn’t prepare the image. Try exporting it again or choose another image.",
+      "replacementChecking": "Your current image stays submitted while we check its replacement.",
+      "replacementRefused": "Your current image stays submitted."
+    },
+    "form": {
+      "details": "Entry details",
+      "discipline": "Discipline",
+      "chooseDiscipline": "Choose a discipline",
+      "title": "Title",
+      "titleRequired": "Enter a title.",
+      "description": "Short description",
+      "descriptionRequired": "Enter a short description.",
+      "statement": "Statement (optional)",
+      "file": "Choose an image",
+      "limit": "{types}. Up to {size} MB.",
+      "previewAlt": "Preview of the selected image",
+      "submit": "Submit entry",
+      "replace": "Upload replacement",
+      "retry": "Upload another image",
+      "busy": "Uploading image…",
+      "problem": "Check your upload"
+    },
+    "errors": {
+      "registration_not_confirmed": "Confirm your registration before submitting an entry.",
+      "participation_consent_required": "This place needs a parent or guardian’s consent to take part before work can be submitted. A parent or guardian can give it on the child’s consents page.",
+      "discipline_not_offered": "This competition has no image submission for that discipline.",
+      "discipline_required": "Choose a discipline for your image.",
+      "empty": "Choose an image that contains some data.",
+      "wrong_type": "Choose an image in one of the listed file types.",
+      "too_large": "The image is larger than the listed limit.",
+      "submission_not_open": "Submissions aren’t open yet.",
+      "deadline_passed": "The submission deadline has passed.",
+      "entry_locked": "This entry can no longer be changed.",
+      "upload_limit": "Finish an upload or wait a few minutes before trying again.",
+      "invalid_input": "Check the image and the details you entered.",
+      "file_not_found": "We couldn’t find this upload. Please try again.",
+      "upload_missing": "We couldn’t receive the image. Please try again.",
+      "upload_rejected": "The file we received didn’t match the image you chose.",
+      "signed_out": "Sign in again to finish your entry.",
+      "forbidden": "You don’t have permission to submit for this registration.",
+      "storage_unavailable": "Uploads are temporarily unavailable. Please try again later.",
+      "unknown": "We couldn’t finish the upload. Please try again."
+    }
+  }
+}

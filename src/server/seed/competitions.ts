@@ -3,7 +3,8 @@
 // competition scope (SEED_SCOPES.competition) that a judge is granted on.
 // The published ones are one per status the schedule moves through (#71):
 // their key dates are set from the seed clock, so each date agrees with
-// its status whenever a preview is seeded.
+// its status whenever a preview is seeded. Two more, past registration
+// and open for submissions, hold the entries seed's examples (#85).
 // Also two global competition managers with the seed authenticator (#60's
 // SEED_TOTP_SECRET), so previews can run the admin pages.
 // Loads under plain Node (the seed script): relative imports only, no
@@ -87,6 +88,29 @@ type SeedCompetition = {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Open for submissions, with registration already closed, for the entries
+ * seed (#85): Asha's processing and rejected examples are entered here.
+ */
+export const SEED_ENTRY_COMPETITIONS = [
+  {
+    id: "01938a00-0000-7000-8000-000000008501",
+    code: "ROOF27",
+    slug: "life-on-the-rooftops",
+    name: "Life on the Rooftops",
+    theme:
+      "Draw an animal you see from your rooftop and what makes that space safe for it.",
+  },
+  {
+    id: "01938a00-0000-7000-8000-000000008502",
+    code: "BIRDS27",
+    slug: "birds-in-our-gardens",
+    name: "Birds in Our Gardens",
+    theme:
+      "Draw a bird that visits your neighbourhood and the plants it depends on.",
+  },
+] as const;
+
+/**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
  * `now` and the status each one is seeded with is the one its dates say.
@@ -123,6 +147,28 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         },
       },
     },
+    ...SEED_ENTRY_COMPETITIONS.map(
+      ({ id, slug, ...fields }, index): SeedCompetition => ({
+        id,
+        slug,
+        status: "registration_closed",
+        publishedAt: daysAgo(24),
+        fields: {
+          ...DEFAULT_FIELDS,
+          ...COMMON,
+          ...fields,
+          participation: "individuals",
+          disciplines: ["drawing"],
+          ageGroups: [ADULT_AGE_GROUP],
+          ageCutoffDate: "2027-01-01",
+          keyDates: {
+            registration_opens: ist(-18 + index, "09:00"),
+            registration_closes: ist(-2, "23:59"),
+            submissions_close: ist(120 + index, "23:59"),
+          },
+        },
+      })
+    ),
     {
       id: "01938a00-0000-7000-8000-000000002102",
       status: "published",

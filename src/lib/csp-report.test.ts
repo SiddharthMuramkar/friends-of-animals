@@ -71,6 +71,34 @@ describe("parseCspReport: application/csp-report", () => {
     });
   });
 
+  it("omits the Entry ID from an entry page's report (#85)", () => {
+    const result = parseCspReport(
+      "application/reports+json",
+      JSON.stringify([
+        {
+          type: "csp-violation",
+          body: {
+            documentURL:
+              "https://foa.example.test/participant/entries/NEIGH27-E-7K3QZ9",
+            effectiveDirective: "img-src",
+            blockedURL: "https://elsewhere.example.test/picture.webp",
+          },
+        },
+      ])
+    );
+    expect(result).toEqual({
+      ok: true,
+      violations: [
+        {
+          documentUrl:
+            "https://foa.example.test/participant/entries/[redacted]",
+          directive: "img-src",
+          blocked: "https://elsewhere.example.test/picture.webp",
+        },
+      ],
+    });
+  });
+
   it("keeps the inline and eval keywords and only the scheme of data URLs", () => {
     const blocked = (uri: string) => {
       const result = parseCspReport(
