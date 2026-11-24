@@ -241,6 +241,8 @@ describe("a video entry", () => {
     );
     expect(notice?.subject).toBe(`We couldn't open the file for ${code}`);
     expect(notice?.text).toContain("try again before submissions close");
+    expect(notice?.text).toContain("for a video, longer than the time limit");
+    expect(notice?.text).not.toMatch(/picture|image/);
   });
 
   it("fails the entry when the clip can't be decoded, and a retry submits it", async () => {

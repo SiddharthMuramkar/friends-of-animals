@@ -16,7 +16,18 @@
       "pictureAlt": "Submitted image for {title}",
       "pictureUnavailable": "There is no image preview for this entry.",
       "replace": "Replace image",
-      "retry": "Try another image"
+      "retry": "Try another image",
+      "videoLabel": "Submitted video for {title}",
+      "videoFallback": "Your browser can’t play this video here.",
+      "videoUnavailable": "There is no video preview for this entry.",
+      "essay": "Essay",
+      "wordCount": "{count, plural, one {# word} other {# words}}",
+      "openDocument": "Open the essay (PDF)",
+      "essayUnavailable": "There is no copy of the essay to show yet.",
+      "replaceVideo": "Replace video",
+      "retryVideo": "Try another video",
+      "replaceEssay": "Replace essay",
+      "retryEssay": "Try again"
     },
     "backToCompetitions": "Back to my competitions",
     "backToEntries": "Back to my entries",
@@ -53,36 +64,126 @@
       "description": "Short description",
       "descriptionRequired": "Enter a short description.",
       "statement": "Statement (optional)",
-      "file": "Choose an image",
       "limit": "{types}. Up to {size} MB.",
       "previewAlt": "Preview of the selected image",
       "submit": "Submit entry",
-      "replace": "Upload replacement",
-      "retry": "Upload another image",
-      "busy": "Uploading image…",
-      "problem": "Check your upload"
+      "problem": "Check your upload",
+      "limitWithLength": "{types}. Up to {size} MB and {minutes} minutes.",
+      "measuring": "Reading the video’s length…",
+      "image": {
+        "file": "Choose an image",
+        "replace": "Upload replacement",
+        "retry": "Upload another image",
+        "busy": "Uploading image…"
+      },
+      "video": {
+        "file": "Choose a video",
+        "replace": "Upload replacement video",
+        "retry": "Upload another video",
+        "busy": "Uploading video…"
+      },
+      "document": {
+        "file": "Choose a PDF",
+        "replace": "Upload replacement PDF",
+        "retry": "Upload another PDF",
+        "busy": "Uploading essay…"
+      },
+      "essay": {
+        "method": "How will you send your essay?",
+        "typed": "Type it here",
+        "document": "Upload a PDF",
+        "text": "Your essay",
+        "textHint": "Up to {max} words. Leave a blank line between paragraphs.",
+        "textRequired": "Type your essay.",
+        "count": "{count} of {max} words",
+        "replace": "Save new essay",
+        "retry": "Submit typed essay",
+        "busy": "Saving essay…"
+      }
     },
     "errors": {
       "registration_not_confirmed": "Confirm your registration before submitting an entry.",
       "participation_consent_required": "This place needs a parent or guardian’s consent to take part before work can be submitted. A parent or guardian can give it on the child’s consents page.",
-      "discipline_not_offered": "This competition has no image submission for that discipline.",
-      "discipline_required": "Choose a discipline for your image.",
-      "empty": "Choose an image that contains some data.",
-      "wrong_type": "Choose an image in one of the listed file types.",
-      "too_large": "The image is larger than the listed limit.",
-      "too_long": "The video is longer than the listed limit. Choose a shorter clip.",
+      "discipline_not_offered": "This competition doesn’t take entries in that discipline.",
       "submission_not_open": "Submissions aren’t open yet.",
       "deadline_passed": "The submission deadline has passed.",
       "entry_locked": "This entry can no longer be changed.",
       "upload_limit": "Finish an upload or wait a few minutes before trying again.",
-      "invalid_input": "Check the image and the details you entered.",
       "file_not_found": "We couldn’t find this upload. Please try again.",
-      "upload_missing": "We couldn’t receive the image. Please try again.",
-      "upload_rejected": "The file we received didn’t match the image you chose.",
       "signed_out": "Sign in again to finish your entry.",
       "forbidden": "You don’t have permission to submit for this registration.",
       "storage_unavailable": "Uploads are temporarily unavailable. Please try again later.",
-      "unknown": "We couldn’t finish the upload. Please try again."
+      "unknown": "We couldn’t finish the upload. Please try again.",
+      "too_many_words": "Your essay is over the word limit. Shorten it and try again.",
+      "image": {
+        "empty": "Choose an image that contains some data.",
+        "wrong_type": "Choose an image in one of the listed file types.",
+        "too_large": "The image is larger than the listed limit.",
+        "upload_missing": "We couldn’t receive the image. Please try again.",
+        "upload_rejected": "The file we received didn’t match the image you chose.",
+        "invalid_input": "Check the image and the details you entered.",
+        "discipline_required": "Choose a discipline for your image.",
+        "too_long": "The file is longer than the listed limit."
+      },
+      "video": {
+        "empty": "Choose a video that contains some data.",
+        "wrong_type": "Choose a video in one of the listed file types.",
+        "too_large": "The video is larger than the listed limit.",
+        "upload_missing": "We couldn’t receive the video. Please try again.",
+        "upload_rejected": "The file we received didn’t match the video you chose.",
+        "invalid_input": "Check the video and the details you entered.",
+        "discipline_required": "Choose a discipline for your entry.",
+        "too_long": "The video is longer than the listed limit. Choose a shorter clip."
+      },
+      "document": {
+        "empty": "Choose a PDF that contains some data.",
+        "wrong_type": "Choose your essay as a PDF.",
+        "too_large": "The PDF is larger than the listed limit.",
+        "upload_missing": "We couldn’t receive the PDF. Please try again.",
+        "upload_rejected": "The file we received didn’t match the PDF you chose.",
+        "invalid_input": "Check the essay and the details you entered.",
+        "discipline_required": "Choose a discipline for your entry.",
+        "too_long": "Your essay is too long. Shorten it and try again."
+      }
+    },
+    "statusFormat": {
+      "video": {
+        "processing": "Checking video",
+        "rejected": "Video rejected",
+        "failed": "Video could not be processed"
+      },
+      "essay": {
+        "processing": "Checking essay",
+        "rejected": "Essay rejected",
+        "failed": "Essay could not be opened"
+      }
+    },
+    "outcomeFormat": {
+      "video": {
+        "pending": "We’re checking the uploaded video for safety.",
+        "processing": "The safety check passed. We’re preparing the video to play.",
+        "rejected": "The video did not pass its safety check. Choose another video.",
+        "failed": "We couldn’t prepare the video. Choose another video and try again.",
+        "replacementChecking": "Your current video stays submitted while we check its replacement.",
+        "replacementRefused": "Your current video stays submitted."
+      },
+      "essay": {
+        "pending": "We’re checking the uploaded PDF for safety.",
+        "processing": "The safety check passed. We’re getting the essay ready.",
+        "rejected": "The PDF did not pass its safety check. Upload another PDF or type the essay.",
+        "failed": "We couldn’t open the PDF. Upload another PDF or type the essay.",
+        "replacementChecking": "Your current essay stays submitted while we check its replacement.",
+        "replacementRefused": "Your current essay stays submitted."
+      }
+    },
+    "problem": {
+      "video_too_long": "The video is longer than the time limit. Trim it or choose a shorter clip, then try again.",
+      "no_video_stream": "The file has no video picture in it, only sound.",
+      "media_decode_failed": "The file seems damaged or uses a format we can’t open. Try exporting it again.",
+      "media_timeout": "The video took too long to prepare. Try a shorter or smaller clip.",
+      "unsupported_type": "The file isn’t a type we can prepare.",
+      "image_too_large": "The image has more pixels than we can prepare. Try a smaller copy.",
+      "processing_error": "Something went wrong while preparing it. Please try again."
     }
   }
 }

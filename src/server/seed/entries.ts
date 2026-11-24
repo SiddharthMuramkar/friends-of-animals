@@ -3,7 +3,10 @@
 // entry): submitted on NEIGH27, still being checked on ROOF27, and
 // rejected by the scan on BIRDS27. Asha's ROOF27 and BIRDS27 registrations
 // are made here, confirmed, in the two competitions open for submissions
-// (SEED_ENTRY_COMPETITIONS).
+// (SEED_ENTRY_COMPETITIONS). Ravi gets confirmed registrations there too,
+// with a submitted video on ROOF27 and a submitted typed essay on BIRDS27
+// (#86); the video's copy and poster are committed samples
+// (src/assets/seed/), never an original.
 //
 // The submitted example's private derivatives are made from an FOA sample
 // illustration and written to `storage` (the local disk store or the
@@ -25,9 +28,12 @@ import {
   entryFile,
   fileAsset,
   fileDerivative,
+  participantProfile,
   registration,
 } from "../db/schema";
 import { uuidv7 } from "../ids";
+import { essayBodyFromText, essayBodyText } from "../rich-text/essay";
+import { countWords } from "../modules/entries/domain/essay-text";
 import {
   derivativeKeyFor,
   derivativeKindsFor,
@@ -41,6 +47,7 @@ import { SEED_PARTICIPANTS } from "./participants";
 import type { Seeder } from "./types";
 
 const ASHA = SEED_PARTICIPANTS.confirmed;
+const RAVI = SEED_PARTICIPANTS.pending;
 
 const EXAMPLES = [
   {
@@ -125,6 +132,212 @@ async function seedEntryDerivatives(
         createdAt: now,
       })
       .onConflictDoNothing();
+  }
+}
+
+/** Ravi's video (ROOF27) and typed essay (BIRDS27) entries (#86). */
+const RAVI_EXAMPLES = [
+  {
+    competitionIndex: 0,
+    registrationId: "01938a00-0000-7000-8000-000000008611",
+    entryId: "01938a00-0000-7000-8000-000000008621",
+    entryFileId: "01938a00-0000-7000-8000-000000008641",
+    assetId: "01938a00-0000-7000-8000-000000008631",
+    code: "ROOF27-E-5EEDB1",
+    discipline: "videography",
+    title: "Pigeons at the water tank",
+    description: "A short clip of pigeons taking turns at our rooftop bowl.",
+  },
+  {
+    competitionIndex: 1,
+    registrationId: "01938a00-0000-7000-8000-000000008612",
+    entryId: "01938a00-0000-7000-8000-000000008622",
+    entryFileId: "01938a00-0000-7000-8000-000000008642",
+    assetId: null,
+    code: "BIRDS27-E-5EEDB2",
+    discipline: "essay",
+    title: "Why the sparrows came back",
+    description: "An essay about the hedge our building planted for sparrows.",
+  },
+] as const;
+
+const RAVI_ESSAY = [
+  "Three summers ago our building cut the old hedge by the gate. The sparrows that lived in it left, and the mornings went quiet.",
+  "Last year the residents' committee planted a new hedge of jasmine and curry leaf. We put a shallow bowl of water under it and kept it full.",
+  "By the monsoon the sparrows were back. Now they bathe in the bowl every afternoon, and the children on the third floor count them.",
+].join("\n\n");
+
+const SEED_VIDEO = {
+  copy: new URL("../../assets/seed/entry-video.mp4", import.meta.url),
+  poster: new URL("../../assets/seed/entry-video-poster.jpg", import.meta.url),
+  width: 640,
+  height: 360,
+  durationMs: 4_000,
+} as const;
+
+async function seedVideoDerivatives(
+  db: AppDb,
+  storage: Pick<ObjectStorage, "write">,
+  {
+    bucket,
+    prefix,
+    fileId,
+    now,
+  }: { bucket: string; prefix: string; fileId: string; now: Date }
+) {
+  for (const [kind, contentType, source, durationMs] of [
+    ["video_mp4", "video/mp4", SEED_VIDEO.copy, SEED_VIDEO.durationMs],
+    ["video_poster", "image/jpeg", SEED_VIDEO.poster, null],
+  ] as const) {
+    const key = derivativeKeyFor({ prefix, fileId, kind });
+    const bytes = new Uint8Array(await readFile(source));
+    await storage.write({ bucket, key, body: bytes, contentType });
+    await db
+      .insert(fileDerivative)
+      .values({
+        id: uuidv7(now),
+        fileAssetId: fileId,
+        kind,
+        bucket,
+        storageKey: key,
+        contentType,
+        width: SEED_VIDEO.width,
+        height: SEED_VIDEO.height,
+        durationMs,
+        sizeBytes: bytes.length,
+        createdAt: now,
+      })
+      .onConflictDoNothing();
+  }
+}
+
+/** Ravi's confirmed registrations and his video and essay entries (#86). */
+async function seedRaviEntries(
+  tx: AppDb,
+  storage: Pick<ObjectStorage, "write"> | undefined,
+  { now, bucket, prefix }: { now: Date; bucket: string; prefix: string }
+) {
+  const [profile] = await tx
+    .select({ id: participantProfile.id })
+    .from(participantProfile)
+    .where(eq(participantProfile.id, RAVI.profileId));
+  if (!profile) return;
+  for (const example of RAVI_EXAMPLES) {
+    const competition = SEED_ENTRY_COMPETITIONS[example.competitionIndex]!;
+    const [group] = await tx
+      .select({ id: competitionAgeGroup.id })
+      .from(competitionAgeGroup)
+      .where(
+        and(
+          eq(competitionAgeGroup.competitionId, competition.id),
+          eq(competitionAgeGroup.label, "Adults")
+        )
+      );
+    if (!group) continue;
+    await tx
+      .insert(registration)
+      .values({
+        id: example.registrationId,
+        participantProfileId: RAVI.profileId,
+        competitionId: competition.id,
+        ageGroupId: group.id,
+        route: "individual",
+        status: "confirmed",
+        registrationNumber: `${competition.code}-R-5EEDB1`,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing();
+    const [registered] = await tx
+      .select({ id: registration.id })
+      .from(registration)
+      .where(
+        and(
+          eq(registration.id, example.registrationId),
+          eq(registration.participantProfileId, RAVI.profileId),
+          eq(registration.status, "confirmed")
+        )
+      );
+    if (!registered) continue;
+    const [created] = await tx
+      .insert(entry)
+      .values({
+        id: example.entryId,
+        code: example.code,
+        competitionId: competition.id,
+        registrationId: example.registrationId,
+        participantProfileId: RAVI.profileId,
+        discipline: example.discipline,
+        title: example.title,
+        description: example.description,
+        status: "submitted",
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing()
+      .returning({ id: entry.id });
+    if (created && example.assetId) {
+      await tx.insert(fileAsset).values({
+        id: example.assetId,
+        ownerUserId: RAVI.userId,
+        purpose: "entry_video",
+        contentType: "video/mp4",
+        sizeBytes: 2_400_000,
+        bucket,
+        storageKey: storageKeyFor({
+          prefix,
+          purpose: "entry_video",
+          fileId: example.assetId,
+        }),
+        status: "clean",
+        uploadedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    if (created) {
+      const body = essayBodyFromText(RAVI_ESSAY);
+      await tx.insert(entryFile).values({
+        id: example.entryFileId,
+        entryId: example.entryId,
+        attemptNumber: 1,
+        status: "live",
+        uploadCompletedAt: now,
+        becameLiveAt: now,
+        createdAt: now,
+        updatedAt: now,
+        ...(example.assetId
+          ? { kind: "video", fileAssetId: example.assetId }
+          : {
+              kind: "text",
+              fileAssetId: null,
+              essayBody: body,
+              wordCount: countWords(essayBodyText(body)),
+            }),
+      });
+    }
+    // Backfill the video's copies on a seed made without storage.
+    if (storage && example.assetId) {
+      const [live] = await tx
+        .select({ id: entryFile.id })
+        .from(entryFile)
+        .where(
+          and(
+            eq(entryFile.id, example.entryFileId),
+            eq(entryFile.fileAssetId, example.assetId),
+            eq(entryFile.status, "live")
+          )
+        );
+      if (live) {
+        await seedVideoDerivatives(tx, storage, {
+          bucket,
+          prefix,
+          fileId: example.assetId,
+          now,
+        });
+      }
+    }
   }
 }
 
@@ -260,4 +473,7 @@ export const seedEntries: Seeder = async ({ db, clock, storage }) => {
         });
     }
   });
+  await db.transaction((tx) =>
+    seedRaviEntries(tx, storage, { now, bucket, prefix })
+  );
 };

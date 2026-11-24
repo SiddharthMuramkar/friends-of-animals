@@ -15,9 +15,10 @@ import { r2Origin } from "./r2-origin";
 export const CSP_SOURCES: readonly CspSources[] = [];
 
 /**
- * File storage (#63): browsers PUT uploads to the R2 account's origin, and
- * an <img> of /api/files/[id] follows the redirect there. Its host is the
- * account id, so this source comes from the environment.
+ * File storage (#63): browsers PUT uploads to the R2 account's origin, an
+ * <img> of /api/files/[id] follows the redirect there, and an entry's
+ * <video> plays its signed copy from there (#86). Its host is the account
+ * id, so this source comes from the environment.
  */
 function fileStorageSources(
   env: Record<string, string | undefined>
@@ -27,7 +28,11 @@ function fileStorageSources(
   return [
     {
       feature: "file storage",
-      directives: { "connect-src": [origin], "img-src": [origin] },
+      directives: {
+        "connect-src": [origin],
+        "img-src": [origin],
+        "media-src": [origin],
+      },
     },
   ];
 }
