@@ -175,13 +175,11 @@ describe("setting a budget", () => {
       .as(approver.actor)
       .approveFinanceRequest({ requestId: lock.requestId });
     expect(
-      await h
-        .as(requester.actor)
-        .setBudget({
-          accountCode: "5600",
-          periodMonth: "2026-12",
-          amount: "10",
-        })
+      await h.as(requester.actor).setBudget({
+        accountCode: "5600",
+        periodMonth: "2026-12",
+        amount: "10",
+      })
     ).toMatchObject({ ok: true, changed: true });
   });
 });
@@ -364,13 +362,11 @@ describe("budget authorization", () => {
       const h = await createHarness();
       const other = await signInAs(h, role);
       await expect(
-        h
-          .as(other.actor)
-          .setBudget({
-            accountCode: "5600",
-            periodMonth: "2027-01",
-            amount: "1",
-          })
+        h.as(other.actor).setBudget({
+          accountCode: "5600",
+          periodMonth: "2027-01",
+          amount: "1",
+        })
       ).rejects.toMatchObject({ code: "forbidden" });
       await expect(h.as(other.actor).budgetVsActual()).rejects.toMatchObject({
         code: "forbidden",
