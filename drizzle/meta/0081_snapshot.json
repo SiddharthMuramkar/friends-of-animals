@@ -1,6 +1,6 @@
 {
-  "id": "eb6e1e82-29d4-4f35-a526-9ec3f8b4497b",
-  "prevId": "036484c7-7022-48b5-a9c7-ee76afbce198",
+  "id": "54461435-6cdf-4ad7-9cd8-f9bbb0cfd2d6",
+  "prevId": "bfcbc7da-a053-42dc-a266-391b731c7846",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -279,18 +279,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "essay_body": {
-          "name": "essay_body",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "word_count": {
-          "name": "word_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "status": {
           "name": "status",
           "type": "entry_file_status",
@@ -438,14 +426,6 @@
         "entry_file_asset_matches_kind": {
           "name": "entry_file_asset_matches_kind",
           "value": "(\"entry_file\".\"kind\" = 'text') = (\"entry_file\".\"file_asset_id\" IS NULL)"
-        },
-        "entry_file_essay_matches_kind": {
-          "name": "entry_file_essay_matches_kind",
-          "value": "(\"entry_file\".\"kind\" = 'text') = (\"entry_file\".\"essay_body\" IS NOT NULL) AND (\"entry_file\".\"kind\" = 'text') = (\"entry_file\".\"word_count\" IS NOT NULL)"
-        },
-        "entry_file_word_count_positive": {
-          "name": "entry_file_word_count_positive",
-          "value": "\"entry_file\".\"word_count\" IS NULL OR \"entry_file\".\"word_count\" > 0"
         },
         "entry_file_became_live_at_matches_status": {
           "name": "entry_file_became_live_at_matches_status",
@@ -11748,6 +11728,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.reminder_job": {
+      "name": "reminder_job",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reminder_name": {
+          "name": "reminder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_hours": {
+          "name": "offset_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deadline_at": {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fire_at": {
+          "name": "fire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reminder_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reminder_job_planned_once": {
+          "name": "reminder_job_planned_once",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "offset_hours",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deadline_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"reminder_job\".\"status\" IN ('scheduled', 'fired')",
+          "concurrently": false
+        },
+        "reminder_job_subject_idx": {
+          "name": "reminder_job_subject_idx",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reminder_job_name_format": {
+          "name": "reminder_job_name_format",
+          "value": "\"reminder_job\".\"reminder_name\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "reminder_job_offset_hours": {
+          "name": "reminder_job_offset_hours",
+          "value": "\"reminder_job\".\"offset_hours\" BETWEEN 1 AND 720"
+        },
+        "reminder_job_fire_at": {
+          "name": "reminder_job_fire_at",
+          "value": "\"reminder_job\".\"fire_at\" = \"reminder_job\".\"deadline_at\" - make_interval(hours => \"reminder_job\".\"offset_hours\")"
+        },
+        "reminder_job_fired_stamped": {
+          "name": "reminder_job_fired_stamped",
+          "value": "(\"reminder_job\".\"status\" = 'fired') = (\"reminder_job\".\"fired_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.legal_hold": {
       "name": "legal_hold",
       "schema": "",
@@ -12188,9 +12316,7 @@
         "cms_image",
         "offline_payment_proof",
         "consent_form",
-        "entry_image",
-        "entry_video",
-        "entry_document"
+        "entry_image"
       ]
     },
     "public.file_asset_status": {
@@ -12704,6 +12830,16 @@
       "values": [
         "draft",
         "sent"
+      ]
+    },
+    "public.reminder_job_status": {
+      "name": "reminder_job_status",
+      "schema": "public",
+      "values": [
+        "scheduled",
+        "fired",
+        "cancelled",
+        "superseded"
       ]
     }
   },
