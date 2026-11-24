@@ -12,8 +12,27 @@
 import type { UseCaseContext } from "../../use-cases";
 import { certifyConduct } from "./use-cases/certify-conduct";
 import { getConductCertification } from "./use-cases/get-conduct-certification";
+import { getStudentSubmission } from "./use-cases/get-student-submission";
+import { listInstitutionSubmissions } from "./use-cases/list-institution-submissions";
 
 export type { CertifyConductResult } from "./use-cases/certify-conduct";
+export type {
+  GetStudentSubmissionResult,
+  StudentSubmission,
+  StudentSubmissionHold,
+} from "./use-cases/get-student-submission";
+export type {
+  InstitutionSubmissions,
+  ListInstitutionSubmissionsResult,
+} from "./use-cases/list-institution-submissions";
+export type {
+  RosterAction,
+  RosterHold,
+  RosterRow,
+  RosterStatus,
+  SubmissionGate,
+} from "./domain/roster";
+export { CONDUCT_STATEMENT_VERSION } from "./domain/conduct-statement";
 export type {
   ConductCertificationView,
   GetConductCertificationResult,
@@ -25,4 +44,9 @@ export const institutionSubmissionsUseCases = (ctx: UseCaseContext) => ({
   certifyConduct: (input: RegistrationRef) => certifyConduct(ctx, input),
   getConductCertification: (input: RegistrationRef) =>
     getConductCertification(ctx, input),
+  listInstitutionSubmissions: (input: RegistrationRef) =>
+    listInstitutionSubmissions(ctx, input),
+  getStudentSubmission: (
+    input: RegistrationRef & { registrationNumber: string }
+  ) => getStudentSubmission(ctx, input),
 });
