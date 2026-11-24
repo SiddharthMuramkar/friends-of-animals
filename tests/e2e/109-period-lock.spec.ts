@@ -66,8 +66,10 @@ function monthItem(page: Page) {
     .filter({ has: page.getByRole("heading", { name: month, exact: true }) });
 }
 
-function requestItem(page: Page, title: string) {
+/** A request in one list: "Waiting for approval" or "Decided recently". */
+function requestItem(page: Page, title: string, list = "Waiting for approval") {
   return page
+    .getByRole("region", { name: list, exact: true })
     .getByRole("listitem")
     .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 }
@@ -149,9 +151,9 @@ test("two finance users reopen and relock a month, each approving the other", as
     .getByRole("button", { name: "Approve" })
     .click();
   await expect(notice(asha, "Approved. The change applies now.")).toBeVisible();
-  await expect(requestItem(asha, `Reopen ${month}`)).toContainText(
-    "Approved by Bilal Period Finance"
-  );
+  await expect(
+    requestItem(asha, `Reopen ${month}`, "Decided recently").first()
+  ).toContainText("Approved by Bilal Period Finance");
 
   await asha.goto(periods);
   await expect(
