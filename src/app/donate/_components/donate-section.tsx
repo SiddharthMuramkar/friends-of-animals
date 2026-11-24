@@ -8,14 +8,16 @@ import type { DonationTerms } from "@/server/modules/donations/terms";
 
 import { PRESET_RUPEES } from "../_lib/donate-input";
 import { rupeesText } from "../_lib/rupees";
-import { currentDonationTerms, publishedDonationTerms } from "../_lib/terms";
+import { loadDonationTerms } from "../_lib/terms";
 import { DonateForm, type DonateFormLabels } from "./donate-form";
 
 /**
  * Where the donate page takes a gift (#106): the form while online giving
  * is open (the `donations.enabled` setting), and the honest "not open yet"
  * otherwise, which is what production shows until Razorpay's live keys
- * and the accountant's receipts are in place (HR-15, HR-47).
+ * and the accountant's receipts are in place (HR-15, HR-47). Read at
+ * request time, so the build needs no database: the static shell holds a
+ * one-line placeholder, with nothing to tap, until the terms stream in.
  */
 export async function DonateSection() {
   const [t, callout] = await Promise.all([
@@ -23,11 +25,7 @@ export async function DonateSection() {
     getTranslations("common.callout"),
   ]);
   return (
-    <Live
-      fallback={null}
-      published={publishedDonationTerms}
-      load={currentDonationTerms}
-    >
+    <Live<DonationTerms | null> fallback={null} load={loadDonationTerms}>
       {(terms) =>
         terms === null ? (
           <p className="text-center text-ink-muted">{t("form.loading")}</p>
