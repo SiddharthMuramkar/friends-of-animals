@@ -1,4 +1,4 @@
-import { Eye, ListChecks, PencilLine, Plus } from "lucide-react";
+import { Eye, ListChecks, Megaphone, PencilLine, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
@@ -13,6 +13,7 @@ import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
 
 import { CompetitionsDenied, StatusChip } from "./_components/admin-states";
+import { announcementsHref } from "./[id]/announcements/_lib/href";
 import { rubricsHref } from "./[id]/rubrics/_lib/href";
 import { competitionHref } from "./_lib/href";
 
@@ -135,6 +136,16 @@ async function CompetitionList() {
                     <span aria-hidden="true">{t("rubrics")}</span>
                     <span className="sr-only">
                       {t("rubricsLabel", { name: competition.name })}
+                    </span>
+                  </ButtonLink>
+                  <ButtonLink
+                    href={announcementsHref(competition.id)}
+                    variant="secondary"
+                  >
+                    <Megaphone aria-hidden="true" />
+                    <span aria-hidden="true">{t("announcements")}</span>
+                    <span className="sr-only">
+                      {t("announcementsLabel", { name: competition.name })}
                     </span>
                   </ButtonLink>
                 </div>

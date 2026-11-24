@@ -28,7 +28,7 @@ async function counts(h: Harness) {
 }
 
 describe("the competitions seed", () => {
-  it("publishes one competition per way of taking part, at the sample links", async () => {
+  it("publishes the sample competitions for every way of taking part and the entry examples", async () => {
     const h = await createHarness();
     await h.seed.preview();
 
@@ -53,6 +53,18 @@ describe("the competitions seed", () => {
         slug: "neighbours-on-my-street",
         participation: "both",
         status: "registration_open",
+      },
+      {
+        code: "ROOF27",
+        slug: "life-on-the-rooftops",
+        participation: "individuals",
+        status: "registration_closed",
+      },
+      {
+        code: "BIRDS27",
+        slug: "birds-in-our-gardens",
+        participation: "individuals",
+        status: "registration_closed",
       },
       {
         code: "WATER27",
@@ -82,7 +94,7 @@ describe("the competitions seed", () => {
     ).toBeNull();
   });
 
-  it("seeds a global competition manager who sees all four", async () => {
+  it("seeds a global competition manager who sees all six", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = await h.signIn(SEED_COMPETITION_MANAGER);
@@ -92,6 +104,8 @@ describe("the competitions seed", () => {
     expect(listed.map((c) => c.status).sort()).toEqual([
       "draft",
       "published",
+      "registration_closed",
+      "registration_closed",
       "registration_open",
       "school_judging",
     ]);
@@ -129,6 +143,18 @@ describe("the competitions seed", () => {
           status: "registration_open",
           openingPassed: true,
           closingPassed: false,
+          submissionsClosed: false,
+        },
+        {
+          status: "registration_closed",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: false,
+        },
+        {
+          status: "registration_closed",
+          openingPassed: true,
+          closingPassed: true,
           submissionsClosed: false,
         },
         {
@@ -202,7 +228,7 @@ describe("the competitions seed", () => {
         await h.as(manager).verifySecondFactor({ code: h.totpCode() }),
         account.email
       ).toEqual({ ok: true });
-      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(4);
+      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(6);
     }
   });
 
@@ -218,7 +244,7 @@ describe("the competitions seed", () => {
     expect(await h.db.select({ id: competition.id }).from(competition)).toEqual(
       ids
     );
-    expect(once).toMatchObject({ competitions: 4 });
+    expect(once).toMatchObject({ competitions: 6 });
   });
 });
 

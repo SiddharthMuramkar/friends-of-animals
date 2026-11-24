@@ -45,6 +45,9 @@ Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
 
+Announcement inbox titles and bodies are encrypted. Their retention period is
+365 days after the recipient reads the message (HR-31, pending confirmation).
+
 ## Competition entry data
 
 The proposed entry retention periods are three years after the competition

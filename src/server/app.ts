@@ -39,6 +39,7 @@ import { participantsUseCases } from "./modules/participants";
 import { guardiansUseCases } from "./modules/guardians";
 import { ledgerUseCases } from "./modules/ledger";
 import { entriesUseCases } from "./modules/entries";
+import { announcementsUseCases } from "./modules/announcements";
 import { privacyUseCases } from "./modules/privacy";
 import { composeUseCases } from "./use-cases";
 
@@ -68,6 +69,7 @@ const useCases = composeUseCases(
   guardiansUseCases,
   ledgerUseCases,
   entriesUseCases,
+  announcementsUseCases,
   privacyUseCases
 );
 

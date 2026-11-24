@@ -233,7 +233,15 @@ async function run(deps: OutboxDeps, row: OutboxRow): Promise<DeliveryOutcome> {
     )(deps, delivery);
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: describeFailure(error) };
+    // Providers can include rendered copy and personal details in their
+    // diagnostics, and an announcement's copy can name help contacts (#84).
+    return {
+      ok: false,
+      error:
+        row.eventType === "competition.announcement_sent"
+          ? `announcement_delivery_failed: ${row.eventId}`
+          : describeFailure(error),
+    };
   }
 }
 

@@ -9,6 +9,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import type { BlindIndex } from "../server/crypto/blind-index";
 import type { FieldCipher } from "../server/crypto/field-cipher";
 import { fieldCryptoFor, type FieldKeyEnv } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
@@ -106,14 +107,28 @@ function cipherOnFirstUse(env: FieldKeyEnv): FieldCipher {
   };
 }
 
+/**
+ * The blind index, made at its first use like the cipher: it keys an
+ * announcement's external delivery by destination (#84).
+ */
+function blindIndexOnFirstUse(env: FieldKeyEnv): BlindIndex {
+  let index: BlindIndex | undefined;
+  return {
+    of: (purpose, value) =>
+      (index ??= fieldCryptoFor(env).blindIndex).of(purpose, value),
+  };
+}
+
 export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   let supervisor: Supervisor | undefined;
   const cleanups: (() => Promise<void>)[] = [];
-  const cipher = cipherOnFirstUse({
+  const fieldKeys: FieldKeyEnv = {
     APP_ENV: config.appEnv,
     FIELD_ENCRYPTION_KEYS: config.fieldEncryptionKeys,
     FIELD_HMAC_KEY: config.fieldHmacKey,
-  });
+  };
+  const cipher = cipherOnFirstUse(fieldKeys);
+  const blindIndex = blindIndexOnFirstUse(fieldKeys);
   /** The default workers never process media: their queue has no media job. */
   let media: MediaProcessor = unconfiguredMedia;
   const isMedia = config.queue.name === "media";
@@ -131,6 +146,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
     settings: databaseSettings(db),
     cipher,
+    blindIndex,
     auth: { baseUrl: config.siteUrl },
     storage: io.storage,
     files: {
