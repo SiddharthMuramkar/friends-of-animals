@@ -197,9 +197,7 @@ export function isPubliclyListed(status: ListingStatus): boolean {
 }
 
 /** The decisions staff can make about a listing in status `from`. */
-export function allowedStaffActions(
-  from: ListingStatus
-): StaffListingAction[] {
+export function allowedStaffActions(from: ListingStatus): StaffListingAction[] {
   return STAFF_LISTING_ACTIONS.filter(
     (action) => TRANSITIONS[from][action] !== undefined
   );

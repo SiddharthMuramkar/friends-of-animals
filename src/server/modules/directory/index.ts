@@ -89,8 +89,7 @@ export const directoryUseCases = (ctx: UseCaseContext) => ({
   listMyListings: () => listMyListings(ctx),
   getMyListing: (input: { listingId: string }) => getMyListing(ctx, input),
   updateListing: (input: UpdateListingInput) => updateListing(ctx, input),
-  withdrawListing: (input: WithdrawListingInput) =>
-    withdrawListing(ctx, input),
+  withdrawListing: (input: WithdrawListingInput) => withdrawListing(ctx, input),
   requestListingDocumentUpload: (input: RequestListingDocumentUploadInput) =>
     requestListingDocumentUpload(ctx, input),
   listListingsForReview: (input: ListListingsForReviewInput = {}) =>
@@ -102,8 +101,7 @@ export const directoryUseCases = (ctx: UseCaseContext) => ({
   verifyListing: (input: DecideListingInput) => verifyListing(ctx, input),
   rejectListing: (input: DecideListingInput) => rejectListing(ctx, input),
   suspendListing: (input: DecideListingInput) => suspendListing(ctx, input),
-  reinstateListing: (input: DecideListingInput) =>
-    reinstateListing(ctx, input),
+  reinstateListing: (input: DecideListingInput) => reinstateListing(ctx, input),
   getPublicListing: (input: { slug: string }) => getPublicListing(ctx, input),
   publicListingSlugs: () => publicListingSlugs(ctx),
 });

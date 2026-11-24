@@ -31,7 +31,10 @@ export async function listingActedFor(
     .where(eq(directoryListing.id, listingId));
   const [row] = lock ? await query.for("update") : await query;
   if (!row) {
-    throw new DomainError("forbidden", `${ctx.actor.kind} may not directory.manage`);
+    throw new DomainError(
+      "forbidden",
+      `${ctx.actor.kind} may not directory.manage`
+    );
   }
   const { role } = await authorize(
     { ...ctx, db },

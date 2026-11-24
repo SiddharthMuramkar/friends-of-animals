@@ -65,9 +65,7 @@ describe("the person who registered a listing hears each decision", () => {
     expect(h.email.lastTo(person.email)?.subject).toBe(
       "Paws Trust is back on FOA's directory"
     );
-    expect(
-      (await h.as(actor).listInbox()).map((item) => item.title)
-    ).toEqual(
+    expect((await h.as(actor).listInbox()).map((item) => item.title)).toEqual(
       expect.arrayContaining([
         "Paws Trust is on FOA's directory",
         "Paws Trust is hidden from FOA's directory",
@@ -82,9 +80,9 @@ describe("the person who registered a listing hears each decision", () => {
 
     await h.drain();
 
-    expect(
-      h.email.sent.filter((m) => m.text.includes("Paws Trust"))
-    ).toEqual([]);
+    expect(h.email.sent.filter((m) => m.text.includes("Paws Trust"))).toEqual(
+      []
+    );
     expect(await h.as(actor).listInbox()).toEqual([]);
   });
 });

@@ -66,7 +66,11 @@ describe("updateListing", () => {
       publicContactFields: ["phone", "email"],
     });
 
-    expect(result).toMatchObject({ ok: true, changed: true, status: "verified" });
+    expect(result).toMatchObject({
+      ok: true,
+      changed: true,
+      status: "verified",
+    });
     expect(await h.as(h.visitor()).getPublicListing({ slug })).toMatchObject({
       ok: true,
       listing: {
@@ -133,8 +137,15 @@ describe("updateListing", () => {
     const { listingId, actor } = await verifiedListing(h);
 
     expect(
-      await edit(h, actor, listingId, { services: ["rescue", "veterinary_care"] })
-    ).toEqual({ ok: true, changed: false, status: "verified", slug: "paws-trust" });
+      await edit(h, actor, listingId, {
+        services: ["rescue", "veterinary_care"],
+      })
+    ).toEqual({
+      ok: true,
+      changed: false,
+      status: "verified",
+      slug: "paws-trust",
+    });
     expect(await auditsNamed(h, listingId, "directory.listing_edited")).toEqual(
       []
     );
@@ -201,7 +212,9 @@ describe("who may act for a listing", () => {
         h.as(who).withdrawListing({ listingId: b.listingId })
       ).rejects.toThrow(DomainError);
     }
-    expect(await h.as(b.actor).getMyListing({ listingId: b.listingId })).toMatchObject({
+    expect(
+      await h.as(b.actor).getMyListing({ listingId: b.listingId })
+    ).toMatchObject({
       ok: true,
       listing: { description: "We rescue and treat street animals in Pune." },
     });
@@ -244,7 +257,10 @@ describe("withdrawListing", () => {
     expect(
       await h
         .as(actor)
-        .withdrawListing({ listingId, reason: "  We merged with another trust. " })
+        .withdrawListing({
+          listingId,
+          reason: "  We merged with another trust. ",
+        })
     ).toEqual({ ok: true, status: "withdrawn", slug: "paws-trust" });
     expect(await h.as(actor).listMyListings()).toEqual([
       expect.objectContaining({
@@ -289,9 +305,7 @@ describe("withdrawListing", () => {
     const { listingId, actor } = await registeredListing(h);
 
     expect(
-      await h
-        .as(actor)
-        .withdrawListing({ listingId, reason: "x".repeat(1001) })
+      await h.as(actor).withdrawListing({ listingId, reason: "x".repeat(1001) })
     ).toEqual({ ok: false, error: "reason_too_long" });
     const [audits] = await h.db
       .select({ n: count() })

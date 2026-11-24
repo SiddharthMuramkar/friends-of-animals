@@ -5,11 +5,7 @@ import { auditLog, directoryListing, userRole } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import { createHarness, type Harness } from "@/test/harness";
 
-import {
-  registeredListing,
-  signedInStaff,
-  verifiedListing,
-} from "./testing";
+import { registeredListing, signedInStaff, verifiedListing } from "./testing";
 
 const REASON = "Checked the trust deed and the AWBI letter.";
 

@@ -36,7 +36,9 @@ export function changedListingFields(
   before: ListingDetails,
   after: ListingDetails
 ): ListingField[] {
-  return LISTING_FIELDS.filter((field) => !sameValue(before[field], after[field]));
+  return LISTING_FIELDS.filter(
+    (field) => !sameValue(before[field], after[field])
+  );
 }
 
 export type ListingEditPlan =

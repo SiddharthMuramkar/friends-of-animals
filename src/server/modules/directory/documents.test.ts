@@ -7,11 +7,7 @@ import { DomainError } from "@/server/errors";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { DOCUMENTS_PER_LISTING_MAX } from "./documents";
-import {
-  registeredListing,
-  signedInStaff,
-  verifiedListing,
-} from "./testing";
+import { registeredListing, signedInStaff, verifiedListing } from "./testing";
 
 const PDF = new TextEncoder().encode("%PDF-1.7\n% a trust deed\n%%EOF\n");
 
@@ -59,9 +55,7 @@ describe("requestListingDocumentUpload", () => {
       },
     });
     const staff = await signedInStaff(h);
-    expect(
-      await h.as(staff).getListingForReview({ listingId })
-    ).toMatchObject({
+    expect(await h.as(staff).getListingForReview({ listingId })).toMatchObject({
       ok: true,
       listing: {
         documents: [{ id: documentId, kind: "registration_certificate" }],
@@ -226,9 +220,9 @@ describe("getListingDocumentUrl", () => {
       await expect(
         h.as(who).getListingDocumentUrl({ documentId })
       ).rejects.toThrow(DomainError);
-      await expect(
-        h.as(who).getFileDownloadUrl({ fileId })
-      ).rejects.toThrow(DomainError);
+      await expect(h.as(who).getFileDownloadUrl({ fileId })).rejects.toThrow(
+        DomainError
+      );
     }
   });
 

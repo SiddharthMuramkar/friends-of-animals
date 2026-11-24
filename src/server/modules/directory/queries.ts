@@ -133,7 +133,10 @@ async function documentsOf(
       uploadedAt: directoryListingDocument.createdAt,
     })
     .from(directoryListingDocument)
-    .innerJoin(fileAsset, eq(fileAsset.id, directoryListingDocument.fileAssetId))
+    .innerJoin(
+      fileAsset,
+      eq(fileAsset.id, directoryListingDocument.fileAssetId)
+    )
     .where(
       and(
         eq(directoryListingDocument.listingId, listingId),
@@ -157,7 +160,9 @@ export type MyListing = StoredListing & {
   canAddDocuments: boolean;
 };
 
-export type GetMyListingResult = { ok: true; listing: MyListing } | InvalidInput;
+export type GetMyListingResult =
+  | { ok: true; listing: MyListing }
+  | InvalidInput;
 
 const listingIdInput = z.object({ listingId: z.uuid() });
 
@@ -253,8 +258,7 @@ export async function listListingsForReview(
   return {
     ok: true,
     listings,
-    next:
-      rows.length > REVIEW_PAGE_SIZE ? (listings.at(-1)?.id ?? null) : null,
+    next: rows.length > REVIEW_PAGE_SIZE ? (listings.at(-1)?.id ?? null) : null,
   };
 }
 
