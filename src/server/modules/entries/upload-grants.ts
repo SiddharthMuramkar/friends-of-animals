@@ -12,7 +12,16 @@ import {
 } from "../files/domain/storage-key";
 
 const MAX_OUTSTANDING_GRANTS = 3;
-const MAX_GRANTS_PER_UPLOAD_WINDOW = 6;
+
+/**
+ * Upload URLs one uploader may take while earlier ones are still valid: a
+ * participant enters one work, a coordinator (#87) a class one after
+ * another, each in a few seconds.
+ */
+export const GRANTS_PER_UPLOAD_WINDOW = {
+  participant: 6,
+  coordinator: 30,
+} as const;
 const STAGED_UPLOAD_SWEEP_DELAY_MS = 60 * 60 * 1000;
 
 /** Register both cleanups in the same transaction as the grant. */
@@ -48,11 +57,13 @@ export async function canIssueUploadGrant(
     registrationId,
     now,
     retiringFileId,
+    uploader,
   }: {
     ownerId: string;
     registrationId: string;
     now: Date;
     retiringFileId: string | undefined;
+    uploader: keyof typeof GRANTS_PER_UPLOAD_WINDOW;
   }
 ): Promise<boolean> {
   const grants = await tx
@@ -83,7 +94,7 @@ export async function canIssueUploadGrant(
   // Completed and retired PUT URLs both count until they expire.
   return (
     grants.filter((grant) => grant.ownerId === ownerId).length <
-      MAX_GRANTS_PER_UPLOAD_WINDOW &&
+      GRANTS_PER_UPLOAD_WINDOW[uploader] &&
     outstanding.filter((grant) => grant.ownerId === ownerId).length <
       MAX_OUTSTANDING_GRANTS &&
     !outstanding.some((grant) => grant.registrationId === registrationId)
