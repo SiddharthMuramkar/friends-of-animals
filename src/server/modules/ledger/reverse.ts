@@ -5,13 +5,28 @@ import { ledgerPosting } from "../../db/schema";
 
 import { postingDescription } from "./descriptions";
 import { fromColumns, parsePostingSeq, reverseLines } from "./domain/posting";
-import { postToLedger } from "./post";
+import { LedgerPostingError, postToLedger } from "./post";
 import { postingLines } from "./rows";
 
 export async function reversePosting(ctx: PolicyContext, seq: string | bigint) {
   const { role } = await authorize(ctx, "ledger.write");
   const number = parsePostingSeq(seq);
   if (number === undefined) return { ok: false, error: "not_found" } as const;
+  try {
+    return await reverse(ctx, role, number);
+  } catch (error) {
+    // A reversal is dated today: refused while the current month is locked.
+    if (error instanceof LedgerPostingError && error.code === "period_locked")
+      return { ok: false, error: error.code } as const;
+    throw error;
+  }
+}
+
+function reverse(
+  ctx: PolicyContext,
+  role: Awaited<ReturnType<typeof authorize>>["role"],
+  number: bigint
+) {
   return ctx.db.transaction(async (tx) => {
     const [original] = await tx
       .select({

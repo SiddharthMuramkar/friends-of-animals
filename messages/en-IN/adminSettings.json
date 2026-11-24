@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} rupees {{count, plural, other {₹#}}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} rupees {whole rupees} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -116,6 +116,20 @@
         "authorityEmail": {
           "label": "Authority's address for breach notices",
           "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
+        }
+      },
+      "ledger": {
+        "manualEntryApprovalThresholdRupees": {
+          "label": "Manual entries that need a second approver",
+          "description": "A manual ledger entry moving more than this many rupees waits until a second finance user approves it. Entries at or below it post at once. Set 0 to send every manual entry for approval."
+        },
+        "approvalExpiryDays": {
+          "label": "Days a finance request waits for approval",
+          "description": "A period lock, a reopening or a large manual entry that nobody approves or rejects in this many days expires, and finance has to ask again."
+        },
+        "accountantExport": {
+          "label": "Accountant's ledger export",
+          "description": "Lets finance download the ledger as a CSV journal for FOA's accountant. Keep it off until the accountant has confirmed the columns and the date rules."
         }
       },
       "retention": {

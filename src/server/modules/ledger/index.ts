@@ -7,6 +7,13 @@ import {
   type CreateLedgerAccountInput,
   type UpdateLedgerAccountInput,
 } from "./accounts";
+import {
+  approveFinanceRequest,
+  cancelFinanceRequest,
+  expireFinanceRequests,
+  listFinanceRequests,
+  rejectFinanceRequest,
+} from "./approvals";
 import { backfillLedgerFromPayments } from "./backfill";
 import { postPaymentCapture, postRefund } from "./consumers";
 import { createManualEntry, type ManualEntryInput } from "./manual-entry";
@@ -16,6 +23,11 @@ import {
   listPostings,
   type ListPostingsInput,
 } from "./queries";
+import {
+  listLedgerPeriods,
+  requestPeriodLock,
+  requestPeriodUnlock,
+} from "./periods";
 import { reversePosting } from "./reverse";
 
 export { postToLedger } from "./post";
@@ -37,4 +49,18 @@ export const ledgerUseCases = (ctx: UseCaseContext) => ({
   listPostings: (input: ListPostingsInput) => listPostings(ctx, input),
   getPosting: (seq: string | bigint) => getPosting(ctx, seq),
   listLedgerAccounts: () => listLedgerAccounts(ctx),
+  // Period lock and the two-approver rule (#109).
+  listLedgerPeriods: () => listLedgerPeriods(ctx),
+  requestPeriodLock: (input: { month: string }) =>
+    requestPeriodLock(ctx, input),
+  requestPeriodUnlock: (input: { month: string; reason: string }) =>
+    requestPeriodUnlock(ctx, input),
+  listFinanceRequests: () => listFinanceRequests(ctx),
+  approveFinanceRequest: (input: { requestId: string }) =>
+    approveFinanceRequest(ctx, input),
+  rejectFinanceRequest: (input: { requestId: string; reason: string }) =>
+    rejectFinanceRequest(ctx, input),
+  cancelFinanceRequest: (input: { requestId: string }) =>
+    cancelFinanceRequest(ctx, input),
+  expireFinanceRequests: () => expireFinanceRequests(ctx),
 });

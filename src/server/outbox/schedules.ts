@@ -9,6 +9,7 @@
 
 import { offsiteCopySchedule } from "../modules/offsite-copy/schedule";
 import { reconcileLedgerSchedule } from "../modules/ledger/backfill";
+import { expireFinanceRequestsSchedule } from "../modules/ledger/approvals";
 import { retentionSweepSchedule } from "../modules/privacy/schedule";
 import type { ErrorReporter } from "../ports/errors";
 import type { OutboxDeps } from "./handlers";
@@ -46,6 +47,7 @@ export type ScheduleDefinition = {
 export const SCHEDULES: readonly ScheduleDefinition[] = [
   offsiteCopySchedule,
   reconcileLedgerSchedule,
+  expireFinanceRequestsSchedule,
   retentionSweepSchedule,
 ];
 

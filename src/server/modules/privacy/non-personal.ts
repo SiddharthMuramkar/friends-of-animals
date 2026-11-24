@@ -464,6 +464,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
   ],
   legal_hold: ["id", "placed_at", "released_at", "subject_type"],
+  finance_approval: [
+    "decided_at",
+    "executed_posting_id",
+    "expires_at",
+    "id",
+    "operation",
+    "requested_at",
+    "status",
+  ],
   ledger_account: [
     "code",
     "created_at",
@@ -482,6 +491,13 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "id",
     "line_no",
     "posting_id",
+  ],
+  ledger_period: [
+    "created_at",
+    "last_unlocked_at",
+    "locked_at",
+    "month",
+    "status",
   ],
   ledger_posting: [
     "competition_id",

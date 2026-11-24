@@ -11,6 +11,10 @@
 
 import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
+  DEFAULT_APPROVAL_EXPIRY_DAYS,
+  DEFAULT_MANUAL_ENTRY_APPROVAL_THRESHOLD_RUPEES,
+} from "../ledger/domain/approval";
+import {
   CONTACT_RETENTION,
   MAX_RETENTION_DAYS,
   minimumRetentionDays,
@@ -89,6 +93,24 @@ export const SETTINGS = {
   // Empty until FOA's counsel names the channel (HR-49); staff then file
   // the notice by hand and record the authority's reference.
   "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Ledger (#109). A manual entry moving more than this many rupees waits
+  // for a second finance user; 0 sends every manual entry for approval.
+  // A request nobody decides expires after the days below (HR-51).
+  "ledger.manualEntryApprovalThresholdRupees": integerSetting({
+    default: DEFAULT_MANUAL_ENTRY_APPROVAL_THRESHOLD_RUPEES,
+    min: 0,
+    max: 1_000_000_000,
+    unit: "rupees",
+  }),
+  "ledger.approvalExpiryDays": integerSetting({
+    default: DEFAULT_APPROVAL_EXPIRY_DAYS,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  // The accountant's ledger export. Off until FOA's accountant confirms its
+  // format (HR-47); seeded on for local runs and previews.
+  "ledger.accountantExport": booleanSetting({ default: false }),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel

@@ -1,0 +1,110 @@
+{
+  "adminLedgerPeriods": {
+    "nav": {
+      "label": "Finance pages",
+      "periods": "Periods",
+      "approvals": "Approvals",
+      "budgets": "Budgets",
+      "budgetReport": "Budget report",
+      "export": "Accountant export"
+    },
+    "periods": {
+      "title": "Ledger periods",
+      "lead": "Lock a month once it is reconciled. Nothing can be posted into a locked month or any month before it, so its figures never change. Corrections go in as reversals in an open month. A second finance user approves every lock and every reopening.",
+      "lockLine": "Locked up to and including {month}.",
+      "noLock": "No month is locked yet.",
+      "caption": "Months of the ledger, newest first",
+      "status": {
+        "open": "Open",
+        "locked": "Locked"
+      },
+      "lockedOn": "Locked on {date}.",
+      "unlockedOn": "Last reopened on {date}. Reason: {reason}",
+      "pending": {
+        "period_lock": "A lock is waiting for a second finance user.",
+        "period_unlock": "A request to reopen it is waiting for a second finance user."
+      },
+      "seeRequest": "Open approvals",
+      "requestLock": "Ask to lock {month}",
+      "unlockReason": "Why {month} needs to reopen",
+      "unlockHint": "A second finance user reads this before they approve. Up to 500 characters.",
+      "requestUnlock": "Ask to reopen {month}",
+      "sending": "Sending…",
+      "lateAdjustments": "A capture or refund dated in a locked month counts in the first open month after it, marked as a late adjustment."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "lead": "Locking or reopening a month, and a manual entry above ₹{threshold}, wait here until a second finance user approves. You can't approve your own request. Approving asks you to confirm it's you again.",
+      "requestedEntry": "Your entry is above the approval limit, so it waits here for a second finance user. It is posted once they approve it.",
+      "pendingTitle": "Waiting for approval",
+      "noPending": "Nothing is waiting for approval.",
+      "decidedTitle": "Decided recently",
+      "noDecided": "No request has been decided yet.",
+      "operation": {
+        "period_lock": "Lock {month}",
+        "period_unlock": "Reopen {month}",
+        "manual_entry": "Manual entry of {amount} dated {date}",
+        "unknown": "Request"
+      },
+      "requestedBy": "Asked by {name} on {date}.",
+      "requestedByYou": "Asked by you on {date}.",
+      "expires": "Expires on {date}.",
+      "overdue": "Its time has run out. It closes tonight, and can be asked for again.",
+      "reason": "Reason: {reason}",
+      "linesCaption": "Lines of the manual entry",
+      "account": "Account",
+      "memo": "Memo",
+      "approve": "Approve",
+      "approving": "Approving…",
+      "rejectReason": "Why you are rejecting it",
+      "reject": "Reject",
+      "rejecting": "Rejecting…",
+      "cancel": "Withdraw my request",
+      "cancelling": "Withdrawing…",
+      "ownRequest": "Another finance user has to approve or reject this.",
+      "status": {
+        "pending": "Waiting",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Withdrawn",
+        "expired": "Expired"
+      },
+      "decidedBy": "{status} by {name} on {date}.",
+      "decidedOn": "{status} on {date}.",
+      "rejectedBecause": "Reason given: {reason}"
+    },
+    "results": {
+      "lock_requested": "Your request to lock the month is waiting for a second finance user.",
+      "unlock_requested": "Your request to reopen the month is waiting for a second finance user.",
+      "approved": "Approved. The change applies now.",
+      "rejected": "Rejected. Nothing changed.",
+      "cancelled": "Your request is withdrawn."
+    },
+    "errors": {
+      "forbidden": "Only FOA finance staff can do this.",
+      "invalid_input": "Check the form and try again.",
+      "reason_required": "Give a reason of up to 500 characters.",
+      "not_found": "That request no longer exists.",
+      "not_pending": "That request has already been decided.",
+      "self_approval": "You asked for this, so another finance user has to decide it.",
+      "not_requester": "Only the finance user who asked can withdraw it.",
+      "request_expired": "Its time ran out. Ask again if it is still needed.",
+      "request_pending": "A request for that month is already waiting.",
+      "period_not_started": "That month hasn't started yet.",
+      "period_locked": "That month is already locked, or is before a locked month.",
+      "earlier_period_open": "Lock the earlier open months first, oldest first.",
+      "later_period_locked": "Reopen the later locked months first, newest first.",
+      "period_not_locked": "That month isn't locked.",
+      "invalid_description": "The entry's description no longer fits. Reject it and enter it again.",
+      "invalid_memo": "A memo no longer fits. Reject it and enter it again.",
+      "unknown_account": "An account in the entry no longer exists. Reject it and enter it again.",
+      "inactive_account": "An account in the entry has been deactivated. Reject it and enter it again.",
+      "unbalanced": "The entry doesn't balance. Reject it and enter it again.",
+      "too_few_lines": "The entry needs at least two lines. Reject it and enter it again.",
+      "too_many_lines": "The entry has too many lines. Reject it and enter it again.",
+      "non_positive_amount": "The entry has an amount that isn't above zero. Reject it and enter it again.",
+      "missing_account": "The entry has a line without an account. Reject it and enter it again.",
+      "invalid_source_type": "The entry can't be posted. Reject it and enter it again."
+    }
+  }
+}
