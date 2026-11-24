@@ -592,6 +592,20 @@ A few end-to-end journeys per milestone, run in a browser against a pull
 request's preview deployment.
 _Avoid_: E2E suite, UI tests
 
+## Volunteering
+
+**Volunteer**:
+A User FOA has vetted and approved to help, who holds the volunteer Role.
+Volunteers are not Staff.
+_Avoid_: Helper, intern, staff volunteer
+
+**Volunteer application**:
+A person's request to volunteer: how they would like to help, when they are
+free, and their acceptance of the safeguarding declaration and the code of
+conduct. A 14- to 17-year-old's waits for their verified guardian's
+approval before a community manager approves or declines it.
+_Avoid_: Signup, volunteer form, registration
+
 ## Taking part
 
 **Individual route**:

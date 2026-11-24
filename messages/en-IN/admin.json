@@ -6,7 +6,8 @@
       "audit": "Audit log",
       "breaches": "Breach log",
       "consentForms": "Signed forms",
-      "privacy": "Data inventory"
+      "privacy": "Data inventory",
+      "volunteers": "Volunteers"
     },
     "loading": "Loading…",
     "denied": {

@@ -569,6 +569,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`safeguarding`](#safeguarding)   | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
 | [`second-factor`](#second-factor) | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
 | [`settings`](#settings)           | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
+| [`volunteers`](#volunteers)       | Volunteer applications: age gate, a teen's guardian approves, community managers vet and grant the volunteer role              | #123                    |
 
 ### announcements
 
@@ -1068,8 +1069,26 @@ Runtime settings a super admin changes without a deploy.
   | `reminders.entrySubmissionDueFirstHours`, `...SecondHours`                   | 72, 24                     | hours before submissions close; 0 for none (HR-37)    |
   | `retention.enforce`                                                          | false                      | the sweep only counts until a super admin turns it on |
   | `retention.<policy>Days`                                                     | per policy                 | one per retention policy                              |
+  | `volunteers.applicationsOpen`                                                | false                      | HR-55, HR-38; seeded on for local runs and previews   |
+  | `volunteers.minAgeYears`, `volunteers.guardianApprovalBelowAgeYears`         | 14, 18                     | 13 to 18 and 18 to 21 years (HR-57)                   |
 
 - **Tests:** `settings.test.ts`, `catalogue.test.ts`, `values.test.ts`; E2E `62-settings.spec.ts`.
+
+### volunteers
+
+People apply to volunteer, and FOA vets anyone who will work near children (#123). #124 adds tasks, hours and certificates on top.
+
+- **Table** `volunteer_application` (`src/server/db/schema/volunteers.ts`): interests (`volunteer_interest[]`), weekly availability (jsonb), the encrypted date of birth the age gate counted from (copied from the applicant's participant profile when they have one, typed otherwise), the guardian who decided, the two consent events an approval rested on, who decided and an encrypted decline reason. One open application per person (partial unique index).
+- **States** (`domain/application-status.ts`, every value in the first migration): `awaiting_guardian` → `submitted`, `guardian_declined` or `withdrawn`; `submitted` → `approved`, `declined` or `withdrawn`; the rest are final, and the person applies again with a new application. `approved` is reachable only from `submitted`.
+- **Rules:** age on India's calendar at `ctx.clock` (`ageAt`); under `volunteers.minAgeYears` (14) refused with nothing written; under `volunteers.guardianApprovalBelowAgeYears` (18) needs a verified guardian actively linked to the teen's guardian-kept profile, or it is refused (`guardian_required`). A linked teen's age is always the one their guardian entered. A bad stored setting only makes the rule stricter. Both declarations are consent purposes (`volunteer_safeguarding_declaration`, `volunteer_code_of_conduct`) recorded through the consent log on their current versions at apply time; approval needs both current (`*_missing`, `*_outdated`, `*_unpublished`), and an applicant re-accepts a republished one from their page. Approval grants the global `volunteer` role through `grantGlobalRole` (audit `role.granted` names the community manager).
+- **Use cases:** `applyToVolunteer`, `acceptVolunteerDeclarations`, `myVolunteerApplication` (signed in, own only); `decideAsGuardian`, `childVolunteerApplication` (the teen's verified guardian); `withdrawVolunteerApplication` (the applicant or that guardian); `listVolunteerApplications`, `getVolunteerApplication`, `declineVolunteer` (community manager, super admin); `approveVolunteer` (the same, with step-up).
+- **Pages:** `/dashboard/volunteer`, `/guardian/children/[id]/volunteer`, staff `/admin/volunteers`, `/admin/volunteers/[id]`. Staff publish the declarations at `/admin/consent-documents`; drafts are in `src/content/legal/volunteer-declarations.ts`.
+- **Events:** `volunteer.guardian_approval_requested`, `volunteer.application_submitted`, `volunteer.application_approved`, `volunteer.application_declined` → `notifications.dispatch`, audiences `volunteer_applicant` (a teen in the inbox only), `volunteer_guardians` and `community_managers` (`message-audiences.ts`).
+- **Gated:** applying is refused until a super admin turns on `volunteers.applicationsOpen` (off in production until HR-55 and HR-38); production also has no declaration versions until FOA publishes them, so applying refuses `declaration_unpublished` there.
+- **Retention:** `volunteerApplications` deletes a declined or withdrawn application 365 days after it closes (`privacy/policies/volunteers.ts`); an approved one stays while the person volunteers (HR-31).
+- **Migrations:** `0081_123_pre_volunteer_consent_purposes` (rule F2), `0082_123_volunteer_applications`, `0083_123_volunteer_messages`.
+- **Seed:** `src/server/seed/volunteers.ts`: community manager Neha Kapoor (`community-manager@example.test`, seed authenticator), approved volunteer Priya Nair, Arjun Mehta waiting for the community team, and Rohan Desai's application waiting for Kavita Desai.
+- **Tests:** `domain/*.test.ts`, `apply.test.ts`, `guardian-decision.test.ts`, `review.test.ts`, `policy.test.ts`, `volunteer-messages.test.ts`, `decide.pg.test.ts`, `src/server/seed/volunteers.test.ts`; E2E `123-volunteer-applications.spec.ts`.
 
 ### Worker jobs and schedules
 

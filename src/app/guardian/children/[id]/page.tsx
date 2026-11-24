@@ -12,7 +12,11 @@ import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { env } from "@/env";
-import { APP_ROUTES, guardianChildConsentsPath } from "@/lib/app-routes";
+import {
+  APP_ROUTES,
+  guardianChildConsentsPath,
+  guardianChildVolunteerPath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -193,13 +197,22 @@ async function Child({
           </section>
         )}
 
-        <div>
+        <div className="flex flex-wrap gap-3">
           <ButtonLink
             href={guardianChildConsentsPath(child.id)}
             variant="secondary"
           >
             {t("consents")}
           </ButtonLink>
+          {child.login === "linked" ? (
+            // A teen with their own login can apply to volunteer (#123).
+            <ButtonLink
+              href={guardianChildVolunteerPath(child.id)}
+              variant="secondary"
+            >
+              {t("volunteer")}
+            </ButtonLink>
+          ) : null}
         </div>
 
         {child.kind === "adult" ? null : (

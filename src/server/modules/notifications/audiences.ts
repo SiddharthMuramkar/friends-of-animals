@@ -5,7 +5,8 @@
 // member may be limited to the inbox, or recorded as told nothing (#81: a
 // minor with no verified guardian). Later tickets add an audience here and
 // route rows that use it, in a migration; #88 added `competition_managers`,
-// #81 `guardian_of_participant`, #80 `institution_coordinators`.
+// #81 `guardian_of_participant`, #80 `institution_coordinators`, #123
+// `volunteer_applicant`, `volunteer_guardians` and `community_managers`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -77,6 +78,14 @@ import {
   TRANSITION_BLOCK,
   type TransitionBlock,
 } from "../competitions/domain/transition-block";
+import {
+  APPLICATION_VARIABLES,
+  applicationValues,
+  communityManagers,
+  DECLINED_VARIABLES,
+  volunteerApplicant,
+  volunteerGuardians,
+} from "../volunteers/message-audiences";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -203,6 +212,26 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "institution_registration.competition_cancelled":
       // For its coordinators (`institution_coordinators`, #80).
+      return null;
+    case "volunteer.guardian_approval_requested":
+    case "volunteer.application_submitted":
+    case "volunteer.application_approved":
+    case "volunteer.application_declined":
+      // About an application (#123): `volunteer_applicant`,
+      // `volunteer_guardians` and `community_managers` find who hears.
+      return null;
+  }
+}
+
+/** The volunteer application an event is about (#123). */
+function volunteerApplicationOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "volunteer.guardian_approval_requested":
+    case "volunteer.application_submitted":
+    case "volunteer.application_approved":
+    case "volunteer.application_declined":
+      return delivery.payload.applicationId;
+    default:
       return null;
   }
 }
@@ -362,6 +391,21 @@ export const AUDIENCES = {
    * configured address with this route's template while it is enabled.
    */
   breach_authority: async () => [],
+  /**
+   * Whoever applied to volunteer (#123): an adult on every channel the
+   * route names, a teen in the inbox only.
+   */
+  volunteer_applicant: async (db, delivery) => {
+    const applicationId = volunteerApplicationOf(delivery);
+    return applicationId ? volunteerApplicant(db, applicationId) : [];
+  },
+  /** A teen applicant's verified guardians (#123); nobody for an adult's. */
+  volunteer_guardians: async (db, delivery) => {
+    const applicationId = volunteerApplicationOf(delivery);
+    return applicationId ? volunteerGuardians(db, applicationId) : [];
+  },
+  /** Everyone holding the community manager role everywhere (#123). */
+  community_managers: async (db) => communityManagers(db),
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -592,6 +636,26 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
+  },
+  "volunteer.guardian_approval_requested": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_submitted": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_approved": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_declined": {
+    names: DECLINED_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
   },
 };
 

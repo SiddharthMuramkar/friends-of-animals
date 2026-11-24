@@ -1,7 +1,8 @@
 // Consent seed data (#64): version 1 of the privacy notice, the terms and
 // the messages consent, published by the seeded super admin, so previews
 // show versioned legal pages and ask for consent at sign-up; and (#82)
-// draft versions of the guardian consent documents. The privacy
+// draft versions of the guardian consent documents, and (#123) of the
+// volunteer declarations. The privacy
 // and terms bodies are the repo's policy text, every clause kept (a
 // preview shows unconfirmed facts as tiles); the messages consent is a
 // draft (HR-20). Production gets no seed: staff publish version 1 there
@@ -11,6 +12,7 @@
 import { LEGAL_DOCS } from "../../content/legal";
 import { GUARDIAN_CONSENT_DRAFTS } from "../../content/legal/guardian-consents";
 import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
+import { VOLUNTEER_DECLARATION_DRAFTS } from "../../content/legal/volunteer-declarations";
 import {
   parseConsentDocumentBody,
   toConsentDocumentBody,
@@ -69,6 +71,12 @@ const SEED_DOCUMENTS: ReadonlyArray<{
   // (HR-33); the competition terms seed attaches them.
   ...Object.entries(GUARDIAN_CONSENT_DRAFTS).map(([purpose, draft]) => ({
     purpose: purpose as keyof typeof GUARDIAN_CONSENT_DRAFTS,
+    title: draft.title,
+    body: { short: draft.short, sections: draft.sections },
+  })),
+  // The volunteer declarations (#123), drafts too (HR-55).
+  ...Object.entries(VOLUNTEER_DECLARATION_DRAFTS).map(([purpose, draft]) => ({
+    purpose: purpose as keyof typeof VOLUNTEER_DECLARATION_DRAFTS,
     title: draft.title,
     body: { short: draft.short, sections: draft.sections },
   })),

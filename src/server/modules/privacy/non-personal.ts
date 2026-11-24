@@ -647,6 +647,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
   user: ["created_at", "email_verified", "id", "phone_verified", "updated_at"],
   user_role: ["granted_at", "id", "role", "scope_id", "scope_type"],
   verification: ["created_at", "expires_at", "id", "updated_at"],
+  volunteer_application: [
+    "closed_at",
+    "created_at",
+    "decided_at",
+    "guardian_decided_at",
+    "id",
+    "status",
+    "updated_at",
+  ],
   webauthn_challenge: ["challenge", "expires_at", "purpose", "session_id"],
   worker_heartbeat: ["environment", "last_seen_at", "version", "worker"],
 };

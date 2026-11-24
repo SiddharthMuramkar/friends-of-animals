@@ -160,6 +160,18 @@ const BREACH_RECORD = {
   toConfirm: true,
 } as const;
 
+/**
+ * A volunteer application (#123): a closed one that wasn't approved goes a
+ * year after it closed; an approved one stays while the person volunteers.
+ */
+const VOLUNTEER_APPLICATION_RECORD = {
+  policy: "volunteerApplications",
+  periodKey: "volunteerApplications",
+  basis:
+    "Child protection: shows who applied to work near children, what they declared, who approved them and why anyone was declined (legal basis to confirm, HR-55)",
+  toConfirm: true,
+} as const;
+
 const LEGAL_HOLD = {
   policy: "releasedLegalHolds",
   periodKey: "releasedLegalHolds",
@@ -552,6 +564,12 @@ const GUARDIAN_INVITATION_RECIPIENT = {
   kind: "invitee",
   via: "kind + contact_hash",
 } as const;
+
+const volunteerApplication = rowsOf("volunteer_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: VOLUNTEER_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
 
 /** A payment record: anonymised once the financial floor has passed. */
 const payment = (table: string, via: string) =>
@@ -1193,6 +1211,25 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Volunteer applications (#123): the applicant's answers and the record
+  // of who vetted them.
+  volunteerApplication("applicant_user_id", "identity"),
+  volunteerApplication("participant_profile_id", "identity"),
+  volunteerApplication("date_of_birth_ciphertext", "demographic"),
+  volunteerApplication("interests", "preference"),
+  volunteerApplication("availability", "preference"),
+  volunteerApplication("guardian_user_id", "identity", {
+    subject: { kind: "user", via: "guardian_user_id" },
+  }),
+  volunteerApplication("safeguarding_consent_id", "technical"),
+  volunteerApplication("conduct_consent_id", "technical"),
+  volunteerApplication("decline_reason_ciphertext", "content"),
+  actorColumn(
+    "volunteer_application",
+    "decided_by_user_id",
+    VOLUNTEER_APPLICATION_RECORD,
+    "delete_row"
+  ),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(
