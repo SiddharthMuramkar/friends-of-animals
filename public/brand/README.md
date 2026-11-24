@@ -47,7 +47,6 @@ The only source is a 368 × 219 screenshot (`foa-logo-source.png`). The 5 px dar
 - **Paw:** the four toes are ellipses. The pad and the cupped hands are a bitmap trace (potrace) of the source, upsampled 8×.
 - **Wordmark:** Helvetica letterforms (outlines from URW Nimbus Sans, a Helvetica clone). Each letter is fitted to the source for position, width and weight, with one shared cap height (21.37) and x-height (13.82). The source's x-height is lower than standard Helvetica's, so it was traced as it is.
 
-[`docs/brand/trace-diff.png`](../../docs/brand/trace-diff.png) shows the trace before the tiles were evened out, rasterised at the source's scale and overlaid on it. That trace differs from the source only along edges: every pixel off by more than 16/255 lies on an edge, and nothing inside a shape changes.
 
 FOA has no original artwork file (AI, CDR, EPS or PDF) and doesn't know the wordmark's font (#17), so this trace is the master. If an original turns up, replace `foa-logo.svg` with an export of it and regenerate the rest.
 
@@ -73,7 +72,6 @@ At 16–48 px the tile edges and gaps fall between pixels and blur, so `hintedTi
 - At 16 and 24 px the traced letters are 3–5 px tall and blur away, so F, O and A are placed pixel by pixel instead.
 - There's no SVG favicon: a vector can't be sharp at every size, and browsers would prefer it over the ICO.
 
-[`docs/brand/favicon-hinting.png`](../../docs/brand/favicon-hinting.png) shows the favicon at 16, 24 and 32 px, zoomed 6×, on a light and a dark tab. The top row is the old unhinted icon on a white square, and the bottom row is the hinted one.
 
 ## Uses FOA approved
 

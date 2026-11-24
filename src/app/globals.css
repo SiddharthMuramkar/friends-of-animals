@@ -500,7 +500,7 @@
   }
 }
 
-/* Long-form text (src/components/site/prose.tsx). */
+/* Long-form text: articles, legal pages and previews use `prose-foa`. */
 @layer components {
   .prose-foa {
     max-width: var(--container-prose);

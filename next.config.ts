@@ -36,10 +36,6 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     qualities: [75, 85],
   },
-  experimental: {
-    // lucide-react is optimised by default; radix-ui is not.
-    optimizePackageImports: ["radix-ui"],
-  },
   // The security headers on every route, HTML and static assets alike,
   // with the pay page's two overrides after them (#77); the public CSP
   // outside the signed-in tree, whose nonce CSP comes from src/proxy.ts

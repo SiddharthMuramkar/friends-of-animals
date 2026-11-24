@@ -8,13 +8,9 @@
   "semi": true,
   "arrowParens": "always",
   "ignorePatterns": [
-    "docs/handoff/**",
-    "docs/specs/**",
     "public/**",
     "drizzle/meta/**",
     "pnpm-lock.yaml",
-    "AGENTS.md",
-    ".claude/skills/**",
-    "skills-lock.json"
+    "AGENTS.md"
   ]
 }
