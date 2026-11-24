@@ -115,6 +115,14 @@ describe("who a coordinator may submit for", () => {
         registrationId: school.registrationIds[0]!,
       })
     ).rejects.toThrow(DomainError);
+    await expect(
+      h.as(other.coordinator.actor).completeEntryUpload({
+        registrationId: school.registrationIds[0]!,
+        fileId: "01938a00-0000-7000-8000-000000000999",
+        title: "Not theirs",
+        description: "Another school's student.",
+      })
+    ).rejects.toMatchObject({ code: "forbidden" });
 
     expect(await h.db.select().from(entry)).toEqual([]);
     expect(await h.db.select().from(fileAsset)).toEqual(filesBefore);
