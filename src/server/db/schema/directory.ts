@@ -16,7 +16,9 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  doublePrecision,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -152,6 +154,8 @@ export const directoryListing = pgTable(
       table.id
     ),
     index("directory_listing_owner_user_id_idx").on(table.ownerUserId),
+    // Search by service (#128): `services @> ARRAY[...]`.
+    index("directory_listing_services_idx").using("gin", table.services),
     // Deleting a staff account sets this to null; the index keeps that
     // from scanning.
     index("directory_listing_status_changed_by_idx").on(
@@ -192,3 +196,42 @@ export const directoryListingDocument = pgTable(
 
 export type DirectoryListingDocumentRow =
   typeof directoryListingDocument.$inferSelect;
+
+/**
+ * Where a pin code is (#128): the centre of its post offices, from India
+ * Post's open pin-code directory (`scripts/import-pincodes.ts`; the licence
+ * and the import wait on HR-59). The directory search measures distance
+ * from a searched pin code, and to each listing's pin code, through it. A
+ * listing whose pin code isn't here can't be found by distance.
+ *
+ * Public facts about places, no person in them.
+ */
+export const pincodeLocation = pgTable(
+  "pincode_location",
+  {
+    pinCode: text("pin_code").primaryKey(),
+    latitude: doublePrecision().notNull(),
+    longitude: doublePrecision().notNull(),
+    /** The district most of its post offices name. */
+    district: text(),
+    /** The state most of its post offices name. */
+    state: text(),
+    /** Post offices with usable coordinates behind the centre. */
+    postOffices: integer("post_offices").notNull(),
+    updatedAt: timestamptz("updated_at").notNull(),
+  },
+  (table) => [
+    check(
+      "pincode_location_pin_code_format",
+      sql`${table.pinCode} ~ '^[1-9][0-9]{5}$'`
+    ),
+    check(
+      "pincode_location_coordinates_range",
+      sql`${table.latitude} BETWEEN -90 AND 90 AND ${table.longitude} BETWEEN -180 AND 180`
+    ),
+    // The search's bounding box narrows by latitude first.
+    index("pincode_location_latitude_idx").on(table.latitude),
+  ]
+);
+
+export type PincodeLocationRow = typeof pincodeLocation.$inferSelect;
