@@ -38,7 +38,7 @@ import {
   campaignValues,
   withNotice,
 } from "./render";
-import { deliveryCounts } from "./use-cases/send";
+import { deliveryCounts } from "./delivery-counts";
 import { withdrawalUrl } from "./withdrawal-link";
 
 const WORKER = { kind: "system", process: "worker" } as const;

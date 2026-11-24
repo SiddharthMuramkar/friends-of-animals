@@ -209,6 +209,9 @@ describe("sendCampaign", () => {
         completedAt: expect.any(Date),
       }),
     });
+    expect(await h.as(manager).previewCampaign({ id: draft.id })).toMatchObject(
+      { counts, delivered: { queued: 0, sent: 1, skipped: 0 } }
+    );
     const audit = await campaignAudit(h, draft.id);
     expect(audit.map((entry) => entry.action)).toEqual([
       "campaign.created",
@@ -340,6 +343,7 @@ describe("previewCampaign", () => {
     expect(preview).toMatchObject({
       ok: true,
       counts: { recipients: 1 },
+      delivered: null,
       email: {
         subject: SAMPLE_CONTENT.subject,
         body: expect.stringContaining(SAMPLE_CONTENT.body),

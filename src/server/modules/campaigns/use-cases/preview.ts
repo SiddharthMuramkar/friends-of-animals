@@ -17,10 +17,14 @@ import {
 import { loadCandidates } from "../load-audience";
 import { campaignTemplates, campaignValues, renderCampaign } from "../render";
 import { loadCampaign, viewOf, type CampaignView } from "./drafts";
+import { deliveryCounts, type DeliveryCounts } from "../delivery-counts";
 
 export type CampaignPreview = {
   campaign: CampaignView;
+  /** Now for a draft; what the plan held when it was sent otherwise. */
   counts: AudienceCounts;
+  /** How a sent campaign's messages stand; null for a draft. */
+  delivered: DeliveryCounts | null;
   email: { subject: string; body: string };
   inApp: { subject: string; body: string };
 };
@@ -53,11 +57,14 @@ export async function previewCampaign(
     name: "{{recipient.name}}",
     withdrawalUrl: new URL("/withdraw/…", ctx.auth.baseUrl).href,
   });
-  const { counts } = await planSegment(ctx.db, row.segment);
+  const counts =
+    row.plannedCounts ?? (await planSegment(ctx.db, row.segment)).counts;
   return {
     ok: true,
     campaign: viewOf(row),
-    counts: row.plannedCounts ?? counts,
+    counts,
+    delivered:
+      row.status === "draft" ? null : await deliveryCounts(ctx.db, row.id),
     email: renderCampaign(templates, "email", values),
     inApp: renderCampaign(templates, "in_app", values),
   };

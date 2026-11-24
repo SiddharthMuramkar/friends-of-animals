@@ -7,12 +7,11 @@
 // worker then sends each message, checking its consent again first
 // (../deliver.ts). A campaign is sent once.
 
-import { and, count, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
-import type { AppDb } from "../../../db/app-db";
 import { campaign, campaignRecipient } from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
 import { emitBatch } from "../../../outbox/emit";
@@ -104,21 +103,4 @@ export async function sendCampaign(
     });
     return { ok: true, campaign: viewOf(sent!), counts };
   });
-}
-
-export type DeliveryCounts = { queued: number; sent: number; skipped: number };
-
-/** How a sent campaign's messages stand: numbers only. */
-export async function deliveryCounts(
-  db: AppDb,
-  campaignId: string
-): Promise<DeliveryCounts> {
-  const rows = await db
-    .select({ status: campaignRecipient.status, n: count() })
-    .from(campaignRecipient)
-    .where(eq(campaignRecipient.campaignId, campaignId))
-    .groupBy(campaignRecipient.status);
-  const counts: DeliveryCounts = { queued: 0, sent: 0, skipped: 0 };
-  for (const { status, n } of rows) counts[status] = n;
-  return counts;
 }

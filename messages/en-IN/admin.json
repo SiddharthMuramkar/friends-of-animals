@@ -5,6 +5,7 @@
       "roles": "Roles",
       "audit": "Audit log",
       "breaches": "Breach log",
+      "campaigns": "Campaigns",
       "consentForms": "Signed forms",
       "privacy": "Data inventory"
     },

@@ -5,6 +5,7 @@
 //   updateCampaign({ id, revision, subject, body, segment }) → the next revision
 //   getCampaign({ id })                                   → one campaign
 //   listCampaigns()                                       → every campaign, newest first
+//   listSegmentCompetitions()                             → what a segment can name
 
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -12,7 +13,7 @@ import { z } from "zod";
 import { authorize } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
 import type { AppDb } from "../../../db/app-db";
-import { campaign, type CampaignRow } from "../../../db/schema";
+import { campaign, competition, type CampaignRow } from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
@@ -238,4 +239,22 @@ export async function listCampaigns(
       recipients: row.plannedCounts?.recipients ?? null,
     })),
   };
+}
+
+/** A competition a segment can name. */
+export type SegmentCompetition = { id: string; code: string; name: string };
+
+/** Every competition, newest first, for the segment's competition choice. */
+export async function listSegmentCompetitions(
+  ctx: UseCaseContext
+): Promise<SegmentCompetition[]> {
+  await authorize(ctx, "campaign.manage");
+  return ctx.db
+    .select({
+      id: competition.id,
+      code: competition.code,
+      name: competition.name,
+    })
+    .from(competition)
+    .orderBy(desc(competition.createdAt), desc(competition.id));
 }

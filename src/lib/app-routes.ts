@@ -121,6 +121,14 @@ export function adminBreachPath(breachId: string): string {
   return `${ADMIN_BREACHES}/${encodeURIComponent(breachId)}`;
 }
 
+/** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_CAMPAIGNS = "/admin/campaigns";
+export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
+
+export function adminCampaignPath(campaignId: string): string {
+  return `${ADMIN_CAMPAIGNS}/${encodeURIComponent(campaignId)}`;
+}
+
 /** Where a competition manager or staff admin asks for a batch's refund. */
 export function adminBatchRefundPath(batchId: string): string {
   return `${adminPaymentBatchPath(batchId)}/refund`;
@@ -304,6 +312,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/refunds/[id]",
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
+  ADMIN_CAMPAIGNS,
+  ADMIN_NEW_CAMPAIGN,
+  "/admin/campaigns/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,

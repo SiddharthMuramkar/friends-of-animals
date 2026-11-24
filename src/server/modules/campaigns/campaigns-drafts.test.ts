@@ -204,3 +204,23 @@ describe("updateCampaign, getCampaign and listCampaigns", () => {
     }
   });
 });
+
+describe("listSegmentCompetitions", () => {
+  it("lists every competition a segment can name, newest first, for a community manager only", async () => {
+    const h = await createHarness();
+    const manager = await communityManager(h);
+    const older = await h.seed.competition({ name: "Older Paws" });
+    h.clock.advance({ minutes: 1 });
+    const newer = await h.seed.competition({ name: "Newer Paws" });
+
+    expect(await h.as(manager).listSegmentCompetitions()).toEqual([
+      { id: newer.id, code: newer.code, name: "Newer Paws" },
+      { id: older.id, code: older.code, name: "Older Paws" },
+    ]);
+    for (const actor of Object.values(await refusedActors(h))) {
+      await expect(
+        h.as(actor).listSegmentCompetitions()
+      ).rejects.toBeInstanceOf(DomainError);
+    }
+  });
+});

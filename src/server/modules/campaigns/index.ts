@@ -9,6 +9,7 @@ import {
   createCampaign,
   getCampaign,
   listCampaigns,
+  listSegmentCompetitions,
   updateCampaign,
   type CampaignDraftInput,
   type CampaignTarget,
@@ -24,6 +25,7 @@ export type {
   CreateCampaignResult,
   GetCampaignResult,
   ListCampaignsResult,
+  SegmentCompetition,
   UpdateCampaignResult,
 } from "./use-cases/drafts";
 export type {
@@ -31,7 +33,8 @@ export type {
   PreviewCampaignResult,
   PreviewSegmentResult,
 } from "./use-cases/preview";
-export type { DeliveryCounts, SendCampaignResult } from "./use-cases/send";
+export type { SendCampaignResult } from "./use-cases/send";
+export type { DeliveryCounts } from "./delivery-counts";
 export type {
   WithdrawalLinkView,
   WithdrawByLinkResult,
@@ -39,6 +42,8 @@ export type {
 export type { AudienceCounts } from "./domain/audience";
 export type { CampaignStatus } from "./domain/campaign";
 export type { SegmentDefinition, SegmentRole } from "./domain/segment";
+export { SEGMENT_LIMITS, SEGMENT_ROLES } from "./domain/segment";
+export { CAMPAIGN_LIMITS } from "./domain/campaign";
 export { CAMPAIGNS_POLICY, type CampaignsAction } from "./policy";
 
 export const campaignsUseCases = (ctx: UseCaseContext) => ({
@@ -48,6 +53,7 @@ export const campaignsUseCases = (ctx: UseCaseContext) => ({
   ) => updateCampaign(ctx, input),
   getCampaign: (input: CampaignTarget) => getCampaign(ctx, input),
   listCampaigns: () => listCampaigns(ctx),
+  listSegmentCompetitions: () => listSegmentCompetitions(ctx),
   previewCampaign: (input: CampaignTarget) => previewCampaign(ctx, input),
   previewSegment: (input: { segment: unknown }) => previewSegment(ctx, input),
   sendCampaign: (input: CampaignTarget & { revision: number }) =>
