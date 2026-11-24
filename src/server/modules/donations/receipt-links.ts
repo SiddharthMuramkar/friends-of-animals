@@ -188,7 +188,7 @@ export const RECEIPT_REQUEST_LIMITS = {
 const HOUR_MS = 60 * 60 * 1000;
 
 const requestInput = z.strictObject({
-  email: z.email().max(254),
+  email: z.string().trim().pipe(z.email().max(254)),
   receiptNumber: z.string().trim().min(1).max(40),
 });
 

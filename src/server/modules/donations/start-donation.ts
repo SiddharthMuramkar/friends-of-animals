@@ -86,7 +86,7 @@ const startInput = z.strictObject({
   amountMinor: z.bigint().positive(),
   donorType: z.enum(DONOR_TYPES),
   name: text(100),
-  email: z.email().max(254),
+  email: z.string().trim().pipe(z.email().max(254)),
   organisationName: optionalText(120),
   discloseOrganisation: z.boolean().optional(),
   showOnWall: z.boolean(),

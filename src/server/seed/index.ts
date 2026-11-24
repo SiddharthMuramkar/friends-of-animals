@@ -19,6 +19,7 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedDonations } from "./donations";
 import { seedEntries } from "./entries";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
@@ -85,6 +86,8 @@ const seeders: readonly Seeder[] = [
   // After the participants seed: a guardian, their under-13 child and a
   // teen whose own login is linked to them (#81).
   seedGuardians,
+  // Before the ledger seed, whose reconcile posts its donations (#106).
+  seedDonations,
   seedLedger,
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
