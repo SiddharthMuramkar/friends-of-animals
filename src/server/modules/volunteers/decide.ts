@@ -140,7 +140,11 @@ export async function decideAsGuardian(
       ctx,
       row,
       decision === "approve" ? "guardian_approve" : "guardian_decline",
-      { action: "volunteer.guardian_decided", actorRole: role, after: { decision } },
+      {
+        action: "volunteer.guardian_decided",
+        actorRole: role,
+        after: { decision },
+      },
       { guardianUserId: userId, guardianDecidedAt: now }
     );
     if (!moved.ok) return moved;

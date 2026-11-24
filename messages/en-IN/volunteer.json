@@ -1,0 +1,181 @@
+{
+  "volunteer": {
+    "meta": {
+      "title": "Volunteer with Friends of Animals",
+      "description": "Apply to volunteer with Friends of Animals, and follow your application."
+    },
+    "eyebrow": "Volunteering",
+    "title": "Volunteer with Friends of Animals",
+    "lead": "Help children and young people care for animals: with technology, content, outreach, running competitions, social media or building our community. We check everyone who will work near children.",
+    "loading": "Loading your application…",
+    "back": "Back to your dashboard",
+    "outcome": {
+      "applied": "Application sent. Our community team will read it and tell you what they decide.",
+      "awaiting_guardian": "Application sent. We have asked your parent or guardian to approve it. Our community team reads it once they have.",
+      "accepted": "Thank you. You have accepted the current declarations.",
+      "withdrawn": "Application withdrawn.",
+      "declarations_required": "Tick both boxes to accept the declarations.",
+      "declaration_outdated": "A declaration changed while you were reading it. Read the new version, then accept it.",
+      "declaration_unpublished": "The declarations aren't ready yet. Please try again later.",
+      "no_open_application": "You have no application waiting, so there was nothing to accept.",
+      "invalid_transition": "That application has already been decided or withdrawn.",
+      "invalid_input": "Something in the form didn't come through. Please try again."
+    },
+    "role": {
+      "title": "You're a volunteer",
+      "chip": "Volunteer",
+      "body": "Thank you for helping. Our community team will be in touch about what you'll do."
+    },
+    "application": {
+      "title": "Your application",
+      "withdraw": "Withdraw application",
+      "withdrawing": "Withdrawing…"
+    },
+    "reaccept": {
+      "title": "Accept the new declarations",
+      "body": "We have changed a declaration since you applied. Our community team can only approve your application once you have accepted the current version of both.",
+      "submit": "Accept the current declarations",
+      "submitting": "Saving…"
+    },
+    "closed": {
+      "title": "Volunteering opens soon",
+      "body": "We aren't taking volunteer applications yet. Please come back later."
+    },
+    "form": {
+      "title": "Apply to volunteer",
+      "lead": "Tell us how you'd like to help and when you're free. If you are 14 to 17, your parent or guardian approves your application before our community team reads it.",
+      "problems": {
+        "invalid_input": "Check the parts of the form marked below.",
+        "declarations_required": "Tick both boxes to accept the declarations.",
+        "applications_closed": "We aren't taking volunteer applications at the moment. Nothing was sent.",
+        "date_of_birth_required": "Enter your date of birth.",
+        "already_volunteer": "You are already a volunteer, so there's no need to apply.",
+        "application_open": "You already have an application waiting. You can follow it on this page.",
+        "under_min_age": "Volunteers must be at least 14 years old. Nothing was sent.",
+        "guardian_required": "Volunteers under 18 need a parent or guardian on Friends of Animals to approve. Ask them to create an account, confirm they are your guardian and invite you to your own login from their children's page. Then apply again.",
+        "declaration_unpublished": "The declarations aren't ready yet. Please try again later.",
+        "declaration_outdated": "A declaration changed while you were reading it. Read the new version below, then tick its box again.",
+        "unexpected": "Something went wrong on our side. Nothing was sent. Please try again."
+      },
+      "interests": {
+        "legend": "How would you like to help?",
+        "hint": "Choose one or more.",
+        "error": "Choose at least one way to help."
+      },
+      "availability": {
+        "legend": "When are you free?",
+        "hint": "Tick the times you could usually help each week.",
+        "error": "Tick at least one time, and keep the note short.",
+        "note": {
+          "label": "Anything else about when you're free (optional)",
+          "hint": "For example: school holidays only. Up to {max} characters."
+        },
+        "parts": {
+          "morning": "Morning",
+          "afternoon": "Afternoon",
+          "evening": "Evening"
+        }
+      },
+      "dateOfBirth": {
+        "label": "Date of birth",
+        "hint": "Volunteers must be at least 14. Under 18, a parent or guardian approves."
+      },
+      "declarations": {
+        "legend": "Declarations",
+        "hint": "Read both, then tick each box. We keep a record of the version you accepted.",
+        "error": "Tick both boxes to accept the declarations.",
+        "readFull": "Read the full text (version {version})",
+        "safeguarding": "I make the safeguarding declaration above",
+        "conduct": "I accept the volunteer code of conduct above"
+      },
+      "submit": "Send application",
+      "submitting": "Sending…"
+    },
+    "interests": {
+      "technology": "Technology",
+      "content": "Writing and content",
+      "outreach": "Outreach to schools and communities",
+      "competition_management": "Running competitions",
+      "social_media": "Social media",
+      "community_building": "Building our community"
+    },
+    "summary": {
+      "status": {
+        "awaiting_guardian": "Waiting for a guardian",
+        "guardian_declined": "Declined by the guardian",
+        "submitted": "With the community team",
+        "approved": "Approved",
+        "declined": "Declined",
+        "withdrawn": "Withdrawn"
+      },
+      "explain": {
+        "self": {
+          "awaiting_guardian": "Your parent or guardian needs to approve your application. We have sent them a message.",
+          "guardian_declined": "Your parent or guardian declined your application. You can talk to them and apply again.",
+          "submitted": "Our community team is reading your application. We'll tell you what they decide.",
+          "approved": "Your application is approved. Welcome!",
+          "declined": "Our community team couldn't take your application further this time. You are welcome to apply again later.",
+          "withdrawn": "You, or your guardian, withdrew this application. You can apply again."
+        },
+        "guardian": {
+          "awaiting_guardian": "{name} has applied to volunteer. They need your approval before our community team reads it.",
+          "guardian_declined": "You declined {name}'s application.",
+          "submitted": "You approved {name}'s application. Our community team is reading it.",
+          "approved": "Our community team approved {name}'s application.",
+          "declined": "Our community team couldn't take {name}'s application further this time.",
+          "withdrawn": "This application was withdrawn."
+        },
+        "staff": {
+          "awaiting_guardian": "Waiting for {name}'s guardian to approve. You can decide once they have.",
+          "guardian_declined": "{name}'s guardian declined the application.",
+          "submitted": "Waiting for a community manager to approve or decline.",
+          "approved": "Approved. {name} holds the volunteer role.",
+          "declined": "Declined. {name} was told why.",
+          "withdrawn": "Withdrawn by {name} or their guardian."
+        }
+      },
+      "reason": "Why: {reason}",
+      "outdated": {
+        "self": "We have changed a declaration since you applied. Accept the current version below so our community team can approve your application.",
+        "guardian": "A declaration has changed since {name} applied. They need to accept the current version on their volunteering page.",
+        "staff": "A declaration has changed since the applicant accepted it. They must accept the current version before you can approve."
+      },
+      "applied": "Applied",
+      "interests": "Would like to help with",
+      "availability": "Free",
+      "note": "Note",
+      "slot": "{day}: {parts}",
+      "parts": {
+        "morning": "morning",
+        "afternoon": "afternoon",
+        "evening": "evening"
+      }
+    },
+    "guardian": {
+      "meta": {
+        "title": "A child's volunteer application"
+      },
+      "loading": "Loading the application…",
+      "eyebrow": "{name}",
+      "title": "{name}'s volunteering",
+      "outcome": {
+        "approved": "Approved. {name}'s application is now with our community team.",
+        "declined": "Declined. {name}'s application is closed.",
+        "withdrawn": "Application withdrawn.",
+        "invalid_transition": "That application has already been decided or withdrawn.",
+        "not_found": "That application no longer exists."
+      },
+      "application": "{name}'s application",
+      "decide": {
+        "body": "As {name}'s parent or guardian, your approval is your consent to them volunteering. Our community team then reads the application and checks it.",
+        "approve": "Approve",
+        "decline": "Decline",
+        "saving": "Saving…"
+      },
+      "withdraw": "Withdraw application",
+      "withdrawing": "Withdrawing…",
+      "none": "{name} hasn't applied to volunteer.",
+      "back": "Back to {name}'s page"
+    }
+  }
+}

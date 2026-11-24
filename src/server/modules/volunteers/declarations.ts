@@ -46,7 +46,9 @@ export async function recordDeclarations(
   ctx: ConsentContext,
   userId: string,
   accepted: AcceptedDeclarations
-): Promise<{ ok: true; changed: boolean } | { ok: false; error: DeclarationRefusal }> {
+): Promise<
+  { ok: true; changed: boolean } | { ok: false; error: DeclarationRefusal }
+> {
   const shown = {
     safeguarding: accepted.safeguardingDocumentId,
     conduct: accepted.conductDocumentId,
@@ -90,31 +92,32 @@ export async function declarationStates(
 ): Promise<Record<DeclarationKey, DeclarationState>> {
   const subject: ConsentSubject = { type: "user", id: userId };
   const entries = await Promise.all(
-    (Object.keys(DECLARATION_PURPOSES) as DeclarationKey[]).map(
-      async (key) => {
-        const purpose = DECLARATION_PURPOSES[key];
-        // Newest first, in the order the consent log reads its state.
-        const events = await subjectEvents(db, subject, purpose);
-        const latest = events[0];
-        const document = await latestDocument(db, purpose);
-        const state: DeclarationState = {
-          consent:
-            latest === undefined
-              ? { state: "never" }
-              : latest.action === "given"
-                ? {
-                    state: "given",
-                    documentId: latest.documentId,
-                    consentEventId: latest.id,
-                  }
-                : { state: "withdrawn", documentId: latest.documentId },
-          currentDocumentId: document?.id ?? null,
-        };
-        return [key, state] as const;
-      }
-    )
+    (Object.keys(DECLARATION_PURPOSES) as DeclarationKey[]).map(async (key) => {
+      const purpose = DECLARATION_PURPOSES[key];
+      // Newest first, in the order the consent log reads its state.
+      const events = await subjectEvents(db, subject, purpose);
+      const latest = events[0];
+      const document = await latestDocument(db, purpose);
+      const state: DeclarationState = {
+        consent:
+          latest === undefined
+            ? { state: "never" }
+            : latest.action === "given"
+              ? {
+                  state: "given",
+                  documentId: latest.documentId,
+                  consentEventId: latest.id,
+                }
+              : { state: "withdrawn", documentId: latest.documentId },
+        currentDocumentId: document?.id ?? null,
+      };
+      return [key, state] as const;
+    })
   );
-  return Object.fromEntries(entries) as Record<DeclarationKey, DeclarationState>;
+  return Object.fromEntries(entries) as Record<
+    DeclarationKey,
+    DeclarationState
+  >;
 }
 
 /** How one declaration stands, for the pages: current, outdated or missing. */

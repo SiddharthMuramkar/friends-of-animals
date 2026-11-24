@@ -42,10 +42,12 @@ it("keeps one open application when a member applies twice at once", async () =>
     const second = priya.applyToVolunteer(input);
     second.catch(() => {});
     await world.waitForLockWaiters(2);
-    return [first, second];
+    // An object: postgres.js would wait for a returned array in the
+    // transaction, behind the lock it holds.
+    return { first, second };
   });
 
-  const settled = await Promise.all(results);
+  const settled = await Promise.all([results.first, results.second]);
   expect(settled.filter((result) => result.ok)).toHaveLength(1);
   expect(settled).toContainEqual({ ok: false, error: "application_open" });
   const rows = await world.db
@@ -90,10 +92,13 @@ it("lets either an approval or a withdrawal win, never both, and grants the role
     const withdrawing = ravi.withdrawVolunteerApplication({ applicationId });
     withdrawing.catch(() => {});
     await world.waitForLockWaiters(2);
-    return [approving, withdrawing] as const;
+    return { approving, withdrawing };
   });
 
-  const [approved, withdrawn] = await Promise.all(racing);
+  const [approved, withdrawn] = await Promise.all([
+    racing.approving,
+    racing.withdrawing,
+  ]);
   expect([approved.ok, withdrawn.ok].filter(Boolean)).toHaveLength(1);
   const [row] = await world.db
     .select({ status: volunteerApplication.status })

@@ -114,6 +114,22 @@ export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
 }
 
+/**
+ * Volunteering (#123): a member's application, a guardian's view of their
+ * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
+ * rather than in APP_ROUTES, like the payments pages.
+ */
+export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
+export const ADMIN_VOLUNTEERS = "/admin/volunteers";
+
+export function adminVolunteerApplicationPath(applicationId: string): string {
+  return `${ADMIN_VOLUNTEERS}/${encodeURIComponent(applicationId)}`;
+}
+
+export function guardianChildVolunteerPath(childId: string): string {
+  return `${guardianChildPath(childId)}/volunteer`;
+}
+
 /** The breach log and its staff-only detail pages (#116). */
 export const ADMIN_BREACHES = "/admin/breaches";
 
@@ -324,6 +340,10 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]",
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
+  "/guardian/children/[id]/volunteer",
+  DASHBOARD_VOLUNTEER,
+  ADMIN_VOLUNTEERS,
+  "/admin/volunteers/[id]",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,

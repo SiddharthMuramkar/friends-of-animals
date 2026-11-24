@@ -189,9 +189,11 @@ describe("applyToVolunteer", () => {
     const declarations = await openVolunteering(h);
     const { teen } = await linkedTeen(h, { age: 15 });
 
-    const result = await h.as(teen.actor).applyToVolunteer(
-      applicationInput(declarations, { dateOfBirth: bornYearsAgo(h, 30) })
-    );
+    const result = await h
+      .as(teen.actor)
+      .applyToVolunteer(
+        applicationInput(declarations, { dateOfBirth: bornYearsAgo(h, 30) })
+      );
 
     expect(result).toMatchObject({ ok: true, status: "awaiting_guardian" });
   });
@@ -332,12 +334,14 @@ describe("applyToVolunteer", () => {
     const dateOfBirth = bornYearsAgo(h, 30);
 
     expect(
-      await h.as(priya.actor).applyToVolunteer(
-        applicationInput(
-          { safeguarding, conduct: safeguarding },
-          { dateOfBirth }
+      await h
+        .as(priya.actor)
+        .applyToVolunteer(
+          applicationInput(
+            { safeguarding, conduct: safeguarding },
+            { dateOfBirth }
+          )
         )
-      )
     ).toEqual({ ok: false, error: "declaration_unpublished" });
 
     const conduct = await publishDeclaration(h, "volunteer_code_of_conduct");

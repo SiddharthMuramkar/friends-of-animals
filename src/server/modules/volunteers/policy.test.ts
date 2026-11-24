@@ -149,9 +149,7 @@ describe("who may apply", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
     // Another member sees only their own: none.
     const other = await h.signIn(await h.seed.member());
-    expect(
-      (await h.as(other).myVolunteerApplication()).application
-    ).toBeNull();
+    expect((await h.as(other).myVolunteerApplication()).application).toBeNull();
     expect(
       await h.as(other).acceptVolunteerDeclarations({
         safeguardingDocumentId: declarations.safeguarding,

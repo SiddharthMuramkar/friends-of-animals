@@ -229,7 +229,10 @@ export async function seedVolunteers(deps: SeedDeps): Promise<void> {
     id: SEED_VOLUNTEERS.teen.applicationId,
     applicantUserId: teen.id,
     participantProfileId: SEED_VOLUNTEERS.teen.profileId,
-    dateOfBirth: deps.cipher.decrypt(PROFILE_PURPOSE.dob, profile.dobCiphertext),
+    dateOfBirth: deps.cipher.decrypt(
+      PROFILE_PURPOSE.dob,
+      profile.dobCiphertext
+    ),
     interests: ["outreach", "community_building"],
     status: "awaiting_guardian",
   });

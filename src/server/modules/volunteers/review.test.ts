@@ -77,12 +77,10 @@ describe("approveVolunteer", () => {
       .from(auditLog)
       .where(eq(auditLog.actorUserId, userIdOf(manager)))
       .orderBy(asc(auditLog.id));
-    expect(audit.map(({ action, actorRole }) => [action, actorRole])).toEqual(
-      [
-        ["volunteer.application_approved", "community_manager"],
-        ["role.granted", "community_manager"],
-      ]
-    );
+    expect(audit.map(({ action, actorRole }) => [action, actorRole])).toEqual([
+      ["volunteer.application_approved", "community_manager"],
+      ["role.granted", "community_manager"],
+    ]);
     expect(await volunteerEvents(h)).toContainEqual({
       type: "volunteer.application_approved",
       payload: { applicationId: priya.applicationId },
@@ -324,7 +322,11 @@ describe("the community team's queue", () => {
       application: {
         id: applicationId,
         status: "submitted",
-        applicant: { id: teen.id, name: "Arjun Rao", email: "arjun@example.test" },
+        applicant: {
+          id: teen.id,
+          name: "Arjun Rao",
+          email: "arjun@example.test",
+        },
         ageYears: 15,
         minor: true,
         guardian: { name: "Sunita Rao", decidedAt: h.clock.now() },

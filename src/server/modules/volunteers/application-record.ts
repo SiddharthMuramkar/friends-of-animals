@@ -82,7 +82,10 @@ export async function latestApplicationOf(db: AppDb, userId: string) {
     .select()
     .from(volunteerApplication)
     .where(eq(volunteerApplication.applicantUserId, userId))
-    .orderBy(desc(volunteerApplication.createdAt), desc(volunteerApplication.id))
+    .orderBy(
+      desc(volunteerApplication.createdAt),
+      desc(volunteerApplication.id)
+    )
     .limit(1);
   return row ?? null;
 }

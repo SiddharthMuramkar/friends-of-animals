@@ -53,10 +53,7 @@ describe("the volunteers' preview seed", () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = await h.signIn(SEED_VOLUNTEERS.manager);
-    const guardian = await h.signIn({
-      name: "Kavita Desai",
-      email: "guardian1@example.test",
-    });
+    const guardian = await h.signIn({ email: "guardian1@example.test" });
 
     expect(await h.settings.get("volunteers.applicationsOpen")).toBe(true);
     expect(await h.as(manager).listVolunteerApplications()).toMatchObject({

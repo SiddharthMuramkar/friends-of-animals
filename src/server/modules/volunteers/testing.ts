@@ -7,6 +7,7 @@
 import { and, asc, eq, like } from "drizzle-orm";
 
 import type { Role } from "@/server/access";
+import type { DbWithClock } from "@/server/db/app-db";
 import type { Actor } from "@/server/actor";
 import {
   auditLog,
@@ -22,11 +23,12 @@ import { formatIsoDate } from "@/server/modules/registration/domain/calendar-dat
 import { PROFILE_PURPOSE } from "@/server/modules/registration/student-profile";
 import { bornYearsAgo as birthDateYearsAgo } from "@/server/seed/guardians";
 import type { Harness } from "@/test/harness";
+import type { TestSettings } from "@/test/settings";
 
 import type { ApplyToVolunteerInput } from "./apply";
 
 /** What the set-up needs: the harness, or a real-Postgres world's deps. */
-type World = Pick<Harness, "db" | "clock" | "settings">;
+type World = DbWithClock & { settings: Pick<TestSettings, "set"> };
 
 /** Publishes the next version of a declaration straight into the table. */
 export async function publishDeclaration(
@@ -113,9 +115,11 @@ export async function adultApplication(
   details = { name: "Priya Nair", email: "priya@example.test" }
 ) {
   const applicant = await member(h, details);
-  const result = await h.as(applicant.actor).applyToVolunteer(
-    applicationInput(declarations, { dateOfBirth: bornYearsAgo(h, 30) })
-  );
+  const result = await h
+    .as(applicant.actor)
+    .applyToVolunteer(
+      applicationInput(declarations, { dateOfBirth: bornYearsAgo(h, 30) })
+    );
   if (!result.ok) throw new Error(`Applying failed: ${result.error}`);
   return { ...applicant, applicationId: result.applicationId };
 }

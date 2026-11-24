@@ -33,7 +33,10 @@ import {
   DECLINE_REASON_PURPOSE,
   latestApplicationOf,
 } from "./application-record";
-import type { Availability, VolunteerInterest } from "./domain/application-input";
+import type {
+  Availability,
+  VolunteerInterest,
+} from "./domain/application-input";
 import {
   VOLUNTEER_APPLICATION_STATUSES,
   type VolunteerApplicationStatus,
@@ -101,7 +104,10 @@ async function viewOf(
     declineReason:
       row.declineReasonCiphertext === null
         ? null
-        : ctx.cipher.decrypt(DECLINE_REASON_PURPOSE, row.declineReasonCiphertext),
+        : ctx.cipher.decrypt(
+            DECLINE_REASON_PURPOSE,
+            row.declineReasonCiphertext
+          ),
     declarations: {
       safeguarding: standingOf(states.safeguarding),
       conduct: standingOf(states.conduct),
@@ -163,7 +169,10 @@ export async function childVolunteerApplication(
   if (!parsed.success) return invalidInput(parsed.error);
   const { childId } = parsed.data;
   const [child] = await ctx.db
-    .select({ id: participantProfile.id, fullName: participantProfile.fullName })
+    .select({
+      id: participantProfile.id,
+      fullName: participantProfile.fullName,
+    })
     .from(participantProfile)
     .where(eq(participantProfile.id, childId));
   if (!child) throw new Error("A linked child's profile is missing");
@@ -171,7 +180,10 @@ export async function childVolunteerApplication(
     .select()
     .from(volunteerApplication)
     .where(eq(volunteerApplication.participantProfileId, childId))
-    .orderBy(desc(volunteerApplication.createdAt), desc(volunteerApplication.id))
+    .orderBy(
+      desc(volunteerApplication.createdAt),
+      desc(volunteerApplication.id)
+    )
     .limit(1);
   return {
     ok: true,
@@ -203,7 +215,9 @@ function ageNow(
   ctx: Pick<UseCaseContext, "cipher" | "clock">,
   ciphertext: string
 ): number {
-  const date = parseIsoDate(ctx.cipher.decrypt(DATE_OF_BIRTH_PURPOSE, ciphertext));
+  const date = parseIsoDate(
+    ctx.cipher.decrypt(DATE_OF_BIRTH_PURPOSE, ciphertext)
+  );
   if (!date) throw new Error("A stored date of birth is not a date");
   return ageAt(date, ctx.clock.now());
 }
@@ -311,7 +325,8 @@ export async function getVolunteerApplication(
         row.guardianDecidedAt && found.guardianName !== null
           ? { name: found.guardianName, decidedAt: row.guardianDecidedAt }
           : null,
-      decidedBy: found.deciderName === null ? null : { name: found.deciderName },
+      decidedBy:
+        found.deciderName === null ? null : { name: found.deciderName },
       decidedAt: row.decidedAt,
     },
   };

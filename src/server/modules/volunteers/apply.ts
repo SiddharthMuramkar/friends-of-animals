@@ -153,8 +153,7 @@ export async function applyToVolunteer(
             ? "verified"
             : "none",
         isVolunteer: grants.some(
-          (grant) =>
-            grant.role === "volunteer" && grant.scope.type === "global"
+          (grant) => grant.role === "volunteer" && grant.scope.type === "global"
         ),
         hasOpenApplication: open.length > 0,
       },
