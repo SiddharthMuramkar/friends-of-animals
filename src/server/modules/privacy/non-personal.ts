@@ -583,6 +583,20 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "updated_at",
   ],
+  // A planned reminder (#84): which reminder, the competition, the deadline
+  // and its times. Who was reminded is in message_delivery.
+  reminder_job: [
+    "created_at",
+    "deadline_at",
+    "fire_at",
+    "fired_at",
+    "id",
+    "offset_hours",
+    "reminder_name",
+    "status",
+    "subject_id",
+    "updated_at",
+  ],
   retention_run_progress: ["actor_process", "id", "policies", "updated_at"],
   rubric: [
     "competition_id",
