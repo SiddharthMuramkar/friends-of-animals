@@ -13,6 +13,11 @@ import type { FieldCipher } from "../server/crypto/field-cipher";
 import { fieldCryptoFor, type FieldKeyEnv } from "../server/crypto/keys";
 import type { AppDb } from "../server/db/app-db";
 import { withDatabase } from "../server/db/database-url";
+import {
+  storageBucketFor,
+  storagePrefixFor,
+  storagePrefixForDatabase,
+} from "../server/modules/files/domain/storage-key";
 import { databaseSettings } from "../server/modules/settings/read";
 import {
   SCHEDULES,
@@ -118,7 +123,8 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   // or SES keys yet, so production refuses SMS, as it does while
   // sms.enabled is off, and email, until AWS grants SES production access
   // (DECISIONS R-27); the runtime settings are the database's own.
-  const depsFor = (db: AppDb): OutboxDeps => ({
+  const depsFor = (db: AppDb, database: string): OutboxDeps => ({
+    appEnv: config.appEnv,
     db,
     clock: io.clock,
     email: emailSenderFor(config.appEnv, { db, clock: io.clock }, {}),
@@ -127,6 +133,16 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     cipher,
     auth: { baseUrl: config.siteUrl },
     storage: io.storage,
+    files: {
+      bucket: storageBucketFor({
+        APP_ENV: config.appEnv,
+        R2_BUCKET: config.r2?.bucket,
+      }),
+      keyPrefix:
+        config.appEnv === "preview"
+          ? storagePrefixForDatabase(database)
+          : storagePrefixFor({ APP_ENV: config.appEnv }),
+    },
     scanner: io.scanner,
     media,
     // Refunds (#80), through the adapter the app picks for this
@@ -151,7 +167,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
       single.connectionsPerDatabase
     );
     cleanups.push(opened.end);
-    const deps = depsFor(opened.db);
+    const deps = depsFor(opened.db, single.database);
     // The schedules run once per database, on its default worker.
     if (!isMedia) {
       const boss = await io.startBoss(single.databaseUrl);
@@ -194,7 +210,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
         );
         return createTenant({
           database,
-          deps: depsFor(opened.db),
+          deps: depsFor(opened.db, database),
           identity: preview.identity,
           end: opened.end,
           drain,

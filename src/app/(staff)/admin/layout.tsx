@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense, type ComponentProps } from "react";
 
 import { ADMIN_LEDGER, APP_ROUTES } from "@/lib/app-routes";
+import { env } from "@/env";
 import { as, currentActor } from "@/server/app";
 
 import { AdminNav, AdminNavView } from "./_components/admin-nav";
@@ -29,6 +30,9 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     links: [
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
+      ...(env().APP_ENV === "production"
+        ? []
+        : [{ href: APP_ROUTES.adminConsentForms, label: t("consentForms") }]),
     ],
   };
   return (

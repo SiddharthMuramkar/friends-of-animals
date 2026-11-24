@@ -1,0 +1,69 @@
+{
+  "coordinatorConsents": {
+    "title": "Guardian consents",
+    "registration": "{institution} · {competition}",
+    "loading": "Loading student consents…",
+    "manage": "Manage guardian consents",
+    "back": "Back to students",
+    "home": "Back to your dashboard",
+    "unavailable": "Code links are currently unavailable",
+    "unavailableBody": "Contact Friends of Animals for help with guardian consent.",
+    "notFound": "Registration unavailable",
+    "notFoundBody": "Open the registration from your institution dashboard.",
+    "empty": "No students are enrolled in this registration.",
+    "noOffers": "This competition has no public-use choices for guardians.",
+    "caption": "Consent by student",
+    "student": "Student",
+    "codeLink": "Code link",
+    "publicUses": "Public uses",
+    "actions": "Actions",
+    "send": "Send link",
+    "replace": "Resend link",
+    "revoke": "Withdraw link",
+    "sending": "Sending…",
+    "revoking": "Withdrawing…",
+    "sentNotice": "Consent link queued for delivery.",
+    "revokedNotice": "Consent link withdrawn.",
+    "sendTitle": "Send a consent link",
+    "replaceTitle": "Resend a consent link",
+    "sendHint": "The link for {student} expires in seven days.",
+    "replaceHint": "Sending a new link for {student} withdraws the previous link.",
+    "cancel": "Cancel",
+    "channel": "Delivery method",
+    "email": "Email",
+    "sms": "Text message",
+    "emailAddress": "Guardian’s email address",
+    "phoneNumber": "Guardian’s mobile number",
+    "loadingContact": "Loading the guardian contact…",
+    "links": {
+      "not_sent": "Not sent",
+      "sent": "Sent",
+      "opened": "Code requested",
+      "verified": "Verified",
+      "answered": "Answered",
+      "expired": "Expired",
+      "revoked": "Withdrawn"
+    },
+    "summary": {
+      "none": "None given",
+      "some": "Some given",
+      "all": "All given"
+    },
+    "uses": {
+      "public_display": "Public display",
+      "social_media": "Social media",
+      "auction": "Auction"
+    },
+    "errors": {
+      "forbidden": "You don’t have permission to manage links for this registration.",
+      "not_found": "This student or link is no longer in the registration.",
+      "unavailable": "Consent links are currently unavailable.",
+      "invalid_input": "Enter a valid address for the selected delivery method.",
+      "sms_disabled": "Text messages are unavailable. Send the link by email.",
+      "nothing_offered": "This competition has no public-use choices for guardians.",
+      "already_verified": "The guardian is answering. Refresh the page before sending another link.",
+      "already_used": "This link has already been answered.",
+      "revoked": "This link has already been withdrawn."
+    }
+  }
+}

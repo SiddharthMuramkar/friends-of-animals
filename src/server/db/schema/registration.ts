@@ -84,6 +84,13 @@ export const institutionRegistration = pgTable(
     registeredBy: uuid("registered_by").references(() => user.id, {
       onDelete: "set null",
     }),
+    /** The institution's declaration for participation and judging (#83). */
+    participationDeclaredAt: timestamptz("participation_declared_at"),
+    participationDeclaredByUserId: uuid(
+      "participation_declared_by_user_id"
+    ).references(() => user.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
@@ -104,6 +111,9 @@ export const institutionRegistration = pgTable(
     ),
     // Deleting a user sets this to null; the index keeps that from scanning.
     index("institution_registration_registered_by_idx").on(table.registeredBy),
+    index("institution_registration_participation_declared_by_user_id_idx").on(
+      table.participationDeclaredByUserId
+    ),
   ]
 );
 

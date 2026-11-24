@@ -13,6 +13,28 @@ describe("scanOutcome", () => {
     ).toEqual({ kind: "settled", status: "clean", scanResult: "OK" });
   });
 
+  it("takes a HEIC declared as HEIF, or the other way round: one container, one decoder", () => {
+    for (const [declaredType, sniffedType] of [
+      ["image/heic", "image/heif"],
+      ["image/heif", "image/heic"],
+    ] as const) {
+      expect(
+        scanOutcome({
+          declaredType,
+          sniffedType,
+          verdict: { verdict: "clean" },
+        })
+      ).toEqual({ kind: "settled", status: "clean", scanResult: "OK" });
+    }
+    expect(
+      scanOutcome({
+        declaredType: "image/heic",
+        sniffedType: "image/jpeg",
+        verdict: { verdict: "clean" },
+      })
+    ).toMatchObject({ status: "rejected" });
+  });
+
   it("quarantines an infected file, naming the signature", () => {
     expect(
       scanOutcome({

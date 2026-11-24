@@ -165,7 +165,7 @@ export const TEST_FILES = {
 export const TEST_HUMAN_CHECK_DIFFICULTY = 4;
 
 export async function createHarness(
-  options: { now?: Date | string } = {}
+  options: { now?: Date | string; appEnv?: Deps["appEnv"] } = {}
 ): Promise<Harness> {
   const db = await createTestDb();
   // Close the database when the test ends. Left open, Postgres's timers,
@@ -187,6 +187,7 @@ export async function createHarness(
   const media = new FakeMediaProcessor();
   const gateway = new FakePaymentGateway();
   const deps: Deps = {
+    appEnv: options.appEnv ?? "local",
     db,
     clock,
     email,

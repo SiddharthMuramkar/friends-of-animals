@@ -39,6 +39,8 @@ export const PERSONAL_KEYS: ReadonlySet<string> = new Set([
   "guardianname",
   "parentname",
   "childname",
+  "childfirstname",
+  "maskedcontact",
   "studentname",
   "contactname",
   // Contact details
@@ -230,9 +232,10 @@ function truncateText(text: string): string {
   return `${text.slice(0, end)}${TRUNCATED}`;
 }
 
-/** A URL or path without its query string and fragment. */
+/** A URL or path without its query, fragment or consent-link credential. */
 export function stripQuery(url: string): string {
-  return url.split(/[?#]/, 1)[0] ?? "";
+  const path = url.split(/[?#]/, 1)[0] ?? "";
+  return path.replace(/(\/consent\/)[^/\s]+/g, `$1${REDACTED}`);
 }
 
 function isPersonalKey(key: string): boolean {

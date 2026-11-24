@@ -35,5 +35,6 @@ export const config = {
     "/participant/:path*",
     "/guardian",
     "/guardian/:path*",
+    "/consent/:path*",
   ],
 };

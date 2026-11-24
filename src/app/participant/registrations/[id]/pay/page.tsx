@@ -148,6 +148,8 @@ async function Pay({ params, searchParams }: Props) {
             </form>
           )}
         </div>
+      ) : mine.heldFor === "unavailable" ? (
+        <p className={CARD}>{t("error.unavailable")}</p>
       ) : mine.heldFor !== null || mine.status === "pending_guardian" ? (
         <p className={CARD}>
           {t(

@@ -15,6 +15,7 @@ export async function PurposeCard({
   childId,
   competitionId,
   consent,
+  canGive,
   documentText,
   groupHeading,
 }: {
@@ -23,6 +24,7 @@ export async function PurposeCard({
   consent: Pick<ChildConsentPurpose, "purpose" | "state" | "counts"> & {
     document: ChildConsentDocument | null;
   };
+  canGive: boolean;
   documentText: ReactNode;
   groupHeading?: string;
 }) {
@@ -31,7 +33,7 @@ export async function PurposeCard({
   const heading = `consent-${competitionId ?? "global"}-${purpose}`;
   const input: WithdrawChildConsentInput = { childId, competitionId, purpose };
   const actions = [
-    ...(document && !counts
+    ...(canGive && document && !counts
       ? [
           {
             kind: "give",

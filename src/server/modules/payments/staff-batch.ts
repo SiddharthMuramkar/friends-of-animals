@@ -38,6 +38,7 @@ import type {
   PaymentReviewReason,
 } from "./domain/review-case";
 import type { PaymentReviewPayer } from "./review-cases";
+import { acceptedReviewOfBatch } from "./refunds/rows";
 
 export type StaffPaymentBatch = {
   id: string;
@@ -45,6 +46,8 @@ export type StaffPaymentBatch = {
   route: ParticipationRoute;
   amountMinor: bigint;
   currency: string;
+  /** The actual receipt when finance accepted a reviewed capture. */
+  acceptedReceipt: { amountMinor: bigint; currency: string } | null;
   competitionName: string;
   payer: PaymentReviewPayer;
   /** The institution registration's reference; null on the individual route. */
@@ -106,6 +109,10 @@ export async function getPaymentBatchForStaff(
       route: paymentBatch.route,
       amountMinor: paymentBatch.amountMinor,
       currency: paymentBatch.currency,
+      acceptedReceipt: {
+        amountMinor: paymentReviewCase.amountMinor,
+        currency: paymentReviewCase.currency,
+      },
       createdAt: paymentBatch.createdAt,
       capturedAt: paymentBatch.capturedAt,
       captureMethod: paymentBatch.captureMethod,
@@ -116,6 +123,7 @@ export async function getPaymentBatchForStaff(
       reference: institutionRegistration.reference,
     })
     .from(paymentBatch)
+    .leftJoin(paymentReviewCase, acceptedReviewOfBatch)
     .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
     .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
     .leftJoin(

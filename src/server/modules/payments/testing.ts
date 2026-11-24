@@ -6,6 +6,7 @@
 import { and, asc, eq } from "drizzle-orm";
 
 import type { Actor } from "@/server/actor";
+import type { UseCases } from "@/server/app";
 import {
   auditLog,
   competitionFee,
@@ -18,6 +19,7 @@ import {
   paymentBatchItem,
   paymentReviewCase,
   registration,
+  type PaymentReviewCaseRow,
 } from "@/server/db/schema";
 import { AANYA, registeredSchool } from "@/server/modules/registration/testing";
 import type { Harness } from "@/test/harness";
@@ -249,6 +251,34 @@ export async function reviewCasesOf(h: Harness, batchId: string) {
     .from(paymentReviewCase)
     .where(eq(paymentReviewCase.batchId, batchId))
     .orderBy(asc(paymentReviewCase.openedAt), asc(paymentReviewCase.id));
+}
+
+/** Recreates receipt data that could be confirmed before the INR guard. */
+export async function confirmReviewedReceipt(
+  h: Harness,
+  staff: Pick<UseCases, "resolvePaymentReviewCase">,
+  receipt: Pick<PaymentReviewCaseRow, "id" | "currency">,
+  reason: string
+) {
+  const confirm = () =>
+    staff.resolvePaymentReviewCase({
+      caseId: receipt.id,
+      outcome: "confirm",
+      reason,
+    });
+  if (receipt.currency === "INR") return confirm();
+
+  const setCurrency = (currency: string) =>
+    h.db
+      .update(paymentReviewCase)
+      .set({ currency })
+      .where(eq(paymentReviewCase.id, receipt.id));
+  await setCurrency("INR");
+  try {
+    return await confirm();
+  } finally {
+    await setCurrency(receipt.currency);
+  }
 }
 
 /**

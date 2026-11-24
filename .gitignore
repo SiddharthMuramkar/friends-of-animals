@@ -1,6 +1,6 @@
 .DS_Store
 *.pem
-/node_modules/
+node_modules/
 
 # Env files (local secrets); only the example is committed
 .env*

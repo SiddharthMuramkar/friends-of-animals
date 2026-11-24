@@ -52,7 +52,7 @@ export {
 // Not use cases either (#82): the registration use cases call them inside
 // their transactions, after authorizing their actor.
 export {
-  lackingParticipation,
+  participationRefusals,
   participationGiven,
   recordChildParticipation,
   releaseHeldRegistrations,
@@ -69,6 +69,7 @@ export type {
   WithdrawChildConsentResult,
 } from "./child-consent";
 export type { ConsentState } from "./domain/consent-state";
+export { schoolParticipationUse } from "./school-route-use";
 export type { GuardianPurpose, PublicUse } from "./domain/guardian-purposes";
 export type { PublicCredit } from "./domain/public-credit";
 export type {

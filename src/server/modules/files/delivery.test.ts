@@ -1,8 +1,16 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Actor } from "@/server/actor";
-import { auditLog, fileAsset } from "@/server/db/schema";
+import { createApp } from "@/server/app";
+import { auditLog, consentEvent, fileAsset } from "@/server/db/schema";
+import {
+  formWorld,
+  SCAN,
+  signInReviewer,
+  submitScan,
+  uploadScan,
+} from "@/server/modules/consent-forms/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import type { FileStatus } from "./domain/file-status";
@@ -53,6 +61,141 @@ async function fileReads(h: Harness) {
 }
 
 describe("getFileDownloadUrl", () => {
+  it("serves and audits consent-form scans only through the staff role after scanning", async () => {
+    const w = await formWorld();
+    const { h, school, coordinator } = w;
+    const fileId = await uploadScan(w);
+    await expect(
+      coordinator.getFileDownloadUrl({ fileId })
+    ).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    await h.seed.grant(
+      { id: school.coordinator.userId },
+      { role: "staff_admin", scope: { type: "global" } }
+    );
+    await h.passSecondFactor(school.coordinator.actor);
+
+    expect(await coordinator.getFileDownloadUrl({ fileId })).toEqual({
+      ok: false,
+      error: "file_not_ready",
+    });
+    expect(await fileReads(h)).toEqual([]);
+    await setStatus(h, fileId, "clean");
+
+    expect((await coordinator.getFileDownloadUrl({ fileId })).ok).toBe(true);
+    expect(await fileReads(h)).toMatchObject([
+      {
+        actorUserId: school.coordinator.userId,
+        actorRole: "staff_admin",
+        entityId: fileId,
+      },
+    ]);
+  });
+
+  it("refuses a clean consent-form scan to the uploader without a staff role", async () => {
+    const w = await formWorld();
+    const { h, coordinator } = w;
+    const fileId = await uploadScan(w);
+    await setStatus(h, fileId, "clean");
+    const sign = vi.spyOn(h.storage, "presignGet");
+
+    await expect(
+      coordinator.getFileDownloadUrl({ fileId })
+    ).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+  });
+
+  it("requires the staff session to pass its second factor before delivering a consent-form scan", async () => {
+    const w = await formWorld();
+    const { h } = w;
+    const fileId = await uploadScan(w);
+    await setStatus(h, fileId, "clean");
+    const { actor, userId } = await signInReviewer(h, false);
+    await h.seed.authenticator({ id: userId });
+    const staff = h.as(actor);
+    const sign = vi.spyOn(h.storage, "presignGet");
+    await expect(staff.getFileDownloadUrl({ fileId })).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+
+    await h.passSecondFactor(actor);
+    const delivered = await staff.getFileDownloadUrl({ fileId });
+    if (!delivered.ok) throw new Error(`Delivery refused: ${delivered.error}`);
+    expect(await h.storage.get(delivered.url)).toMatchObject({
+      ok: true,
+      bytes: SCAN,
+      cacheControl: "private, no-store",
+    });
+    expect(sign).toHaveBeenCalledTimes(1);
+    expect(await fileReads(h)).toMatchObject([
+      { actorUserId: userId, actorRole: "staff_admin", entityId: fileId },
+    ]);
+  });
+
+  it("refuses delivery and acceptance when a clean consent-form scan has no stored object", async () => {
+    const w = await formWorld();
+    const { h } = w;
+    const { formId, fileId } = await submitScan(w);
+    const [file] = await h.db
+      .select({ bucket: fileAsset.bucket, key: fileAsset.storageKey })
+      .from(fileAsset)
+      .where(eq(fileAsset.id, fileId));
+    if (!file) throw new Error("Missing file");
+    await h.storage.delete(file);
+    await setStatus(h, fileId, "clean");
+    const reviewer = h.as((await signInReviewer(h)).actor);
+    const sign = vi.spyOn(h.storage, "presignGet");
+
+    expect(await reviewer.getFileDownloadUrl({ fileId })).toEqual({
+      ok: false,
+      error: "file_unavailable",
+    });
+    expect(await reviewer.getConsentFormForReview({ formId })).toMatchObject({
+      ok: true,
+      form: { fileId, scanAvailable: false },
+    });
+    expect(
+      await reviewer.reviewConsentForm({ formId, decision: "accept" })
+    ).toEqual({ ok: false, error: "file_unavailable" });
+    expect(await reviewer.listConsentFormsForReview({})).toMatchObject({
+      ok: true,
+      forms: [{ id: formId, status: "pending_review" }],
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+    expect(await h.db.select().from(consentEvent)).toEqual([]);
+  });
+
+  it("keeps clean consent-form scans unavailable in the production configuration", async () => {
+    const w = await formWorld();
+    const { h } = w;
+    const fileId = await uploadScan(w);
+    await setStatus(h, fileId, "clean");
+    const { actor } = await signInReviewer(h);
+    const staff = createApp({
+      ...h.deps,
+      files: { ...h.deps.files, appEnv: "production" },
+    }).as(actor);
+    const sign = vi
+      .spyOn(h.storage, "presignGet")
+      .mockRejectedValue(
+        new Error("Dormant consent-form delivery reached the storage signer")
+      );
+
+    expect(await staff.getFileDownloadUrl({ fileId })).toEqual({
+      ok: false,
+      error: "file_unavailable",
+    });
+    expect(sign).not.toHaveBeenCalled();
+    expect(await fileReads(h)).toEqual([]);
+  });
+
   it("gives the owner a URL that serves the uploaded bytes", async () => {
     const { h, fileId, actors } = await world();
     await setStatus(h, fileId, "clean");

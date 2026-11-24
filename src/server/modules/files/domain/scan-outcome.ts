@@ -34,8 +34,22 @@ export function scanOutcome({
         scanResult: verdict.signature,
       };
     case "clean":
-      return sniffedType === declaredType
+      return sniffedType !== null && sameType(declaredType, sniffedType)
         ? { kind: "settled", status: "clean", scanResult: "OK" }
         : { kind: "settled", status: "rejected", scanResult: "type_mismatch" };
   }
+}
+
+/**
+ * HEIC is HEIF with HEVC inside, and a phone may write either brand (#85):
+ * the media pipeline decodes both the same way, so either declared type
+ * matches either one sniffed.
+ */
+const HEIF_FAMILY: ReadonlySet<string> = new Set(["image/heic", "image/heif"]);
+
+function sameType(declared: string, sniffed: SniffedContentType): boolean {
+  return (
+    declared === sniffed ||
+    (HEIF_FAMILY.has(declared) && HEIF_FAMILY.has(sniffed))
+  );
 }

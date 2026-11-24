@@ -339,12 +339,18 @@ export function diskStorage(
     }
   }
 
+  function pastUploadExpiry(expiresAt: number | undefined): boolean {
+    return expiresAt !== undefined && clock.now().getTime() >= expiresAt;
+  }
+
   /** Stores `bytes` at `ref` with `contentType`, replacing any object. */
   async function store(
     ref: ObjectRef,
     bytes: Uint8Array,
-    contentType: string
-  ): Promise<void> {
+    contentType: string,
+    expiresAt?: number
+  ): Promise<boolean> {
+    if (pastUploadExpiry(expiresAt)) return false;
     const { folder, object, type } = locate(root, ref);
     await mkdir(
       /* turbopackIgnore: true */ join(folder, "objects"),
@@ -357,13 +363,25 @@ export function diskStorage(
     // Written beside the objects, then renamed in, so a reader never sees
     // half an object.
     const partial = join(folder, `.partial-${randomUUID()}`);
-    await writeFile(/* turbopackIgnore: true */ partial, bytes, PRIVATE_FILE);
-    await writeFile(
-      /* turbopackIgnore: true */ type,
-      contentType,
-      PRIVATE_FILE
-    );
-    await rename(/* turbopackIgnore: true */ partial, object);
+    try {
+      await writeFile(/* turbopackIgnore: true */ partial, bytes, PRIVATE_FILE);
+      if (pastUploadExpiry(expiresAt)) return false;
+      await writeFile(
+        /* turbopackIgnore: true */ type,
+        contentType,
+        PRIVATE_FILE
+      );
+      await rename(/* turbopackIgnore: true */ partial, object);
+    } finally {
+      await rm(/* turbopackIgnore: true */ partial, { force: true });
+    }
+    // Deletion by another process can race the filesystem writes above.
+    // Clear the object ourselves if the rename straddled expiry.
+    if (pastUploadExpiry(expiresAt)) {
+      await remove(ref);
+      return false;
+    }
+    return true;
   }
 
   async function remove(ref: ObjectRef): Promise<void> {
@@ -460,8 +478,13 @@ export function diskStorage(
       const bytes = await readExactly(body, Number(length));
       if (!bytes) return { ok: false, error: "header_mismatch" };
 
-      await store(checked.ref, bytes, contentType ?? "");
-      return { ok: true };
+      const stored = await store(
+        checked.ref,
+        bytes,
+        contentType ?? "",
+        Number(checked.params.get("expires"))
+      );
+      return stored ? { ok: true } : { ok: false, error: "expired" };
     },
 
     async serve(url) {

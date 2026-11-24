@@ -6,23 +6,29 @@
 // Loads under plain Node (the worker, the seed script): relative imports
 // only, no "server-only".
 
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { Role } from "../../../access/domain/roles";
 import type { Actor } from "../../../actor";
 import { recordAudit } from "../../../audit/record";
 import type { AppDb } from "../../../db/app-db";
 import {
+  paymentBatch,
   paymentBatchItem,
+  paymentReviewCase,
   refund,
   refundItem,
   registration,
+  type PaymentBatchRow,
   type RefundRow,
 } from "../../../db/schema";
 import type { Clock } from "../../../ports/clock";
 import { canTransition } from "../../registration/domain/registration-status";
 import { characterCount } from "../domain/review-case";
-import type { ItemRefundState } from "../domain/refund-plan";
+import {
+  allocateRefundItems,
+  type RefundableBatch,
+} from "../domain/refund-plan";
 
 type AuditContext = { clock: Clock; actor: Actor };
 
@@ -48,14 +54,47 @@ export function checkRefundText(
   return { ok: true, text };
 }
 
-/**
- * Every registration the batch holds, with the fee it was charged and
- * where it stands with refunds: free, held by a live refund, or refunded.
- */
-export async function refundableItems(
+/** The receipt accepted by finance, including captures confirmed before #80b. */
+export const acceptedReviewOfBatch = and(
+  eq(paymentReviewCase.batchId, paymentBatch.id),
+  eq(paymentReviewCase.gatewayPaymentId, paymentBatch.gatewayPaymentId),
+  eq(paymentReviewCase.outcome, "confirm"),
+  eq(paymentBatch.status, "captured")
+);
+
+type RefundableCapture =
+  | (RefundableBatch & { kind: "inr" })
+  | (Pick<RefundableBatch, "amountMinor" | "items"> & {
+      kind: "dashboard";
+      currency: string;
+      reviewCaseId: string;
+      state: "review" | "required" | "recorded";
+    });
+
+/** The refundable amount and allocation for every registration the batch holds. */
+export async function refundableBatch(
   db: AppDb,
-  batchId: string
-): Promise<{ id: string; amountMinor: bigint; refund: ItemRefundState }[]> {
+  batch: Pick<
+    PaymentBatchRow,
+    "id" | "status" | "amountMinor" | "gatewayPaymentId" | "captureMethod"
+  >
+): Promise<RefundableCapture> {
+  const captured = batch.status === "captured";
+  const [receipt] = captured
+    ? await db
+        .select({
+          id: paymentReviewCase.id,
+          amountMinor: paymentReviewCase.amountMinor,
+          currency: paymentReviewCase.currency,
+          refundDue: paymentReviewCase.refundDue,
+          dashboardRefundReference: paymentReviewCase.dashboardRefundReference,
+        })
+        .from(paymentBatch)
+        .innerJoin(paymentReviewCase, acceptedReviewOfBatch)
+        .where(eq(paymentBatch.id, batch.id))
+    : [];
+  const amountMinor = receipt?.amountMinor ?? batch.amountMinor;
+  const dashboard = receipt && receipt.currency !== "INR" ? receipt : null;
   const items = await db
     .select({
       id: paymentBatchItem.registrationId,
@@ -64,29 +103,127 @@ export async function refundableItems(
     .from(paymentBatchItem)
     .where(
       and(
-        eq(paymentBatchItem.batchId, batchId),
+        eq(paymentBatchItem.batchId, batch.id),
         isNull(paymentBatchItem.releasedAt)
       )
     )
     .orderBy(asc(paymentBatchItem.registrationId));
-  const held = await db
+  const againstCapture =
+    or(
+      batch.gatewayPaymentId === null
+        ? undefined
+        : eq(refund.gatewayPaymentId, batch.gatewayPaymentId),
+      batch.captureMethod === "offline"
+        ? and(eq(refund.method, "manual"), ne(refund.kind, "duplicate"))
+        : undefined
+    ) ?? sql`false`;
+  const notRejected = sql`${refund.status} <> 'rejected'`;
+  // Use one snapshot for holds and committed amounts. A concurrent rejection
+  // releases both together, so the allocation must observe both or neither.
+  const committed = db
+    .select({
+      amountMinor: sql`coalesce(sum(${refund.amountMinor}), 0)`
+        .mapWith(BigInt)
+        .as("committed_minor"),
+    })
+    .from(refund)
+    .where(and(eq(refund.batchId, batch.id), notRejected, againstCapture))
+    .as("committed");
+  const liveItems = db
     .select({
       registrationId: refundItem.registrationId,
+      amountMinor: refundItem.amountMinor,
       status: refund.status,
     })
     .from(refundItem)
-    .innerJoin(refund, eq(refund.id, refundItem.refundId))
-    .where(and(eq(refundItem.batchId, batchId), isNull(refundItem.releasedAt)));
-  const stateOf = new Map(
-    held.map((row) => [
-      row.registrationId,
-      row.status === "refunded" ? ("refunded" as const) : ("live" as const),
-    ])
-  );
-  return items.map((item) => ({
+    .innerJoin(
+      refund,
+      and(
+        eq(refund.id, refundItem.refundId),
+        eq(refundItem.batchId, refund.batchId)
+      )
+    )
+    .where(and(eq(refundItem.batchId, batch.id), isNull(refundItem.releasedAt)))
+    .unionAll(
+      db
+        .select({
+          registrationId: sql<string>`unnest(${refund.zeroShareRegistrationIds})`,
+          amountMinor: sql<bigint>`0::bigint`,
+          status: refund.status,
+        })
+        .from(refund)
+        .where(
+          and(
+            eq(refund.batchId, batch.id),
+            notRejected,
+            sql`cardinality(${refund.zeroShareRegistrationIds}) > 0`
+          )
+        )
+    )
+    .as("live_items");
+  const commitments = await db
+    .select({
+      committedMinor: committed.amountMinor,
+      held: {
+        registrationId: liveItems.registrationId,
+        amountMinor: liveItems.amountMinor,
+        status: liveItems.status,
+      },
+    })
+    .from(committed)
+    .leftJoin(liveItems, sql`true`);
+  const holds = new Map<
+    string,
+    { amountMinor: bigint; status: RefundRow["status"] }
+  >();
+  const committedMinor = commitments[0]?.committedMinor ?? 0n;
+  for (const { held } of commitments) {
+    if (held) holds.set(held.registrationId, held);
+  }
+  const allocations = items.map((item) => ({
     ...item,
-    refund: stateOf.get(item.id) ?? "none",
+    heldMinor: holds.get(item.id)?.amountMinor ?? null,
   }));
+  const shares =
+    receipt && !dashboard
+      ? allocateRefundItems(amountMinor - committedMinor, allocations)
+      : null;
+  const allocatedItems: RefundableBatch["items"] = allocations.map(
+    ({ id, amountMinor, heldMinor }, index) => ({
+      id,
+      amountMinor: dashboard
+        ? 0n
+        : (shares?.[index] ?? heldMinor ?? amountMinor),
+      refund:
+        heldMinor === null
+          ? "none"
+          : holds.get(id)?.status === "refunded"
+            ? "refunded"
+            : "live",
+    })
+  );
+  if (dashboard) {
+    return {
+      kind: "dashboard",
+      amountMinor,
+      currency: dashboard.currency,
+      reviewCaseId: dashboard.id,
+      state: dashboard.dashboardRefundReference
+        ? "recorded"
+        : dashboard.refundDue
+          ? "required"
+          : "review",
+      items: allocatedItems,
+    };
+  }
+  return {
+    kind: "inr",
+    captured,
+    amountMinor,
+    committedMinor,
+    currency: "INR",
+    items: allocatedItems,
+  };
 }
 
 /** The refund, locked until the transaction ends; null if there is none. */
@@ -123,18 +260,43 @@ export async function releaseItems(
  */
 export async function refundRegistrations(
   tx: AppDb,
-  refundId: string,
+  source: { refundId: string } | { batchId: string },
   at: Date
 ): Promise<string[]> {
+  const items =
+    "refundId" in source
+      ? tx
+          .select({ id: refundItem.registrationId })
+          .from(refundItem)
+          .where(
+            and(
+              eq(refundItem.refundId, source.refundId),
+              isNull(refundItem.releasedAt)
+            )
+          )
+          .unionAll(
+            tx
+              .select({
+                id: sql<string>`unnest(${refund.zeroShareRegistrationIds})`,
+              })
+              .from(refund)
+              .where(eq(refund.id, source.refundId))
+          )
+      : tx
+          .select({ id: paymentBatchItem.registrationId })
+          .from(paymentBatchItem)
+          .where(
+            and(
+              eq(paymentBatchItem.batchId, source.batchId),
+              isNull(paymentBatchItem.releasedAt)
+            )
+          );
   const rows = await tx
     .select({ id: registration.id, status: registration.status })
-    .from(refundItem)
-    .innerJoin(registration, eq(registration.id, refundItem.registrationId))
-    .where(
-      and(eq(refundItem.refundId, refundId), isNull(refundItem.releasedAt))
-    )
+    .from(registration)
+    .where(inArray(registration.id, items))
     .orderBy(asc(registration.id))
-    .for("update", { of: registration });
+    .for("update");
   const moving = rows
     .filter((row) => canTransition(row.status, "refunded", "payment"))
     .map((row) => row.id);

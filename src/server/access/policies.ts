@@ -6,7 +6,9 @@
 import { CMS_POLICY } from "../modules/cms/policy";
 import { IDENTITY_POLICY } from "../identity/policy";
 import { FILES_POLICY } from "../modules/files/policy";
+import { CONSENT_LINKS_POLICY } from "../modules/consent-links/policy";
 import { CONSENT_POLICY } from "../modules/consent/policy";
+import { CONSENT_FORMS_POLICY } from "../modules/consent-forms/policy";
 import { COMPETITIONS_POLICY } from "../modules/competitions/policy";
 import { NOTIFICATIONS_POLICY } from "../modules/notifications/policy";
 import { SECOND_FACTOR_POLICY } from "../modules/second-factor/policy";
@@ -22,6 +24,7 @@ import { PAYMENTS_POLICY } from "../modules/payments/policy";
 import { PARTICIPANTS_POLICY } from "../modules/participants/policy";
 import { GUARDIANS_POLICY } from "../modules/guardians/policy";
 import { LEDGER_POLICY } from "../modules/ledger/policy";
+import { ENTRIES_POLICY } from "../modules/entries/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
@@ -32,6 +35,8 @@ export const POLICY = composePolicies(
   FILES_POLICY,
   SETTINGS_POLICY,
   CONSENT_POLICY,
+  CONSENT_FORMS_POLICY,
+  CONSENT_LINKS_POLICY,
   COMPETITIONS_POLICY,
   CMS_POLICY,
   NOTIFICATIONS_POLICY,
@@ -45,7 +50,8 @@ export const POLICY = composePolicies(
   PAYMENTS_POLICY,
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
-  LEDGER_POLICY
+  LEDGER_POLICY,
+  ENTRIES_POLICY
 );
 
 export type Action = keyof typeof POLICY;

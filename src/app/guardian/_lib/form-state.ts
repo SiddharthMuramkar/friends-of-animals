@@ -23,6 +23,7 @@ export type DeclareValues = {
 
 /** Refusals no field can fix, shown above the form. */
 const DECLARE_PROBLEMS = [
+  "unavailable",
   "linked_child",
   "registered_as_minor",
   "no_verified_email",
@@ -87,6 +88,7 @@ export type AddChildField = (typeof ADD_CHILD_FIELDS)[number];
 export type AddChildValues = Record<AddChildField, string>;
 
 export type AddChildRefusal =
+  | "unavailable"
   | "dob_invalid"
   | "adult"
   | "already_added"
@@ -129,7 +131,8 @@ export function afterAddChild(
     case "adult":
       return { ...next, errors: ["dateOfBirth"], refusal: result.error };
     case "already_added":
-      return { ...next, errors: [], refusal: "already_added" };
+    case "unavailable":
+      return { ...next, errors: [], refusal: result.error };
     default:
       return { ...next, errors: [], refusal: "unexpected" };
   }
@@ -155,6 +158,7 @@ export function afterInvite(
 /* What the pages read back from the address bar. */
 
 const CODE_ERRORS = [
+  "unavailable",
   "code_invalid",
   "code_expired",
   "too_many_attempts",

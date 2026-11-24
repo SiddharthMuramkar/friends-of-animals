@@ -13,6 +13,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { env } from "@/env";
 import { guardianChildConsentsPath, guardianChildPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -22,6 +23,7 @@ import {
   guardianDocumentPurpose,
   PUBLIC_USES,
 } from "@/server/modules/consent/domain/guardian-purposes";
+import { guardianFlowsActive } from "@/server/modules/guardians/availability";
 
 import { PurposeCard } from "./_components/purpose-card";
 
@@ -43,7 +45,13 @@ export default async function Page(props: Props) {
   );
 }
 
-const OUTCOMES = ["given", "withdrawn", "document_outdated", "failed"] as const;
+const OUTCOMES = [
+  "given",
+  "withdrawn",
+  "document_outdated",
+  "unavailable",
+  "failed",
+] as const;
 
 async function Consents({ params, searchParams }: Props) {
   const [{ id }, query, actor, t, callout] = await Promise.all([
@@ -66,13 +74,14 @@ async function Consents({ params, searchParams }: Props) {
   const outcome = OUTCOMES.find((kind) => kind === query.done);
   const success = outcome === "given" || outcome === "withdrawn";
   const globalDocument = communications.document;
+  const canGive = guardianFlowsActive(env().APP_ENV);
 
   return (
     <>
       <PageHeader
         tile="green"
         title={t("title", { name: child.fullName })}
-        lead={t("lead")}
+        lead={t(canGive ? "lead" : "reviewLead")}
       />
       <div className="mt-8 flex flex-col gap-8">
         {outcome ? (
@@ -144,6 +153,7 @@ async function Consents({ params, searchParams }: Props) {
                     competitionId={id}
                     groupHeading={heading}
                     consent={consent}
+                    canGive={canGive}
                     documentText={
                       document && purpose !== "communications" ? (
                         <p>
@@ -168,6 +178,7 @@ async function Consents({ params, searchParams }: Props) {
         <PurposeCard
           childId={child.id}
           consent={{ ...communications, purpose: "communications" }}
+          canGive={canGive}
           documentText={
             globalDocument ? (
               <>

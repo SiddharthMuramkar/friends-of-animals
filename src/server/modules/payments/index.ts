@@ -35,7 +35,9 @@ import {
   type GetPaymentBatchForStaffInput,
 } from "./staff-batch";
 import {
+  recordDashboardRefund,
   resolvePaymentReviewCase,
+  type RecordDashboardRefundInput,
   type ResolvePaymentReviewCaseInput,
 } from "./resolve-review-case";
 import {
@@ -131,6 +133,8 @@ export const paymentsUseCases = (ctx: UseCaseContext) => ({
     getPaymentReviewCase(ctx, input),
   resolvePaymentReviewCase: (input: ResolvePaymentReviewCaseInput) =>
     resolvePaymentReviewCase(ctx, input),
+  recordDashboardRefund: (input: RecordDashboardRefundInput) =>
+    recordDashboardRefund(ctx, input),
   getOfflinePaymentProof: (input: GetOfflinePaymentProofInput) =>
     getOfflinePaymentProof(ctx, input),
   getPaymentBatchForStaff: (input: GetPaymentBatchForStaffInput) =>

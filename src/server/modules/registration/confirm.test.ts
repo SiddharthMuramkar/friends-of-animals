@@ -46,7 +46,7 @@ describe("confirmRegistrations", () => {
     const result = await h.db.transaction((tx) =>
       confirmRegistrations(
         tx,
-        { clock: h.clock, actor: worker, cipher: h.deps.cipher },
+        { ...h.deps, actor: worker },
         {
           registrationIds: ids,
           competitionCode: "PAWS27",

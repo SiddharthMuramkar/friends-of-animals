@@ -1,10 +1,19 @@
-import { expect, test, type Page } from "@playwright/test";
+import { randomBytes, randomUUID } from "node:crypto";
+import { expect, type Page } from "@playwright/test";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
+import * as schema from "../../src/server/db/schema";
 import { base32Decode } from "../../src/server/modules/second-factor/domain/base32";
-import { totpCode } from "../../src/server/modules/second-factor/domain/totp";
+import {
+  generateTotpSecret,
+  totpCode,
+} from "../../src/server/modules/second-factor/domain/totp";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { freshEmail } from "./support/mailbox";
 import { grantGlobalRole } from "./support/roles";
+import { localSeedUrl, test } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
 // #80: the refunds pages. A fresh member is refused, then, granted the
@@ -163,4 +172,352 @@ test("finance reads the refunds queue and a refund, a staff admin opens the requ
       .getByRole("region", { name: "Refunds of this payment" })
       .getByRole("link")
   ).toHaveCount(1);
+});
+
+test("staff reads a historical receipt and records its verified dashboard refund", async ({
+  page,
+  request,
+  seedAccount,
+  baseURL,
+}) => {
+  const client = postgres(localSeedUrl(baseURL), { max: 1, prepare: false });
+  const db = drizzle(client, { schema });
+  const caseId = randomUUID();
+  const batchId = randomUUID();
+  const orderId = `order_fallback_${caseId}`;
+  const paymentId = `pay_fallback_${caseId}`;
+  const refundId = `rfnd_fallback_${caseId}`;
+  const now = new Date();
+  const reviewPath = `/admin/payments/review/${caseId}`;
+  const refundPath = `/admin/payments/batches/${batchId}/refund`;
+  try {
+    const [seeded] = await db
+      .select()
+      .from(schema.paymentBatch)
+      .where(eq(schema.paymentBatch.id, SEEDED.paidBatch));
+    if (!seeded) throw new Error("Missing seeded payment batch");
+    await db.transaction(async (tx) => {
+      await tx.insert(schema.gatewayTestOrder).values({
+        id: orderId,
+        amountMinor: seeded.amountMinor,
+        receipt: batchId,
+        createdAt: now,
+      });
+      await tx.insert(schema.gatewayTestPayment).values({
+        id: paymentId,
+        orderId,
+        status: "captured",
+        amountMinor: 1200n,
+        currency: "USD",
+        createdAt: now,
+      });
+      await tx.insert(schema.paymentBatch).values({
+        ...seeded,
+        id: batchId,
+        gateway: "fallback",
+        gatewayOrderId: orderId,
+        gatewayPaymentId: paymentId,
+      });
+      await tx.insert(schema.paymentReviewCase).values({
+        id: caseId,
+        batchId,
+        reason: "amount_mismatch",
+        gatewayPaymentId: paymentId,
+        amountMinor: 1200n,
+        currency: "USD",
+        batchStatusBefore: "order_created",
+        openedAt: now,
+        outcome: "confirm",
+        resolvedAt: now,
+        resolutionReason: "Finance accepted the historical receipt.",
+      });
+    });
+    const totpSecret = generateTotpSecret();
+    const email = await seedAccount({
+      name: "FOA Staff",
+      grants: [{ role: "staff_admin", scope: { type: "global" } }],
+      totpSecret,
+    });
+    await signInByCode(page, request, email);
+    await visit(page, refundPath);
+    await expect(page).toHaveURL(
+      `/auth/second-factor?next=${encodeURIComponent(refundPath)}`
+    );
+    await page
+      .getByRole("textbox", { name: "6-digit code" })
+      .fill(totpCode(totpSecret, new Date()));
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page).toHaveURL(refundPath);
+
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Refund history"
+    );
+    await expect(page.getByText("USD 12.00", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Ask finance to refund" })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Refunds of this payment" })
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Payment refunds ·/);
+    await checkBothThemes(page, "historical refund history");
+    await page.getByRole("link", { name: "Open payment review" }).click();
+    await expect(page).toHaveURL(reviewPath);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Payment of USD 12.00"
+    );
+    await expect(page.getByText(/If this payment was refunded/)).toBeVisible();
+    const reference = page.getByRole("textbox", {
+      name: "Gateway refund reference",
+    });
+    const record = page.getByRole("button", {
+      name: "Record dashboard refund",
+    });
+    await reference.fill("rfnd_unverified");
+    await record.click();
+    await expect(reference).toHaveAttribute("aria-invalid", "true");
+    await expect(
+      page.getByText(/Enter the reference for a processed refund/)
+    ).toBeVisible();
+    await expect(reference).toBeFocused();
+    await expect(page).toHaveTitle(/^Payment needing review ·/);
+    await expectAccessible(page, "dashboard refund reference error");
+
+    await db.insert(schema.gatewayTestRefund).values({
+      id: refundId,
+      paymentId,
+      status: "processed",
+      amountMinor: 1200n,
+      currency: "USD",
+      idempotencyKey: refundId,
+      notes: {},
+      createdAt: now,
+    });
+    await reference.fill(refundId);
+    await record.click();
+    await expect(
+      page.getByText("Dashboard refund recorded", { exact: true })
+    ).toBeVisible();
+    await visit(page, refundPath);
+    await expect(
+      page.getByText("Finance recorded the refund from the gateway dashboard.")
+    ).toBeVisible();
+  } finally {
+    try {
+      await db
+        .delete(schema.paymentReviewCase)
+        .where(eq(schema.paymentReviewCase.id, caseId));
+      await db
+        .delete(schema.paymentBatch)
+        .where(eq(schema.paymentBatch.id, batchId));
+      await db
+        .delete(schema.gatewayTestOrder)
+        .where(eq(schema.gatewayTestOrder.id, orderId));
+    } finally {
+      await client.end({ timeout: 5 });
+    }
+  }
+});
+
+test("staff can select a zero-share student with a paid share for a partial refund", async ({
+  page,
+  request,
+  seedAccount,
+  baseURL,
+}) => {
+  const client = postgres(localSeedUrl(baseURL), { max: 1, prepare: false });
+  const db = drizzle(client, { schema });
+  const competitionId = randomUUID();
+  const ageGroupId = randomUUID();
+  const schoolId = randomUUID();
+  const batchId = randomUUID();
+  const letters = Array.from(randomBytes(6), (byte) =>
+    String.fromCharCode(65 + (byte % 26))
+  ).join("");
+  const code = `${letters}26`;
+  const path = `/admin/payments/batches/${batchId}/refund`;
+  const now = new Date();
+  const ids = Array.from({ length: 3 }, () => randomUUID()).sort();
+  const numbers = ids.map((_, i) => `${code}-R-5EED0${i + 1}`);
+  try {
+    await db.transaction(async (tx) => {
+      const [seeded] = await tx
+        .select()
+        .from(schema.paymentBatch)
+        .where(eq(schema.paymentBatch.id, SEEDED.paidBatch));
+      if (!seeded?.institutionId)
+        throw new Error("Missing seeded school batch");
+      const students = await tx
+        .select({ profileId: schema.registration.participantProfileId })
+        .from(schema.registration)
+        .innerJoin(
+          schema.paymentBatchItem,
+          eq(schema.paymentBatchItem.registrationId, schema.registration.id)
+        )
+        .where(eq(schema.paymentBatchItem.batchId, seeded.id));
+      if (students.length !== 3)
+        throw new Error("Expected three seeded students");
+      await tx.insert(schema.competition).values({
+        id: competitionId,
+        code,
+        slug: code.toLowerCase(),
+        name: "Reviewed refund",
+        status: "registration_closed",
+        publishedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.competitionAgeGroup).values({
+        id: ageGroupId,
+        competitionId,
+        label: "Students",
+        minAge: 5,
+        maxAge: 18,
+        position: 0,
+      });
+      await tx.insert(schema.institutionRegistration).values({
+        id: schoolId,
+        competitionId,
+        institutionId: seeded.institutionId,
+        reference: `${code}-I-5EED1`,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.registration).values(
+        students.map(({ profileId }, i) => ({
+          id: ids[i]!,
+          participantProfileId: profileId,
+          competitionId,
+          ageGroupId,
+          route: "institution" as const,
+          institutionRegistrationId: schoolId,
+          status: "confirmed" as const,
+          registrationNumber: numbers[i],
+          createdAt: now,
+          updatedAt: now,
+        }))
+      );
+      const paymentId = `pay_fallback_${batchId}`;
+      await tx.insert(schema.paymentBatch).values({
+        ...seeded,
+        id: batchId,
+        competitionId,
+        institutionRegistrationId: schoolId,
+        gateway: "fallback",
+        gatewayOrderId: `order_fallback_${batchId}`,
+        gatewayPaymentId: paymentId,
+        amountMinor: 150_000n,
+      });
+      await tx.insert(schema.paymentBatchItem).values(
+        ids.map((registrationId) => ({
+          batchId,
+          registrationId,
+          amountMinor: 50_000n,
+        }))
+      );
+      await tx.insert(schema.paymentReviewCase).values({
+        id: randomUUID(),
+        batchId,
+        reason: "amount_mismatch",
+        gatewayPaymentId: paymentId,
+        amountMinor: 2n,
+        currency: "INR",
+        batchStatusBefore: "order_created",
+        openedAt: now,
+        outcome: "confirm",
+        resolvedAt: now,
+        resolutionReason: "Finance accepted the historical receipt.",
+      });
+    });
+    const totpSecret = generateTotpSecret();
+    const email = await seedAccount({
+      name: "FOA Staff",
+      grants: [{ role: "staff_admin", scope: { type: "global" } }],
+      totpSecret,
+    });
+    await signInByCode(page, request, email);
+    await visit(page, path);
+    await expect(page).toHaveURL(
+      `/auth/second-factor?next=${encodeURIComponent(path)}`
+    );
+    await page
+      .getByRole("textbox", { name: "6-digit code" })
+      .fill(totpCode(totpSecret, new Date()));
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page).toHaveURL(path);
+
+    const picker = page.getByRole("group", { name: "Students to refund" });
+    await expect(picker.getByRole("checkbox")).toHaveCount(3);
+    await picker
+      .getByRole("checkbox", { name: new RegExp(numbers[0]!) })
+      .check();
+    await page
+      .getByRole("textbox", { name: "Reason" })
+      .fill("The school asked to refund these two students.");
+    await page.getByRole("button", { name: "Ask finance to refund" }).click();
+    await expect(
+      page.getByText(
+        "Choose at least one student with an amount left to refund."
+      )
+    ).toBeVisible();
+    await picker
+      .getByRole("checkbox", { name: new RegExp(numbers[2]!) })
+      .check();
+    await page.getByRole("button", { name: "Ask finance to refund" }).click();
+    await expect(page).toHaveURL(`${path}?sent=1`);
+    const rows = await db
+      .select()
+      .from(schema.refund)
+      .where(eq(schema.refund.batchId, batchId));
+    expect(rows).toEqual([
+      expect.objectContaining({
+        amountMinor: 1n,
+        status: "requested",
+        zeroShareRegistrationIds: [ids[0]],
+      }),
+    ]);
+    expect(
+      await db
+        .select({
+          id: schema.refundItem.registrationId,
+          amountMinor: schema.refundItem.amountMinor,
+        })
+        .from(schema.refundItem)
+        .where(eq(schema.refundItem.refundId, rows[0]!.id))
+    ).toEqual([{ id: ids[2], amountMinor: 1n }]);
+  } finally {
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(schema.refundItem)
+          .where(eq(schema.refundItem.batchId, batchId));
+        await tx
+          .delete(schema.refund)
+          .where(eq(schema.refund.batchId, batchId));
+        await tx
+          .delete(schema.paymentReviewCase)
+          .where(eq(schema.paymentReviewCase.batchId, batchId));
+        await tx
+          .delete(schema.paymentBatchItem)
+          .where(eq(schema.paymentBatchItem.batchId, batchId));
+        await tx
+          .delete(schema.paymentBatch)
+          .where(eq(schema.paymentBatch.id, batchId));
+        await tx
+          .delete(schema.registration)
+          .where(eq(schema.registration.competitionId, competitionId));
+        await tx
+          .delete(schema.institutionRegistration)
+          .where(eq(schema.institutionRegistration.id, schoolId));
+        await tx
+          .delete(schema.competitionAgeGroup)
+          .where(eq(schema.competitionAgeGroup.id, ageGroupId));
+        await tx
+          .delete(schema.competition)
+          .where(eq(schema.competition.id, competitionId));
+      });
+    } finally {
+      await client.end({ timeout: 5 });
+    }
+  }
 });

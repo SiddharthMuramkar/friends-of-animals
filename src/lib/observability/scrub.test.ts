@@ -160,6 +160,12 @@ describe("stripQuery", () => {
     expect(stripQuery("/api/x?phone=9876543210")).toBe("/api/x");
     expect(stripQuery("/plain")).toBe("/plain");
   });
+
+  it("redacts a consent link path and keeps the route name", () => {
+    expect(redactText("GET /consent/synthetic-token?done=1")).toBe(
+      "GET /consent/[redacted]"
+    );
+  });
 });
 
 describe("scrubEvent", () => {
