@@ -1,7 +1,8 @@
 import { and, asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { auditLog, userRole } from "@/server/db/schema";
+import { auditLog, consentEvent, userRole } from "@/server/db/schema";
+import { uuidv7 } from "@/server/ids";
 import { createHarness } from "@/test/harness";
 
 import {
@@ -135,6 +136,38 @@ describe("approveVolunteer", () => {
         .as(manager)
         .approveVolunteer({ applicationId: priya.applicationId })
     ).toEqual({ ok: true });
+  });
+
+  it("refuses when a declaration is no longer given, changing nothing", async () => {
+    const h = await createHarness();
+    const declarations = await openVolunteering(h);
+    const priya = await adultApplication(h, declarations);
+    const manager = await staffActor(h, "community_manager");
+    // A withdrawal recorded after the applicant gave it: no use case offers
+    // one, but the log can hold it.
+    h.clock.advance({ minutes: 1 });
+    await h.db.insert(consentEvent).values({
+      id: uuidv7(h.clock.now()),
+      subjectType: "user",
+      subjectId: priya.id,
+      giverUserId: priya.id,
+      purpose: "volunteer_safeguarding_declaration",
+      documentId: declarations.safeguarding,
+      action: "withdrawn",
+      method: "staff_recorded",
+      occurredAt: h.clock.now(),
+    });
+
+    expect(
+      await h
+        .as(manager)
+        .approveVolunteer({ applicationId: priya.applicationId })
+    ).toEqual({ ok: false, error: "safeguarding_declaration_missing" });
+    expect(await applicationRow(h, priya.applicationId)).toMatchObject({
+      status: "submitted",
+      safeguardingConsentId: null,
+    });
+    expect(await volunteerGrants(h, priya.id)).toEqual([]);
   });
 
   it("refuses an application still waiting for the guardian", async () => {
