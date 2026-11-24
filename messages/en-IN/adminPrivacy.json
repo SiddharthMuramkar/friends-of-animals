@@ -334,7 +334,7 @@
         },
         "ledger_period": {
           "locked_by_user_id": "Identifies the finance user who approved locking the month",
-          "last_unlocked_by_user_id": "Identifies the finance user who approved the latest unlock of the month",
+          "last_unlocked_by_user_id": "Identifies the finance user who approved the latest reopening of the month",
           "last_unlock_reason": "Finance's reason for reopening a locked month, which may name a person"
         },
         "ledger_budget": {
