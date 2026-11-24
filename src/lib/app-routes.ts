@@ -69,6 +69,23 @@ export const ADMIN_PAYMENTS_REVIEW = "/admin/payments/review";
 /** The staff data inventory (#114). */
 export const ADMIN_PRIVACY = "/admin/privacy";
 
+/** The grievance officer's queue of privacy requests (#115). */
+export const ADMIN_PRIVACY_REQUESTS = "/admin/privacy/requests";
+
+/** One privacy request, for the grievance officer (#115). */
+export function adminPrivacyRequestPath(requestId: string): string {
+  return `${ADMIN_PRIVACY_REQUESTS}/${encodeURIComponent(requestId)}`;
+}
+
+/** A user's own privacy requests, and where they make one (#115). */
+export const MY_PRIVACY_REQUESTS = "/dashboard/privacy";
+export const NEW_PRIVACY_REQUEST = "/dashboard/privacy/new";
+
+/** One of a user's privacy requests (#115). */
+export function myPrivacyRequestPath(requestId: string): string {
+  return `${MY_PRIVACY_REQUESTS}/${encodeURIComponent(requestId)}`;
+}
+
 /** One payment batch in the admin area (#79): record an offline payment. */
 export function adminPaymentBatchPath(batchId: string): string {
   return `/admin/payments/batches/${encodeURIComponent(batchId)}`;
@@ -298,6 +315,11 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,
+  ADMIN_PRIVACY_REQUESTS,
+  "/admin/privacy/requests/[id]",
+  MY_PRIVACY_REQUESTS,
+  NEW_PRIVACY_REQUEST,
+  "/dashboard/privacy/[id]",
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
   ADMIN_REFUNDS,

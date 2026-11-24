@@ -541,33 +541,34 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 
 ### Modules at a glance
 
-| Module                            | Purpose                                                                                                                        | Tickets                 |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
-| [`announcements`](#announcements) | A competition manager writes, previews and sends an announcement to a competition's registrants                                | #84                     |
-| [`breaches`](#breaches)           | The staff breach log, its timeline, and notices to affected people and the authority                                           | #116                    |
-| [`cms`](#cms)                     | Editable site documents with drafts and published revisions, and blog posts                                                    | #111, #112              |
-| [`codes`](#codes)                 | Human-facing codes such as the Institution ID `FOA-I-8H3TZ`. Helper, no use cases                                              | #73                     |
-| [`competitions`](#competitions)   | Create, publish, list and cancel competitions; status jobs and guards; fees, award schemes, pinned consent versions (`terms/`) | #70, #71, #72, #80, #88 |
-| [`consent`](#consent)             | Versioned consent documents and the consent event log, for adults and for a guardian's child                                   | #64, #82                |
-| [`consent-forms`](#consent-forms) | A school uploads signed paper consent forms; FOA staff review them                                                             | #83                     |
-| [`consent-links`](#consent-links) | A school sends a guardian a consent link answered after a one-time code                                                        | #83                     |
-| [`contact`](#contact)             | The public contact form and the staff contact inbox                                                                            | #113                    |
-| [`entries`](#entries)             | A participant's entry in a competition and its uploaded picture                                                                | #85                     |
-| [`files`](#files)                 | Uploads, the malware scan, image derivatives, signed delivery                                                                  | #63, #85                |
-| [`guardians`](#guardians)         | Guardians, the children they manage, teen logins, guardian requests                                                            | #81                     |
-| [`institutions`](#institutions)   | Institution registration and verification; coordinator invitations (`coordinators/`)                                           | #73, #74                |
-| [`judging`](#judging)             | Rubrics per discipline, the school-judging guard, the judging guide                                                            | #88                     |
-| [`ledger`](#ledger)               | Double-entry postings for payments and refunds, manual entries, reversals                                                      | #105                    |
-| [`notifications`](#notifications) | Message templates and routes, dispatch, the in-app inbox, channel choices                                                      | #69                     |
-| [`offsite-copy`](#offsite-copy)   | The nightly copy of production files from R2 to Backblaze B2, and the restore                                                  | #68                     |
-| [`participants`](#participants)   | The individual route: an adult, or a guardian for a child, registers and pays                                                  | #78, #81                |
-| [`payments`](#payments)           | Payment batches, Checkout, the gateway webhook, offline payments, review cases, refunds                                        | #77, #79, #80           |
-| [`privacy`](#privacy)             | The data inventory, its admin page, the retention sweep and legal holds                                                        | #114                    |
-| [`public-forms`](#public-forms)   | Shared guards for public forms: proof-of-work human check, per-sender rate limits                                              | #113                    |
-| [`registration`](#registration)   | An institution registers for a competition and enrols students, one by one or from CSV; confirmation after payment             | #75, #76, #77           |
-| [`safeguarding`](#safeguarding)   | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
-| [`second-factor`](#second-factor) | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
-| [`settings`](#settings)           | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
+| Module                                  | Purpose                                                                                                                        | Tickets                 |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| [`announcements`](#announcements)       | A competition manager writes, previews and sends an announcement to a competition's registrants                                | #84                     |
+| [`breaches`](#breaches)                 | The staff breach log, its timeline, and notices to affected people and the authority                                           | #116                    |
+| [`cms`](#cms)                           | Editable site documents with drafts and published revisions, and blog posts                                                    | #111, #112              |
+| [`codes`](#codes)                       | Human-facing codes such as the Institution ID `FOA-I-8H3TZ`. Helper, no use cases                                              | #73                     |
+| [`competitions`](#competitions)         | Create, publish, list and cancel competitions; status jobs and guards; fees, award schemes, pinned consent versions (`terms/`) | #70, #71, #72, #80, #88 |
+| [`consent`](#consent)                   | Versioned consent documents and the consent event log, for adults and for a guardian's child                                   | #64, #82                |
+| [`consent-forms`](#consent-forms)       | A school uploads signed paper consent forms; FOA staff review them                                                             | #83                     |
+| [`consent-links`](#consent-links)       | A school sends a guardian a consent link answered after a one-time code                                                        | #83                     |
+| [`contact`](#contact)                   | The public contact form and the staff contact inbox                                                                            | #113                    |
+| [`entries`](#entries)                   | A participant's entry in a competition and its uploaded picture                                                                | #85                     |
+| [`files`](#files)                       | Uploads, the malware scan, image derivatives, signed delivery                                                                  | #63, #85                |
+| [`guardians`](#guardians)               | Guardians, the children they manage, teen logins, guardian requests                                                            | #81                     |
+| [`institutions`](#institutions)         | Institution registration and verification; coordinator invitations (`coordinators/`)                                           | #73, #74                |
+| [`judging`](#judging)                   | Rubrics per discipline, the school-judging guard, the judging guide                                                            | #88                     |
+| [`ledger`](#ledger)                     | Double-entry postings for payments and refunds, manual entries, reversals                                                      | #105                    |
+| [`notifications`](#notifications)       | Message templates and routes, dispatch, the in-app inbox, channel choices                                                      | #69                     |
+| [`offsite-copy`](#offsite-copy)         | The nightly copy of production files from R2 to Backblaze B2, and the restore                                                  | #68                     |
+| [`participants`](#participants)         | The individual route: an adult, or a guardian for a child, registers and pays                                                  | #78, #81                |
+| [`payments`](#payments)                 | Payment batches, Checkout, the gateway webhook, offline payments, review cases, refunds                                        | #77, #79, #80           |
+| [`privacy`](#privacy)                   | The data inventory, its admin page, the retention sweep and legal holds                                                        | #114                    |
+| [`privacy/requests`](#privacy-requests) | Rights requests (access, correction, erasure), the grievance queue, data exports and erasure                                   | #115                    |
+| [`public-forms`](#public-forms)         | Shared guards for public forms: proof-of-work human check, per-sender rate limits                                              | #113                    |
+| [`registration`](#registration)         | An institution registers for a competition and enrols students, one by one or from CSV; confirmation after payment             | #75, #76, #77           |
+| [`safeguarding`](#safeguarding)         | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
+| [`second-factor`](#second-factor)       | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
+| [`settings`](#settings)                 | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
 
 ### announcements
 
@@ -971,9 +972,26 @@ The data inventory, its admin page, the retention sweep and legal holds (#114).
 - **Tables** (`privacy.ts`): `legal_hold`, `retention_run_progress`.
 - **Sweep** (114-2): schedule `privacy.retention_sweep` at 02:15 IST. A policy registry (`policies/`) holds one policy per kind of record. The setting `retention.enforce` is **off by default**, so a run only counts; one `retention.<key>Days` setting per policy. It removes dispatched outbox rows, message deliveries, captured messages, quarantined files, expired sessions and verifications, old invitations, released holds, closed contact messages after 24 months, safeguarding reports after their period, and financial records after their floor. A legal hold stops a record being removed. The registry is `SWEPT_POLICIES` and `LIFECYCLE_POLICY_KEYS` in `policies/index.ts`; module-owned policies (safeguarding reports, `BREACH_RECORDS`) are in `policies/module-owned.ts`. `institution.created_by` and `offline_payment.proof_file_asset_id` stay `NOT NULL`, so the sweep never nulls them. Capture mailboxes no longer prune on send and verification cleanup is off: the sweep owns both, so wherever `retention.enforce` is off (staging included) captured messages and expired verifications pile up until a super admin turns it on.
 - **Pages:** `/admin/privacy` (inventory, sweep preview and the legal-hold forms, `_components/hold-forms.tsx`).
-- **Missing:** export and erasure (#115).
+- **Rights requests, export and erasure:** [`privacy/requests`](#privacy-requests) (#115).
 - **Seed:** `src/server/seed/privacy.ts`.
 - **Tests:** `inventory.test.ts`, `domain/coverage.test.ts`, `inventory-view.test.ts`, `sweep.test.ts`, `holds.test.ts`, `quarantined-files.test.ts`, `financial-retention.pg.test.ts`, `hold-session.pg.test.ts`; E2E `114-privacy-inventory.spec.ts`, `114-privacy.spec.ts`.
+
+### privacy requests
+
+Privacy rights requests and the grievance officer's queue (#115), in `src/server/modules/privacy/requests/`: a user, or a verified guardian for a linked child, asks for a copy of the data, a correction or an erasure; the **grievance officer** answers by the due date.
+
+- **Tables** (`privacy-requests.ts`): `privacy_request` (reference `PR-{YY}-` + 6; type, status, relation, subject as `(subject_kind, subject_id)` with no foreign key so it outlives an erasure; correction details, refusal reason and resolution encrypted; export and erasure-approval columns), `privacy_request_note` (encrypted, never edited, never shown to the requester), `privacy_overdue_digest` (one row per IST day), `erasure_record` (ids only: subject, every account and profile covered, what was done with each kind of record, the latest date a kept kind lapses).
+- **States** (`domain/request-status.ts`): `submitted` → `in_progress` (start, assign), `rejected`, `cancelled` (requester, only before work starts); `in_progress` → `completed` (a correction, an export), `partially_completed` (an erasure that kept something), `rejected`. Closed statuses are final.
+- **Who files what** (`domain/filing.ts`): anyone signed in about themselves; a verified guardian about a linked child under 18; a teen (13 to 17) asks for access and correction, erasure goes through their guardian. One open request of each type per person (advisory lock, `submit.pg.test.ts`).
+- **Use cases:** requester `submitPrivacyRequest`, `listMyPrivacyRequests`, `getMyPrivacyRequest`, `cancelPrivacyRequest`, `listPrivacyRequestSubjects`, `getPrivacyExportLink`; officer `listGrievanceQueue`, `getGrievanceRequest` (audited), `assignPrivacyRequest`, `startPrivacyRequest`, `addPrivacyRequestNote`, `rejectPrivacyRequest`, `completeCorrection`, `buildSubjectExport`, `previewErasure`, `executeErasure` (step-up); worker `flagOverduePrivacyRequests`.
+- **Who may call** (`policy.ts`): a request is read by whoever filed it and the verified guardian of the child it is about; only whoever filed it cancels it or downloads its export (staff never do). Everything else is `grievance_officer` only (a global staff role; super admin is not a wildcard).
+- **Export** (`subject-data/`): the worker collects every section of the person's data (`sections.ts`: rows decrypted, sign-in secrets and keyed hashes withheld; the ids of other rows naming them; their own uploads' bytes), checks each row is theirs (`guard.ts`), and stores a store-only ZIP (`zip.ts`) at `<prefix>privacy_export/<id>.zip`, outside the Files module. The link works for `privacy.exportLinkHours`, then a delayed job deletes the ZIP. `sections.test.ts` fails until a new table about a person is exported, referenced or left out with a reason.
+- **Erasure** (`subject-data/erasure-plan.ts`, `erasure.ts`): the officer previews what is deleted, anonymised, withdrawn and kept (with the basis and until when), and approves that plan by its fingerprint; the worker re-plans and refuses a changed plan. Consents are withdrawn (method `staff_recorded`), entries and their files deleted, a profile with a paid registration anonymised, payments and consent evidence and the audit log kept, the account kept while a payment it made is under its 8-year floor (setting), everything kept under a legal hold. A deleted account's owner gets the `privacy_request.erased` email directly.
+- **Settings:** `privacy.requestDueDays` (30), `privacy.erasureDueDays` (30), `privacy.exportLinkHours` (72), `privacy.erasureEnabled` (off; seeded on locally), `privacy.erasureKeepsPayerAccount` (on), `retention.privacyRequestsDays` (1095). All wait for counsel (HR-30).
+- **Pages:** `/dashboard/privacy`, `/dashboard/privacy/new`, `/dashboard/privacy/[id]`; staff `/admin/privacy/requests`, `/admin/privacy/requests/[id]`.
+- **Events:** `privacy_request.submitted`, `.rejected`, `.completed`, `.overdue_digest` → `notifications.dispatch` (audiences `privacy_requester`, `grievance_officers`, `grievance_digest`); `privacy_request.export_requested` → `privacy.build_export`; `privacy_request.export_expired` (delayed) → `privacy.expire_export`; `privacy_request.erasure_approved` → `privacy.execute_erasure`.
+- **Migrations:** `0079_115_pre_enum_role_grievance_officer` (rule F2), `0080_115_privacy_requests`, `0081_115_privacy_request_messages`, `0082_115_erasure_record`, `0083_115_erasure_notice`.
+- **Tests:** `requests/*.test.ts`, `requests/domain/*.test.ts`, `requests/subject-data/*.test.ts`, `submit.pg.test.ts`; E2E `115-privacy-requests.spec.ts`.
 
 ### public-forms
 
@@ -1054,6 +1072,10 @@ Runtime settings a super admin changes without a deploy.
   | `breach.authorityEmail`                                                      | empty                      | HR-49                                                 |
   | `retention.enforce`                                                          | false                      | the sweep only counts until a super admin turns it on |
   | `retention.<policy>Days`                                                     | per policy                 | one per retention policy                              |
+  | `privacy.requestDueDays`, `privacy.erasureDueDays`                           | 30                         | days to answer a rights request; HR-30                |
+  | `privacy.exportLinkHours`                                                    | 72                         | a data export's link, then the export is deleted      |
+  | `privacy.erasureEnabled`                                                     | false                      | carrying out erasures waits for HR-30                 |
+  | `privacy.erasureKeepsPayerAccount`                                           | true                       | keep a payer's account under the financial floor      |
 
 - **Tests:** `settings.test.ts`, `catalogue.test.ts`, `values.test.ts`; E2E `62-settings.spec.ts`.
 
@@ -1063,34 +1085,37 @@ Runtime settings a super admin changes without a deploy.
 - **Outbox handlers** run when their event is drained, every `WORKER_POLL_SECONDS` (default 5). **Delayed** handlers wait for `availableAt`.
 - Registry: `src/server/outbox/handlers.ts`; event-to-handler map: `SUBSCRIBERS` in `src/server/outbox/events.ts`.
 
-| Job                                         | Kind                                    | Runs when                                             | Code                                                                  |
-| ------------------------------------------- | --------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
-| `offsite_copy`                              | schedule                                | 01:30 daily, 3 retries, 3 h expiry                    | `modules/offsite-copy/schedule.ts`                                    |
-| `privacy.retention_sweep`                   | schedule                                | 02:15 daily                                           | `modules/privacy/schedule.ts`                                         |
-| `ledger.reconcile_payments`                 | schedule                                | 03:00 daily                                           | `modules/ledger/backfill.ts`                                          |
-| `notifications.dispatch`                    | outbox                                  | most events                                           | `modules/notifications/dispatch.ts`                                   |
-| `ledger.post_capture`, `ledger.post_refund` | outbox                                  | `payment.batch_captured`, `refund.processed`          | `modules/ledger/consumers.ts`                                         |
-| `refunds.send`                              | outbox                                  | `refund.approved`                                     | `modules/payments/refunds/sync-refund.ts`                             |
-| `files.scan_file`                           | outbox                                  | `files.file_uploaded`                                 | `modules/files/scan-handler.ts`                                       |
-| `files.process_image`                       | outbox, media queue (worker-media only) | `files.processing_requested`                          | `modules/files/process-image.ts`, `src/worker-media/process-media.ts` |
-| `entries.apply_file_outcome`                | outbox                                  | every `files.*` outcome event                         | `modules/entries/apply-file-outcome.ts`                               |
-| `entries.expire_upload_grant`               | outbox, delayed                         | at grant expiry                                       | `modules/entries/upload-grants.ts`                                    |
-| `entries.sweep_staged_upload`               | outbox, delayed                         | shortly after expiry                                  | `src/server/outbox/handlers.ts`                                       |
-| `cms.publish_scheduled_post`                | outbox, delayed                         | at the publish instant                                | `modules/cms/posts/publishing.ts`                                     |
-| `cms.publish_post_image`                    | outbox                                  | `files.file_processed`                                | `modules/cms/posts/images.ts`                                         |
-| `competitions.advance_status`               | outbox, delayed                         | at each key date                                      | `modules/competitions/advance-status.ts`                              |
-| `competitions.retry_blocked_moves`          | outbox                                  | `rubric.published`, `competition.disciplines_changed` | `modules/competitions/advance-status.ts`                              |
-| `registration.send_cancellation`            | outbox                                  | `registration.competition_cancelled`                  | `modules/competitions/cancellation-message.ts`                        |
-| `announcements.fan_out`                     | outbox                                  | `competition.announcement_sent`                       | `modules/announcements/fan-out.ts`                                    |
-| `breaches.fan_out`                          | outbox                                  | `breach.fan_out_requested`, one page per delivery     | `modules/breaches/fan-out.ts`                                         |
-| `breaches.send_authority_notice`            | outbox                                  | `breach.authority_notice`                             | `modules/breaches/authority-message.ts`                               |
-| `consent_links.deliver`                     | outbox                                  | `consent.link_sent`                                   | `modules/consent-links/delivery.ts`                                   |
-| `institutions.send_coordinator_invitation`  | outbox                                  | `institution.coordinator_invited`                     | `modules/institutions/coordinators/invitation-message.ts`             |
-| `contact.send_acknowledgement`              | outbox                                  | `contact_message.received`                            | `modules/contact/acknowledge.ts`                                      |
-| `registration.notify_principal`             | outbox                                  | `registration.institution_registered`                 | `modules/registration/principal-message.ts`                           |
-| `registration.send_confirmation`            | outbox                                  | `registration.confirmed`                              | `modules/registration/confirmation-message.ts`                        |
-| `guardians.send_teen_invitation`            | outbox                                  | `guardian.teen_invited`                               | `modules/guardians/teen-invitation-message.ts`                        |
-| `guardians.send_guardian_request`           | outbox                                  | `guardian.guardian_requested`                         | `modules/guardians/guardian-request-message.ts`                       |
+| Job                                             | Kind                                    | Runs when                                             | Code                                                                  |
+| ----------------------------------------------- | --------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| `offsite_copy`                                  | schedule                                | 01:30 daily, 3 retries, 3 h expiry                    | `modules/offsite-copy/schedule.ts`                                    |
+| `privacy.retention_sweep`                       | schedule                                | 02:15 daily                                           | `modules/privacy/schedule.ts`                                         |
+| `privacy.flag_overdue`                          | schedule                                | 09:00 daily                                           | `modules/privacy/requests/overdue.ts`                                 |
+| `privacy.build_export`, `privacy.expire_export` | outbox (expiry delayed)                 | `privacy_request.export_requested`, at link expiry    | `modules/privacy/requests/subject-data/export.ts`                     |
+| `privacy.execute_erasure`                       | outbox                                  | `privacy_request.erasure_approved`                    | `modules/privacy/requests/subject-data/erasure.ts`                    |
+| `ledger.reconcile_payments`                     | schedule                                | 03:00 daily                                           | `modules/ledger/backfill.ts`                                          |
+| `notifications.dispatch`                        | outbox                                  | most events                                           | `modules/notifications/dispatch.ts`                                   |
+| `ledger.post_capture`, `ledger.post_refund`     | outbox                                  | `payment.batch_captured`, `refund.processed`          | `modules/ledger/consumers.ts`                                         |
+| `refunds.send`                                  | outbox                                  | `refund.approved`                                     | `modules/payments/refunds/sync-refund.ts`                             |
+| `files.scan_file`                               | outbox                                  | `files.file_uploaded`                                 | `modules/files/scan-handler.ts`                                       |
+| `files.process_image`                           | outbox, media queue (worker-media only) | `files.processing_requested`                          | `modules/files/process-image.ts`, `src/worker-media/process-media.ts` |
+| `entries.apply_file_outcome`                    | outbox                                  | every `files.*` outcome event                         | `modules/entries/apply-file-outcome.ts`                               |
+| `entries.expire_upload_grant`                   | outbox, delayed                         | at grant expiry                                       | `modules/entries/upload-grants.ts`                                    |
+| `entries.sweep_staged_upload`                   | outbox, delayed                         | shortly after expiry                                  | `src/server/outbox/handlers.ts`                                       |
+| `cms.publish_scheduled_post`                    | outbox, delayed                         | at the publish instant                                | `modules/cms/posts/publishing.ts`                                     |
+| `cms.publish_post_image`                        | outbox                                  | `files.file_processed`                                | `modules/cms/posts/images.ts`                                         |
+| `competitions.advance_status`                   | outbox, delayed                         | at each key date                                      | `modules/competitions/advance-status.ts`                              |
+| `competitions.retry_blocked_moves`              | outbox                                  | `rubric.published`, `competition.disciplines_changed` | `modules/competitions/advance-status.ts`                              |
+| `registration.send_cancellation`                | outbox                                  | `registration.competition_cancelled`                  | `modules/competitions/cancellation-message.ts`                        |
+| `announcements.fan_out`                         | outbox                                  | `competition.announcement_sent`                       | `modules/announcements/fan-out.ts`                                    |
+| `breaches.fan_out`                              | outbox                                  | `breach.fan_out_requested`, one page per delivery     | `modules/breaches/fan-out.ts`                                         |
+| `breaches.send_authority_notice`                | outbox                                  | `breach.authority_notice`                             | `modules/breaches/authority-message.ts`                               |
+| `consent_links.deliver`                         | outbox                                  | `consent.link_sent`                                   | `modules/consent-links/delivery.ts`                                   |
+| `institutions.send_coordinator_invitation`      | outbox                                  | `institution.coordinator_invited`                     | `modules/institutions/coordinators/invitation-message.ts`             |
+| `contact.send_acknowledgement`                  | outbox                                  | `contact_message.received`                            | `modules/contact/acknowledge.ts`                                      |
+| `registration.notify_principal`                 | outbox                                  | `registration.institution_registered`                 | `modules/registration/principal-message.ts`                           |
+| `registration.send_confirmation`                | outbox                                  | `registration.confirmed`                              | `modules/registration/confirmation-message.ts`                        |
+| `guardians.send_teen_invitation`                | outbox                                  | `guardian.teen_invited`                               | `modules/guardians/teen-invitation-message.ts`                        |
+| `guardians.send_guardian_request`               | outbox                                  | `guardian.guardian_requested`                         | `modules/guardians/guardian-request-message.ts`                       |
 
 Not a worker job: `pnpm files:purge-preview` (dormant preview cleanup, [Dormant preview machinery](#dormant-preview-machinery)). Missing jobs: reminders (84b) and a payment reconciliation sweep.
 

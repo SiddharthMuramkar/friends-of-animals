@@ -6,6 +6,7 @@ import {
   ADMIN_BREACHES,
   ADMIN_LEDGER,
   ADMIN_PRIVACY,
+  ADMIN_PRIVACY_REQUESTS,
   APP_ROUTES,
 } from "@/lib/app-routes";
 import { env } from "@/env";
@@ -40,6 +41,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
         ? []
         : [{ href: APP_ROUTES.adminConsentForms, label: t("consentForms") }]),
       { href: ADMIN_PRIVACY, label: t("privacy") },
+      { href: ADMIN_PRIVACY_REQUESTS, label: t("privacyRequests") },
     ],
   };
   return (
