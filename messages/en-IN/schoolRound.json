@@ -28,7 +28,8 @@
       "save": "Save panel",
       "saving": "Saving…",
       "none": "No panel recorded yet.",
-      "count": "{count, plural, one {# member} other {# members}}"
+      "count": "{count, plural, one {# member} other {# members}}",
+      "memberRole": ", {role}"
     },
     "shortlist": {
       "title": "Shortlist",

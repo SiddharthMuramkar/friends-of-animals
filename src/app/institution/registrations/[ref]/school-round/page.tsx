@@ -272,8 +272,8 @@ async function PanelSection({
         <ul className="mt-3 flex flex-col gap-1 text-ink">
           {round.panel.map((member, n) => (
             <li key={n} className="wrap-anywhere">
-              <span className="font-semibold">{member.fullName}</span>,{" "}
-              {member.designation}
+              <span className="font-semibold">{member.fullName}</span>
+              {t("memberRole", { role: member.designation })}
             </li>
           ))}
         </ul>
