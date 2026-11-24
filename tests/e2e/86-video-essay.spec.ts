@@ -109,7 +109,10 @@ test("a participant watches their submitted video and checks a replacement befor
     mimeType: "video/quicktime",
     buffer: Buffer.from(readMediaFixture("gpsMov")),
   });
+  // The form reloads this same URL when the upload is accepted.
+  const reloaded = page.waitForEvent("load");
   await page.getByRole("button", { name: "Upload replacement video" }).click();
+  await reloaded;
   await expect(
     page.getByText(
       "Your current video stays submitted while we check its replacement."
@@ -126,7 +129,9 @@ test("a participant reads their typed essay and replaces it with new text", asyn
 }, testInfo) => {
   await signInByCode(page, request, RAVI);
   await expectRendersAccessibly(page, ESSAY);
-  const essay = page.getByRole("region", { name: "Essay" });
+  // Exact: "Replace essay" names a region too, and its textarea holds the
+  // same text.
+  const essay = page.getByRole("region", { name: "Essay", exact: true });
   await expect(essay.getByRole("paragraph")).not.toHaveCount(0);
   await expectAccessibleInDark(page, ESSAY);
 
@@ -155,11 +160,13 @@ test("a participant reads their typed essay and replaces it with new text", asyn
   const written = `Our bowl ${testInfo.project.name}: <b>full</b> again.`;
   await text.fill(`${written}\n\nThe sparrows came at four.`);
   await expect(count).toHaveText("10 of 1,500 words");
+  // The form reloads this same URL once the essay is saved, so the URL
+  // alone can't tell the old page from the new one: wait for the load.
+  const reloaded = page.waitForEvent("load");
   await save.click();
+  await reloaded;
   await expect(page).toHaveURL(new RegExp(`${ESSAY}$`));
-  await expect(
-    page.getByRole("region", { name: "Essay" }).getByText(written)
-  ).toBeVisible();
+  await expect(essay.getByText(written)).toBeVisible();
   await expect(page.getByRole("main").locator("b")).toHaveCount(0);
   await expectAccessibleInDark(page, `${ESSAY} replaced`);
 
