@@ -15,7 +15,7 @@ on:
         description: Commit or branch to deploy; it must already be on main
         required: true
         default: main
-  # The final launch train adds:
+  # Manual on purpose. To deploy every green main automatically, add:
   # workflow_run: { workflows: [CI], types: [completed], branches: [main] }
 
 concurrency:

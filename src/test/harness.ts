@@ -11,7 +11,7 @@
 // Each harness has its own PGlite database (real migrations), fake clock and
 // fakes, so tests share nothing. Tickets that add a port append its fake
 // here and in src/server/deps.ts. Outbox events are not a port: `drain()`
-// runs the real relay over these deps. See docs/agents/seam-1.md.
+// runs the real relay over these deps. See README.md, "Testing and CI".
 
 import { randomBytes } from "node:crypto";
 import { onTestFinished, vi } from "vitest";

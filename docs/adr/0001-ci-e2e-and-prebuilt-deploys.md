@@ -43,5 +43,5 @@ Vercel cost, with no bypass secret.
   read-only `prod-smoke` Playwright project, run by hand through `e2e.yml`
   against the live site.
 - To fit GitHub's concurrent-job limit, E2E and the real-Postgres suite run on
-  main, by hand, and on PRs from `train/` or `revert/` branches or labelled
+  main, by hand, and on PRs from `revert/` branches or labelled
   `full-ci`. "CI gate" accepts them as skipped only on other PRs.
