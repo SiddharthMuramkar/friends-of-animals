@@ -68,7 +68,7 @@ async function Pay({ params, searchParams }: Props) {
         back={{ href: ROUTES.donate.path, label: t("thankYou.home") }}
         headingLevel="h1"
       >
-        <p>{t("thankYou.expired.body")}</p>
+        <p>{t("notFound.body")}</p>
       </ExplainState>
     );
   }

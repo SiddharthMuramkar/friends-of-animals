@@ -6,6 +6,7 @@ import {
   type ReactNode,
   startTransition,
   useActionState,
+  useEffect,
   useState,
 } from "react";
 
@@ -79,7 +80,7 @@ const describedBy = (
 /**
  * The donate form island on the prerendered /donate page (#106). It asks
  * how much and who is giving, sends the form to startDonationAction, and
- * on success the action moves the donor to the donation's checkout page.
+ * on success loads the donation's checkout page in full.
  * Every message comes translated from the action; static words come in
  * `labels`. Sent from the submit event, not a form `action`: React
  * prerenders a client action as a javascript: URL, which the CSP blocks.
@@ -89,11 +90,16 @@ export function DonateForm({ labels }: { labels: DonateFormLabels }) {
     startDonationAction,
     START_VIEW
   );
+  // A full load, not a client navigation: the checkout page's CSP and
+  // Permissions-Policy come with its own document.
+  useEffect(() => {
+    if (view.next) window.location.assign(view.next);
+  }, [view.next]);
   return (
     <DonateFormRound
       key={view.attempt}
       view={view}
-      sending={sending}
+      sending={sending || view.next !== undefined}
       labels={labels}
       onSend={(formData) => startTransition(() => formAction(formData))}
     />

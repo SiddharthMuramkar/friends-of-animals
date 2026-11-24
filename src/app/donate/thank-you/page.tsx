@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import { ButtonLink } from "@/components/site/button-link";
+import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
@@ -55,7 +55,7 @@ async function Outcome({ searchParams }: Pick<Props, "searchParams">) {
   if (!found.ok) {
     return (
       <ExplainState title={t("errors.not_found")} back={home} headingLevel="h1">
-        <p>{t("thankYou.expired.body")}</p>
+        <p>{t("notFound.body")}</p>
       </ExplainState>
     );
   }
@@ -116,16 +116,18 @@ async function Outcome({ searchParams }: Pick<Props, "searchParams">) {
         </ExplainState>
       );
     case "failed":
+      // A plain link: the checkout page's CSP comes with its own document.
       return (
-        <ExplainState
-          title={t("thankYou.failed.title")}
-          back={{
-            href: donationCheckoutPath(donationId, checkoutToken),
-            label: t("thankYou.failed.retry"),
-          }}
-          headingLevel="h1"
-        >
+        <ExplainState title={t("thankYou.failed.title")} headingLevel="h1">
           <p>{t("thankYou.failed.body")}</p>
+          <p>
+            <a
+              href={donationCheckoutPath(donationId, checkoutToken)}
+              className={buttonStyles({ variant: "primary" })}
+            >
+              {t("thankYou.failed.retry")}
+            </a>
+          </p>
         </ExplainState>
       );
     case "expired":

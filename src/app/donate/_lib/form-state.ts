@@ -17,6 +17,11 @@ export type DonateFormView = {
   alert?: string;
   /** A signed-in minor: the form gives way to "ask a grown-up". */
   minor?: string;
+  /**
+   * The donation's checkout page, loaded in full (window.location): its
+   * CSP, with Razorpay's origins, comes only with its own document.
+   */
+  next?: string;
 };
 
 export const START_VIEW: DonateFormView = {

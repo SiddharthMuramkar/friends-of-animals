@@ -50,6 +50,9 @@
         "body": "We returned your gift of {amount}, and its receipt is cancelled."
       },
       "home": "Back to the donate page"
+    },
+    "notFound": {
+      "body": "The link may be mistyped or cut short. Nothing was charged through it. You can start a new donation from the donate page."
     }
   }
 }
