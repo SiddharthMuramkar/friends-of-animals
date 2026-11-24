@@ -30,7 +30,9 @@
       "preview": "Preview",
       "previewLabel": "Preview {name}",
       "rubrics": "Rubrics",
-      "rubricsLabel": "Rubrics of {name}"
+      "rubricsLabel": "Rubrics of {name}",
+      "announcements": "Announcements",
+      "announcementsLabel": "Announcements for {name}"
     },
     "new": {
       "meta": {

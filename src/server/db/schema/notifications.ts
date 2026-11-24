@@ -27,6 +27,7 @@ import {
 
 import { MESSAGE_CHANNELS } from "../../modules/notifications/domain/channels";
 import { SUPPRESSION_REASONS } from "../../modules/notifications/domain/delivery-plan";
+import { encryptedText } from "../types/encrypted-text";
 import { user } from "./identity";
 
 const timestamptz = (name: string) =>
@@ -34,12 +35,17 @@ const timestamptz = (name: string) =>
 
 export const messageChannelEnum = pgEnum("message_channel", MESSAGE_CHANNELS);
 
-/** `pending` until the port took it; `failed` is retried with the event. */
+/**
+ * `pending` until the port took it; `failed` is retried with the event.
+ * `sending` (#84): claimed by one run for an external destination,
+ * so an overlapping run of the same event doesn't send it too.
+ */
 export const messageDeliveryStatusEnum = pgEnum("message_delivery_status", [
   "pending",
   "sent",
   "failed",
   "suppressed",
+  "sending",
 ]);
 
 export const messageSuppressionReasonEnum = pgEnum(
@@ -130,8 +136,9 @@ export type MessageRouteRow = typeof messageRoute.$inferSelect;
 
 /**
  * One message for one recipient on one channel, sent or held back. The
- * unique key makes each delivery happen once, however often the outbox
- * delivers the event.
+ * recipient is a user or an external destination recorded by a blind index
+ * of the address (#84). The unique keys make each delivery happen once,
+ * however often the outbox delivers the event.
  */
 export const messageDelivery = pgTable(
   "message_delivery",
@@ -142,9 +149,16 @@ export const messageDelivery = pgTable(
     templateKey: text("template_key").notNull(),
     /** The template version rendered; null while held back. */
     templateVersion: integer("template_version"),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+    /** The user it went to; null when keyed by destination (`contact_hash`). */
+    userId: uuid("user_id").references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * The blind index of the last attempted destination or of the recipient key when absent.
+     */
+    contactHash: text("contact_hash"),
+    /** Blind index of the account for service messages keyed by destination. */
+    recipientAccountHash: text("recipient_account_hash"),
+    /** Blind indexes of known addresses for an external delivery. */
+    recipientHashes: text("recipient_hashes").array(),
     channel: messageChannelEnum().notNull(),
     status: messageDeliveryStatusEnum().notNull(),
     reason: messageSuppressionReasonEnum(),
@@ -160,13 +174,36 @@ export const messageDelivery = pgTable(
       table.userId,
       table.channel
     ),
+    unique("message_delivery_contact_once").on(
+      table.eventId,
+      table.templateKey,
+      table.contactHash,
+      table.channel
+    ),
+    check(
+      "message_delivery_one_recipient",
+      sql`(${table.userId} IS NULL) <> (${table.contactHash} IS NULL)`
+    ),
     index("message_delivery_user_idx").on(table.userId),
+    index("message_delivery_recipient_account_idx").on(
+      table.eventId,
+      table.templateKey,
+      table.channel,
+      table.recipientAccountHash
+    ),
+    index("message_delivery_recipient_hashes_idx").using(
+      "gin",
+      table.recipientHashes
+    ),
     check(
       "message_delivery_reason_iff_suppressed",
       sql`(${table.status} = 'suppressed') = (${table.reason} IS NOT NULL)`
     ),
   ]
 );
+
+export const INBOX_TITLE_PURPOSE = "inbox_item.title";
+export const INBOX_BODY_PURPOSE = "inbox_item.body";
 
 /** A message in one user's in-app inbox. */
 export const inboxItem = pgTable(
@@ -184,6 +221,9 @@ export const inboxItem = pgTable(
     templateKey: text("template_key").notNull(),
     title: text().notNull(),
     body: text().notNull(),
+    /** Announcement copy can contain personal help contacts in either field. */
+    titleCiphertext: encryptedText("title_ciphertext"),
+    bodyCiphertext: encryptedText("body_ciphertext"),
     /** A path on this site (isInboxLink), or null. */
     link: text(),
     createdAt: timestamptz("created_at").notNull(),
