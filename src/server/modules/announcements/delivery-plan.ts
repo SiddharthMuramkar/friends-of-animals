@@ -4,13 +4,19 @@
 // channels reach them, so the counts a manager sees are the people the
 // fan-out sends to.
 //
-// Loads under plain Node (the worker): relative imports only.
+// Loads under plain Node (the worker): relative imports only. It stays
+// clear of the dispatcher, whose audiences import message files: the seed
+// and the Playwright journey load this file through the seed.
 
 import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { messageRoute } from "../../db/schema";
-import { planServiceDelivery } from "../notifications/contact-delivery";
-import { templatesFor } from "../notifications/dispatch";
+import type { AppDb } from "../../db/app-db";
+import { messageRoute, messageTemplate } from "../../db/schema";
+import {
+  planServiceDelivery,
+  type ContactMessage,
+} from "../notifications/contact-delivery";
+import { DEFAULT_LOCALE } from "../notifications/locale";
 import type { Contact } from "./domain/audience";
 import { loadAnnouncementAudience } from "./load-audience";
 
@@ -19,6 +25,23 @@ const AUDIENCE = {
   account: "announcement_registrants",
   details: "announcement_contacts",
 } as const;
+
+/** A template key's rows in the default locale, by channel. */
+async function templatesFor(
+  db: AppDb,
+  key: string
+): Promise<ContactMessage["templates"]> {
+  const rows = await db
+    .select()
+    .from(messageTemplate)
+    .where(
+      and(
+        eq(messageTemplate.key, key),
+        eq(messageTemplate.locale, DEFAULT_LOCALE)
+      )
+    );
+  return Object.fromEntries(rows.map((row) => [row.channel, row]));
+}
 
 export async function loadAnnouncementDeliveryPlan(
   deps: Parameters<typeof loadAnnouncementAudience>[0],

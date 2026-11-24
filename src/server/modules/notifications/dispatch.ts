@@ -157,7 +157,7 @@ export async function dispatchEvent(
   if (failures.length > 0) throw failures[0]!.error;
 }
 
-export async function templatesFor(db: AppDb, key: string): Promise<Templates> {
+async function templatesFor(db: AppDb, key: string): Promise<Templates> {
   const rows = await db
     .select()
     .from(messageTemplate)
