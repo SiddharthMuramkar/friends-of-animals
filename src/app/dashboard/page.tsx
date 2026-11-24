@@ -9,12 +9,17 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_REFUNDS,
+  ADMIN_VOLUNTEERS,
   APP_ROUTES,
+  DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
+  MY_LISTINGS,
+  myListingPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -74,6 +79,16 @@ async function Areas() {
     )
   );
   const finance = grants.some((grant) => grant.role === "finance");
+  // Staff admins and super admins check directory listings (#127).
+  const directory = grants.some(
+    (grant) => grant.role === "staff_admin" || grant.role === "super_admin"
+  );
+  // Community managers and super admins vet volunteers (#123).
+  const community = grants.some(
+    (grant) =>
+      grant.role === "community_manager" ||
+      (grant.role === "super_admin" && grant.scope.type === "global")
+  );
   const competitions = grants.some(
     (grant) =>
       grant.role === "competition_manager" ||
@@ -123,7 +138,9 @@ async function Areas() {
             lead={lead}
             money={money}
             finance={finance}
+            directory={directory}
             competitions={competitions}
+            community={community}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -138,14 +155,18 @@ async function AreaBody({
   lead,
   money,
   finance,
+  directory,
   competitions,
+  community,
 }: {
   area: DashboardLink["area"];
   id?: string;
   lead: boolean;
   money: boolean;
   finance: boolean;
+  directory: boolean;
   competitions: boolean;
+  community: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -169,7 +190,12 @@ async function AreaBody({
         ? links([
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
             { href: APP_ROUTES.guardian, label: t("member.children") },
+            { href: MY_LISTINGS, label: t("member.directory") },
+            { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
           ])
+        : null}
+      {area === "organisation" && id
+        ? links([{ href: myListingPath(id), label: t("organisation.listing") }])
         : null}
       {area === "institution" && id
         ? links([
@@ -199,6 +225,9 @@ async function AreaBody({
                   },
                 ]
               : []),
+            ...(directory
+              ? [{ href: ADMIN_DIRECTORY, label: t("admin.directory") }]
+              : []),
             ...(money
               ? [
                   {
@@ -211,6 +240,9 @@ async function AreaBody({
               : []),
             ...(finance
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
+              : []),
+            ...(community
+              ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
               : []),
           ])
         : null}

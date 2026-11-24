@@ -38,7 +38,27 @@ type InstitutionDecided<T extends `institution.${string}`> = {
   payload: { institutionId: string; userId: string };
 };
 
+/**
+ * Something happened to an NGO directory listing (#127). `userId` is the
+ * person who registered it, who hears of FOA's decisions.
+ */
+type DirectoryListingEvent<T extends `directory.${string}`> = {
+  type: T;
+  aggregate: { type: "directory_listing"; id: string };
+  payload: { listingId: string; userId: string };
+};
+
 export type DomainEvent =
+  /** A listing was registered, or renamed and sent back for review. */
+  | DirectoryListingEvent<"directory.listing_submitted">
+  /** FOA verified it: it is public, and its owner represents it. */
+  | DirectoryListingEvent<"directory.listing_verified">
+  /** FOA couldn't accept it; its owner may register again. */
+  | DirectoryListingEvent<"directory.listing_rejected">
+  /** Hidden from the public for now; its representatives keep the role. */
+  | DirectoryListingEvent<"directory.listing_suspended">
+  /** Public again after a suspension. */
+  | DirectoryListingEvent<"directory.listing_reinstated">
   | {
       type: "consent.form_reviewed";
       aggregate: { type: "consent_form"; id: string };
@@ -428,6 +448,15 @@ export type DomainEvent =
     }
   | {
       /**
+       * One recipient's message of a sent campaign (#126) is due. The
+       * handler checks the consent it rests on again before it goes.
+       */
+      type: "campaign.message_due";
+      aggregate: { type: "campaign_recipient"; id: string };
+      payload: { campaignId: string; recipientId: string };
+    }
+  | {
+      /**
        * The registration's competition was cancelled (#80). Its family
        * contact (or the adult whose own it is) is told, with how its fee
        * comes back: `refund` says through the gateway, by hand, from the
@@ -451,11 +480,32 @@ export type DomainEvent =
       type: "institution_registration.competition_cancelled";
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string; competitionId: string };
-    };
+    }
+  // Volunteer applications (#123): a 14- to 17-year-old applied and their
+  // guardians are asked; an application reached the community team; a
+  // community manager approved it (the volunteer role is granted) or
+  // declined it with a reason.
+  | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
+  | VolunteerApplicationEvent<"volunteer.application_submitted">
+  | VolunteerApplicationEvent<"volunteer.application_approved">
+  | VolunteerApplicationEvent<"volunteer.application_declined">;
+
+/** Something happened to a volunteer application (#123). Ids only. */
+type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
+  type: T;
+  aggregate: { type: "volunteer_application"; id: string };
+  payload: { applicationId: string };
+};
 
 export type EventType = DomainEvent["type"];
 
 export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
+
+const DIRECTORY_LISTING_EVENT = z.object({
+  listingId: z.uuid(),
+  userId: z.uuid(),
+});
+const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -511,6 +561,11 @@ export const EVENT_PAYLOADS = {
     registrationId: z.uuid(),
     replacement: z.boolean(),
   }),
+  "directory.listing_submitted": DIRECTORY_LISTING_EVENT,
+  "directory.listing_verified": DIRECTORY_LISTING_EVENT,
+  "directory.listing_rejected": DIRECTORY_LISTING_EVENT,
+  "directory.listing_suspended": DIRECTORY_LISTING_EVENT,
+  "directory.listing_reinstated": DIRECTORY_LISTING_EVENT,
   "institution.verified": INSTITUTION_DECIDED,
   "institution.rejected": INSTITUTION_DECIDED,
   "institution.suspended": INSTITUTION_DECIDED,
@@ -587,6 +642,10 @@ export const EVENT_PAYLOADS = {
     pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
   }),
   "breach.authority_notice": z.object({ breachId: z.uuid() }),
+  "campaign.message_due": z.object({
+    campaignId: z.uuid(),
+    recipientId: z.uuid(),
+  }),
   "registration.competition_cancelled": z.object({
     registrationId: z.uuid(),
     competitionId: z.uuid(),
@@ -597,6 +656,10 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "volunteer.guardian_approval_requested": VOLUNTEER_APPLICATION,
+  "volunteer.application_submitted": VOLUNTEER_APPLICATION,
+  "volunteer.application_approved": VOLUNTEER_APPLICATION,
+  "volunteer.application_declined": VOLUNTEER_APPLICATION,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** Validate a stored event, including withdrawals written before #82. */
@@ -650,6 +713,13 @@ export const SUBSCRIBERS = {
   "entry.submitted": ["notifications.dispatch"],
   "entry.file_rejected": ["notifications.dispatch"],
   "entry.file_failed": ["notifications.dispatch"],
+  // The owner hears FOA's decisions by route row (#127). No route names
+  // a submission yet: staff find it in the review queue.
+  "directory.listing_submitted": ["notifications.dispatch"],
+  "directory.listing_verified": ["notifications.dispatch"],
+  "directory.listing_rejected": ["notifications.dispatch"],
+  "directory.listing_suspended": ["notifications.dispatch"],
+  "directory.listing_reinstated": ["notifications.dispatch"],
   "institution.verified": ["notifications.dispatch"],
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],
@@ -721,6 +791,9 @@ export const SUBSCRIBERS = {
   // The authority is an address, not a user, so no route row can name it:
   // the email goes by its own handler, with its route's template (#116).
   "breach.authority_notice": ["breaches.send_authority_notice"],
+  // The campaigns module plans its own channels on the consent each
+  // message rests on, with its route's template (#126).
+  "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
   // guardians' go by route row (#80).
@@ -730,6 +803,12 @@ export const SUBSCRIBERS = {
   ],
   // The coordinators' notice goes by route row (#80).
   "institution_registration.competition_cancelled": ["notifications.dispatch"],
+  // The applicant, their guardians and the community team are told by
+  // route row (#123).
+  "volunteer.guardian_approval_requested": ["notifications.dispatch"],
+  "volunteer.application_submitted": ["notifications.dispatch"],
+  "volunteer.application_approved": ["notifications.dispatch"],
+  "volunteer.application_declined": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

@@ -122,6 +122,15 @@ const WHILE_INSTITUTION_TAKES_PART = {
   toConfirm: true,
 } as const;
 
+/** A directory listing (#127): an organisation's, or an individual's own. */
+const WHILE_LISTED = {
+  policy: "directoryListings",
+  periodKey: "directoryListings",
+  basis:
+    "FOA shows people where to find help for an animal, and answers for what it verified and published",
+  toConfirm: true,
+} as const;
+
 const AFTER_INVITATION_CLOSES = {
   policy: "coordinatorInvitations",
   periodKey: "coordinatorInvitations",
@@ -157,6 +166,18 @@ const BREACH_RECORD = {
   periodKey: "breachRecords",
   basis:
     "Legal obligation: FOA shows the Data Protection Board what it knew, did and told whom about a personal data breach (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
+/**
+ * A volunteer application (#123): a closed one that wasn't approved goes a
+ * year after it closed; an approved one stays while the person volunteers.
+ */
+const VOLUNTEER_APPLICATION_RECORD = {
+  policy: "volunteerApplications",
+  periodKey: "volunteerApplications",
+  basis:
+    "Child protection: shows who applied to work near children, what they declared, who approved them and why anyone was declined (legal basis to confirm, HR-55)",
   toConfirm: true,
 } as const;
 
@@ -381,6 +402,15 @@ const DONATION_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Campaigns (#126): who wrote and sent each, and who each message went to. */
+const CAMPAIGN_RECORD = {
+  policy: "campaigns",
+  periodKey: "campaigns",
+  basis:
+    "Shows FOA who wrote and sent each campaign and who it reached on which consent, and lets a withdrawal by link find them",
+  toConfirm: true,
+} as const;
+
 /** A competition-scoped consent: what a signed form or code link recorded. */
 const COMPETITION_CONSENT_RECORD = {
   ...CONSENT_RECORD,
@@ -483,6 +513,12 @@ const institution = rowsOf("institution", {
   onExpiry: "delete_row",
 });
 
+const listing = rowsOf("directory_listing", {
+  subject: { kind: "directory_listing", via: "id" },
+  retention: WHILE_LISTED,
+  onExpiry: "delete_row",
+});
+
 const coordinatorInvitation = rowsOf("institution_invitation", {
   subject: { kind: "invitee", via: "identifier_hash" },
   retention: AFTER_INVITATION_CLOSES,
@@ -561,6 +597,12 @@ const GUARDIAN_INVITATION_RECIPIENT = {
   kind: "invitee",
   via: "kind + contact_hash",
 } as const;
+
+const volunteerApplication = rowsOf("volunteer_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: VOLUNTEER_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
 
 /** A payment record: anonymised once the financial floor has passed. */
 const payment = (table: string, via: string) =>
@@ -842,6 +884,25 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     subject: { kind: "user", via: "verified_by" },
     onExpiry: "set_null",
   }),
+  // NGO directory listings (#127): an individual rescuer's or foster
+  // caregiver's listing is about them, so its details are personal data.
+  listing("slug", "identity"),
+  listing("name", "identity"),
+  listing("description", "content"),
+  listing("address_ciphertext", "contact"),
+  listing("city", "contact"),
+  listing("state", "contact"),
+  listing("pin_code", "contact"),
+  listing("contact_phone_ciphertext", "contact"),
+  listing("contact_email_ciphertext", "contact"),
+  listing("website", "contact"),
+  listing("public_contact_fields", "preference"),
+  listing("status_reason", "content"),
+  listing("owner_user_id", "identity", {
+    subject: { kind: "user", via: "owner_user_id" },
+    onExpiry: "retain",
+  }),
+  actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
   // Coordinator invitations (#74)
   coordinatorInvitation("identifier_ciphertext", "contact"),
   coordinatorInvitation("identifier_hash", "technical"),
@@ -1186,6 +1247,20 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   },
   actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+  // Campaigns (#126): staff accounts, and each message's recipient and the
+  // consents it rested on.
+  actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
+  actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
+  rowsOf("campaign_recipient", {
+    subject: { kind: "user", via: "user_id" },
+    retention: CAMPAIGN_RECORD,
+    onExpiry: "delete_row",
+  })("user_id", "identity"),
+  rowsOf("campaign_recipient", {
+    subject: { kind: "consent_subject", via: "bases" },
+    retention: CAMPAIGN_RECORD,
+    onExpiry: "delete_row",
+  })("bases", "identity"),
   // Legal holds (#114): a released hold stays as the record of who held
   // what and why, until the releasedLegalHolds policy deletes it.
   ...(
@@ -1230,6 +1305,25 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "retain",
   })("snapshot", "identity"),
   actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
+  // Volunteer applications (#123): the applicant's answers and the record
+  // of who vetted them.
+  volunteerApplication("applicant_user_id", "identity"),
+  volunteerApplication("participant_profile_id", "identity"),
+  volunteerApplication("date_of_birth_ciphertext", "demographic"),
+  volunteerApplication("interests", "preference"),
+  volunteerApplication("availability", "preference"),
+  volunteerApplication("guardian_user_id", "identity", {
+    subject: { kind: "user", via: "guardian_user_id" },
+  }),
+  volunteerApplication("safeguarding_consent_id", "technical"),
+  volunteerApplication("conduct_consent_id", "technical"),
+  volunteerApplication("decline_reason_ciphertext", "content"),
+  actorColumn(
+    "volunteer_application",
+    "decided_by_user_id",
+    VOLUNTEER_APPLICATION_RECORD,
+    "delete_row"
+  ),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

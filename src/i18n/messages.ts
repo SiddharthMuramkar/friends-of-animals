@@ -26,6 +26,9 @@ import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
 import adminBreaches from "../../messages/en-IN/adminBreaches.json";
+import adminDirectory from "../../messages/en-IN/adminDirectory.json";
+import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -45,6 +48,7 @@ import coordinators from "../../messages/en-IN/coordinators.json";
 import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
+import directory from "../../messages/en-IN/directory.json";
 import donate from "../../messages/en-IN/donate.json";
 import donationCheckout from "../../messages/en-IN/donationCheckout.json";
 import donations from "../../messages/en-IN/donations.json";
@@ -55,6 +59,7 @@ import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import guardian from "../../messages/en-IN/guardian.json";
+import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
@@ -104,6 +109,9 @@ export const NAMESPACES = [
   "adminAnnouncements",
   "art",
   "adminBreaches",
+  "adminDirectory",
+  "adminVolunteers",
+  "campaigns",
   "auth",
   "authPhone",
   "awareness",
@@ -123,6 +131,7 @@ export const NAMESPACES = [
   "contactForm",
   "credits",
   "dashboard",
+  "directory",
   "donate",
   "donationCheckout",
   "donations",
@@ -133,6 +142,7 @@ export const NAMESPACES = [
   "files",
   "footer",
   "guardian",
+  "volunteer",
   "home",
   "impact",
   "inbox",
@@ -186,6 +196,9 @@ export const messages = {
   ...adminAnnouncements,
   ...art,
   ...adminBreaches,
+  ...adminDirectory,
+  ...adminVolunteers,
+  ...campaigns,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -205,6 +218,7 @@ export const messages = {
   ...contactForm,
   ...credits,
   ...dashboard,
+  ...directory,
   ...donate,
   ...donationCheckout,
   ...donations,
@@ -215,6 +229,7 @@ export const messages = {
   ...files,
   ...footer,
   ...guardian,
+  ...volunteer,
   ...home,
   ...impact,
   ...inbox,

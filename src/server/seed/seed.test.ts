@@ -31,10 +31,15 @@ describe("seedPreview", () => {
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "community-manager@example.test",
       "competition-manager-2@example.test",
       "competition-manager@example.test",
       "consent-publisher-desktop@example.test",
       "consent-publisher-mobile@example.test",
+      "directory-applicant@example.test",
+      "directory-foster@example.test",
+      "directory-representative@example.test",
+      "directory-rescuer@example.test",
       "dsl@example.test",
       "guardian1@example.test",
       "institution-admin@example.test",
@@ -48,6 +53,8 @@ describe("seedPreview", () => {
       "teen2@example.test",
       "template-editor-desktop@example.test",
       "template-editor-mobile@example.test",
+      "volunteer1@example.test",
+      "volunteer2@example.test",
     ]);
   });
 

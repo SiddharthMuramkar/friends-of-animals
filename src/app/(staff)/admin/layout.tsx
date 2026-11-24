@@ -5,8 +5,10 @@ import { Suspense, type ComponentProps } from "react";
 import {
   ADMIN_BREACHES,
   ADMIN_DONATIONS,
+  ADMIN_CAMPAIGNS,
   ADMIN_LEDGER,
   ADMIN_PRIVACY,
+  ADMIN_VOLUNTEERS,
   APP_ROUTES,
 } from "@/lib/app-routes";
 import { env } from "@/env";
@@ -37,10 +39,12 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
       { href: ADMIN_BREACHES, label: t("breaches") },
+      { href: ADMIN_CAMPAIGNS, label: t("campaigns") },
       ...(env().APP_ENV === "production"
         ? []
         : [{ href: APP_ROUTES.adminConsentForms, label: t("consentForms") }]),
       { href: ADMIN_PRIVACY, label: t("privacy") },
+      { href: ADMIN_VOLUNTEERS, label: t("volunteers") },
     ],
   };
   return (

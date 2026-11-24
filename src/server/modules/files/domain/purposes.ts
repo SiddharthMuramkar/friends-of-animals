@@ -16,6 +16,7 @@ export const FILE_PURPOSES = [
   "offline_payment_proof",
   "consent_form",
   "entry_image",
+  "directory_document",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
@@ -102,6 +103,19 @@ export const PURPOSE_RULES = {
     contentTypes: ["application/pdf", "image/jpeg", "image/png"],
     maxBytes: 10 * MiB,
     environments: "non_production",
+    directUpload: false,
+  },
+  /**
+   * Proof an NGO directory listing sends for FOA's verification (#127): a
+   * registration certificate, an identity proof. Only staff read it, never
+   * its uploader (./use-cases/delivery.ts), and only
+   * `requestListingDocumentUpload` presigns one, after the listing's own
+   * authorization.
+   */
+  directory_document: {
+    contentTypes: ["application/pdf", "image/jpeg", "image/png"],
+    maxBytes: 10 * MiB,
+    environments: "all",
     directUpload: false,
   },
 } satisfies Record<FilePurpose, PurposeRule>;

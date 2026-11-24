@@ -23,6 +23,9 @@ const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "sms.enabled": true,
   // Local runs and previews pay through the test checkout (#106).
   "donations.enabled": true,
+  // Volunteer applications (#123) open where nothing is real; production
+  // keeps them closed until HR-55 and HR-38.
+  "volunteers.applicationsOpen": true,
 };
 
 /**

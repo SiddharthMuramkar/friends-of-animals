@@ -5,7 +5,8 @@
 // member may be limited to the inbox, or recorded as told nothing (#81: a
 // minor with no verified guardian). Later tickets add an audience here and
 // route rows that use it, in a migration; #88 added `competition_managers`,
-// #81 `guardian_of_participant`, #80 `institution_coordinators`.
+// #81 `guardian_of_participant`, #80 `institution_coordinators`, #123
+// `volunteer_applicant`, `volunteer_guardians` and `community_managers`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -40,10 +41,15 @@ import {
   announcementMessageFor,
 } from "../announcements/render";
 import {
+  LISTING_DECISION_VARIABLES,
+  listingDecisionValues,
+} from "../directory/decision-message";
+import {
   ENTRY_ATTEMPT_VARIABLES,
   ENTRY_RECEIPT_VARIABLES,
   entryValues,
 } from "../entries/message-values";
+import { CAMPAIGN_VARIABLES, campaignEventValues } from "../campaigns/render";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
 import {
@@ -77,6 +83,14 @@ import {
   TRANSITION_BLOCK,
   type TransitionBlock,
 } from "../competitions/domain/transition-block";
+import {
+  APPLICATION_VARIABLES,
+  applicationValues,
+  communityManagers,
+  DECLINED_VARIABLES,
+  volunteerApplicant,
+  volunteerGuardians,
+} from "../volunteers/message-audiences";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -118,6 +132,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution.reinstated":
       // The authorised person, who registered the institution (#73).
       return delivery.payload.userId;
+    case "directory.listing_verified":
+    case "directory.listing_rejected":
+    case "directory.listing_suspended":
+    case "directory.listing_reinstated":
+      // The person who registered the listing hears FOA's decision (#127).
+      return delivery.payload.userId;
+    case "directory.listing_submitted":
+      // For staff, who find it in the review queue; no route row names it.
+      return null;
     case "competitions.key_date_scheduled":
       // A status job (#71): it's about a competition, not a user, and no
       // route row names it.
@@ -210,6 +233,29 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "institution_registration.competition_cancelled":
       // For its coordinators (`institution_coordinators`, #80).
+      return null;
+    case "volunteer.guardian_approval_requested":
+    case "volunteer.application_submitted":
+    case "volunteer.application_approved":
+    case "volunteer.application_declined":
+      // About an application (#123): `volunteer_applicant`,
+      // `volunteer_guardians` and `community_managers` find who hears.
+      return null;
+    case "campaign.message_due":
+      // The campaigns module sends it to its planned recipient (#126).
+      return null;
+  }
+}
+
+/** The volunteer application an event is about (#123). */
+function volunteerApplicationOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "volunteer.guardian_approval_requested":
+    case "volunteer.application_submitted":
+    case "volunteer.application_approved":
+    case "volunteer.application_declined":
+      return delivery.payload.applicationId;
+    default:
       return null;
   }
 }
@@ -375,6 +421,27 @@ export const AUDIENCES = {
    * configured address with this route's template while it is enabled.
    */
   breach_authority: async () => [],
+  /**
+   * Whoever applied to volunteer (#123): an adult on every channel the
+   * route names, a teen in the inbox only.
+   */
+  volunteer_applicant: async (db, delivery) => {
+    const applicationId = volunteerApplicationOf(delivery);
+    return applicationId ? volunteerApplicant(db, applicationId) : [];
+  },
+  /** A teen applicant's verified guardians (#123); nobody for an adult's. */
+  volunteer_guardians: async (db, delivery) => {
+    const applicationId = volunteerApplicationOf(delivery);
+    return applicationId ? volunteerGuardians(db, applicationId) : [];
+  },
+  /** Everyone holding the community manager role everywhere (#123). */
+  community_managers: async (db) => communityManagers(db),
+  /**
+   * A campaign's recipient (#126): the campaigns handler sends to the
+   * person it planned, on the consent the message rests on, so the generic
+   * resolver grants no recipients.
+   */
+  campaign_recipient: async () => [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -521,6 +588,23 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => reminderValues(db, payload.reminderJobId),
   },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
+  "directory.listing_submitted": { names: [], load: async () => ({}) },
+  "directory.listing_verified": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_rejected": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_suspended": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_reinstated": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
   "contact_message.received": {
     names: CONTACT_MESSAGE_VARIABLES,
     load: async (db, delivery) =>
@@ -630,6 +714,30 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
+  },
+  "volunteer.guardian_approval_requested": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_submitted": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_approved": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_declined": {
+    names: DECLINED_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "campaign.message_due": {
+    names: CAMPAIGN_VARIABLES,
+    load: (db, { payload }) => campaignEventValues(db, payload.campaignId),
   },
 };
 
