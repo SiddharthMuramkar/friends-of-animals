@@ -62,3 +62,20 @@ REVOKE ALL ON DATABASE foa_staging FROM nonprod_worker;
 SET client_min_messages = warning;
 CREATE SCHEMA IF NOT EXISTS pgboss AUTHORIZATION staging_worker;
 ALTER SCHEMA pgboss OWNER TO staging_worker;
+
+-- Reconcile the retention grants if the worker is provisioned after migration.
+DO $$
+DECLARE
+  message_table oid := to_regclass('public.contact_message');
+  safeguarding_table oid := to_regclass('public.safeguarding_report');
+BEGIN
+  IF has_table_privilege('staging_app', message_table, 'SELECT')
+     AND NOT has_table_privilege('staging_app', message_table, 'DELETE') THEN
+    GRANT DELETE ON public.contact_message TO staging_worker;
+  END IF;
+  IF has_table_privilege('staging_app', safeguarding_table, 'SELECT')
+     AND NOT has_table_privilege('staging_app', safeguarding_table, 'DELETE') THEN
+    GRANT DELETE ON public.safeguarding_report TO staging_worker;
+  END IF;
+END;
+$$;

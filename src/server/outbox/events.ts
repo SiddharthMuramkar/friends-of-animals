@@ -479,6 +479,21 @@ export const EVENT_PAYLOADS = {
   }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
+/** Validate a stored event, including withdrawals written before #82. */
+export function parseStoredEventPayload(
+  type: EventType,
+  payload: Record<string, unknown>
+) {
+  const legacyWithdrawal =
+    type === "consent.withdrawn" &&
+    payload?.subjectType === "user" &&
+    payload.purpose === "messages" &&
+    !Object.hasOwn(payload, "competitionId");
+  return EVENT_PAYLOADS[type].safeParse(
+    legacyWithdrawal ? { ...payload, competitionId: null } : payload
+  );
+}
+
 /**
  * The handlers each event is delivered to, one outbox row apiece. Every
  * event a message may follow goes to notifications.dispatch, which sends

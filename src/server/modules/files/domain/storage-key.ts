@@ -171,6 +171,20 @@ export function quarantineKeyFor({
   return `${prefix}quarantine/${fileId}`;
 }
 
+/** A flagged file may still be under its original key if a move failed. */
+export function quarantineKeyOf(
+  file: Parameters<typeof storagePrefixOf>[0]
+): string {
+  const suffix = `quarantine/${file.id}`;
+  if (file.storageKey.endsWith(suffix)) {
+    return quarantineKeyFor({
+      prefix: file.storageKey.slice(0, -suffix.length),
+      fileId: file.id,
+    });
+  }
+  return quarantineKeyFor({ prefix: storagePrefixOf(file), fileId: file.id });
+}
+
 /** An R2 bucket name's longest: 63 characters. */
 const BUCKET_MAX = 63;
 

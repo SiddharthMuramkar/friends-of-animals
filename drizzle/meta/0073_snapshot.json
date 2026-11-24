@@ -1,6 +1,6 @@
 {
-  "id": "665c9190-9cc9-4571-9942-7b430ecc7014",
-  "prevId": "32886fbd-19c2-41ca-ab4e-a3fa83e8cdcd",
+  "id": "b08c112e-119e-457e-94cb-ff6b6b184d9a",
+  "prevId": "0c8d5cbc-add7-4337-9c78-f67846581a4d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -953,6 +953,27 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "session_expires_at_id_idx": {
+          "name": "session_expires_at_id_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -1143,6 +1164,27 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "verification_expires_at_id_idx": {
+          "name": "verification_expires_at_id_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1214,6 +1256,27 @@
               "expression": "created_at",
               "isExpression": false,
               "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "captured_message_created_at_id_idx": {
+          "name": "captured_message_created_at_id_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
               "nulls": "last"
             }
           ],
@@ -1662,6 +1725,28 @@
           "with": {},
           "method": "btree",
           "where": "\"outbox\".\"status\" = 'failed'",
+          "concurrently": false
+        },
+        "outbox_dispatched_at_idx": {
+          "name": "outbox_dispatched_at_idx",
+          "columns": [
+            {
+              "expression": "dispatched_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"outbox\".\"dispatched_at\" IS NOT NULL",
           "concurrently": false
         }
       },
@@ -3653,6 +3738,13 @@
           "notNull": true,
           "default": "'pending_upload'"
         },
+        "quarantine_purge_pending": {
+          "name": "quarantine_purge_pending",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "sha256": {
           "name": "sha256",
           "type": "text",
@@ -3743,6 +3835,10 @@
         "file_asset_size_bytes_positive": {
           "name": "file_asset_size_bytes_positive",
           "value": "\"file_asset\".\"size_bytes\" > 0"
+        },
+        "file_asset_quarantine_purge_status": {
+          "name": "file_asset_quarantine_purge_status",
+          "value": "NOT \"file_asset\".\"quarantine_purge_pending\" OR \"file_asset\".\"status\" = 'quarantined'"
         }
       },
       "isRLSEnabled": false
@@ -4645,18 +4741,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_reason": {
-          "name": "cancel_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "uuid",
@@ -4760,15 +4844,7 @@
         },
         "competition_published_at_matches_status": {
           "name": "competition_published_at_matches_status",
-          "value": "(\"competition\".\"status\" <> 'draft' OR \"competition\".\"published_at\" IS NULL) AND (\"competition\".\"published_at\" IS NOT NULL OR \"competition\".\"status\" = 'draft' OR \"competition\".\"cancelled_at\" IS NOT NULL)"
-        },
-        "competition_cancellation_complete": {
-          "name": "competition_cancellation_complete",
-          "value": "(\"competition\".\"status\" NOT IN ('draft', 'published', 'registration_open', 'registration_closed', 'school_judging')) = (\"competition\".\"cancelled_at\" IS NOT NULL)\n        AND (\"competition\".\"cancelled_at\" IS NULL) = (\"competition\".\"cancel_reason\" IS NULL)"
-        },
-        "competition_cancel_reason_present": {
-          "name": "competition_cancel_reason_present",
-          "value": "\"competition\".\"cancel_reason\" IS NULL OR length(trim(\"competition\".\"cancel_reason\")) > 0"
+          "value": "(\"competition\".\"status\" = 'draft') = (\"competition\".\"published_at\" IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -4870,45 +4946,6 @@
           "value": "\"competition_age_group\".\"min_age\" >= 0 AND \"competition_age_group\".\"max_age\" >= 0"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.competition_cancellation_email": {
-      "name": "competition_cancellation_email",
-      "schema": "",
-      "columns": {
-        "delivery_id": {
-          "name": "delivery_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "competition_cancellation_email_delivery_id_outbox_id_fk": {
-          "name": "competition_cancellation_email_delivery_id_outbox_id_fk",
-          "tableFrom": "competition_cancellation_email",
-          "columnsFrom": [
-            "delivery_id"
-          ],
-          "tableTo": "outbox",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.competition_category": {
@@ -11059,6 +11096,235 @@
           "value": "\"announcement\".\"recipient_count\" >= 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.legal_hold": {
+      "name": "legal_hold",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "subject_type": {
+          "name": "subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placed_by_user_id": {
+          "name": "placed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "placed_at": {
+          "name": "placed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "released_by_user_id": {
+          "name": "released_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "legal_hold_one_active_per_subject": {
+          "name": "legal_hold_one_active_per_subject",
+          "columns": [
+            {
+              "expression": "subject_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"legal_hold\".\"released_at\" IS NULL",
+          "concurrently": false
+        },
+        "legal_hold_active_idx": {
+          "name": "legal_hold_active_idx",
+          "columns": [
+            {
+              "expression": "subject_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"legal_hold\".\"released_at\" IS NULL",
+          "concurrently": false
+        },
+        "legal_hold_active_placed_at_idx": {
+          "name": "legal_hold_active_placed_at_idx",
+          "columns": [
+            {
+              "expression": "placed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"legal_hold\".\"released_at\" IS NULL",
+          "concurrently": false
+        },
+        "legal_hold_placed_by_user_id_idx": {
+          "name": "legal_hold_placed_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "placed_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "legal_hold_released_by_user_id_idx": {
+          "name": "legal_hold_released_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "released_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "legal_hold_placed_by_user_id_user_id_fk": {
+          "name": "legal_hold_placed_by_user_id_user_id_fk",
+          "tableFrom": "legal_hold",
+          "columnsFrom": [
+            "placed_by_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "legal_hold_released_by_user_id_user_id_fk": {
+          "name": "legal_hold_released_by_user_id_user_id_fk",
+          "tableFrom": "legal_hold",
+          "columnsFrom": [
+            "released_by_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "legal_hold_subject_type_known": {
+          "name": "legal_hold_subject_type_known",
+          "value": "\"legal_hold\".\"subject_type\" IN ('user', 'participant_profile', 'institution')"
+        },
+        "legal_hold_reason_length": {
+          "name": "legal_hold_reason_length",
+          "value": "char_length(\"legal_hold\".\"reason\") BETWEEN 1 AND 500"
+        },
+        "legal_hold_released_by_only_when_released": {
+          "name": "legal_hold_released_by_only_when_released",
+          "value": "\"legal_hold\".\"released_by_user_id\" IS NULL OR \"legal_hold\".\"released_at\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.retention_run_progress": {
+      "name": "retention_run_progress",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "actor_process": {
+          "name": "actor_process",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "policies": {
+          "name": "policies",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

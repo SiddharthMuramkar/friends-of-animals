@@ -20,7 +20,12 @@ import { z } from "zod";
 
 import { authorize } from "../../../access/can";
 import type { AppDb } from "../../../db/app-db";
-import { cmsPostImage, fileAsset, fileDerivative } from "../../../db/schema";
+import {
+  cmsPost,
+  cmsPostImage,
+  fileAsset,
+  fileDerivative,
+} from "../../../db/schema";
 import { uuidv7 } from "../../../ids";
 import { sanitizePlainText } from "../../../rich-text/blocks";
 import type { Clock } from "../../../ports/clock";
@@ -99,6 +104,37 @@ function readAlt(raw: string | undefined): string | PostInputRefusal {
   return alt.length > POST_FIELD_MAX.coverAlt
     ? refusal({ alt: "too_long" })
     : alt;
+}
+
+/** Clears an unpublished image before retention deletes its locked file. */
+export async function retireQuarantinedPostImage(tx: AppDb, fileId: string) {
+  const [image] = await tx
+    .select()
+    .from(cmsPostImage)
+    .where(eq(cmsPostImage.fileAssetId, fileId));
+  if (!image) return true;
+  if (image.publicAt !== null) return false;
+
+  const post = await loadPost(tx, image.postId, { lock: true });
+  if (!post) return true;
+  const blocks = post.body.blocks.filter(
+    (block) =>
+      block.type !== "image" ||
+      !("postImageId" in block) ||
+      block.postImageId !== image.id
+  );
+  const usedInBody = blocks.length !== post.body.blocks.length;
+  const referenced = usedInBody || post.coverImageId === image.id;
+  if (referenced && post.status !== "draft") return false;
+  if (usedInBody) {
+    await tx
+      .update(cmsPost)
+      .set({ body: { ...post.body, blocks } })
+      .where(eq(cmsPost.id, post.id));
+  }
+  // The cover FK clears any cover reference in this same transaction.
+  await tx.delete(cmsPostImage).where(eq(cmsPostImage.id, image.id));
+  return true;
 }
 
 /**

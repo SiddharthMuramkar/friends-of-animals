@@ -241,6 +241,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "created_at",
     "id",
     "purpose",
+    "quarantine_purge_pending",
     "scan_result",
     "scanned_at",
     "sha256",
@@ -432,6 +433,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "occurred_at",
     "status",
   ],
+  legal_hold: ["id", "placed_at", "released_at", "subject_type"],
   ledger_account: [
     "code",
     "created_at",
@@ -545,6 +547,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "updated_at",
   ],
+  retention_run_progress: ["actor_process", "id", "policies", "updated_at"],
   rubric: [
     "competition_id",
     "created_at",
