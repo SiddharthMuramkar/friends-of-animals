@@ -102,7 +102,7 @@ test("an adult applies to volunteer and a community manager approves them", asyn
   const form = page.getByRole("form", { name: "Apply to volunteer" });
   await form.getByRole("checkbox", { name: "Technology" }).check();
   await form.getByRole("button", { name: "Send application" }).click();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(form.getByRole("alert")).toContainText(
     "Tick both boxes to accept the declarations."
   );
   await expect(
