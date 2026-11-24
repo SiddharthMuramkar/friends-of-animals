@@ -30,8 +30,8 @@
     },
     "gallery": {
       "eyebrow": "The gallery",
-      "title": "A gallery waiting for its first pictures",
-      "lead": "We will never show made-up children’s art. These frames fill only with real entries, shown with permission, after the first competition.",
+      "title": "What could go in the gallery?",
+      "lead": "These AI illustrations give you ideas for your own entry. After the first competition, we’ll show children’s entries here with permission.",
       "frames": {
         "drawing": "Your drawing could hang here",
         "painting": "A painting of your street’s cat?",

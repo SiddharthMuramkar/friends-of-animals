@@ -9,6 +9,8 @@
     },
     "seasonal": {
       "eyebrow": "This month’s kindness",
+      "browsingEyebrow": "Kindness for {month}",
+      "monthPicker": "Choose a month",
       "monthTitle": "{month}: {title}",
       "tryThis": "Try this",
       "forGrownUps": "For grown-ups",
