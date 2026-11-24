@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { Checkout } from "@/components/payments/checkout";
@@ -29,6 +30,10 @@ import {
 // moves here with a redirect from its Server Action. Never cached, indexed
 // or sent as a referrer (src/lib/security-headers.ts).
 
+// The bearer page uses the per-request nonce: no static shell, whose
+// build-time scripts couldn't carry it.
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("donationCheckout.meta");
   return { title: t("title"), robots: { index: false, follow: false } };
@@ -39,6 +44,7 @@ const HUE = ROUTES.donate.hue;
 type Props = PageProps<"/donate/checkout/[donationId]">;
 
 export default async function Page({ params, searchParams }: Props) {
+  await connection();
   const t = await getTranslations("donationCheckout");
   return (
     <Section hue={HUE} tone="tint" width="prose" className="pt-10 sm:pt-14">
