@@ -11,7 +11,8 @@ describe("the settings catalogue", () => {
     // email sign-in on (production also waits for SES, R-27). #116: 10
     // safeguarding reports an hour from one IP. #114: retention off until
     // a super admin turns it on, and each policy's period in days (the
-    // financial records' is their 8-year floor).
+    // financial records' is their 8-year floor). #84: submission reminders
+    // 72 and 24 hours before the deadline (HR-37).
     expect(
       Object.fromEntries(
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
@@ -30,6 +31,8 @@ describe("the settings catalogue", () => {
       "org.pan": "",
       "safeguarding.reportsPerIpPerHour": 10,
       "breach.authorityEmail": "",
+      "reminders.entrySubmissionDueFirstHours": 72,
+      "reminders.entrySubmissionDueSecondHours": 24,
       "retention.enforce": false,
       "retention.expiredVerificationsDays": 1,
       "retention.expiredSessionsDays": 30,
