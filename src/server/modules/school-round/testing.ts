@@ -76,6 +76,7 @@ export async function schoolInJudging(
     students = 3,
     submit = [1, 2],
     rejected = [],
+    disciplines = {},
     code,
     name,
     beforeJudging,
@@ -83,6 +84,8 @@ export async function schoolInJudging(
     students?: number;
     submit?: number[];
     rejected?: number[];
+    /** A student's discipline, if not photography. */
+    disciplines?: Record<number, Discipline>;
     code?: string;
     name?: string;
     /** Runs while registration is still open, before school judging. */
@@ -96,7 +99,11 @@ export async function schoolInJudging(
   });
   const codes: Record<number, string> = {};
   for (const n of submit) {
-    codes[n] = await submittedImage(h, school.forStudent(n));
+    codes[n] = await submittedImage(
+      h,
+      school.forStudent(n),
+      disciplines[n] ? { discipline: disciplines[n] } : {}
+    );
   }
   for (const n of rejected) {
     codes[n] = await submittedImage(h, school.forStudent(n), {
@@ -147,4 +154,38 @@ export async function anotherSchool(
     registrationId: registered.registrationId,
     ref: { institutionId: institution.id, reference: registered.reference },
   };
+}
+
+/** The round's category id for `discipline` (the students' 10–13 group). */
+export async function categoryOf(
+  h: Harness,
+  world: RoundWorld,
+  discipline: Discipline
+): Promise<string> {
+  const view = await h.as(world.coordinator.actor).getSchoolRound(world.ref);
+  if (!view.ok) throw new Error(`No round: ${view.error}`);
+  const found = view.round.categories.find(
+    (category) => category.discipline === discipline
+  );
+  if (!found) throw new Error(`No ${discipline} category with entries`);
+  return found.id;
+}
+
+/** Sets the competition's shortlist size and school positions. */
+export async function setShortlistLimits(
+  h: Harness,
+  competitionId: string,
+  limits: { shortlistSize?: number; positions?: number }
+): Promise<void> {
+  await h.db
+    .update(competition)
+    .set({
+      ...(limits.shortlistSize === undefined
+        ? {}
+        : { shortlistPerCategory: limits.shortlistSize }),
+      ...(limits.positions === undefined
+        ? {}
+        : { schoolPositions: limits.positions }),
+    })
+    .where(eq(competition.id, competitionId));
 }
