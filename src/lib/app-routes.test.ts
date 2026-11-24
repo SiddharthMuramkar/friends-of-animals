@@ -1,20 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_LEDGER,
+  ADMIN_LEDGER_ACCOUNTS,
+  ADMIN_NEW_LEDGER_ENTRY,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_REFUNDS,
   adminBatchRefundPath,
+  adminLedgerPostingPath,
   adminRefundPath,
   adminCmsDocumentPath,
   adminPaymentBatchPath,
   adminPaymentReviewCasePath,
   adminInstitutionPath,
   APP_ROUTES,
+  entryDetailPath,
   guardianChildPath,
   institutionCompetitionsPath,
   institutionRegistrationPath,
   isNonProductionPath,
   newStudentPath,
+  newEntryPath,
+  NEW_PARTICIPANT_ENTRY,
+  PARTICIPANT_ENTRIES,
   payMyRegistrationPath,
   individualRegisterPath,
   individualRegisterSlug,
@@ -34,6 +42,23 @@ describe("isSignedInPage", () => {
     }
   });
 
+  it("recognises the participant entry pages as signed-in routes", () => {
+    expect(newEntryPath(COMPETITION_ID)).toBe(
+      `${NEW_PARTICIPANT_ENTRY}?registration=${COMPETITION_ID}`
+    );
+    for (const path of [
+      PARTICIPANT_ENTRIES,
+      NEW_PARTICIPANT_ENTRY,
+      entryDetailPath("NEIGH27-E-5EEDA1"),
+    ]) {
+      expect(isSignedInPage(path), path).toBe(true);
+      expect(isSignedInPath(path), path).toBe(true);
+    }
+    expect(isSignedInPage(`${PARTICIPANT_ENTRIES}/NEIGH27-E-5EEDA1/x`)).toBe(
+      false
+    );
+  });
+
   it("knows the payments pages (#79), though the review list isn't in APP_ROUTES", () => {
     expect(isSignedInPage(ADMIN_PAYMENTS_REVIEW)).toBe(true);
     expect(isSignedInPage(adminPaymentReviewCasePath(COMPETITION_ID))).toBe(
@@ -51,6 +76,20 @@ describe("isSignedInPage", () => {
     expect(adminBatchRefundPath(COMPETITION_ID)).toBe(
       `/admin/payments/batches/${COMPETITION_ID}/refund`
     );
+  });
+
+  it("keeps the ledger pages behind sign-in (#105)", () => {
+    const paths = [
+      ADMIN_LEDGER,
+      ADMIN_LEDGER_ACCOUNTS,
+      ADMIN_NEW_LEDGER_ENTRY,
+      adminLedgerPostingPath(9_007_199_254_740_993n),
+    ];
+    for (const path of paths) {
+      expect(isSignedInPage(path), path).toBe(true);
+      expect(isSignedInPath(path), path).toBe(true);
+    }
+    expect(paths[3]).toBe("/admin/ledger/9007199254740993");
   });
 
   it("knows a competition's edit and preview pages, whatever its id", () => {

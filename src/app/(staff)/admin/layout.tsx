@@ -1,12 +1,14 @@
 import { getTranslations } from "next-intl/server";
 import { connection } from "next/server";
-import { Suspense } from "react";
+import { Suspense, type ComponentProps } from "react";
 
-import { APP_ROUTES } from "@/lib/app-routes";
+import { ADMIN_LEDGER, APP_ROUTES } from "@/lib/app-routes";
 import { env } from "@/env";
+import { as, currentActor } from "@/server/app";
 
 import { AdminNav, AdminNavView } from "./_components/admin-nav";
 import { FactsReadiness } from "./_components/facts-readiness";
+import { showLedgerNavigation } from "./_lib/ledger-navigation";
 
 // Signed-in pages carry a per-request CSP nonce (src/proxy.ts, #65), which
 // a static shell's build-time scripts can't have. Waiting for the request
@@ -38,7 +40,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       <div className="border-b border-border bg-surface">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <Suspense fallback={<AdminNavView {...nav} pathname={null} />}>
-            <AdminNav {...nav} />
+            <AdminNavWithLedger {...nav} />
           </Suspense>
         </div>
       </div>
@@ -47,5 +49,20 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       </Suspense>
       {children}
     </>
+  );
+}
+
+async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
+  const actor = await currentActor();
+  const finance =
+    actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
+  if (!finance) return <AdminNav {...nav} />;
+
+  const t = await getTranslations("adminLedger.list");
+  return (
+    <AdminNav
+      label={nav.label}
+      links={[...nav.links, { href: ADMIN_LEDGER, label: t("title") }]}
+    />
   );
 }

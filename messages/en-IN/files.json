@@ -17,7 +17,9 @@
       "png": "PNG",
       "jpeg": "JPEG",
       "webp": "WebP",
-      "pdf": "PDF"
+      "pdf": "PDF",
+      "heic": "HEIC",
+      "heif": "HEIF"
     },
     "upload": "Upload",
     "uploading": "Uploading…",
