@@ -736,7 +736,9 @@ export const SUBSCRIBERS = {
   "entry.upload_grant_issued": ["entries.expire_upload_grant"],
   "entry.sweep_staged_upload": ["entries.sweep_staged_upload"],
   // The participant's, or their guardian's, messages go by route row (#85).
-  "entry.submitted": ["notifications.dispatch"],
+  // A school's student's family contact isn't a user: their receipt goes
+  // by its own handler (#87).
+  "entry.submitted": ["notifications.dispatch", "entries.send_family_receipt"],
   "entry.file_rejected": ["notifications.dispatch"],
   "entry.file_failed": ["notifications.dispatch"],
   // The owner hears FOA's decisions by route row (#127). No route names

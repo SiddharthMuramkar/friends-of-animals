@@ -99,12 +99,15 @@ export function EntryUploadForm({
   options,
   mode,
   text,
+  doneHref,
   labels: { form: copy, errors },
 }: {
   registrationId: string;
   options: readonly DisciplineOption[];
   mode: UploadMode;
   text?: EntryText;
+  /** Where to go once the upload is in: the entry's page unless given (#87). */
+  doneHref?: string;
   labels: UploadLabels;
 }) {
   const first = options[0]!;
@@ -166,7 +169,7 @@ export function EntryUploadForm({
         STEPS
       );
       if (outcome.ok) {
-        window.location.assign(entryDetailPath(outcome.entryCode));
+        window.location.assign(doneHref ?? entryDetailPath(outcome.entryCode));
       } else {
         setError(outcome.error);
       }

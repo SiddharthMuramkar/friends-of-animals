@@ -553,10 +553,11 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`consent-forms`](#consent-forms)       | A school uploads signed paper consent forms; FOA staff review them                                                             | #83                     |
 | [`consent-links`](#consent-links)       | A school sends a guardian a consent link answered after a one-time code                                                        | #83                     |
 | [`contact`](#contact)                   | The public contact form and the staff contact inbox                                                                            | #113                    |
-| [`directory`](#directory)               | NGO directory listings: registration, staff verification, representatives' edits and documents, the public listing page        | #127                    |
+| [`directory`](#directory)               | NGO directory listings: registration, staff verification, representatives' edits and documents, public page and search         | #127, #128              |
 | [`entries`](#entries)                   | A participant's entry in a competition and its uploaded picture                                                                | #85                     |
 | [`files`](#files)                       | Uploads, the malware scan, image derivatives, signed delivery                                                                  | #63, #85                |
 | [`guardians`](#guardians)               | Guardians, the children they manage, teen logins, guardian requests                                                            | #81                     |
+| `institution-submissions`               | The school route's submission roster and conduct certification                                                                 | #87                     |
 | [`institutions`](#institutions)         | Institution registration and verification; coordinator invitations (`coordinators/`)                                           | #73, #74                |
 | [`judging`](#judging)                   | Rubrics per discipline, the school-judging guard, the judging guide                                                            | #88                     |
 | [`ledger`](#ledger)                     | Double-entry postings for payments and refunds, manual entries, reversals                                                      | #105                    |
@@ -743,9 +744,12 @@ The NGO directory (#127). An NGO, rescue organisation, shelter, independent resc
 - **Rules:** one open listing per registrant (`directory_listing_one_open_per_owner`); an Indian mobile is required; the public page shows only the contacts the listing ticked, never the address (HR-61 default). Documents: PDF, JPEG or PNG up to 10 MiB, at most 10 per listing; only staff open them, through Files' delivery gate, which audits each read; the uploader can't. The checklist of expected documents per type is a guide, not enforced (HR-62).
 - **Pages:** `/ngos/register`, `/organisation`, `/organisation/[id]`, `/organisation/[id]/edit` (signed in); staff `/admin/directory`, `/admin/directory/[id]`; public `/ngos/[slug]` (cached by tag `directory-listing:<slug>`; `src/proxy.ts` answers any slug that isn't a verified listing with a 404).
 - **Events:** `directory.listing_submitted` (no route yet), `directory.listing_verified`, `.rejected`, `.suspended`, `.reinstated` → `notifications.dispatch`, which emails and inboxes the registrant with the reason (`drizzle/0088_127_directory_messages.sql`).
-- **Seeds for #128 and #129:** `services` and `pin_code` are what search by service and distance reads (#128 adds the pin-code table, a GIN index on `services` and `earthdistance`, HR-59, HR-60); `toPublicListing` is the public read model it lists. Adoption listings (#129) point at `directory_listing.id` and check `isPubliclyListed(status)` and the representative role at its scope. `h.seed.directoryListing({ status })` builds one in tests.
-- **Retention:** policy `directoryListings`, kept while listed, no job yet (HR-31).
-- **Tests:** `register.test.ts`, `decide.test.ts`, `update.test.ts`, `documents.test.ts`, `review-queue.test.ts`, `outcome-messages.test.ts`, `public.test.ts`, `register.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/directory.test.ts`, `src/proxy.directory.test.ts`; E2E `127-ngo-directory.spec.ts`.
+- **Seeds for #129:** adoption listings point at `directory_listing.id` and check `isPubliclyListed(status)` and the representative role at its scope. `h.seed.directoryListing({ status })` builds one in tests.
+- **Search (#128):** `searchListings({ pin | lat+lng, service?, radius? })` (anyone) lists verified listings within 5, 10 (default), 25 or 50 km, nearest first, at most 50, each as `toPublicListing` plus its distance. A listing sits at its pin code's centre in `pincode_location` (`pincodes.ts`), never at its address, so distances are approximate and shown as "less than 1 km" or "about N km"; a listing whose pin code has no centre isn't found. Distance is the haversine formula in plain SQL on earthdistance's sphere (`search.ts`; the same maths in `domain/geo.ts`), behind a latitude-longitude box; the `earthdistance` extension waits on HR-60 and would also need loading in PGlite. A browser location is rounded to two decimals (about 1 km) in the browser and again by `domain/search-input.ts`. A GIN index on `services` serves the service filter.
+- **Pin codes:** `pnpm directory:import-pincodes <file.csv> [--target <host>/<database>]` reads India Post's "All India Pincode Directory" CSV (data.gov.in) and saves one centre per pin code, the median of its post offices (`domain/pincode-import.ts`, `domain/csv.ts`); rerunning it changes nothing. The licence and the real import wait on HR-59, so production has no centres yet and the search finds nothing there. The preview seed saves sample centres for ten pin codes around Pune, Nashik, Satara and Mumbai (`SAMPLE_PINCODE_CENTRES`); `fixtures/pincodes-sample.csv` is a hand-written sample in India Post's layout for tests. Tests save centres with `h.seed.pincodeCentres([...])`.
+- **Page:** public `/ngos` (in the footer and sitemap): a GET form (pin code, service, distance) that works without JavaScript, plus a "Use my location" island; `Permissions-Policy` allows `geolocation=(self)` on that path only (`directorySearchHeaders`). Results are read per request, never cached.
+- **Retention:** policy `directoryListings`, kept while listed, no job yet (HR-31). `pincode_location` holds no personal data.
+- **Tests:** `register.test.ts`, `decide.test.ts`, `update.test.ts`, `documents.test.ts`, `review-queue.test.ts`, `outcome-messages.test.ts`, `public.test.ts`, `search.test.ts`, `pincodes.test.ts`, `register.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/directory.test.ts`, `src/proxy.directory.test.ts`, `scripts/import-pincodes-args.test.ts`; E2E `127-ngo-directory.spec.ts`, `128-directory-search.spec.ts`.
 
 ### entries
 
@@ -760,10 +764,11 @@ An **Entry** is the work one confirmed individual registration submits for a com
 | Action                       | Who                                                                                                                             |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `entry.submit`, `entry.read` | The registration's owner. A verified guardian with an active link owns their ward's registration; a linked teen owns their own. |
+| `entry.submit_for_student`   | On the school route (#87): a coordinator or the authorised person of the student's institution, at that institution's scope.    |
 | `entry.list_mine`            | Any signed-in member; the list holds only their own entries and their wards'.                                                   |
 | `entry.list_competition`     | A competition manager for that competition, or a global one (second factor required).                                           |
 
-Only `route = individual` registrations qualify; institution registrations fail the owner check until #87. The registration must be `confirmed` (`registration_not_confirmed`). A guardian-owned minor profile needs participation consent (`participation_consent_required`); on staging and production `guardianFlowsActive` is false, so that check refuses even with consent on file.
+An individual registration's owner submits it; on the school route (`route = institution`) the student's institution submits through the same two calls (`authorizeEntrySubmission` in `registration-facts.ts`), and only while the competition's `digital_scope` is `all_participants` (`shortlist_only` otherwise, until #91). Another institution's coordinator is refused (forbidden) before anything else is checked. The registration must be `confirmed` (`registration_not_confirmed`). A guardian-owned minor profile needs participation consent (`participation_consent_required`); on staging and production `guardianFlowsActive` is false, so that check refuses even with consent on file.
 
 **Two calls:**
 
@@ -825,11 +830,11 @@ The enum already has `school_shortlisted`, `not_shortlisted`, `submitted_to_foa`
 | `entry.file_rejected` | virus check failed (also on replacement)       | `entry.file_rejected`     | `entry.file_rejected.guardian`     |
 | `entry.file_failed`   | file could not be opened (also on replacement) | `entry.processing_failed` | `entry.processing_failed.guardian` |
 
-A replacement that goes live emits no event.
+A replacement that goes live emits no event. On the school route nobody has an account, so the route rows reach nobody; `entries.send_family_receipt` (`family-receipt.ts`, #87) emails the student's family contact (a minor's guardian or the adult student) template `entry.received.family` by its `family_contact` route, as the registration confirmation does. The coordinator gets nothing.
 
-**Refusals.** `startEntryUpload`: `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
+**Refusals.** `startEntryUpload`: `shortlist_only` (school route), `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
 
-**Upload grants** (`upload-grants.ts`): at most 3 unfinished uploads per uploader, 6 grants per uploader in the window, one unfinished grant per registration. Pass `replacesFileId` or `restartPendingUpload: true` to retire the current grant and take its slot. Each grant schedules its own expiry and a sweep of the staged object an hour later.
+**Upload grants** (`upload-grants.ts`): at most 3 unfinished uploads per uploader, 6 grants per uploader in the window (30 for a coordinator uploading for a class, #87), one unfinished grant per registration. Pass `replacesFileId` or `restartPendingUpload: true` to retire the current grant and take its slot. Each grant schedules its own expiry and a sweep of the staged object an hour later.
 
 - **Tests:** `domain/status.test.ts`, `domain/submission.test.ts`, `domain/upload-rules.test.ts`, `use-cases/submit-entry.test.ts`, `use-cases/entry-outcomes.test.ts`, `use-cases/replace-entry-file.test.ts`, `use-cases/entry-authz.test.ts`, `use-cases/complete-entry-upload.pg.test.ts`, `src/app/participant/entries/_lib/upload-flow.test.ts`; E2E `85-entries.spec.ts`.
 
@@ -856,6 +861,20 @@ A member declares they are a child's parent or lawful guardian and verifies by c
 - **Pages:** `/guardian`, `/guardian/register`, `/guardian/children/new`, `/guardian/children/[id]`, `/invitations/[token]`.
 - **Events:** `guardian.teen_invited`, `guardian.guardian_requested`. **Gated:** off in production and staging (`availability.ts`, `guardianFlowsActive`; E2E `55-guardian-launch-pause.spec.ts`). SMS waits for HR-14.
 - **Tests:** `children.test.ts`, `verify-guardian.test.ts`, `teen-login.test.ts`, `claim-child.pg.test.ts`; E2E `81-guardians.spec.ts`.
+
+### institution-submissions
+
+The school route's side of submitting (#87). The uploads themselves go through the [`entries`](#entries) use cases, which take a coordinator for their institution's students.
+
+- **Table** `conduct_certification` (`conduct-certification.ts`): one row per institution registration (unique), with `certified_by_user_id`, `certified_at` and `statement_version`. Written once; no revoking in M2.
+- **Use cases:** `listInstitutionSubmissions` (the roster: every student of one institution registration with Entry ID, status, next step `submit`/`replace`/`retry` or a hold, counts, the deadline, whether conduct is certified), `getStudentSubmission` (one student's entry, its live picture and the upload allowed now, by registration number), `certifyConduct` (once; audited as `conduct.certified`; needs a confirmed student and an uncancelled competition; a second call answers `already_certified`), `getConductCertification`.
+- **For #89:** `isConductCertified(db, institutionRegistrationId)` and `requireConductCertified(db, id)` (throws `ConductNotCertifiedError`, code `conduct_not_certified`) in `conduct.ts`.
+- **Rules:** the roster is pure (`domain/roster.ts`); its gate comes from the competition's digital submission scope and entries' window rule. The statement's wording is a draft (`messages/en-IN/institutionSubmissions.json`, HR-36) with its version in `domain/conduct-statement.ts`; change both together.
+- **Who may call:** `institution_submissions.read`, `conduct.read`, `conduct.certify`: the institution's coordinators and authorised person, at its scope (as `institution.coordinate`).
+- **Pages:** `/institution/registrations/[ref]/submissions`, `.../submissions/[number]` (reuses the participant upload form), `.../conduct`; the registration page links to the roster once a student is confirmed.
+- **Seed:** `src/server/seed/institution-submissions.ts`: the verified school's registration for Trees for Birds (TREES27, free, open for submissions) with submitted, checking, rejected, not-started and unconfirmed students.
+- **Migrations:** `0089_87_conduct_certification`, `0090_87_entry_family_receipt` (the family receipt's template and route).
+- **Tests:** `conduct.test.ts`, `certify-conduct.pg.test.ts`, `submissions.test.ts`, `domain/roster.test.ts`, `entries/use-cases/coordinator-submit.test.ts`; E2E `87-coordinator-submissions.spec.ts`.
 
 ### institutions
 
@@ -1026,7 +1045,7 @@ Privacy rights requests and the grievance officer's queue (#115), in `src/server
 - **Settings:** `privacy.requestDueDays` (30), `privacy.erasureDueDays` (30), `privacy.exportLinkHours` (72), `privacy.erasureEnabled` (off; seeded on locally), `privacy.erasureKeepsPayerAccount` (on), `retention.privacyRequestsDays` (1095). All wait for counsel (HR-30).
 - **Pages:** `/dashboard/privacy`, `/dashboard/privacy/new`, `/dashboard/privacy/[id]`; staff `/admin/privacy/requests`, `/admin/privacy/requests/[id]`.
 - **Events:** `privacy_request.submitted`, `.rejected`, `.completed`, `.overdue_digest` → `notifications.dispatch` (audiences `privacy_requester`, `grievance_officers`, `grievance_digest`); `privacy_request.export_requested` → `privacy.build_export`; `privacy_request.export_expired` (delayed) → `privacy.expire_export`; `privacy_request.erasure_approved` → `privacy.execute_erasure`.
-- **Migrations:** `0089_115_pre_enum_role_grievance_officer` (rule F2), `0090_115_privacy_requests`, `0091_115_privacy_request_messages`, `0092_115_erasure_record`, `0093_115_erasure_notice`.
+- **Migrations:** `0092_115_pre_enum_role_grievance_officer` (rule F2), `0093_115_privacy_requests`, `0094_115_privacy_request_messages`, `0095_115_erasure_record`, `0096_115_erasure_notice`.
 - **Tests:** `requests/*.test.ts`, `requests/domain/*.test.ts`, `requests/subject-data/*.test.ts`, `submit.pg.test.ts`; E2E `115-privacy-requests.spec.ts`.
 
 ### public-forms
@@ -1168,6 +1187,7 @@ People apply to volunteer, and FOA vets anyone who will work near children (#123
 | `files.scan_file`                               | outbox                                  | `files.file_uploaded`                                 | `modules/files/scan-handler.ts`                                       |
 | `files.process_image`                           | outbox, media queue (worker-media only) | `files.processing_requested`                          | `modules/files/process-image.ts`, `src/worker-media/process-media.ts` |
 | `entries.apply_file_outcome`                    | outbox                                  | every `files.*` outcome event                         | `modules/entries/apply-file-outcome.ts`                               |
+| `entries.send_family_receipt`                   | outbox                                  | `entry.submitted` (school route only)                 | `modules/entries/family-receipt.ts`                                   |
 | `entries.expire_upload_grant`                   | outbox, delayed                         | at grant expiry                                       | `modules/entries/upload-grants.ts`                                    |
 | `entries.sweep_staged_upload`                   | outbox, delayed                         | shortly after expiry                                  | `src/server/outbox/handlers.ts`                                       |
 | `cms.publish_scheduled_post`                    | outbox, delayed                         | at the publish instant                                | `modules/cms/posts/publishing.ts`                                     |

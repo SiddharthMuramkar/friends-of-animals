@@ -1016,6 +1016,12 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "participation_declared_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
+  // Who certified the school's conduct (#87); the audit log keeps it too.
+  actorColumn(
+    "conduct_certification",
+    "certified_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
   // Students an institution enrols (#75)
   profile("full_name", "identity"),
   profile("dob_ciphertext", "demographic"),
