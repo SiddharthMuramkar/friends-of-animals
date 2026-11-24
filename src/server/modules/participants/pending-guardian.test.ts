@@ -11,6 +11,7 @@ import {
   registration,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
+import { teenContactHash } from "@/server/modules/guardians/teen-contact";
 import { drainUntilIdle } from "@/server/outbox";
 import { addGuardianFamily } from "@/server/seed/guardians";
 import { paymentRows } from "@/server/modules/payments/testing";
@@ -89,6 +90,39 @@ async function heldTeen(
 }
 
 describe("a registration held for a guardian", () => {
+  it("catalogues the requested guardian independently of the teen before the guardian joins", async () => {
+    const h = await createHarness();
+    const meera = await heldTeen(h);
+    const [request] = await h.db.select().from(guardianInvitation);
+    expect(request).toMatchObject({
+      kind: "guardian_request",
+      guardianId: null,
+      requestedByUserId: meera.account.id,
+      participantProfileId: meera.profileId,
+      contactHash: teenContactHash(h.deps, MOTHER_EMAIL),
+    });
+    expect(h.email.lastTo(MOTHER_EMAIL)?.text).toContain("Lakshmi Iyer");
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    const subjects = Object.fromEntries(
+      entries
+        .filter(({ table }) => table === "guardian_invitation")
+        .map(({ column, subject }) => [column, subject])
+    );
+    const invitee = { kind: "invitee", via: "kind + contact_hash" };
+    expect(subjects).toMatchObject({
+      contact_ciphertext: invitee,
+      contact_hash: invitee,
+      invitee_name_ciphertext: invitee,
+      participant_profile_id: {
+        kind: "participant_profile",
+        via: "participant_profile_id",
+      },
+      requested_by_user_id: { kind: "user", via: "requested_by_user_id" },
+    });
+  });
+
   it("suppresses the guardian request in production and keeps the same place available at 18", async () => {
     const h = await createHarness();
     // One millisecond before the participant's 18th birthday in India.
@@ -408,12 +442,27 @@ describe("acceptGuardianRequest", () => {
       ownerUserId: lakshmi.account.id,
       loginUserId: meera.account.id,
     });
+    const [guardianRecord] = await h.db
+      .select({ id: guardian.id })
+      .from(guardian)
+      .where(eq(guardian.userId, lakshmi.account.id));
+    if (!guardianRecord) throw new Error("Expected the accepting guardian");
     expect(await h.db.select().from(guardianLink)).toEqual([
       expect.objectContaining({
+        guardianId: guardianRecord.id,
         participantProfileId: meera.profileId,
         relationship: "parent",
         revokedAt: null,
       }),
+    ]);
+    expect(await h.db.select().from(guardianInvitation)).toMatchObject([
+      {
+        kind: "guardian_request",
+        status: "accepted",
+        acceptedByUserId: lakshmi.account.id,
+        guardianId: guardianRecord.id,
+        participantProfileId: meera.profileId,
+      },
     ]);
     expect(await meera.status()).toBe("pending_payment");
     const actions = (
@@ -456,6 +505,46 @@ describe("acceptGuardianRequest", () => {
         amountDue: null,
       }),
     ]);
+
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const inventory = await h.as(admin).getInventory();
+    const subjects = (tableName: string, columns: string[]) =>
+      inventory.entries
+        .filter(
+          ({ table, column }) => table === tableName && columns.includes(column)
+        )
+        .map(({ column, subject }) => [column, subject]);
+    const guardianSubject = {
+      kind: "user",
+      via: "guardian_id → guardian.user_id",
+    };
+    const childSubject = {
+      kind: "participant_profile",
+      via: "participant_profile_id",
+    };
+    expect
+      .soft(
+        subjects("guardian_invitation", [
+          "accepted_by_user_id",
+          "guardian_id",
+          "participant_profile_id",
+        ])
+      )
+      .toEqual([
+        ["accepted_by_user_id", { kind: "user", via: "accepted_by_user_id" }],
+        ["guardian_id", guardianSubject],
+        ["participant_profile_id", childSubject],
+      ]);
+    expect(
+      subjects("guardian_link", ["guardian_id", "participant_profile_id"])
+    ).toEqual([
+      ["guardian_id", guardianSubject],
+      ["participant_profile_id", childSubject],
+    ]);
+    const metadata = JSON.stringify(inventory);
+    expect(metadata.includes(lakshmi.account.id)).toBe(false);
+    expect(metadata.includes(guardianRecord.id)).toBe(false);
+    expect(metadata.includes(meera.profileId)).toBe(false);
   });
 
   it("leaves the teen's login without the guardian role: they can't add a sibling or declare as one", async () => {

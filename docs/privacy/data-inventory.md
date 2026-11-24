@@ -1,78 +1,54 @@
 # Data inventory
 
-FOA keeps a list of every database column that holds personal data, with what
-it is kept for and for how long. The list lives in code, in
-[`src/server/modules/privacy/inventory.ts`](../../src/server/modules/privacy/inventory.ts),
-so a test can check it against the schema:
-[`inventory.test.ts`](../../src/server/modules/privacy/inventory.test.ts)
-fails when an encrypted column (one whose name ends in `_ciphertext`) isn't
-listed. It finds encrypted columns by their type too, and fails when one
-built with `encryptedText()` is named any other way.
+FOA keeps a list of every database column that holds personal data, with
+what it is kept for and for how long. Staff admins and super admins can
+read the catalogue at `/admin/privacy` after passing their second factor.
+
+The list lives in
+[`inventory.ts`](../../src/server/modules/privacy/inventory.ts), which
+includes the [contact inbox entries](../../src/server/modules/contact/inventory.ts).
+The [coverage test](../../src/server/modules/privacy/inventory.test.ts)
+checks the full schema. Each column needs either a catalogue entry or an
+explicit entry in [`non-personal.ts`](../../src/server/modules/privacy/non-personal.ts).
+The test also checks that each column built with `encryptedText()` is
+listed and named with the `_ciphertext` suffix.
 
 ## Adding a column
 
 A ticket that adds a column holding personal data adds one entry to
-`DATA_INVENTORY` in the same pull request:
+the catalogue and a purpose message keyed by table and column in
+[`adminPrivacy.json`](../../messages/en-IN/adminPrivacy.json) in the same pull request.
+The catalogue and staff page both read the purpose from that message.
 
-- `table` and `column`: the names as Postgres has them.
-- `purpose`: what FOA uses it for, in one sentence.
-- `retention.period` and `retention.basis`: how long it is kept, and why.
-- `retention.toConfirm: true`: every period is a default until counsel
-  confirms it (residue HR-31).
+- `table` and `column` give the names as Postgres has them.
+- `category` and `purpose` describe what the field holds and what FOA uses it for.
+- `subject.kind` and `subject.via` describe whose data it is and how the field links to them.
+  Add a staff-facing label in `subjectKinds` for a new kind. In a compound path,
+  `entity_type` selects the record that `entity_id` identifies, and the invitation `kind`
+  distinguishes an invited teen from a requested guardian found by `contact_hash`.
+  A guardian contact recorded during school enrolment is identified by the
+  contact fields on the participant's profile.
+- `retention.policy`, `retention.period` and `retention.basis` identify the policy key,
+  the default period and why FOA keeps the field that long.
+- `retention.toConfirm` is `true` while the period awaits counsel confirmation (HR-31).
+- `onExpiry` describes the intended treatment at expiry.
 
-Encrypt a column with `encryptedText()` (`src/server/db/types/encrypted-text.ts`)
-when it identifies a person directly: a phone number, a personal email address,
-a date of birth. An institution's own address and office contact details are
-stored plain, but still listed.
+Staff-written reasons for institution decisions and payment reviews, as well as refund
+decision notes, belong in the catalogue. An assigned participant age group and
+the safeguarding reporter's child indicator are demographic data.
 
-## What is listed so far
+Ledger descriptions and line memos may name counterparties. Finance authorship
+stays with the append-only journal. Ledger category names and public labels may
+also name people.
 
-| Table                       | Columns                                                                                                                                                                                                                                                                                                                                                                        |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `user`                      | `name`, `email`, `phone_ciphertext`                                                                                                                                                                                                                                                                                                                                            |
-| `institution`               | `contact_email`, `contact_phone`, `principal_name`, `principal_email_ciphertext`, `principal_phone_ciphertext`, `created_by`, `verified_by`                                                                                                                                                                                                                                    |
-| `institution_invitation`    | `identifier_ciphertext`, `identifier_hash`, `token_ciphertext`, `invited_by_user_id`, `accepted_by_user_id`, `revoked_by_user_id`                                                                                                                                                                                                                                              |
-| `safeguarding_report`       | `description_ciphertext`, `subject_details_ciphertext`, `subject_age`, `reporter_name_ciphertext`, `reporter_contact_ciphertext`, `escalation_reference_ciphertext`, `outcome_ciphertext`, `assigned_to_user_id`                                                                                                                                                               |
-| `safeguarding_incident_log` | `body_ciphertext`, `author_user_id`                                                                                                                                                                                                                                                                                                                                            |
-| `cms_post`                  | `author_name`, `created_by`, `updated_by`                                                                                                                                                                                                                                                                                                                                      |
-| `institution_registration`  | `registered_by`                                                                                                                                                                                                                                                                                                                                                                |
-| `participant_profile`       | `full_name`, `dob_ciphertext`, `grade`, `student_ref`, `phone_ciphertext`, `email_ciphertext`, `guardian_name_ciphertext`, `guardian_relationship`, `guardian_phone_ciphertext`, `guardian_email_ciphertext`, `address_ciphertext`, `pin_code`, `city`, `state`, `identity_hash`, `created_by`, `owner_user_id`, `participant_code`, `country`, `school_name`, `login_user_id` |
-| `payment_batch`             | `payer_user_id`                                                                                                                                                                                                                                                                                                                                                                |
-| `offline_payment`           | `reference`, `proof_file_asset_id`, `recorded_by_user_id`                                                                                                                                                                                                                                                                                                                      |
-| `payment_review_case`       | `resolution_reason`, `resolved_by_user_id`                                                                                                                                                                                                                                                                                                                                     |
-| `refund`                    | `reason`, `requested_by`, `decided_by`, `decision_note`, `manual_reference`, `manual_recorded_by`                                                                                                                                                                                                                                                                              |
-| `guardian`                  | `user_id`, `full_name_ciphertext`, `phone_ciphertext`, `phone_hash`, `adult_declared_at`, `verified_at`                                                                                                                                                                                                                                                                        |
-| `guardian_link`             | `relationship`                                                                                                                                                                                                                                                                                                                                                                 |
-| `guardian_invitation`       | `contact_ciphertext`, `contact_hash`, `token_ciphertext`, `accepted_by_user_id`                                                                                                                                                                                                                                                                                                |
-| `ledger_posting`            | `description`, `created_by_user_id`                                                                                                                                                                                                                                                                                                                                            |
-| `ledger_line`               | `memo`                                                                                                                                                                                                                                                                                                                                                                         |
-| `announcement`              | `created_by`, `sent_by`, `help_contacts_ciphertext`                                                                                                                                                                                                                                                                                                                            |
-| `inbox_item`                | `title_ciphertext`, `body_ciphertext`                                                                                                                                                                                                                                                                                                                                          |
-| `message_delivery`          | `contact_hash`, `recipient_account_hash`, `recipient_hashes`                                                                                                                                                                                                                                                                                                                   |
+Encrypt a column with `encryptedText()` when it identifies a person directly,
+such as a phone number, personal email address or date of birth. An institution's
+own office contact details are stored plain and listed in the catalogue.
 
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 
-A safeguarding report and its incident log are kept while the report is open,
-then 7 years after it is resolved or until the child concerned turns 25,
-whichever is later. The safeguarding module's retention policy
-([`retention-policy.ts`](../../src/server/modules/safeguarding/retention-policy.ts))
-picks the reports past that date for #114's sweep.
-
-Sessions, the audit log's IP addresses and the other early tables are listed
-by the data inventory and retention ticket (#114), which also enforces
-retention with scheduled jobs.
-
 ## Competition entry data
-
-| Table                            | Columns                                                                                                        |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `entry`                          | `code`, `registration_id`, `participant_profile_id`, `title`, `description`, `statement`, `created_by_user_id` |
-| `entry_file`                     | `id`, `entry_id`, `file_asset_id`, `uploaded_by_user_id`, `pending_text`, `receipt_title`                      |
-| `entry_upload_grant`             | `file_asset_id`, `registration_id`, `upload_key`                                                               |
-| `entry_transition`               | `entry_id`, `entry_file_id`, `actor_user_id`                                                                   |
-| `file_asset` (entry images)      | `owner_user_id`, `storage_key`                                                                                 |
-| `file_derivative` (entry images) | `file_asset_id`, `storage_key`                                                                                 |
 
 The proposed entry retention periods are three years after the competition
 ends for entry text, participant references and upload history, and 90 days

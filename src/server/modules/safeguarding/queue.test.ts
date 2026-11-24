@@ -473,6 +473,17 @@ describe("assigning a report", () => {
         after: { status: "new", severity: null, assignedToUserId: deputy },
       },
     ]);
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    expect(
+      entries.find(
+        ({ table, column }) =>
+          table === "safeguarding_report" && column === "assigned_to_user_id"
+      )
+    ).toMatchObject({
+      subject: { kind: "user", via: "assigned_to_user_id" },
+      retention: { policy: "safeguardingReports" },
+    });
   });
 
   it("refuses someone without the lead role, and records nothing for no change", async () => {
@@ -538,6 +549,18 @@ describe("the incident log", () => {
       body: NOTE,
       author: { id: leadId },
     });
+    const admin = await h.signIn(await h.seed.superAdmin());
+    const { entries } = await h.as(admin).getInventory();
+    expect(
+      entries.find(
+        ({ table, column }) =>
+          table === "safeguarding_incident_log" && column === "author_user_id"
+      )
+    ).toMatchObject({
+      subject: { kind: "user", via: "author_user_id" },
+      retention: { policy: "safeguardingReports" },
+    });
+    expect(JSON.stringify(entries)).not.toContain(NOTE);
   });
 
   it("refuses an empty note", async () => {
