@@ -2,7 +2,7 @@
  * The one registry of public routes. The header, footer and sitemap read it,
  * so a page that isn't here isn't linked. Labels live in messages/en-IN/nav.json
  * under nav.links.<id>. Spec modules that aren't built yet (gallery,
- * transparency, events, volunteer, adopt, NGOs, auctions) stay out. Pages
+ * transparency, events, volunteer, NGOs, auctions) stay out. Pages
  * behind sign-in are in src/lib/app-routes.ts.
  */
 
@@ -72,6 +72,14 @@ const DEFINITIONS = {
     sitemap: { updated: UPDATED, priority: 0.7 },
   },
   story: { path: "/blog/[slug]", hue: "yellow" },
+  /** Adoptable animals from verified directory listings (#129). */
+  adopt: {
+    path: "/adopt",
+    hue: "green",
+    footer: "takePart",
+    sitemap: { updated: "2026-11-24", priority: 0.7 },
+  },
+  adoptable: { path: "/adopt/[slug]", hue: "green" },
   about: {
     path: "/about",
     hue: "blue",
@@ -186,6 +194,9 @@ export function sitemapRoutes(): (PublicRoute & {
 }
 
 /** Concrete href for a dynamic route, e.g. routeHref("story", "kolam"). */
-export function slugHref(id: "competition" | "story", slug: string): string {
+export function slugHref(
+  id: "competition" | "story" | "adoptable",
+  slug: string
+): string {
   return ROUTES[id].path.replace("[slug]", encodeURIComponent(slug));
 }

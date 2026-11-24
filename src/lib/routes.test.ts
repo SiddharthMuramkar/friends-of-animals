@@ -30,7 +30,6 @@ describe("ROUTES", () => {
       "/login",
       "/events",
       "/volunteer",
-      "/adopt",
       "/ngos",
       "/auctions",
     ];

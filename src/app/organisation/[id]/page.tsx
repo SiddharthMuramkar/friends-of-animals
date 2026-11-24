@@ -12,6 +12,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { TableScroller } from "@/components/site/table-scroller";
 import {
+  adoptionsPath,
   editListingPath,
   MY_LISTINGS,
   publicListingPath,
@@ -124,6 +125,9 @@ async function Listing({ params, searchParams }: Props) {
         </FormAlert>
       ) : null}
       <Details listing={listing} />
+      {listing.status === "verified" || listing.status === "suspended" ? (
+        <AdoptionsLink listingId={listing.id} />
+      ) : null}
       <Documents listing={listing} />
       {listing.canWithdraw ? (
         <section aria-labelledby="withdraw-title" className={CARD}>
@@ -353,6 +357,22 @@ async function Documents({ listing }: { listing: MyListing }) {
         ) : (
           <p className="text-ink-muted">{t("documents.closed")}</p>
         )}
+      </div>
+    </section>
+  );
+}
+
+/** Where its representatives list animals for adoption (#129). */
+async function AdoptionsLink({ listingId }: { listingId: string }) {
+  const t = await getTranslations("adoption.organisationLink");
+  return (
+    <section aria-labelledby="adoptions-title" className={CARD}>
+      <SectionHeading id="adoptions-title" title={t("title")} />
+      <p className="mt-3 text-ink">{t("body")}</p>
+      <div className="mt-5">
+        <ButtonLink href={adoptionsPath(listingId)} variant="secondary">
+          {t("link")}
+        </ButtonLink>
       </div>
     </section>
   );

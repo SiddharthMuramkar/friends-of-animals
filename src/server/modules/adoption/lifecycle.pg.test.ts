@@ -110,11 +110,9 @@ describe("adoption listings on real Postgres", () => {
         where id = ${created.adoptionListingId}
       `,
       () =>
-        world
-          .as(rep.actor)
-          .publishAdoptionListing({
-            adoptionListingId: created.adoptionListingId,
-          })
+        world.as(rep.actor).publishAdoptionListing({
+          adoptionListingId: created.adoptionListingId,
+        })
     );
 
     expect(result).toEqual({ ok: false, error: "invalid_transition" });

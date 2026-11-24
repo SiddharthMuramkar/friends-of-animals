@@ -100,6 +100,11 @@ const STATE_KEYS = INDIAN_STATES.map((state) => state.key) as [
   ...IndianState[],
 ];
 
+/** A state's name, from its key; anything else as it is. */
+export function indianStateName(key: string): string {
+  return INDIAN_STATES.find((state) => state.key === key)?.name ?? key;
+}
+
 export function isIndianState(value: string): value is IndianState {
   return (STATE_KEYS as readonly string[]).includes(value);
 }

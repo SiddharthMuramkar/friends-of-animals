@@ -29,6 +29,10 @@ export type ManagedDirectory = {
   slug: string;
   /** Whether the directory listing is verified, so its animals can show. */
   verified: boolean;
+  /** Where it works, as it typed it: a new animal's form starts there. */
+  city: string;
+  state: string;
+  pinCode: string;
 };
 
 function refused(ctx: UseCaseContext): never {
@@ -45,6 +49,9 @@ async function directoryRow(db: AppDb, id: string) {
       name: directoryListing.name,
       slug: directoryListing.slug,
       status: directoryListing.status,
+      city: directoryListing.city,
+      state: directoryListing.state,
+      pinCode: directoryListing.pinCode,
     })
     .from(directoryListing)
     .where(eq(directoryListing.id, id));
@@ -54,6 +61,9 @@ async function directoryRow(db: AppDb, id: string) {
         name: row.name,
         slug: row.slug,
         verified: isPubliclyListed(row.status),
+        city: row.city,
+        state: row.state,
+        pinCode: row.pinCode,
       }
     : null;
 }
