@@ -100,6 +100,7 @@ export async function recordOfflinePayment(
           })
           .from(fileAsset)
           .where(eq(fileAsset.id, proofFileId))
+          .for("update")
       : [];
     const now = ctx.clock.now();
     const decision = decideOfflineCapture({

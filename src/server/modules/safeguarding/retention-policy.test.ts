@@ -11,7 +11,7 @@ import { DATA_INVENTORY } from "@/server/modules/privacy/inventory";
 import { SUBJECT_AGE_FLOOR, YEARS_AFTER_RESOLUTION } from "./domain/retention";
 import {
   SAFEGUARDING_RETENTION_POLICY,
-  safeguardingRetentionCandidates,
+  safeguardingRetentionPage,
 } from "./retention-policy";
 import { CONCERN, fileReport } from "./testing";
 
@@ -82,8 +82,14 @@ describe("which safeguarding reports retention may delete", () => {
     const younger = await resolved(10);
     const open = await fileReport(h);
 
-    const at = (iso: string) =>
-      safeguardingRetentionCandidates(h.db, new Date(iso));
+    const at = async (iso: string) => {
+      const { reports } = await safeguardingRetentionPage(h.db, {
+        now: new Date(iso),
+        after: null,
+        limit: 10,
+      });
+      return reports.map(({ id }) => id);
+    };
 
     expect(await at("2033-01-09T00:00:00Z")).toEqual([]);
     expect(await at("2034-01-11T00:00:00Z")).toEqual([older]);

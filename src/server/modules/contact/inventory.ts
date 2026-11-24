@@ -10,7 +10,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import inventoryMessages from "../../../../messages/en-IN/adminPrivacy.json";
 
@@ -20,9 +20,10 @@ import type {
   InventoryEntry,
   PersonalDataCategory,
 } from "../privacy/domain/coverage";
+import { CONTACT_RETENTION } from "../privacy/domain/periods";
 
-/** How long a message stays once it is closed (HR-31). */
-export const MONTHS_AFTER_CLOSE = 24;
+/** How long a message stays once it is closed by default (HR-31). */
+export const MONTHS_AFTER_CLOSE = CONTACT_RETENTION.defaultMonths;
 
 /** The platform's inventory entry, for the inbox's two tables. */
 export type ContactInventoryEntry = InventoryEntry & {
@@ -97,27 +98,34 @@ export const CONTACT_RETENTION_POLICY = {
   candidates: contactRetentionCandidates,
 } as const;
 
+/** Test each message's anniversary in UTC, including leap days. */
+export function contactPastRetention(
+  now: Date,
+  months: number = MONTHS_AFTER_CLOSE
+) {
+  return and(
+    eq(contactMessage.status, "closed"),
+    sql`(${contactMessage.closedAt} AT TIME ZONE 'UTC')
+      + make_interval(months => ${months})
+      <= (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')`
+  );
+}
+
 /**
  * Messages closed at least MONTHS_AFTER_CLOSE months before `now`, by id.
  * Open messages are never picked, and a reopened one counts from when it
  * next closes. Deleting a message takes its notes with it (ON DELETE
- * CASCADE).
+ * CASCADE). The retention sweep (src/server/modules/privacy/policies)
+ * reads the period from its setting instead.
  */
 export async function contactRetentionCandidates(
   db: AppDb,
   now: Date
 ): Promise<string[]> {
-  const closedBefore = new Date(now.getTime());
-  closedBefore.setUTCMonth(closedBefore.getUTCMonth() - MONTHS_AFTER_CLOSE);
   const rows = await db
     .select({ id: contactMessage.id })
     .from(contactMessage)
-    .where(
-      and(
-        eq(contactMessage.status, "closed"),
-        lte(contactMessage.closedAt, closedBefore)
-      )
-    )
+    .where(contactPastRetention(now))
     .orderBy(asc(contactMessage.id));
   return rows.map((row) => row.id);
 }

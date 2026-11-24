@@ -13,8 +13,10 @@
 // guardian record, since that links the row to them. A row's own id,
 // timestamps, statuses and organisations' details are not.
 //
-// Policy keys describe the intended retention of each field. The periods
-// are defaults pending counsel confirmation (HR-31).
+// Each entry names its retention policy (./policies): a policy the daily
+// sweep enforces, or a lifecycle the data follows instead (deleted with
+// the account, kept with the record). The periods are defaults pending
+// counsel confirmation (HR-31).
 
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -47,11 +49,6 @@ const PERIOD_TEXT = {
 };
 const PURPOSES: Partial<Record<string, Partial<Record<string, string>>>> =
   inventoryMessages.adminPrivacy.inventory.purposes;
-
-/** The policy keys used by the catalogue's retention descriptors. */
-export const RETENTION_POLICY_KEYS: ReadonlySet<string> = new Set(
-  Object.keys(policyPeriods)
-);
 
 type Subject = InventoryEntry["subject"];
 type StaticPeriodKey = Exclude<keyof typeof PERIOD_TEXT, "contactMessages">;
@@ -148,6 +145,14 @@ const SAFEGUARDING_RECORD = {
   basis:
     "Child protection: the record of what was reported and done, kept for " +
     "the child, FOA and the authorities (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
+const LEGAL_HOLD = {
+  policy: "releasedLegalHolds",
+  periodKey: "releasedLegalHolds",
+  basis:
+    "Records why FOA must keep a person's records past their retention, and who decided it",
   toConfirm: true,
 } as const;
 
@@ -1119,6 +1124,22 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   },
   actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+  // Legal holds (#114): a released hold stays as the record of who held
+  // what and why, until the releasedLegalHolds policy deletes it.
+  ...(
+    [
+      ["subject_id", "identity"],
+      ["reason", "content"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("legal_hold", {
+      subject: { kind: "held_subject", via: "subject_type, subject_id" },
+      retention: LEGAL_HOLD,
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
+  actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
+  actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

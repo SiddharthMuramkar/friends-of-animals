@@ -102,7 +102,10 @@ export const session = pgTable(
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
-  (table) => [index("session_user_id_idx").on(table.userId)]
+  (table) => [
+    index("session_user_id_idx").on(table.userId),
+    index("session_expires_at_id_idx").on(table.expiresAt, table.id),
+  ]
 );
 
 /**
@@ -143,7 +146,10 @@ export const verification = pgTable(
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)]
+  (table) => [
+    index("verification_identifier_idx").on(table.identifier),
+    index("verification_expires_at_id_idx").on(table.expiresAt, table.id),
+  ]
 );
 
 /**

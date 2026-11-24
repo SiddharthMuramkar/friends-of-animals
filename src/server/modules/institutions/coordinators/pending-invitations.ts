@@ -26,6 +26,29 @@ export type WithdrawalReason =
   /** The authorised person removed them as a coordinator. */
   | "coordinator_removed";
 
+export const verifiedInviteeFields = {
+  email: user.email,
+  emailVerified: user.emailVerified,
+  phoneCiphertext: user.phoneCiphertext,
+  phoneVerified: user.phoneVerified,
+};
+
+export function hashesOfVerifiedInvitee(
+  ctx: Pick<UseCaseContext, "cipher" | "blindIndex">,
+  account: Pick<typeof user.$inferSelect, keyof typeof verifiedInviteeFields>
+): string[] {
+  const hashes: string[] = [];
+  if (account.emailVerified && account.email !== null) {
+    hashes.push(inviteeHash(ctx, account.email));
+  }
+  if (account.phoneVerified && account.phoneCiphertext !== null) {
+    hashes.push(
+      inviteeHash(ctx, readStoredPhone(ctx, account.phoneCiphertext))
+    );
+  }
+  return hashes;
+}
+
 /**
  * The blind indexes of `userId`'s verified email and verified phone, as an
  * invitation stores its address: what they can accept, and what is
@@ -37,25 +60,10 @@ export async function verifiedInviteeHashes(
   userId: string
 ): Promise<string[]> {
   const [account] = await db
-    .select({
-      email: user.email,
-      emailVerified: user.emailVerified,
-      phoneCiphertext: user.phoneCiphertext,
-      phoneVerified: user.phoneVerified,
-    })
+    .select(verifiedInviteeFields)
     .from(user)
     .where(eq(user.id, userId));
-  if (!account) return [];
-  const hashes: string[] = [];
-  if (account.emailVerified && account.email !== null) {
-    hashes.push(inviteeHash(ctx, account.email));
-  }
-  if (account.phoneVerified && account.phoneCiphertext !== null) {
-    hashes.push(
-      inviteeHash(ctx, readStoredPhone(ctx, account.phoneCiphertext))
-    );
-  }
-  return hashes;
+  return account ? hashesOfVerifiedInvitee(ctx, account) : [];
 }
 
 /**

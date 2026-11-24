@@ -9,7 +9,9 @@ describe("the settings catalogue", () => {
     // #62 and HR-19: SMS off, 80G off, FCRA off, staff sessions 12 hours,
     // and #58's ceiling on sign-in texts: 200 an hour, 1,000 a day. #57:
     // email sign-in on (production also waits for SES, R-27). #116: 10
-    // safeguarding reports an hour from one IP.
+    // safeguarding reports an hour from one IP. #114: retention off until
+    // a super admin turns it on, and each policy's period in days (the
+    // financial records' is their 8-year floor).
     expect(
       Object.fromEntries(
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
@@ -27,6 +29,21 @@ describe("the settings catalogue", () => {
       "org.registrationNumber": "",
       "org.pan": "",
       "safeguarding.reportsPerIpPerHour": 10,
+      "retention.enforce": false,
+      "retention.expiredVerificationsDays": 1,
+      "retention.expiredSessionsDays": 30,
+      "retention.capturedMessagesDays": 30,
+      "retention.messageDeliveriesDays": 365,
+      "retention.readInboxItemsDays": 365,
+      "retention.quarantinedFilesDays": 30,
+      "retention.dispatchedOutboxDays": 30,
+      "retention.coordinatorInvitationLinksDays": 1,
+      "retention.guardianInvitationLinksDays": 1,
+      "retention.coordinatorInvitationsDays": 90,
+      "retention.guardianInvitationsDays": 30,
+      "retention.contactMessagesMonths": 24,
+      "retention.releasedLegalHoldsDays": 365,
+      "retention.financialRecordsDays": 2922,
     });
   });
 

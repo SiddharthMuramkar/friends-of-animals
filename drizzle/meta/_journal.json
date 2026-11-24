@@ -498,6 +498,20 @@
       "when": 1795490908696,
       "tag": "0070_84_announcement_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1795495147904,
+      "tag": "0071_114_privacy_retention",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795495163850,
+      "tag": "0072_114_contact_retention_grants",
+      "breakpoints": true
     }
   ]
 }

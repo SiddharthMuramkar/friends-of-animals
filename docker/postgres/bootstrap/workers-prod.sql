@@ -43,3 +43,20 @@ GRANT CONNECT ON DATABASE foa TO foa_worker;
 SET client_min_messages = warning;
 CREATE SCHEMA IF NOT EXISTS pgboss AUTHORIZATION foa_worker;
 ALTER SCHEMA pgboss OWNER TO foa_worker;
+
+-- Reconcile the retention grants if the worker is provisioned after migration.
+DO $$
+DECLARE
+  message_table oid := to_regclass('public.contact_message');
+  safeguarding_table oid := to_regclass('public.safeguarding_report');
+BEGIN
+  IF has_table_privilege('foa_app', message_table, 'SELECT')
+     AND NOT has_table_privilege('foa_app', message_table, 'DELETE') THEN
+    GRANT DELETE ON public.contact_message TO foa_worker;
+  END IF;
+  IF has_table_privilege('foa_app', safeguarding_table, 'SELECT')
+     AND NOT has_table_privilege('foa_app', safeguarding_table, 'DELETE') THEN
+    GRANT DELETE ON public.safeguarding_report TO foa_worker;
+  END IF;
+END;
+$$;
