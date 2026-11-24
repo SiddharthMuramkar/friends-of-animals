@@ -33,6 +33,8 @@ export type SeededGuardian = {
   email: string;
   /** Their children's profile ids, in the order asked for. */
   childIds: string[];
+  /** Each child's own login address, where one was asked for (#123). */
+  loginEmails: (string | null)[];
   /** The path of the teen invitation asked for, if any. */
   invitation?: string;
 };
@@ -179,19 +181,18 @@ export const test = base.extend<{
     try {
       await use(async ({ name, children, invite }) => {
         const email = await seedAccount({ name, grants: [] });
-        const logins = await Promise.all(
+        const loginEmails = await Promise.all(
           children.map(async (child) =>
             child.loginName
-              ? userIdOf(
-                  await seedAccount({
-                    name: child.loginName,
-                    grants: [
-                      { role: "participant", scope: { type: "global" } },
-                    ],
-                  })
-                )
+              ? seedAccount({
+                  name: child.loginName,
+                  grants: [{ role: "participant", scope: { type: "global" } }],
+                })
               : null
           )
+        );
+        const logins = await Promise.all(
+          loginEmails.map(async (login) => (login ? userIdOf(login) : null))
         );
         try {
           const userId = await userIdOf(email);
@@ -207,7 +208,9 @@ export const test = base.extend<{
           });
           profileIds.push(...family.childIds);
           const childId = family.childIds[0];
-          if (!invite || !childId) return { email, childIds: family.childIds };
+          if (!invite || !childId) {
+            return { email, childIds: family.childIds, loginEmails };
+          }
 
           const now = systemClock.now();
           // An expired one was sent eight days ago, for seven.
@@ -232,6 +235,7 @@ export const test = base.extend<{
           return {
             email,
             childIds: family.childIds,
+            loginEmails,
             invitation: invitationPath(token),
           };
         } catch {

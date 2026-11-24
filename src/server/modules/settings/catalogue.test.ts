@@ -36,6 +36,9 @@ describe("the settings catalogue", () => {
       "ledger.manualEntryApprovalThresholdRupees": 50_000,
       "ledger.approvalExpiryDays": 7,
       "ledger.accountantExport": false,
+      "volunteers.applicationsOpen": false,
+      "volunteers.minAgeYears": 14,
+      "volunteers.guardianApprovalBelowAgeYears": 18,
       "reminders.entrySubmissionDueFirstHours": 72,
       "reminders.entrySubmissionDueSecondHours": 24,
       "retention.enforce": false,
@@ -51,6 +54,7 @@ describe("the settings catalogue", () => {
       "retention.coordinatorInvitationsDays": 90,
       "retention.guardianInvitationsDays": 30,
       "retention.contactMessagesMonths": 24,
+      "retention.volunteerApplicationsDays": 365,
       "retention.releasedLegalHoldsDays": 365,
       "retention.financialRecordsDays": 2922,
     });

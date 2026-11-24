@@ -45,6 +45,13 @@ Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
 
+A directory listing (#127) can be an individual rescuer's or foster caregiver's own,
+so its name, slug, description, place and contacts are personal data. Its address,
+phone and email are encrypted; city, state and pin code stay plain because the
+public page shows them. The policy `directoryListings` keeps it while it is in the
+directory (no daily job yet, HR-31). Its documents are files of purpose
+`directory_document`, which only staff open.
+
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 
@@ -56,6 +63,17 @@ lists who leads the response, who wrote each timeline entry, who was told,
 and the accounts and child profiles a notice couldn't reach. All of it is
 kept while the breach is open and for 5 years after it closes, then deleted
 with the breach (HR-31, pending confirmation).
+
+## Volunteer applications
+
+A volunteer application holds the applicant's date of birth (encrypted,
+copied from their participant profile when they have one), the areas they
+offered and when they are free, the guardian who approved a 14- to
+17-year-old's application, the consent events behind the two declarations,
+and the community manager who decided, with a decline reason (encrypted).
+An application declined or withdrawn is deleted 365 days after it closes
+(`volunteerApplications`); an approved one stays while the person volunteers
+(HR-31, HR-55, pending confirmation).
 
 ## Scheduled retention
 

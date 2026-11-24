@@ -33,6 +33,7 @@ import {
 import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
+import { VOLUNTEER_APPLICATIONS } from "./volunteers";
 import type { RetentionPolicy } from "./types";
 
 export type { CandidateQuery, RetentionPolicy } from "./types";
@@ -54,6 +55,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   CONTACT_MESSAGES,
   SAFEGUARDING_REPORTS,
   BREACH_RECORDS,
+  VOLUNTEER_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
 ];
@@ -64,6 +66,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "accounts",
   /** Kept while the institution takes part; no job yet (HR-31). */
   "institutions",
+  /** Kept while the listing is in the directory; no job yet (HR-31). */
+  "directoryListings",
   /** Deleted with the post. */
   "posts",
   /** Kept with the revision, including after the staff account goes. */
@@ -108,6 +112,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryPendingText",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
+  /** Campaigns (#126): kept with the campaign's record. */
+  "campaigns",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

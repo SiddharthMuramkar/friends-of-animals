@@ -19,6 +19,7 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedDirectory } from "./directory";
 import { seedEntries } from "./entries";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
@@ -42,6 +43,7 @@ import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
 import { seedReminders } from "./reminders";
 import { seedSettings } from "./settings";
+import { seedVolunteers } from "./volunteers";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -49,6 +51,7 @@ export type { SeedBuilders } from "./builders";
 export { SEED_ACCOUNTS } from "./accounts";
 export { SEED_SCOPES } from "./scopes";
 export { SEED_COMPETITION_MANAGER } from "./competitions";
+export { SEED_DIRECTORY } from "./directory";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
@@ -66,6 +69,8 @@ const seeders: readonly Seeder[] = [
   // After the identity and access seeds: the seeded members (#116).
   seedBreaches,
   seedInstitutions,
+  // After the identity and access seeds: its own seeded members (#127).
+  seedDirectory,
   seedPrivacy,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
@@ -95,6 +100,9 @@ const seeders: readonly Seeder[] = [
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,
+  // After the consent and guardians seeds: the declarations and the
+  // linked teen (#123).
+  seedVolunteers,
   seedConsentLinks,
   // After every registration seed: the sent one's count comes from them.
   seedAnnouncements,

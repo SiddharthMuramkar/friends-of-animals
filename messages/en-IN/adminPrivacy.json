@@ -25,6 +25,7 @@
         "content_subject": "Person described in the content",
         "guardian_contact": "Guardian contact recorded for the participant",
         "institution": "Institution",
+        "directory_listing": "Organisation or person listed in the directory",
         "invitee": "Person invited",
         "participant_profile": "Participant profile",
         "payer": "Payer",
@@ -47,6 +48,7 @@
       "periods": {
         "accounts": "While the account is open",
         "institutions": "While the institution takes part, then 3 years after its last competition",
+        "directoryListings": "While the listing is in the directory, then 3 years after it is withdrawn, rejected or last changed",
         "coordinatorInvitations": "90 days after the invitation is accepted, withdrawn or expires",
         "coordinatorInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
         "safeguardingReports": "While the report is open, then 7 years after it is resolved or until the child concerned turns 25, whichever is later",
@@ -93,7 +95,9 @@
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
         "announcements": "While the competition's records are kept",
-        "releasedLegalHolds": "While the hold is in force, then 365 days after it is released"
+        "campaigns": "While the campaign's records are kept",
+        "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
+        "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers"
       },
       "purposes": {
         "account": {
@@ -108,6 +112,14 @@
           "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
           "created_by": "Records which competition manager wrote the announcement",
           "sent_by": "Records which competition manager sent the announcement"
+        },
+        "campaign": {
+          "created_by": "Records which community manager wrote the campaign",
+          "sent_by": "Records which community manager sent the campaign"
+        },
+        "campaign_recipient": {
+          "user_id": "Records who a campaign message went to, so a withdrawal by its link reaches them",
+          "bases": "Records whose consent each campaign message rested on: the recipient's own or their child's"
         },
         "audit_log": {
           "actor_user_id": "Records which account took the action",
@@ -309,6 +321,22 @@
           "status_reason": "Records the reason staff gave for the institution decision",
           "verified_by": "Records which FOA staff member verified the institution"
         },
+        "directory_listing": {
+          "slug": "Gives the listing its public address, made from its name",
+          "name": "Names the organisation, or the rescuer or foster caregiver, on the directory",
+          "description": "Says what the listing does, in its own words",
+          "address_ciphertext": "Lets FOA staff verify where the listing works; never public (encrypted)",
+          "city": "Shows people roughly where the listing works",
+          "state": "Shows people roughly where the listing works",
+          "pin_code": "Shows people roughly where the listing works, and lets them search by distance",
+          "contact_phone_ciphertext": "Lets FOA reach the listing, and people too if it chose to show it (encrypted)",
+          "contact_email_ciphertext": "Lets FOA reach the listing, and people too if it chose to show it (encrypted)",
+          "website": "Points people to the listing's own site, if it chose to show it",
+          "public_contact_fields": "Records which contacts the listing chose to show the public",
+          "status_reason": "Records the reason for the listing's latest status change",
+          "owner_user_id": "Links the listing to the person who registered it, its first representative",
+          "status_changed_by_user_id": "Records who last changed the listing's status"
+        },
         "institution_invitation": {
           "accepted_by_user_id": "Records which account accepted the invitation",
           "identifier_ciphertext": "The email or mobile number a coordinator invitation goes to (encrypted)",
@@ -475,6 +503,18 @@
           "reason": "Why FOA must keep the records, in the super admin's words (a claim, an inquiry)",
           "placed_by_user_id": "Records which super admin placed the hold",
           "released_by_user_id": "Records which super admin released the hold"
+        },
+        "volunteer_application": {
+          "applicant_user_id": "Links the application to the person who applied, so they can follow it and FOA can grant them the volunteer role",
+          "participant_profile_id": "The participant profile the date of birth came from: a teen's, kept by their guardian, or an adult's own",
+          "date_of_birth_ciphertext": "The date of birth the age rules were checked against when the person applied (encrypted)",
+          "interests": "The areas the person offered to help with, so a community manager can place them",
+          "availability": "When the person said they are free each week, and their note about it",
+          "guardian_user_id": "The verified guardian who approved or declined a 14- to 17-year-old's application",
+          "safeguarding_consent_id": "The safeguarding declaration the approval rested on",
+          "conduct_consent_id": "The code of conduct acceptance the approval rested on",
+          "decline_reason_ciphertext": "Why a community manager declined, as the applicant was told (encrypted)",
+          "decided_by_user_id": "The community manager who approved or declined the application"
         }
       }
     },
@@ -556,6 +596,10 @@
           "name": "Breach log",
           "rule": "Kept while the breach is open, then deleted, with its timeline and notices, 5 years after it is closed."
         },
+        "volunteerApplications": {
+          "name": "Closed volunteer applications",
+          "rule": "A declined or withdrawn application is deleted {days, plural, one {# day} other {# days}} after it closes. An approved one stays while the person volunteers."
+        },
         "financialRecords": {
           "name": "Payment records",
           "rule": "The payer's details are removed {days, plural, one {# day} other {# days}} after the payment's last activity, and never before 8 years after the end of its financial year."
@@ -571,6 +615,10 @@
         "institutions": {
           "name": "Institutions",
           "rule": "Kept while the institution takes part, then 3 years after its last competition. No daily job yet."
+        },
+        "directoryListings": {
+          "name": "Directory listings",
+          "rule": "Kept while the listing is in the directory, then 3 years after it is withdrawn, rejected or last changed. No daily job yet."
         },
         "posts": {
           "name": "Blog posts and stories",
@@ -663,6 +711,10 @@
         "announcements": {
           "name": "Announcements",
           "rule": "While the competition's records are kept. No daily job yet."
+        },
+        "campaigns": {
+          "name": "Campaigns",
+          "rule": "While the campaign's records are kept. No daily job yet."
         }
       }
     },

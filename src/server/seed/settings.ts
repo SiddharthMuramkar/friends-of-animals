@@ -21,6 +21,9 @@ const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "sms.enabled": true,
   // The accountant's export waits for HR-47 in production (#109).
   "ledger.accountantExport": true,
+  // Volunteer applications (#123) open where nothing is real; production
+  // keeps them closed until HR-55 and HR-38.
+  "volunteers.applicationsOpen": true,
 };
 
 /**
