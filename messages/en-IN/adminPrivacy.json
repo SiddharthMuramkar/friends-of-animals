@@ -25,6 +25,7 @@
         "content_subject": "Person described in the content",
         "guardian_contact": "Guardian contact recorded for the participant",
         "institution": "Institution",
+        "directory_listing": "Organisation or person listed in the directory",
         "invitee": "Person invited",
         "participant_profile": "Participant profile",
         "payer": "Payer",
@@ -47,6 +48,7 @@
       "periods": {
         "accounts": "While the account is open",
         "institutions": "While the institution takes part, then 3 years after its last competition",
+        "directoryListings": "While the listing is in the directory, then 3 years after it is withdrawn, rejected or last changed",
         "coordinatorInvitations": "90 days after the invitation is accepted, withdrawn or expires",
         "coordinatorInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
         "safeguardingReports": "While the report is open, then 7 years after it is resolved or until the child concerned turns 25, whichever is later",
@@ -320,6 +322,22 @@
           "status_reason": "Records the reason staff gave for the institution decision",
           "verified_by": "Records which FOA staff member verified the institution"
         },
+        "directory_listing": {
+          "slug": "Gives the listing its public address, made from its name",
+          "name": "Names the organisation, or the rescuer or foster caregiver, on the directory",
+          "description": "Says what the listing does, in its own words",
+          "address_ciphertext": "Lets FOA staff verify where the listing works; never public (encrypted)",
+          "city": "Shows people roughly where the listing works",
+          "state": "Shows people roughly where the listing works",
+          "pin_code": "Shows people roughly where the listing works, and lets them search by distance",
+          "contact_phone_ciphertext": "Lets FOA reach the listing, and people too if it chose to show it (encrypted)",
+          "contact_email_ciphertext": "Lets FOA reach the listing, and people too if it chose to show it (encrypted)",
+          "website": "Points people to the listing's own site, if it chose to show it",
+          "public_contact_fields": "Records which contacts the listing chose to show the public",
+          "status_reason": "Records the reason for the listing's latest status change",
+          "owner_user_id": "Links the listing to the person who registered it, its first representative",
+          "status_changed_by_user_id": "Records who last changed the listing's status"
+        },
         "institution_invitation": {
           "accepted_by_user_id": "Records which account accepted the invitation",
           "identifier_ciphertext": "The email or mobile number a coordinator invitation goes to (encrypted)",
@@ -583,6 +601,10 @@
         "institutions": {
           "name": "Institutions",
           "rule": "Kept while the institution takes part, then 3 years after its last competition. No daily job yet."
+        },
+        "directoryListings": {
+          "name": "Directory listings",
+          "rule": "Kept while the listing is in the directory, then 3 years after it is withdrawn, rejected or last changed. No daily job yet."
         },
         "posts": {
           "name": "Blog posts and stories",

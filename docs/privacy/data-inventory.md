@@ -45,6 +45,13 @@ Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
 
+A directory listing (#127) can be an individual rescuer's or foster caregiver's own,
+so its name, slug, description, place and contacts are personal data. Its address,
+phone and email are encrypted; city, state and pin code stay plain because the
+public page shows them. The policy `directoryListings` keeps it while it is in the
+directory (no daily job yet, HR-31). Its documents are files of purpose
+`directory_document`, which only staff open.
+
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 

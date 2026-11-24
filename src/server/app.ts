@@ -42,6 +42,7 @@ import { entriesUseCases } from "./modules/entries";
 import { announcementsUseCases } from "./modules/announcements";
 import { privacyUseCases } from "./modules/privacy";
 import { breachesUseCases } from "./modules/breaches";
+import { directoryUseCases } from "./modules/directory";
 import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
@@ -76,6 +77,7 @@ const useCases = composeUseCases(
   announcementsUseCases,
   privacyUseCases,
   breachesUseCases,
+  directoryUseCases,
   volunteersUseCases,
   remindersUseCases,
   campaignsUseCases

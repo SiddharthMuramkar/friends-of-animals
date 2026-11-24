@@ -66,6 +66,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "accounts",
   /** Kept while the institution takes part; no job yet (HR-31). */
   "institutions",
+  /** Kept while the listing is in the directory; no job yet (HR-31). */
+  "directoryListings",
   /** Deleted with the post. */
   "posts",
   /** Kept with the revision, including after the staff account goes. */

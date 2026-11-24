@@ -26,6 +26,7 @@ import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
 import adminBreaches from "../../messages/en-IN/adminBreaches.json";
+import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
@@ -47,6 +48,7 @@ import coordinators from "../../messages/en-IN/coordinators.json";
 import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
+import directory from "../../messages/en-IN/directory.json";
 import donate from "../../messages/en-IN/donate.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
@@ -103,6 +105,7 @@ export const NAMESPACES = [
   "adminAnnouncements",
   "art",
   "adminBreaches",
+  "adminDirectory",
   "adminVolunteers",
   "campaigns",
   "auth",
@@ -124,6 +127,7 @@ export const NAMESPACES = [
   "contactForm",
   "credits",
   "dashboard",
+  "directory",
   "donate",
   "entries",
   "error",
@@ -184,6 +188,7 @@ export const messages = {
   ...adminAnnouncements,
   ...art,
   ...adminBreaches,
+  ...adminDirectory,
   ...adminVolunteers,
   ...campaigns,
   ...auth,
@@ -205,6 +210,7 @@ export const messages = {
   ...contactForm,
   ...credits,
   ...dashboard,
+  ...directory,
   ...donate,
   ...entries,
   ...error,

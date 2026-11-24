@@ -38,7 +38,27 @@ type InstitutionDecided<T extends `institution.${string}`> = {
   payload: { institutionId: string; userId: string };
 };
 
+/**
+ * Something happened to an NGO directory listing (#127). `userId` is the
+ * person who registered it, who hears of FOA's decisions.
+ */
+type DirectoryListingEvent<T extends `directory.${string}`> = {
+  type: T;
+  aggregate: { type: "directory_listing"; id: string };
+  payload: { listingId: string; userId: string };
+};
+
 export type DomainEvent =
+  /** A listing was registered, or renamed and sent back for review. */
+  | DirectoryListingEvent<"directory.listing_submitted">
+  /** FOA verified it: it is public, and its owner represents it. */
+  | DirectoryListingEvent<"directory.listing_verified">
+  /** FOA couldn't accept it; its owner may register again. */
+  | DirectoryListingEvent<"directory.listing_rejected">
+  /** Hidden from the public for now; its representatives keep the role. */
+  | DirectoryListingEvent<"directory.listing_suspended">
+  /** Public again after a suspension. */
+  | DirectoryListingEvent<"directory.listing_reinstated">
   | {
       type: "consent.form_reviewed";
       aggregate: { type: "consent_form"; id: string };
@@ -467,6 +487,10 @@ export type EventType = DomainEvent["type"];
 
 export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
 
+const DIRECTORY_LISTING_EVENT = z.object({
+  listingId: z.uuid(),
+  userId: z.uuid(),
+});
 const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
@@ -525,6 +549,11 @@ export const EVENT_PAYLOADS = {
     registrationId: z.uuid(),
     replacement: z.boolean(),
   }),
+  "directory.listing_submitted": DIRECTORY_LISTING_EVENT,
+  "directory.listing_verified": DIRECTORY_LISTING_EVENT,
+  "directory.listing_rejected": DIRECTORY_LISTING_EVENT,
+  "directory.listing_suspended": DIRECTORY_LISTING_EVENT,
+  "directory.listing_reinstated": DIRECTORY_LISTING_EVENT,
   "institution.verified": INSTITUTION_DECIDED,
   "institution.rejected": INSTITUTION_DECIDED,
   "institution.suspended": INSTITUTION_DECIDED,
@@ -669,6 +698,13 @@ export const SUBSCRIBERS = {
   "entry.submitted": ["notifications.dispatch"],
   "entry.file_rejected": ["notifications.dispatch"],
   "entry.file_failed": ["notifications.dispatch"],
+  // The owner hears FOA's decisions by route row (#127). No route names
+  // a submission yet: staff find it in the review queue.
+  "directory.listing_submitted": ["notifications.dispatch"],
+  "directory.listing_verified": ["notifications.dispatch"],
+  "directory.listing_rejected": ["notifications.dispatch"],
+  "directory.listing_suspended": ["notifications.dispatch"],
+  "directory.listing_reinstated": ["notifications.dispatch"],
   "institution.verified": ["notifications.dispatch"],
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],

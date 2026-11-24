@@ -588,6 +588,28 @@ How long the off-site copy keeps a File after it has gone from R2 (30 days
 unless set), counted from the first night the copy found it gone.
 _Avoid_: Grace period, TTL
 
+## NGO directory
+
+**Directory listing**:
+An animal-welfare organisation's entry in FOA's directory, or an individual
+rescuer's or foster caregiver's own: what it does, where, and how to reach it.
+It stays private until FOA verifies it, and the public sees only the contacts
+it chose to show, never its address. The listing is the organisation that
+representatives and adoption listings belong to.
+_Avoid_: NGO profile, organisation page, directory entry
+
+**Organisation representative**:
+The Role, scoped to one Directory listing, of a person who keeps it up to date.
+The person who registered a listing gets it when FOA first verifies the
+listing; a super admin can grant it to others.
+_Avoid_: NGO admin, listing owner (after verification)
+
+**Listing document**:
+Proof a Directory listing sends for FOA's verification, such as a registration
+certificate or an identity proof. It is a File only Staff can open, not even
+the person who uploaded it.
+_Avoid_: Attachment, KYC document
+
 ## Engineering
 
 **Seed builder**:

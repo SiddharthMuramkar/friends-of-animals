@@ -382,6 +382,24 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "read_at",
     "template_key",
   ],
+  directory_listing: [
+    "created_at",
+    "id",
+    "services",
+    "status",
+    "status_changed_at",
+    "type",
+    "updated_at",
+    "verified_at",
+  ],
+  // A label on a file: the file's own row names its uploader.
+  directory_listing_document: [
+    "created_at",
+    "file_asset_id",
+    "id",
+    "kind",
+    "listing_id",
+  ],
   institution: [
     "address",
     "city",

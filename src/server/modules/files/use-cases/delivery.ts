@@ -3,8 +3,10 @@
 //   getFileDownloadUrl({ fileId }) → the uploader; staff admins and super
 //                                    admins once the file is clean.
 //   Entry pictures are delivered by Entries as live derivatives.
-// Consent forms are available only to staff admins and super admins after
-// scanning. Other files also allow uploader access under the status gate.
+// Signed consent forms (#83) and directory listings' documents (#127) are
+// staff-only: their module's own rule decides who reads them, after the
+// scan, and their uploader is not among them. Other files also allow
+// uploader access under the status gate.
 //
 // Files are served straight from object storage through a short-lived
 // signed GET URL, never through a Vercel function and never from a public
@@ -16,6 +18,7 @@
 import { eq } from "drizzle-orm";
 
 import { authorize, can } from "../../../access/can";
+import type { Action } from "../../../access/policies";
 import { recordAudit } from "../../../audit/record";
 import { fileAsset } from "../../../db/schema";
 import { DomainError } from "../../../errors";
@@ -30,10 +33,20 @@ import {
 import {
   isFilePurposeAvailable,
   STORABLE_CONTENT_TYPES,
+  type FilePurpose,
 } from "../domain/purposes";
 import { hasCleanScan } from "./clean-scan";
 import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
+
+/**
+ * Purposes only staff read, each through its own module's rule; the
+ * uploader's ownership counts for nothing.
+ */
+const STAFF_READ_ACTIONS: Partial<Record<FilePurpose, Action>> = {
+  consent_form: "consent_form.read",
+  directory_document: "directory.document.read",
+};
 
 /** How long a download URL works. */
 export const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
@@ -64,17 +77,18 @@ export async function getFileDownloadUrl(
   const file = await findReadableFile(ctx, fileId);
   if (!file) return { ok: false, error: "not_found" };
 
-  const signedForm = file.purpose === "consent_form";
-  const policy = signedForm
-    ? { allowed: true as const, ...(await authorize(ctx, "consent_form.read")) }
+  const staffAction = STAFF_READ_ACTIONS[file.purpose];
+  const staffOnly = staffAction !== undefined;
+  const policy = staffOnly
+    ? { allowed: true as const, ...(await authorize(ctx, staffAction)) }
     : await can(ctx, "file.read", { ownerId: file.ownerUserId });
-  if (signedForm && !isFilePurposeAvailable(file.purpose, ctx.files.appEnv)) {
+  if (staffOnly && !isFilePurposeAvailable(file.purpose, ctx.files.appEnv)) {
     return { ok: false, error: "file_unavailable" };
   }
   const decision = deliveryDecision({
     status: file.status,
     isOwner:
-      !signedForm &&
+      !staffOnly &&
       ctx.actor.kind === "user" &&
       ctx.actor.userId === file.ownerUserId,
     authorized: policy.allowed,
@@ -85,7 +99,7 @@ export async function getFileDownloadUrl(
     }
     return { ok: false, error: decision.reason };
   }
-  if (signedForm && !(await hasCleanScan(ctx.storage, file))) {
+  if (staffOnly && !(await hasCleanScan(ctx.storage, file))) {
     return { ok: false, error: "file_unavailable" };
   }
 
