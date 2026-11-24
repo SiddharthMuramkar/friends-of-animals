@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { Illustration } from "@/components/art/illustration";
@@ -51,12 +52,39 @@ export async function SeasonalCard({
     return (
       <SeasonalCalendar
         initialMonth={current.month}
-        legend={t("monthPicker")}
-        className={cardClass}
-        months={months.map(({ entry, name, initial, titleId }) => ({
-          number: entry.month,
+        className={cn(
+          cardClass,
+          "items-start lg:grid-rows-[auto_1fr] lg:gap-y-6"
+        )}
+        picker={
+          <fieldset className="mt-6 grid min-w-0 grid-cols-3 gap-2 @min-[13.5rem]/seasonal-month:grid-cols-4 @min-[20.5rem]/seasonal-month:grid-cols-6">
+            <legend className="sr-only">{t("monthPicker")}</legend>
+            {months.map(({ entry, name, initial }) => (
+              <label
+                key={entry.month}
+                title={name}
+                className="relative grid aspect-square min-h-12 max-h-16 cursor-pointer place-items-center rounded-[22%] bg-surface font-display text-sm font-bold text-ink-muted hover:ring-2 hover:ring-teal-700 has-checked:bg-teal-700 has-checked:text-white has-checked:shadow-warm has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
+              >
+                <input
+                  name={`${id}-months`}
+                  type="radio"
+                  value={entry.month}
+                  defaultChecked={entry.month === current.month}
+                  autoComplete="off"
+                  className="peer absolute inset-0 size-full cursor-pointer opacity-0"
+                />
+                <span className="sr-only">{name}</span>
+                <span aria-hidden="true">{initial}</span>
+                <Check
+                  aria-hidden="true"
+                  className="absolute top-1 right-1 hidden size-3 peer-checked:block"
+                />
+              </label>
+            ))}
+          </fieldset>
+        }
+        months={months.map(({ entry, name, titleId }) => ({
           name,
-          initial,
           title: entry.title,
           titleId,
           copy: (
