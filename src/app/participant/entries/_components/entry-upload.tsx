@@ -102,7 +102,8 @@ export async function EntryUpload({ options, ...props }: Props) {
       text: form("essay.text"),
       textHint: form("essay.textHint", { max: maxWords }),
       textRequired: form("essay.textRequired"),
-      count: form("essay.count", { max: maxWords }),
+      // The form fills in {count} as the participant types.
+      count: form("essay.count", { max: maxWords, count: "{count}" }),
       submit: form("submit"),
       replace: form("essay.replace"),
       retry: form("essay.retry"),

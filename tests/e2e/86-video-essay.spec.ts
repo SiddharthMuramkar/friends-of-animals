@@ -25,6 +25,10 @@ import { signInByCode } from "./support/sign-in";
 // a clip before uploading it; the essay shows as text, and its replacement
 // form counts words as they are typed and saves a new essay at once.
 
+// Both journeys sign Ravi in by email code; a second code for the same
+// address replaces the first, so they run one after the other.
+test.describe.configure({ mode: "serial" });
+
 const ENTRIES = "/participant/entries";
 const VIDEO = `${ENTRIES}/ROOF27-E-5EEDB1`;
 const ESSAY = `${ENTRIES}/BIRDS27-E-5EEDB2`;
