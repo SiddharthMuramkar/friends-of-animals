@@ -45,6 +45,7 @@ import {
   ENTRY_RECEIPT_VARIABLES,
   entryValues,
 } from "../entries/message-values";
+import { CAMPAIGN_VARIABLES, campaignEventValues } from "../campaigns/render";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
 import {
@@ -219,6 +220,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "volunteer.application_declined":
       // About an application (#123): `volunteer_applicant`,
       // `volunteer_guardians` and `community_managers` find who hears.
+      return null;
+    case "campaign.message_due":
+      // The campaigns module sends it to its planned recipient (#126).
       return null;
   }
 }
@@ -406,6 +410,12 @@ export const AUDIENCES = {
   },
   /** Everyone holding the community manager role everywhere (#123). */
   community_managers: async (db) => communityManagers(db),
+  /**
+   * A campaign's recipient (#126): the campaigns handler sends to the
+   * person it planned, on the consent the message rests on, so the generic
+   * resolver grants no recipients.
+   */
+  campaign_recipient: async () => [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -656,6 +666,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: DECLINED_VARIABLES,
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
+  },
+  "campaign.message_due": {
+    names: CAMPAIGN_VARIABLES,
+    load: (db, { payload }) => campaignEventValues(db, payload.campaignId),
   },
 };
 

@@ -137,6 +137,14 @@ export function adminBreachPath(breachId: string): string {
   return `${ADMIN_BREACHES}/${encodeURIComponent(breachId)}`;
 }
 
+/** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_CAMPAIGNS = "/admin/campaigns";
+export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
+
+export function adminCampaignPath(campaignId: string): string {
+  return `${ADMIN_CAMPAIGNS}/${encodeURIComponent(campaignId)}`;
+}
+
 /** Where a competition manager or staff admin asks for a batch's refund. */
 export function adminBatchRefundPath(batchId: string): string {
   return `${adminPaymentBatchPath(batchId)}/refund`;
@@ -320,6 +328,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/refunds/[id]",
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
+  ADMIN_CAMPAIGNS,
+  ADMIN_NEW_CAMPAIGN,
+  "/admin/campaigns/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,
@@ -363,6 +374,17 @@ export const INVITATIONS_PREFIX = "/invitations";
  */
 export function invitationPath(token: string): string {
   return `${INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+/**
+ * Where a campaign message's withdrawal link opens (#126). The path carries
+ * its token, the bearer credential, so analytics leaves the prefix out
+ * (src/lib/analytics/umami.ts). Anyone holding the link can open it.
+ */
+export const WITHDRAWAL_PREFIX = "/withdraw";
+
+export function withdrawalPath(token: string): string {
+  return `${WITHDRAWAL_PREFIX}/${encodeURIComponent(token)}`;
 }
 
 /**

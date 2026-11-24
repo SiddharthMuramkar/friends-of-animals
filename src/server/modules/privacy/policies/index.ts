@@ -110,6 +110,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryPendingText",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
+  /** Campaigns (#126): kept with the campaign's record. */
+  "campaigns",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

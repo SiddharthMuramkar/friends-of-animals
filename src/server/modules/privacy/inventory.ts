@@ -384,6 +384,15 @@ const ANNOUNCEMENT_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Campaigns (#126): who wrote and sent each, and who each message went to. */
+const CAMPAIGN_RECORD = {
+  policy: "campaigns",
+  periodKey: "campaigns",
+  basis:
+    "Shows FOA who wrote and sent each campaign and who it reached on which consent, and lets a withdrawal by link find them",
+  toConfirm: true,
+} as const;
+
 /** A competition-scoped consent: what a signed form or code link recorded. */
 const COMPETITION_CONSENT_RECORD = {
   ...CONSENT_RECORD,
@@ -1195,6 +1204,20 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   },
   actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+  // Campaigns (#126): staff accounts, and each message's recipient and the
+  // consents it rested on.
+  actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
+  actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
+  rowsOf("campaign_recipient", {
+    subject: { kind: "user", via: "user_id" },
+    retention: CAMPAIGN_RECORD,
+    onExpiry: "delete_row",
+  })("user_id", "identity"),
+  rowsOf("campaign_recipient", {
+    subject: { kind: "consent_subject", via: "bases" },
+    retention: CAMPAIGN_RECORD,
+    onExpiry: "delete_row",
+  })("bases", "identity"),
   // Legal holds (#114): a released hold stays as the record of who held
   // what and why, until the releasedLegalHolds policy deletes it.
   ...(

@@ -44,6 +44,9 @@ export { recordSignUpConsent } from "./consents";
 // Not a use case either: registerAsIndividual (#78) calls it inside the
 // transaction that saves the registration, after authorizing the member.
 export { recordRegistrationConsents } from "./consents";
+// Not a use case either (#126): a campaign message's withdrawal link calls
+// it, after authorizing the link's holder.
+export { withdrawByMessageLink, type MessageLinkConsent } from "./consents";
 export {
   giveChildConsentInput,
   publicUse,

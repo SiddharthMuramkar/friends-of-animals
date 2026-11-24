@@ -93,6 +93,7 @@
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
         "announcements": "While the competition's records are kept",
+        "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers"
       },
@@ -109,6 +110,14 @@
           "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
           "created_by": "Records which competition manager wrote the announcement",
           "sent_by": "Records which competition manager sent the announcement"
+        },
+        "campaign": {
+          "created_by": "Records which community manager wrote the campaign",
+          "sent_by": "Records which community manager sent the campaign"
+        },
+        "campaign_recipient": {
+          "user_id": "Records who a campaign message went to, so a withdrawal by its link reaches them",
+          "bases": "Records whose consent each campaign message rested on: the recipient's own or their child's"
         },
         "audit_log": {
           "actor_user_id": "Records which account took the action",
@@ -665,6 +674,10 @@
         "announcements": {
           "name": "Announcements",
           "rule": "While the competition's records are kept. No daily job yet."
+        },
+        "campaigns": {
+          "name": "Campaigns",
+          "rule": "While the campaign's records are kept. No daily job yet."
         }
       }
     },
