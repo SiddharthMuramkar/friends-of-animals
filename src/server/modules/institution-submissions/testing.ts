@@ -4,8 +4,15 @@
 // the app imports it.
 
 import type { Actor } from "@/server/actor";
-import { enrol, schoolWithStudents } from "@/server/modules/payments/testing";
-import { registeredSchool } from "@/server/modules/registration/testing";
+import {
+  enrol,
+  schoolWithStudents,
+  setInstitutionFee,
+} from "@/server/modules/payments/testing";
+import {
+  registeredSchool,
+  STUDENT_AGE_GROUPS,
+} from "@/server/modules/registration/testing";
 import type { SeedCompetitionOptions } from "@/server/seed/competitions";
 import type { Harness } from "@/test/harness";
 
@@ -65,4 +72,44 @@ export async function otherSchool(
   competition: SeedCompetitionOptions = { code: "SKIES27" }
 ) {
   return registeredSchool(h, { name: "Other School", competition });
+}
+
+/** The adult student's own email, where their receipt goes. */
+export const ADULT_STUDENT_EMAIL = "meera.iyer@example.test";
+
+/**
+ * A college registered for a free competition with an adult age group, and
+ * one adult student, Meera Iyer, enrolled with her own email and confirmed.
+ */
+export async function schoolWithAdultStudent(h: Harness) {
+  const school = await registeredSchool(h, {
+    name: "Test College",
+    competition: {
+      code: "ADULT27",
+      ageGroups: [
+        ...STUDENT_AGE_GROUPS,
+        { label: "Adults", minAge: 18, maxAge: 99 },
+      ],
+    },
+  });
+  await setInstitutionFee(h, school, 0n);
+  const enrolled = await h.as(school.coordinator.actor).enrolStudent({
+    institutionId: school.institutionId,
+    reference: school.reference,
+    student: {
+      fullName: "Meera Iyer",
+      dateOfBirth: "2005-03-14",
+      grade: "BA year 2",
+      phone: "90000 00401",
+      email: ADULT_STUDENT_EMAIL,
+    },
+  });
+  if (!enrolled.ok) throw new Error(`Could not enrol: ${enrolled.error}`);
+  const paid = await h.as(school.coordinator.actor).payInstitutionFees({
+    institutionId: school.institutionId,
+    reference: school.reference,
+  });
+  if (!paid.ok) throw new Error(`Could not confirm: ${JSON.stringify(paid)}`);
+  await h.drain();
+  return { ...school, studentRegistrationId: enrolled.registrationId };
 }

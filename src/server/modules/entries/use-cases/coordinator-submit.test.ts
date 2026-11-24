@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   auditLog,
   competition,
+  inboxItem,
   competitionKeyDate,
   entry,
   entryFile,
@@ -12,9 +13,12 @@ import {
 } from "@/server/db/schema";
 import { DomainError } from "@/server/errors";
 import {
+  ADULT_STUDENT_EMAIL,
   confirmedSchool,
   otherSchool,
+  schoolWithAdultStudent,
 } from "@/server/modules/institution-submissions/testing";
+import { guardianEmail } from "@/server/modules/payments/testing";
 import { createHarness, type Harness } from "@/test/harness";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
 import { readMediaFixture } from "@/test/media-fixtures";
@@ -301,5 +305,57 @@ describe("upload allowances", () => {
         file: FILE,
       })
     ).toEqual({ ok: false, error: "upload_limit" });
+  });
+});
+
+describe("the family's receipt", () => {
+  it("tells a minor's guardian the Entry ID once the entry is submitted, and nobody else", async () => {
+    const h = await createHarness();
+    const school = await confirmedSchool(h);
+    const code = await submittedImage(h, school.forStudent(1));
+    const sentBefore = h.email.sent.length;
+    const inboxBefore = await h.db.select().from(inboxItem);
+
+    await h.drain();
+
+    const sent = h.email.sent.slice(sentBefore);
+    expect(sent.map((mail) => mail.to)).toEqual([guardianEmail(1)]);
+    expect(sent[0]!.subject).toContain(code);
+    expect(sent[0]!.text).toContain(code);
+    expect(sent[0]!.text).toContain("Student A Rao");
+    expect(sent[0]!.text).toContain("Test School");
+    expect(await h.db.select().from(inboxItem)).toEqual(inboxBefore);
+  });
+
+  it("tells an adult student themselves", async () => {
+    const h = await createHarness();
+    const college = await schoolWithAdultStudent(h);
+    const code = await submittedImage(h, {
+      actor: college.coordinator.actor,
+      registrationId: college.studentRegistrationId,
+    });
+    const sentBefore = h.email.sent.length;
+
+    await h.drain();
+
+    const sent = h.email.sent.slice(sentBefore);
+    expect(sent.map((mail) => mail.to)).toEqual([ADULT_STUDENT_EMAIL]);
+    expect(sent[0]!.text).toContain("Hello Meera Iyer");
+    expect(sent[0]!.text).toContain(code);
+  });
+
+  it("sends nothing for a replacement going live", async () => {
+    const h = await createHarness();
+    const school = await confirmedSchool(h);
+    await submittedImage(h, school.forStudent(1));
+    await h.drain();
+    const sentBefore = h.email.sent.length;
+
+    await submittedImage(h, school.forStudent(1), {
+      bytes: readMediaFixture("rotatedJpeg"),
+    });
+    await h.drain();
+
+    expect(h.email.sent.slice(sentBefore)).toEqual([]);
   });
 });
