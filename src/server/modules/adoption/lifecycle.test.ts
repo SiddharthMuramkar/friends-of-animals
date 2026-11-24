@@ -132,12 +132,10 @@ describe("photos", () => {
     const second = await addPhoto(h, rep, adoptionListingId);
 
     expect(
-      await h
-        .as(rep.actor)
-        .describeAdoptionPhoto({
-          photoId: first.photoId,
-          altText: "Bruno, up close",
-        })
+      await h.as(rep.actor).describeAdoptionPhoto({
+        photoId: first.photoId,
+        altText: "Bruno, up close",
+      })
     ).toMatchObject({ ok: true });
     expect(
       await h.as(rep.actor).removeAdoptionPhoto({ photoId: second.photoId })

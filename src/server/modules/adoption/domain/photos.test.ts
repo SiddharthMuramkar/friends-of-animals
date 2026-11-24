@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { IMAGE_DERIVATIVES } from "../../files/domain/media-work";
 import {
   ADOPTION_PHOTO_KINDS,
   ADOPTION_PHOTO_LIMITS,
@@ -77,5 +78,11 @@ describe("photo limits", () => {
       "display_800",
       "display_1600",
     ]);
+  });
+});
+
+describe("ADOPTION_PHOTO_KINDS", () => {
+  it("are the copies the Files module makes of an adoption photo", () => {
+    expect(IMAGE_DERIVATIVES.adoption_photo).toEqual([...ADOPTION_PHOTO_KINDS]);
   });
 });

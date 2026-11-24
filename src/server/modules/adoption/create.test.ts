@@ -26,11 +26,9 @@ describe("createAdoptionListing", () => {
       slug: "bruno-dog-pune",
     });
     if (!result.ok) return;
-    const mine = await h
-      .as(rep.actor)
-      .getAdoptionListingForOwner({
-        adoptionListingId: result.adoptionListingId,
-      });
+    const mine = await h.as(rep.actor).getAdoptionListingForOwner({
+      adoptionListingId: result.adoptionListingId,
+    });
     expect(mine).toMatchObject({
       ok: true,
       listing: {
@@ -76,11 +74,9 @@ describe("createAdoptionListing", () => {
     expect(row?.birthMonth).toBe("2026-08-01");
 
     h.clock.advance({ days: 62 });
-    const mine = await h
-      .as(rep.actor)
-      .getAdoptionListingForOwner({
-        adoptionListingId: result.adoptionListingId,
-      });
+    const mine = await h.as(rep.actor).getAdoptionListingForOwner({
+      adoptionListingId: result.adoptionListingId,
+    });
     expect(mine.ok && mine.listing.details.age).toEqual({
       years: 0,
       months: 7,
