@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 import { SEED_COORDINATORS } from "../../src/server/seed/coordinators";
 import { SEED_PAYMENTS } from "../../src/server/seed/payments";
@@ -7,6 +7,7 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
+import { test } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
 // #87's Seam 2 journey: on the school route the seeded school's
@@ -18,6 +19,10 @@ import { signInByCode } from "./support/sign-in";
 // Trees for Birds, mobile Kinder Skies), so the two never meet on one
 // database. Uploads stay "checking" here: no worker runs in E2E, and the
 // scan and the family's receipt are Seam 1's.
+//
+// The upload is the seeded coordinator's: an uploaded file keeps its owner,
+// so a throwaway account couldn't be removed after the test. Certifying is
+// a fresh coordinator's, so the two tests never wait on one sign-in code.
 
 const SCHOOL = SEED_SCOPES.institution.id;
 const TREES = "TREES27-I-5EED3";
@@ -123,9 +128,19 @@ test("a coordinator follows every student's entry and uploads one student's work
 test("a coordinator certifies the competition's conduct once", async ({
   page,
   request,
+  seedAccount,
 }, testInfo) => {
   const { certify } = forProject(testInfo.project.name);
-  await signInByCode(page, request, SEED_COORDINATORS.coordinator.email);
+  const email = await seedAccount({
+    name: "Sunita Kale",
+    grants: [
+      {
+        role: "institution_coordinator",
+        scope: { type: "institution", id: SCHOOL },
+      },
+    ],
+  });
+  await signInByCode(page, request, email);
 
   await expectRendersAccessibly(page, roster(certify));
   await page.getByRole("link", { name: "Certify conduct" }).click();
@@ -142,11 +157,7 @@ test("a coordinator certifies the competition's conduct once", async ({
   await expect(
     page.getByText("Thank you. The competition’s conduct is certified.")
   ).toBeVisible();
-  await expect(
-    page.getByText(
-      new RegExp(`Certified by ${SEED_COORDINATORS.coordinator.name} on`)
-    )
-  ).toBeVisible();
+  await expect(page.getByText(/Certified by Sunita Kale on/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Certify conduct" })
   ).toHaveCount(0);
