@@ -154,6 +154,7 @@ describe("resolveAllSettings", () => {
       ["org.registrationNumber", "", "default"],
       ["org.pan", "", "default"],
       ["safeguarding.reportsPerIpPerHour", 10, "default"],
+      ["breach.authorityEmail", "", "default"],
       ["retention.enforce", false, "default"],
       ["retention.expiredVerificationsDays", 1, "default"],
       ["retention.expiredSessionsDays", 30, "default"],

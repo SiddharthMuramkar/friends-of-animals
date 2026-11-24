@@ -85,6 +85,10 @@ export const SETTINGS = {
     max: 100,
     unit: "reports",
   }),
+  // Breaches (#116): where a breach notice to the authority is emailed.
+  // Empty until FOA's counsel names the channel (HR-49); staff then file
+  // the notice by hand and record the authority's reference.
+  "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel

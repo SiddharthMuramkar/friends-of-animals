@@ -18,6 +18,7 @@
       "subjectKinds": {
         "audit_target": "Target of the audit action",
         "author": "Post author",
+        "breach_affected": "Person affected by the breach",
         "consent_giver": "Person who gave the consent",
         "consent_subject": "Person the consent is for",
         "contact_sender": "Contact sender",
@@ -49,6 +50,7 @@
         "coordinatorInvitations": "90 days after the invitation is accepted, withdrawn or expires",
         "coordinatorInvitationLinks": "Until the invitation is accepted, withdrawn or expires",
         "safeguardingReports": "While the report is open, then 7 years after it is resolved or until the child concerned turns 25, whichever is later",
+        "breachRecords": "While the breach is open, then 5 years after the breach is closed",
         "posts": "While the post exists. Deleted with it",
         "financialRecords": {
           "payments": "8 years after the end of the financial year of the payment",
@@ -114,6 +116,26 @@
           "entity_id": "Names the record acted on, which is a person's account or profile for some actions",
           "ip": "The network address the action came from, to look into misuse",
           "user_agent": "The browser the action came from, to look into misuse"
+        },
+        "breach_fan_out": {
+          "after_user_id": "Account cursor for resuming a breach notice job, cleared on completion"
+        },
+        "breach_notification": {
+          "recipient_user_id": "Shows who was told of the breach, about themselves or a child they look after, so each person is told once",
+          "guardian_profile_ids": "Child profiles used to recheck a queued notice's guardian links, cleared when that channel settles"
+        },
+        "breach_record": {
+          "title_ciphertext": "A short label for the breach in the log, which may identify someone (encrypted)",
+          "impact_ciphertext": "What happened and what it means for the people affected, which may name them (encrypted)",
+          "authority_reference_ciphertext": "The reference the authority gave a breach notice filed by hand, to follow it up with them (encrypted)",
+          "lead_user_id": "Records which member of staff recorded and leads the response"
+        },
+        "breach_timeline_event": {
+          "note_ciphertext": "Staff notes over the breach's life, and why it closed without a notice, which may name people (encrypted)",
+          "author_user_id": "Records which member of staff made each change to the breach"
+        },
+        "breach_unreachable": {
+          "subject_id": "Lists the accounts and child profiles a notice couldn't reach (no account, or a child with no guardian), so staff can reach them another way"
         },
         "captured_message": {
           "body_html": "A captured message's words as sent, which may hold the person's name or code",
@@ -514,6 +536,10 @@
         "safeguardingReports": {
           "name": "Safeguarding reports",
           "rule": "Deleted, with their incident log, 7 years after they are resolved or when the child turns 25, whichever is later."
+        },
+        "breachRecords": {
+          "name": "Breach log",
+          "rule": "Kept while the breach is open, then deleted, with its timeline and notices, 5 years after it is closed."
         },
         "financialRecords": {
           "name": "Payment records",

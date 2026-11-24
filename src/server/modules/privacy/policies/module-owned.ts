@@ -1,15 +1,22 @@
-// The safeguarding module owns the retention date for each report (#116).
-// The sweep checks the relevant user holds before deleting the report and
-// its incident log (ON DELETE CASCADE).
+// The safeguarding module owns the retention date for each report, and the
+// breach log for each breach (#116). The sweep checks the relevant user
+// holds before deleting a report with its incident log, or a breach with
+// its timeline, notices and unreachable list (ON DELETE CASCADE).
 
-import { and, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, lte } from "drizzle-orm";
 
 import {
+  breachRecord,
+  breachTimelineEvent,
   safeguardingIncidentLog,
   safeguardingReport,
 } from "../../../db/schema";
+import {
+  BREACH_RETENTION_POLICY,
+  YEARS_AFTER_CLOSE,
+} from "../../breaches/retention-policy";
 import { SAFEGUARDING_RETENTION_POLICY } from "../../safeguarding/retention-policy";
-import type { RetentionPolicy } from "./types";
+import { nextCursor, type RetentionPolicy } from "./types";
 
 export const SAFEGUARDING_REPORTS: RetentionPolicy = {
   key: SAFEGUARDING_RETENTION_POLICY.key,
@@ -63,6 +70,79 @@ export const SAFEGUARDING_REPORTS: RetentionPolicy = {
       await db
         .delete(safeguardingReport)
         .where(inArray(safeguardingReport.id, [...ids]));
+    }
+  },
+};
+
+export const BREACH_RECORDS: RetentionPolicy = {
+  key: BREACH_RETENTION_POLICY.key,
+  table: "breach_record",
+  action: BREACH_RETENTION_POLICY.action,
+  period: { kind: "fixed" },
+  async candidates(db, { now, after, limit }) {
+    // A closed breach goes on its fifth UTC anniversary of closing; scan
+    // those closed before the cutoff in id order, locking each breach.
+    const closedBy = new Date(now.getTime());
+    closedBy.setUTCFullYear(closedBy.getUTCFullYear() - YEARS_AFTER_CLOSE);
+    const rows = await db
+      .select({
+        id: breachRecord.id,
+        closedAt: breachRecord.closedAt,
+        lead: breachRecord.leadUserId,
+      })
+      .from(breachRecord)
+      .where(
+        and(
+          eq(breachRecord.status, "closed"),
+          lte(breachRecord.closedAt, closedBy),
+          after === null ? undefined : gt(breachRecord.id, after.id)
+        )
+      )
+      .orderBy(asc(breachRecord.id))
+      .limit(limit)
+      .for("update");
+    const due = rows.flatMap(({ id, closedAt, lead }) => {
+      if (closedAt === null) return [];
+      const anchor = new Date(closedAt);
+      anchor.setUTCFullYear(anchor.getUTCFullYear() + YEARS_AFTER_CLOSE);
+      return anchor <= now ? [{ id, lead, anchor }] : [];
+    });
+    const next = nextCursor(rows, limit);
+    if (due.length === 0) return { candidates: [], next };
+    const authors = await db
+      .selectDistinct({
+        breachId: breachTimelineEvent.breachId,
+        userId: breachTimelineEvent.authorUserId,
+      })
+      .from(breachTimelineEvent)
+      .where(
+        and(
+          inArray(
+            breachTimelineEvent.breachId,
+            due.map(({ id }) => id)
+          ),
+          isNotNull(breachTimelineEvent.authorUserId)
+        )
+      );
+    const candidates = due.map(({ id, lead, anchor }) => {
+      const users = new Set<string>();
+      if (lead !== null) users.add(lead);
+      for (const author of authors) {
+        if (author.breachId === id && author.userId !== null) {
+          users.add(author.userId);
+        }
+      }
+      return {
+        id,
+        anchor,
+        subjects: [...users].map((id) => ({ type: "user", id })),
+      };
+    });
+    return { candidates, next };
+  },
+  async apply(db, ids) {
+    if (ids.length > 0) {
+      await db.delete(breachRecord).where(inArray(breachRecord.id, [...ids]));
     }
   },
 };

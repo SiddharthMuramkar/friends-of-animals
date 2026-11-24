@@ -19,6 +19,7 @@ describe("the settings seed", () => {
     expect(first.map(({ key, value }) => ({ key, value }))).toEqual([
       { key: "auth.emailSignIn", value: true },
       { key: "auth.staffSessionHours", value: 12 },
+      { key: "breach.authorityEmail", value: "" },
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },
       // FOA's tax facts stay empty: previews show "To be confirmed" (#111).

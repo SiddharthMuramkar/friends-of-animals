@@ -48,6 +48,15 @@ own office contact details are stored plain and listed in the catalogue.
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 
+## Breach log
+
+A breach's title, impact, authority reference and timeline notes are
+encrypted, because they can name the people affected. The catalogue also
+lists who leads the response, who wrote each timeline entry, who was told,
+and the accounts and child profiles a notice couldn't reach. All of it is
+kept while the breach is open and for 5 years after it closes, then deleted
+with the breach (HR-31, pending confirmation).
+
 ## Scheduled retention
 
 The worker runs the retention sweep

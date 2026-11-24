@@ -114,6 +114,13 @@ export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
 }
 
+/** The breach log and its staff-only detail pages (#116). */
+export const ADMIN_BREACHES = "/admin/breaches";
+
+export function adminBreachPath(breachId: string): string {
+  return `${ADMIN_BREACHES}/${encodeURIComponent(breachId)}`;
+}
+
 /** Where a competition manager or staff admin asks for a batch's refund. */
 export function adminBatchRefundPath(batchId: string): string {
   return `${adminPaymentBatchPath(batchId)}/refund`;
@@ -295,6 +302,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/payments/review/[id]",
   ADMIN_REFUNDS,
   "/admin/refunds/[id]",
+  ADMIN_BREACHES,
+  "/admin/breaches/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,

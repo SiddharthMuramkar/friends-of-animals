@@ -148,6 +148,18 @@ const SAFEGUARDING_RECORD = {
   toConfirm: true,
 } as const;
 
+/**
+ * src/server/modules/breaches/retention-policy.ts picks the breaches past
+ * it for #114's sweep, which deletes each with its timeline and notices.
+ */
+const BREACH_RECORD = {
+  policy: "breachRecords",
+  periodKey: "breachRecords",
+  basis:
+    "Legal obligation: FOA shows the Data Protection Board what it knew, did and told whom about a personal data breach (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
 const LEGAL_HOLD = {
   policy: "releasedLegalHolds",
   periodKey: "releasedLegalHolds",
@@ -478,6 +490,20 @@ const incidentLog = rowsOf("safeguarding_incident_log", {
   subject: { kind: "safeguarding_report", via: "report_id" },
   retention: SAFEGUARDING_RECORD,
   onExpiry: "delete_row",
+});
+
+/** A breach's rows go with the breach (ON DELETE CASCADE). */
+const breachRows = (table: string, subject: Subject) =>
+  rowsOf(table, { subject, retention: BREACH_RECORD, onExpiry: "delete_row" });
+
+const breach = breachRows("breach_record", {
+  kind: "breach_affected",
+  via: "id",
+});
+
+const breachTimeline = breachRows("breach_timeline_event", {
+  kind: "breach_affected",
+  via: "breach_id",
 });
 
 const profile = rowsOf("participant_profile", {
@@ -841,6 +867,33 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   incidentLog("author_user_id", "identity", {
     subject: { kind: "user", via: "author_user_id" },
   }),
+  // The breach log (#116): breach staff (super and staff admins) read it.
+  breach("title_ciphertext", "content"),
+  breach("impact_ciphertext", "content"),
+  breach("authority_reference_ciphertext", "content"),
+  breach("lead_user_id", "identity", {
+    subject: { kind: "user", via: "lead_user_id" },
+  }),
+  breachTimeline("note_ciphertext", "content"),
+  breachTimeline("author_user_id", "identity", {
+    subject: { kind: "user", via: "author_user_id" },
+  }),
+  breachRows("breach_notification", {
+    kind: "user",
+    via: "recipient_user_id",
+  })("recipient_user_id", "identity"),
+  breachRows("breach_notification", {
+    kind: "participant_profile",
+    via: "guardian_profile_ids",
+  })("guardian_profile_ids", "identity"),
+  breachRows("breach_fan_out", { kind: "user", via: "after_user_id" })(
+    "after_user_id",
+    "identity"
+  ),
+  breachRows("breach_unreachable", {
+    kind: "breach_affected",
+    via: "subject_type + subject_id",
+  })("subject_id", "identity"),
   // Blog posts and stories (#112)
   ...["body", "easy_read", "excerpt", "seo_title", "slug", "title"].map(
     (column): InventoryField => ({

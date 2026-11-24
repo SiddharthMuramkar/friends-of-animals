@@ -30,7 +30,7 @@ import {
   MESSAGE_DELIVERIES,
   READ_INBOX_ITEMS,
 } from "./messages";
-import { SAFEGUARDING_REPORTS } from "./module-owned";
+import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
 import type { RetentionPolicy } from "./types";
@@ -53,6 +53,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   ORPHANED_PROFILES,
   CONTACT_MESSAGES,
   SAFEGUARDING_REPORTS,
+  BREACH_RECORDS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
 ];

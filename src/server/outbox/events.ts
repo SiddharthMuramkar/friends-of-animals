@@ -26,6 +26,7 @@ import {
   type WithdrawablePurpose,
 } from "../modules/consent/domain/purposes";
 import { FILE_PROCESSING_ERROR_CODES } from "../ports/media";
+import { BREACH_FAN_OUT_PAGE_SIZE } from "../modules/breaches/domain/notice-recipients";
 
 /**
  * FOA staff decided about an institution (#73). `userId` is its authorised
@@ -332,6 +333,38 @@ export type DomainEvent =
     }
   | {
       /**
+       * One person is to be told of a breach (#116). The dispatcher reads
+       * their saved scope in the breach log and checks it before each send.
+       */
+      type: "breach.principal_notice";
+      aggregate: { type: "breach"; id: string };
+      payload: {
+        breachId: string;
+        recipientUserId: string;
+      };
+    }
+  | {
+      /**
+       * Every account is to be told of a breach (#116): the fan-out job
+       * plans the next `pageSize` accounts after `afterUserId` (null: from
+       * the first), then saves itself again for the page after.
+       */
+      type: "breach.fan_out_requested";
+      aggregate: { type: "breach"; id: string };
+      payload: {
+        breachId: string;
+        afterUserId: string | null;
+        pageSize: number;
+      };
+    }
+  | {
+      /** The authority is to be emailed about a breach (#116). */
+      type: "breach.authority_notice";
+      aggregate: { type: "breach"; id: string };
+      payload: { breachId: string };
+    }
+  | {
+      /**
        * The registration's competition was cancelled (#80). Its family
        * contact (or the adult whose own it is) is told, with how its fee
        * comes back: `refund` says through the gateway, by hand, from the
@@ -467,6 +500,16 @@ export const EVENT_PAYLOADS = {
     announcementId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "breach.principal_notice": z.object({
+    breachId: z.uuid(),
+    recipientUserId: z.uuid(),
+  }),
+  "breach.fan_out_requested": z.object({
+    breachId: z.uuid(),
+    afterUserId: z.uuid().nullable(),
+    pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
+  }),
+  "breach.authority_notice": z.object({ breachId: z.uuid() }),
   "registration.competition_cancelled": z.object({
     registrationId: z.uuid(),
     competitionId: z.uuid(),
@@ -581,6 +624,13 @@ export const SUBSCRIBERS = {
   "guardian.guardian_requested": ["guardians.send_guardian_request"],
   // One handler reaches accounts and contact details from one roster (#84).
   "competition.announcement_sent": ["announcements.fan_out"],
+  // A breach notice goes by route row (audience `breach_recipient`, #116).
+  "breach.principal_notice": ["notifications.dispatch"],
+  // Plans one page of a breach's notices to every account, in the worker.
+  "breach.fan_out_requested": ["breaches.fan_out"],
+  // The authority is an address, not a user, so no route row can name it:
+  // the email goes by its own handler, with its route's template (#116).
+  "breach.authority_notice": ["breaches.send_authority_notice"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
   // guardians' go by route row (#80).

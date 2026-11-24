@@ -25,6 +25,7 @@ import adminLedger from "../../messages/en-IN/adminLedger.json";
 import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
+import adminBreaches from "../../messages/en-IN/adminBreaches.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -98,6 +99,7 @@ export const NAMESPACES = [
   "adminLedger",
   "adminAnnouncements",
   "art",
+  "adminBreaches",
   "auth",
   "authPhone",
   "awareness",
@@ -175,6 +177,7 @@ export const messages = {
   ...adminConsentForms,
   ...adminAnnouncements,
   ...art,
+  ...adminBreaches,
   ...auth,
   ...authPhone,
   ...awareness,

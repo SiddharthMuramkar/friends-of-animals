@@ -46,6 +46,10 @@ import {
 } from "../entries/message-values";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
+import {
+  AUTHORITY_NOTICE_VARIABLES,
+  PRINCIPAL_NOTICE_VARIABLES,
+} from "../breaches/notice-message";
 import { ownerOfRegistration } from "../participants/owner";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
@@ -160,6 +164,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "guardian.guardian_requested":
       // The guardian a teen names may have no account yet: the request
       // goes to the address the teen gave by its own handler (#81).
+      return null;
+    case "breach.principal_notice":
+      // Possibly a guardian, told about a child: `breach_recipient` names
+      // whoever the breaches module planned (#116).
+      return null;
+    case "breach.fan_out_requested":
+    case "breach.authority_notice":
+      // The fan-out job and the authority's own email (#116); no route row
+      // sends to a user for either.
       return null;
     case "entry.submitted":
     case "entry.file_rejected":
@@ -319,6 +332,17 @@ export const AUDIENCES = {
   /** The announcements handler resolves both audiences from one roster. */
   announcement_registrants: async () => [],
   announcement_contacts: async () => [],
+  /**
+   * The breach dispatcher checks the saved recipient and live guardian links
+   * for this route. The generic audience resolver grants no recipients.
+   */
+  breach_recipient: async () => [],
+  /**
+   * The authority a breach is reported to (#116). It is an address, not a
+   * user, so no user receives it here: the breaches module emails the
+   * configured address with this route's template while it is enabled.
+   */
+  breach_authority: async () => [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -505,6 +529,18 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => refundValues(db, payload.refundId),
   },
   "guardian.guardian_requested": { names: [], load: async () => ({}) },
+  // Whose data it involved, never what happened (#116).
+  "breach.principal_notice": {
+    names: PRINCIPAL_NOTICE_VARIABLES,
+    // Revalidated separately for each channel by the breach dispatcher.
+    load: async () => ({}),
+  },
+  "breach.fan_out_requested": { names: [], load: async () => ({}) },
+  "breach.authority_notice": {
+    names: AUTHORITY_NOTICE_VARIABLES,
+    // The authority handler renders these variables for its configured address.
+    load: async () => ({}),
+  },
   "registration.competition_cancelled": {
     names: CANCELLATION_VARIABLES,
     load: (db, { payload }) => cancellationValues(db, payload),

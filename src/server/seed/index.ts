@@ -22,6 +22,7 @@ import { seedContact } from "./contact";
 import { seedEntries } from "./entries";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
+import { seedBreaches } from "./breaches";
 import { seedLedger } from "./ledger";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
@@ -59,6 +60,8 @@ const seeders: readonly Seeder[] = [
   seedSecondFactor,
   seedSettings,
   seedSafeguarding,
+  // After the identity and access seeds: the seeded members (#116).
+  seedBreaches,
   seedInstitutions,
   seedPrivacy,
   // After the institutions seed: it needs the verified institution.
