@@ -44,5 +44,6 @@ export * from "./contact";
 export * from "./public-forms";
 export * from "./privacy";
 export * from "./conduct-certification";
+export * from "./directory";
 export * from "./campaigns";
 export * from "./volunteers";

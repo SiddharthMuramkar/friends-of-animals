@@ -18,6 +18,7 @@ import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
+import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
 // outside dependencies, the published-competition and public-post checks,
@@ -87,6 +88,12 @@ export type RequestProxyDeps = {
    * (src/app/blog/_lib/public-slugs.ts).
    */
   isPublicPostSlug: SlugLookup;
+  /**
+   * Whether a verified directory listing (#127) has this slug: the
+   * directory, through a memo (src/app/ngos/_lib/public-slugs.ts). Without
+   * one, every listing slug is the 404.
+   */
+  isPublicListingSlug?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -94,6 +101,7 @@ export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
 export function createProxy({
   isPublishedCompetitionSlug,
   isPublicPostSlug,
+  isPublicListingSlug = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -125,6 +133,26 @@ export function createProxy({
     } catch (error) {
       console.error(
         "Proxy: could not check a post slug against the database.",
+        error instanceof Error ? error.message : error
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Whether /ngos/<raw> is a verified listing: not pending, rejected,
+   * suspended, withdrawn or unknown. A slug no listing could have is never
+   * asked about. If the database can't answer, the request goes through
+   * and the page answers for itself.
+   */
+  async function isPublicListing(raw: string): Promise<boolean> {
+    const slug = decodedSlug(raw);
+    if (!isListingSlug(slug)) return false;
+    try {
+      return await isPublicListingSlug(slug);
+    } catch (error) {
+      console.error(
+        "Proxy: could not check a listing slug against the database.",
         error instanceof Error ? error.message : error
       );
       return true;
@@ -172,7 +200,9 @@ export function createProxy({
     const known =
       section === "blog"
         ? await isPublicPost(raw)
-        : await isPublishedCompetition(raw);
+        : section === "ngos"
+          ? await isPublicListing(raw)
+          : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };
