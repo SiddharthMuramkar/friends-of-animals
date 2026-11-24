@@ -165,9 +165,7 @@ export type ScheduleRemindersInput = {
   subjectId: string;
 };
 
-export type ScheduleRemindersResult =
-  | ({ ok: true } & Counts)
-  | InvalidInput;
+export type ScheduleRemindersResult = ({ ok: true } & Counts) | InvalidInput;
 
 /**
  * Brings every reminder about one subject in step with its deadline and

@@ -90,7 +90,10 @@ export const entrySubmissionDue: ReminderDefinition = {
       kind: "competition_roster",
       competitionId: subjectId,
       groups: [
-        { registrationIds: of("individual"), roles: ["participant", "guardian"] },
+        {
+          registrationIds: of("individual"),
+          roles: ["participant", "guardian"],
+        },
         { registrationIds: of("institution"), roles: ["coordinator"] },
       ],
     };

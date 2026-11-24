@@ -24,11 +24,7 @@ describe("announcement migrations", () => {
     // 84b's reminder migrations follow later; none touches the enum.
     expect(
       tags.filter((tag) => /^\d+_84_(pre_enum|announcement)/.test(tag))
-    ).toEqual([
-      tags[pre],
-      tags[ddl],
-      tags[post],
-    ]);
+    ).toEqual([tags[pre], tags[ddl], tags[post]]);
     const statements = (index: number) =>
       readFileSync(`drizzle/${tags[index]}.sql`, "utf8");
     expect(

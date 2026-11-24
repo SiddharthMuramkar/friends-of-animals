@@ -86,9 +86,7 @@ describe("rescheduling reminders", () => {
     await h.as(WORKER).syncReminders();
 
     const rows = await reminderRows(h, competition.id);
-    expect(
-      rows.map((row) => [row.id, row.offsetHours, row.status])
-    ).toEqual([
+    expect(rows.map((row) => [row.id, row.offsetHours, row.status])).toEqual([
       [r72!.id, 72, "superseded"],
       [expect.any(String), 48, "scheduled"],
       [r24!.id, 24, "scheduled"],

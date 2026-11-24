@@ -226,7 +226,10 @@ export async function reminderWorld(
 ) {
   const competition = await reminderCompetition(h, options);
   const add = registrants(h, competition);
-  const asha = await add.adult({ name: "Asha Rao", email: "asha@example.test" });
+  const asha = await add.adult({
+    name: "Asha Rao",
+    email: "asha@example.test",
+  });
   const desai = await add.child({
     guardian: { name: "Kavita Desai", email: "kavita@example.test" },
     child: { fullName: "Isha Desai", age: 10 },
