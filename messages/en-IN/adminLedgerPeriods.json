@@ -51,7 +51,7 @@
       "expires": "Expires on {date}.",
       "overdue": "Its time has run out. It closes tonight, and can be asked for again.",
       "reason": "Reason: {reason}",
-      "linesCaption": "Lines of the manual entry",
+      "linesCaption": "Lines of the manual entry “{description}”, asked on {date}",
       "account": "Account",
       "memo": "Memo",
       "approve": "Approve",

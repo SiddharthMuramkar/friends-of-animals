@@ -168,12 +168,17 @@ async function RequestDetails({ request }: { request: Request }) {
         </p>
       ) : null}
       {summary.kind === "manual_entry" ? (
+        <p className="wrap-anywhere">{summary.description}</p>
+      ) : null}
+      {summary.kind === "manual_entry" && request.status === "pending" ? (
         <>
-          <p className="wrap-anywhere">{summary.description}</p>
           <TableScroller captionId={`lines-${request.id}`}>
             <table className="w-full text-left">
               <caption id={`lines-${request.id}`} className="sr-only">
-                {t("linesCaption")}
+                {t("linesCaption", {
+                  description: summary.description,
+                  date: requestedOn,
+                })}
               </caption>
               <thead className="bg-surface-muted text-sm">
                 <tr>

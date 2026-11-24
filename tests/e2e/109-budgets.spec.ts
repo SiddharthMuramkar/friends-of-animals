@@ -52,9 +52,9 @@ test("finance sets a budget and sees it against the actuals", async ({
   await expectRendersAccessibly(page, budgets);
   await expectAccessibleInDark(page, budgets);
 
-  await page.getByLabel("Category").selectOption("5900");
-  await page.getByLabel("Month").selectOption({ index: 1 });
-  await page.getByLabel("Budget in rupees").fill("12,345");
+  await page.getByLabel("Category", { exact: true }).selectOption("5900");
+  await page.getByLabel("Month", { exact: true }).selectOption({ index: 1 });
+  await page.getByLabel("Budget in rupees", { exact: true }).fill("12,345");
   await page.getByRole("button", { name: "Save budget" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Budget saved." })
