@@ -267,8 +267,8 @@
 }
 
 /*
- * shadcn/ui variables (src/components/ui/*) mapped onto the FOA tokens, so the
- * kit keeps working on the new palette in both themes.
+ * shadcn-style names (text-muted-foreground, bg-card, ring, ...) mapped onto
+ * the FOA tokens, so those utility classes follow the palette in both themes.
  */
 :root,
 .dark {
