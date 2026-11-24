@@ -94,7 +94,7 @@ test("hidden and unknown animals are the 404", async ({ page }) => {
   expect((await page.goto("/adopt/no-such-animal-here"))?.status()).toBe(404);
 });
 
-test("a representative adds an animal and a photo, then publishes, holds, edits and withdraws one", async ({
+test("a representative adds an animal, fixing a refused answer, and uploads its photo", async ({
   page,
   request,
   seedAdoptionWorld,
@@ -153,13 +153,27 @@ test("a representative adds an animal and a photo, then publishes, holds, edits 
     .last()
     .fill("Laddoo on a cushion");
   await page.getByRole("button", { name: "Upload photo" }).click();
-  await expect(page.getByRole("main").getByRole("status")).toContainText(
-    "Uploaded."
-  );
+  // The "saved as a draft" notice stays above the upload's own notice.
+  await expect(
+    page.getByRole("main").getByRole("status").filter({ hasText: "Uploaded." })
+  ).toBeVisible();
   await expect(
     page.getByText(/Photo 1: (Being checked|Being resized)/)
   ).toBeVisible();
   await checkPage(page, "/organisation/[id]/adoptions/[adoptionId]");
+  expect(violations).toEqual([]);
+});
+
+test("a representative publishes a ready draft, then holds, edits and withdraws it", async ({
+  page,
+  request,
+  seedAdoptionWorld,
+}) => {
+  const world = await seedAdoptionWorld();
+  const violations = await recordCspViolations(page);
+  await signInByCode(page, request, world.ownerEmail);
+  const base = `/organisation/${world.listingId}/adoptions`;
+  const field = (label: string) => page.getByLabel(label, { exact: true });
 
   // The ready draft: publish it and see its public page.
   await page.goto(`${base}/${world.draft.id}`);
