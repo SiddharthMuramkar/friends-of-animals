@@ -21,7 +21,7 @@ import { phoneHashOf, readStoredPhone } from "../../identity/stored-phone";
 import { normaliseEmailAddress } from "../../ports/email";
 import { verifiedGuardianIds } from "../guardians/domain/minor-audience";
 import { guardianLinksByProfile } from "../guardians/participant-audience";
-import { DEFAULT_PREFERENCES } from "../notifications/dispatch";
+import { DEFAULT_PREFERENCES } from "../notifications/domain/delivery-plan";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 import { isUnder18On } from "./domain/age";
 import {

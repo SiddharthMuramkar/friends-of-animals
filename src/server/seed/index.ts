@@ -8,6 +8,7 @@
 // its data depends on.
 
 import { seedAccess } from "./access";
+import { seedAnnouncements } from "./announcements";
 import { seedFunctions } from "./builders";
 import { seedCompetitionTerms } from "./competition-terms";
 import { seedCoordinators } from "./coordinators";
@@ -77,6 +78,8 @@ const seeders: readonly Seeder[] = [
   // NEIGH27 (#82).
   seedChildConsents,
   seedConsentLinks,
+  // After every registration seed: the sent one's count comes from them.
+  seedAnnouncements,
   seedNotifications,
   seedContact,
   seedCms,

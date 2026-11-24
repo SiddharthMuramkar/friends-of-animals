@@ -306,6 +306,16 @@ export type DomainEvent =
       type: "guardian.guardian_requested";
       aggregate: { type: "guardian_invitation"; id: string };
       payload: { requestId: string };
+    }
+  | {
+      /**
+       * A competition manager sent an announcement (#84): its confirmed
+       * registrants are told. Ids only: who they are is planned again when
+       * it goes.
+       */
+      type: "competition.announcement_sent";
+      aggregate: { type: "announcement"; id: string };
+      payload: { announcementId: string; competitionId: string };
     };
 
 export type EventType = DomainEvent["type"];
@@ -410,6 +420,10 @@ export const EVENT_PAYLOADS = {
   }),
   "refund.failed": z.object({ refundId: z.uuid() }),
   "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
+  "competition.announcement_sent": z.object({
+    announcementId: z.uuid(),
+    competitionId: z.uuid(),
+  }),
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /**
@@ -496,6 +510,8 @@ export const SUBSCRIBERS = {
   // The guardian a teen names may have no account yet: the request goes to
   // the address the teen gave by its own handler (#81).
   "guardian.guardian_requested": ["guardians.send_guardian_request"],
+  // One handler reaches accounts and contact details from one roster (#84).
+  "competition.announcement_sent": ["announcements.fan_out"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

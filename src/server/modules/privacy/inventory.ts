@@ -44,6 +44,25 @@ const AFTER_INVITATION_CLOSES = {
   toConfirm: true,
 } as const;
 
+const WHILE_ANNOUNCEMENT_KEPT = {
+  period: "While the competition's records are kept (HR-31)",
+  basis:
+    "Shows FOA who wrote and who sent each announcement, and answers a query about one",
+  toConfirm: true,
+} as const;
+
+const WHILE_DELIVERY_LOG_KEPT = {
+  period: "While the message delivery log is kept (HR-31)",
+  basis: "Stops a recipient getting the same message twice when it is retried",
+  toConfirm: true,
+} as const;
+
+const AFTER_INBOX_ITEM_READ = {
+  period: "365 days after the inbox item is read (HR-31)",
+  basis: "Lets recipients refer to competition instructions and help contacts",
+  toConfirm: true,
+} as const;
+
 const WHILE_INVITATION_PENDING = {
   period: "Until the invitation is accepted, withdrawn or expires",
   basis:
@@ -1065,5 +1084,62 @@ export const DATA_INVENTORY: readonly InventoryEntry[] = [
     purpose:
       "Links a guardian's 13- to 17-year-old child to their own login, so they take part themselves",
     retention: WHILE_STUDENT_TAKES_PART,
+  },
+  // Announcements to registrants (#84)
+  {
+    table: "announcement",
+    column: "help_contacts_ciphertext",
+    purpose: "Provides the help contacts named in a competition's announcement",
+    retention: {
+      ...WHILE_ANNOUNCEMENT_KEPT,
+      basis:
+        "Lets FOA tell registrants who to reach and answer questions about the instructions it sent",
+    },
+  },
+  {
+    table: "announcement",
+    column: "created_by",
+    purpose: "Records which competition manager wrote the announcement",
+    retention: WHILE_ANNOUNCEMENT_KEPT,
+  },
+  {
+    table: "announcement",
+    column: "sent_by",
+    purpose: "Records which competition manager sent the announcement",
+    retention: WHILE_ANNOUNCEMENT_KEPT,
+  },
+  {
+    table: "inbox_item",
+    column: "title_ciphertext",
+    purpose: "Shows the recipient the rendered announcement title",
+    retention: AFTER_INBOX_ITEM_READ,
+  },
+  {
+    table: "inbox_item",
+    column: "body_ciphertext",
+    purpose:
+      "Shows the recipient the announcement instructions and help contacts",
+    retention: AFTER_INBOX_ITEM_READ,
+  },
+  {
+    table: "message_delivery",
+    column: "contact_hash",
+    purpose:
+      "A keyed hash of the email or phone that deduplicates external deliveries across retries",
+    retention: WHILE_DELIVERY_LOG_KEPT,
+  },
+  {
+    table: "message_delivery",
+    column: "recipient_hashes",
+    purpose:
+      "Keyed hashes of a recipient's known addresses reconcile a contact delivery if their contact changes before a retry",
+    retention: WHILE_DELIVERY_LOG_KEPT,
+  },
+  {
+    table: "message_delivery",
+    column: "recipient_account_hash",
+    purpose:
+      "A keyed hash of the recipient's account reconciles a delivery if their address changes before a retry",
+    retention: WHILE_DELIVERY_LOG_KEPT,
   },
 ];

@@ -31,6 +31,8 @@ import { currentConsent } from "../consent/domain/consent-state";
 import { subjectEvents } from "../consent/repository";
 import type { AppDb } from "../../db/app-db";
 import {
+  INBOX_BODY_PURPOSE,
+  INBOX_TITLE_PURPOSE,
   inboxItem,
   messageDelivery,
   messageRoute,
@@ -40,7 +42,7 @@ import {
   type MessageRouteRow,
   type MessageTemplateRow,
 } from "../../db/schema";
-import type { Ciphertext } from "../../crypto/field-cipher";
+import type { Ciphertext, FieldCipher } from "../../crypto/field-cipher";
 import { readStoredPhone } from "../../identity/stored-phone";
 import { uuidv7 } from "../../ids";
 import { oneLineSubject } from "../../ports/email";
@@ -52,12 +54,13 @@ import {
   type AudienceMember,
 } from "./audiences";
 import type { MessageChannel } from "./domain/channels";
-import { planDelivery, type SuppressionReason } from "./domain/delivery-plan";
+import {
+  DEFAULT_PREFERENCES,
+  planDelivery,
+  type SuppressionReason,
+} from "./domain/delivery-plan";
 import { renderEmailHtml, renderTemplate } from "./domain/template";
 import { DEFAULT_LOCALE } from "./locale";
-
-/** A user's channel choices while they have made none. */
-export const DEFAULT_PREFERENCES = { email: true, sms: true } as const;
 
 type Templates = Partial<Record<MessageChannel, MessageTemplateRow>>;
 
@@ -72,13 +75,15 @@ type Recipient = {
   storedPhone: Ciphertext | null;
 };
 
-type Message = {
+type InboxMessage = {
   delivery: Delivery;
   route: MessageRouteRow;
   templates: Templates;
-  recipient: Recipient;
+  recipient: Pick<Recipient, "id">;
   values: Record<string, string>;
 };
+
+type Message = InboxMessage & { recipient: Recipient };
 
 export async function dispatchEvent(
   deps: OutboxDeps,
@@ -100,9 +105,10 @@ export async function dispatchEvent(
   const eventValues = await (
     EVENT_VARIABLES[delivery.eventType].load as (
       db: AppDb,
-      delivery: Delivery
+      delivery: Delivery,
+      cipher: FieldCipher
     ) => Promise<Record<string, string>>
-  )(deps.db, delivery);
+  )(deps.db, delivery, deps.cipher);
   const failures: { deliveryId: string; error: unknown }[] = [];
 
   for (const route of routes) {
@@ -151,7 +157,7 @@ export async function dispatchEvent(
   if (failures.length > 0) throw failures[0]!.error;
 }
 
-async function templatesFor(db: AppDb, key: string): Promise<Templates> {
+export async function templatesFor(db: AppDb, key: string): Promise<Templates> {
   const rows = await db
     .select()
     .from(messageTemplate)
@@ -249,7 +255,7 @@ async function sendMessage(
   return failures;
 }
 
-function deliveryKey(message: Message, channel: MessageChannel) {
+function deliveryKey(message: InboxMessage, channel: MessageChannel) {
   return {
     eventId: message.delivery.eventId,
     templateKey: message.route.templateKey,
@@ -285,7 +291,7 @@ async function recordSuppressed(
     .onConflictDoNothing({ target: ONCE_TARGET });
 }
 
-function rendered(message: Message, channel: MessageChannel) {
+function rendered(message: InboxMessage, channel: MessageChannel) {
   const template = message.templates[channel]!;
   return {
     version: template.version,
@@ -300,9 +306,9 @@ function rendered(message: Message, channel: MessageChannel) {
   };
 }
 
-async function deliverInApp(
-  { db, clock }: OutboxDeps,
-  message: Message
+export async function deliverInApp(
+  { db, clock, cipher }: OutboxDeps,
+  message: InboxMessage
 ): Promise<void> {
   const content = rendered(message, "in_app");
   const now = clock.now();
@@ -322,13 +328,23 @@ async function deliverInApp(
       .returning({ id: messageDelivery.id });
     // Already in the inbox from an earlier delivery of this event.
     if (!created) return;
+    const title = content.subject ?? "";
+    // An announcement's copy can name personal help contacts (#84).
+    const copy =
+      message.delivery.eventType === "competition.announcement_sent"
+        ? {
+            title: "",
+            body: "",
+            titleCiphertext: cipher.encrypt(INBOX_TITLE_PURPOSE, title),
+            bodyCiphertext: cipher.encrypt(INBOX_BODY_PURPOSE, content.body),
+          }
+        : { title, body: content.body };
     await tx.insert(inboxItem).values({
       id: uuidv7(now),
       userId: message.recipient.id,
       deliveryId: created.id,
       templateKey: message.route.templateKey,
-      title: content.subject ?? "",
-      body: content.body,
+      ...copy,
       createdAt: now,
     });
   });

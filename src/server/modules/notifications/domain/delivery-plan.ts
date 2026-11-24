@@ -18,6 +18,9 @@
 
 import type { MessageChannel } from "./channels";
 
+/** A user's channel choices while they have made none. */
+export const DEFAULT_PREFERENCES = { email: true, sms: true } as const;
+
 /** Why a wanted channel did not go out. The first that applies is kept. */
 export const SUPPRESSION_REASONS = [
   /** The user turned this channel off. */
