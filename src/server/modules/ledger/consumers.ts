@@ -79,14 +79,11 @@ function postDonationFact(tx: AppDb, ctx: PolicyContext, fact: DonationFact) {
  */
 export async function postForeignDonation(
   ctx: PolicyContext,
-  {
-    donationId,
-    gatewayPaymentId,
-  }: { donationId: string; gatewayPaymentId: string }
+  { refundId }: { refundId: string }
 ) {
   await authorize(ctx, "ledger.post_payment");
   return ctx.db.transaction(async (tx) => {
-    const fact = await readForeignDonation(tx, donationId, gatewayPaymentId);
+    const fact = await readForeignDonation(tx, refundId);
     if (!fact) return { outcome: "ignored" } as const;
     return postForeignFact(tx, ctx, fact);
   });
@@ -117,6 +114,7 @@ type Original = {
 async function originalOf(
   tx: AppDb,
   ctx: PolicyContext,
+  refundId: string,
   returned: Returned
 ): Promise<Original> {
   const [batch] = await tx
@@ -127,9 +125,7 @@ async function originalOf(
     const donationId = await donationOfBatch(tx, returned.batchId);
     if (!donationId) throw new Error("Donation refund has no donation");
     if (returned.kind === "foreign_payment") {
-      const fact = returned.gatewayPaymentId
-        ? await readForeignDonation(tx, donationId, returned.gatewayPaymentId)
-        : undefined;
+      const fact = await readForeignDonation(tx, refundId);
       if (!fact) throw new Error("Foreign refund has no foreign payment");
       return {
         posting: await postForeignFact(tx, ctx, fact),
@@ -179,7 +175,7 @@ export async function postRefund(
     const returned = await readProcessedRefund(tx, refundId);
     if (!returned) return { outcome: "ignored" } as const;
 
-    const original = await originalOf(tx, ctx, returned);
+    const original = await originalOf(tx, ctx, refundId, returned);
     const capture = original.posting;
     // Serialize refunds of this capture even when the outbox and reconcile
     // job run together. The lock permits the reversal's foreign key check.

@@ -68,33 +68,27 @@ export async function donationOfBatch(
 }
 
 /**
- * Foreign money a donation refused: what its system refund returns, when
- * it was refused. Undefined if no such refund was started.
+ * Foreign money a donation refused, from the system refund returning it:
+ * how much, and when it was refused. Undefined for any other refund.
  */
 export async function readForeignDonation(
   db: AppDb,
-  donationId: string,
-  gatewayPaymentId: string
+  refundId: string
 ): Promise<ForeignDonationFact | undefined> {
   const [row] = await db
     .select({
+      gatewayPaymentId: refund.gatewayPaymentId,
       amountMinor: refund.amountMinor,
       currency: refund.currency,
       requestedAt: refund.requestedAt,
     })
     .from(refund)
     .innerJoin(donation, eq(donation.paymentBatchId, refund.batchId))
-    .where(
-      and(
-        eq(donation.id, donationId),
-        eq(refund.kind, "foreign_payment"),
-        eq(refund.gatewayPaymentId, gatewayPaymentId)
-      )
-    );
-  if (!row) return undefined;
+    .where(and(eq(refund.id, refundId), eq(refund.kind, "foreign_payment")));
+  if (!row?.gatewayPaymentId) return undefined;
   if (row.currency !== "INR") throw new Error("Foreign money posts in INR");
   return {
-    source: { type: "foreign_donation", id: gatewayPaymentId },
+    source: { type: "foreign_donation", id: row.gatewayPaymentId },
     occurredAt: row.requestedAt,
     amountMinor: row.amountMinor,
   };

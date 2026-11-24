@@ -287,7 +287,8 @@ export type DomainEvent =
        * it is held as owed back until its refund goes out. */
       type: "donation.foreign_payment_received";
       aggregate: { type: "donation"; id: string };
-      payload: { donationId: string; gatewayPaymentId: string };
+      /** `refundId`: the system refund returning it. */
+      payload: { donationId: string; refundId: string };
     }
   | {
       /** A refund of a donation's batch was processed (#106): the donor is
@@ -515,7 +516,7 @@ export const EVENT_PAYLOADS = {
   "donation.captured": z.object({ donationId: z.uuid() }),
   "donation.foreign_payment_received": z.object({
     donationId: z.uuid(),
-    gatewayPaymentId: z.string().min(1).max(100),
+    refundId: z.uuid(),
   }),
   "donation.refunded": z.object({
     donationId: z.uuid(),

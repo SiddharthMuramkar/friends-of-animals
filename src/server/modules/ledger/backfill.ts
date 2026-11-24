@@ -144,21 +144,7 @@ export async function backfillLedgerFromPayments(
         )
         .orderBy(refund.id)
         .limit(PAGE_SIZE),
-    async (refundId) => {
-      const [refused] = await db
-        .select({
-          donationId: donation.id,
-          gatewayPaymentId: refund.gatewayPaymentId,
-        })
-        .from(refund)
-        .innerJoin(donation, eq(donation.paymentBatchId, refund.batchId))
-        .where(eq(refund.id, refundId));
-      if (!refused?.gatewayPaymentId) return { outcome: "ignored" };
-      return postForeignDonation(ctx, {
-        donationId: refused.donationId,
-        gatewayPaymentId: refused.gatewayPaymentId,
-      });
-    }
+    (refundId) => postForeignDonation(ctx, { refundId })
   );
   const refundsPosted = await postMissing(
     errors,

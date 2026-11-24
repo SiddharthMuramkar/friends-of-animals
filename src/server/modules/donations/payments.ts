@@ -225,7 +225,7 @@ export async function syncDonationBatch(
   });
 
   for (const payment of decision.refundForeign) {
-    await startSystemRefund(tx, ctx, {
+    const started = await startSystemRefund(tx, ctx, {
       kind: "foreign_payment",
       batchId: batch.id,
       gatewayPaymentId: payment.id,
@@ -234,12 +234,17 @@ export async function syncDonationBatch(
       idempotencyKey: `foreign:${batch.id}:${payment.id}`,
       actorRole,
     });
+    if (!("refundId" in started)) {
+      throw new Error(`Batch ${batch.id}: no refund for a foreign payment`);
+    }
+    const { refundId } = started;
     await recordAudit(tx, ctx, {
       action: "donation.foreign_payment_refused",
       entity: { type: "donation", id: row.id },
       before: null,
       after: {
         gatewayPaymentId: payment.id,
+        refundId,
         amountMinor: payment.amountMinor.toString(),
         currency: payment.currency,
         international: payment.international,
@@ -249,7 +254,7 @@ export async function syncDonationBatch(
     await emit(tx, ctx.clock, {
       type: "donation.foreign_payment_received",
       aggregate: { type: "donation", id: row.id },
-      payload: { donationId: row.id, gatewayPaymentId: payment.id },
+      payload: { donationId: row.id, refundId },
     });
   }
 
