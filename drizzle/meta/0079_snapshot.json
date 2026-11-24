@@ -1,5 +1,5 @@
 {
-  "id": "bfe99e79-3ec7-4ad8-b648-ccf5bb3d11c7",
+  "id": "78faa2eb-0526-45c4-80a2-1fe0d361f2f7",
   "prevId": "61f31904-3e25-4fbc-83d2-a040e179d581",
   "version": "7",
   "dialect": "postgresql",
@@ -11728,6 +11728,154 @@
       },
       "isRLSEnabled": false
     },
+    "public.reminder_job": {
+      "name": "reminder_job",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reminder_name": {
+          "name": "reminder_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offset_hours": {
+          "name": "offset_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deadline_at": {
+          "name": "deadline_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fire_at": {
+          "name": "fire_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "reminder_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'scheduled'"
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "reminder_job_planned_once": {
+          "name": "reminder_job_planned_once",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "offset_hours",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "deadline_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"reminder_job\".\"status\" IN ('scheduled', 'fired')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "reminder_job_subject_idx": {
+          "name": "reminder_job_subject_idx",
+          "columns": [
+            {
+              "expression": "reminder_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "reminder_job_name_format": {
+          "name": "reminder_job_name_format",
+          "value": "\"reminder_job\".\"reminder_name\" ~ '^[a-z][a-z0-9_]*$'"
+        },
+        "reminder_job_offset_hours": {
+          "name": "reminder_job_offset_hours",
+          "value": "\"reminder_job\".\"offset_hours\" BETWEEN 1 AND 720"
+        },
+        "reminder_job_fire_at": {
+          "name": "reminder_job_fire_at",
+          "value": "\"reminder_job\".\"fire_at\" = \"reminder_job\".\"deadline_at\" - make_interval(hours => \"reminder_job\".\"offset_hours\")"
+        },
+        "reminder_job_fired_stamped": {
+          "name": "reminder_job_fired_stamped",
+          "value": "(\"reminder_job\".\"status\" = 'fired') = (\"reminder_job\".\"fired_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.legal_hold": {
       "name": "legal_hold",
       "schema": "",
@@ -11955,350 +12103,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.campaign": {
-      "name": "campaign",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "campaign_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'draft'"
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "subject": {
-          "name": "subject",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "segment": {
-          "name": "segment",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_by": {
-          "name": "sent_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "planned_counts": {
-          "name": "planned_counts",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "campaign_newest_idx": {
-          "name": "campaign_newest_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "campaign_created_by_idx": {
-          "name": "campaign_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "campaign_sent_by_idx": {
-          "name": "campaign_sent_by_idx",
-          "columns": [
-            {
-              "expression": "sent_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "campaign_created_by_user_id_fk": {
-          "name": "campaign_created_by_user_id_fk",
-          "tableFrom": "campaign",
-          "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "campaign_sent_by_user_id_fk": {
-          "name": "campaign_sent_by_user_id_fk",
-          "tableFrom": "campaign",
-          "tableTo": "user",
-          "columnsFrom": [
-            "sent_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "campaign_sent_stamped": {
-          "name": "campaign_sent_stamped",
-          "value": "(\"campaign\".\"status\" = 'draft') = (\"campaign\".\"sent_at\" IS NULL) AND (\"campaign\".\"sent_at\" IS NULL) = (\"campaign\".\"planned_counts\" IS NULL)"
-        },
-        "campaign_completed_when_sent": {
-          "name": "campaign_completed_when_sent",
-          "value": "(\"campaign\".\"status\" = 'sent') = (\"campaign\".\"completed_at\" IS NOT NULL)"
-        },
-        "campaign_revision_positive": {
-          "name": "campaign_revision_positive",
-          "value": "\"campaign\".\"revision\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.campaign_recipient": {
-      "name": "campaign_recipient",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "campaign_id": {
-          "name": "campaign_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bases": {
-          "name": "bases",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "campaign_recipient_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'queued'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "settled_at": {
-          "name": "settled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "withdrawn_at": {
-          "name": "withdrawn_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "campaign_recipient_campaign_status_idx": {
-          "name": "campaign_recipient_campaign_status_idx",
-          "columns": [
-            {
-              "expression": "campaign_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "campaign_recipient_user_id_idx": {
-          "name": "campaign_recipient_user_id_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "campaign_recipient_campaign_id_campaign_id_fk": {
-          "name": "campaign_recipient_campaign_id_campaign_id_fk",
-          "tableFrom": "campaign_recipient",
-          "tableTo": "campaign",
-          "columnsFrom": [
-            "campaign_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "campaign_recipient_user_id_user_id_fk": {
-          "name": "campaign_recipient_user_id_user_id_fk",
-          "tableFrom": "campaign_recipient",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "campaign_recipient_token_hash_unique": {
-          "name": "campaign_recipient_token_hash_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
-        },
-        "campaign_recipient_once": {
-          "name": "campaign_recipient_once",
-          "nullsNotDistinct": false,
-          "columns": [
-            "campaign_id",
-            "user_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "campaign_recipient_settled_stamped": {
-          "name": "campaign_recipient_settled_stamped",
-          "value": "(\"campaign_recipient\".\"status\" = 'queued') = (\"campaign_recipient\".\"settled_at\" IS NULL)"
-        },
-        "campaign_recipient_has_bases": {
-          "name": "campaign_recipient_has_bases",
-          "value": "jsonb_array_length(\"campaign_recipient\".\"bases\") > 0"
-        }
-      },
       "isRLSEnabled": false
     }
   },
@@ -13028,22 +12832,14 @@
         "sent"
       ]
     },
-    "public.campaign_recipient_status": {
-      "name": "campaign_recipient_status",
+    "public.reminder_job_status": {
+      "name": "reminder_job_status",
       "schema": "public",
       "values": [
-        "queued",
-        "sent",
-        "skipped"
-      ]
-    },
-    "public.campaign_status": {
-      "name": "campaign_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "sending",
-        "sent"
+        "scheduled",
+        "fired",
+        "cancelled",
+        "superseded"
       ]
     }
   },

@@ -441,6 +441,15 @@ saves a new one; the old one finds its date has moved and does nothing. Unlike
 a Scheduled job, it is tied to one competition and one instant.
 _Avoid_: Status cron, status tick
 
+**Reminder**:
+A message a set number of hours before one of a competition's deadlines, such
+as its submissions closing, to whoever still owes that deadline when the
+reminder goes: an adult who entered, a child's guardian, or a school's
+coordinators, never someone who has met it. How many hours before is a runtime
+setting. Moving the deadline or changing the hours plans it again; the old one
+does nothing at its old time, and a cancelled competition's reminders never go.
+_Avoid_: Nudge, chaser, notification (that is any message)
+
 **Guard**:
 A condition on one move of a competition's status, such as "every enabled
 discipline has a published Rubric" before school judging. A Status job makes
@@ -601,6 +610,20 @@ _Avoid_: Unit tests, integration tests
 A few end-to-end journeys per milestone, run in a browser against a pull
 request's preview deployment.
 _Avoid_: E2E suite, UI tests
+
+## Volunteering
+
+**Volunteer**:
+A User FOA has vetted and approved to help, who holds the volunteer Role.
+Volunteers are not Staff.
+_Avoid_: Helper, intern, staff volunteer
+
+**Volunteer application**:
+A person's request to volunteer: how they would like to help, when they are
+free, and their acceptance of the safeguarding declaration and the code of
+conduct. A 14- to 17-year-old's waits for their verified guardian's
+approval before a community manager approves or declines it.
+_Avoid_: Signup, volunteer form, registration
 
 ## Taking part
 

@@ -33,6 +33,7 @@ import {
 import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
+import { VOLUNTEER_APPLICATIONS } from "./volunteers";
 import type { RetentionPolicy } from "./types";
 
 export type { CandidateQuery, RetentionPolicy } from "./types";
@@ -54,6 +55,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   CONTACT_MESSAGES,
   SAFEGUARDING_REPORTS,
   BREACH_RECORDS,
+  VOLUNTEER_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
 ];
