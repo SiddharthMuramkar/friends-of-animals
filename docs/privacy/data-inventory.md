@@ -52,6 +52,12 @@ public page shows them. The policy `directoryListings` keeps it while it is in t
 directory (no daily job yet, HR-31). Its documents are files of purpose
 `directory_document`, which only staff open.
 
+An adoption listing (#129) is about an animal, so its details are not personal data,
+but its state, city and pin code say where an individual foster caregiver lives; those
+and the representative who wrote it are listed under `directoryListings`, because an
+adoption listing lives and goes with its directory listing. Its photos are files of
+purpose `adoption_photo`; only their resized copies are ever public.
+
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 

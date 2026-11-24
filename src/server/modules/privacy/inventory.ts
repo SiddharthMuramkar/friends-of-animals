@@ -510,6 +510,13 @@ const listing = rowsOf("directory_listing", {
   onExpiry: "delete_row",
 });
 
+/** An adoption listing (#129) lives and goes with its directory listing. */
+const adoptable = rowsOf("adoption_listing", {
+  subject: { kind: "directory_listing", via: "directory_listing_id" },
+  retention: WHILE_LISTED,
+  onExpiry: "delete_row",
+});
+
 const coordinatorInvitation = rowsOf("institution_invitation", {
   subject: { kind: "invitee", via: "identifier_hash" },
   retention: AFTER_INVITATION_CLOSES,
@@ -894,6 +901,14 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "retain",
   }),
   actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
+  // Adoption listings (#129): an animal fostered by an individual is
+  // where they live, so its location is theirs. The animal's own details
+  // are not personal data (non-personal.ts).
+  adoptable("state", "contact"),
+  adoptable("city", "contact"),
+  adoptable("city_key", "contact"),
+  adoptable("pin_code", "contact"),
+  actorColumn("adoption_listing", "created_by_user_id", WHILE_LISTED),
   // Coordinator invitations (#74)
   coordinatorInvitation("identifier_ciphertext", "contact"),
   coordinatorInvitation("identifier_hash", "technical"),

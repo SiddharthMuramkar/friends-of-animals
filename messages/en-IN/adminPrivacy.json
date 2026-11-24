@@ -337,6 +337,13 @@
           "owner_user_id": "Links the listing to the person who registered it, its first representative",
           "status_changed_by_user_id": "Records who last changed the listing's status"
         },
+        "adoption_listing": {
+          "state": "Shows people roughly where an animal for adoption is, and lets them filter by it",
+          "city": "Shows people roughly where an animal for adoption is, and lets them filter by it",
+          "city_key": "Matches the city filter without regard to case",
+          "pin_code": "Shows people roughly where an animal for adoption is, and lets them filter by it",
+          "created_by_user_id": "Records which representative wrote the adoption listing"
+        },
         "institution_invitation": {
           "accepted_by_user_id": "Records which account accepted the invitation",
           "identifier_ciphertext": "The email or mobile number a coordinator invitation goes to (encrypted)",

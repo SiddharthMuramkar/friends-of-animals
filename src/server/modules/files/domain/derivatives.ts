@@ -14,6 +14,8 @@
 export const DERIVATIVE_KINDS = {
   /** Lists, cards and the participant's own dashboard. */
   thumb_320: { maxEdge: 320, contentType: "image/webp", quality: 80 },
+  /** An adoptable animal's page on a phone (#129). */
+  display_800: { maxEdge: 800, contentType: "image/webp", quality: 80 },
   /** Staff, verifiers and judges looking at the work. */
   display_1600: { maxEdge: 1600, contentType: "image/webp", quality: 85 },
   /** A post's cover on the public site, its social card and lists (#112). */

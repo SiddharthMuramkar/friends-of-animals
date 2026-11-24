@@ -29,6 +29,7 @@ import { ANNOUNCEMENTS_POLICY } from "../modules/announcements/policy";
 import { PRIVACY_POLICY } from "../modules/privacy/policy";
 import { BREACHES_POLICY } from "../modules/breaches/policy";
 import { DIRECTORY_POLICY } from "../modules/directory/policy";
+import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
@@ -63,6 +64,7 @@ export const POLICY = composePolicies(
   PRIVACY_POLICY,
   BREACHES_POLICY,
   DIRECTORY_POLICY,
+  ADOPTION_POLICY,
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
   CAMPAIGNS_POLICY
