@@ -130,14 +130,6 @@ const AFTER_INVITATION_CLOSES = {
   toConfirm: true,
 } as const;
 
-const ANNOUNCEMENT_RECORD = {
-  policy: "announcements",
-  periodKey: "announcements",
-  basis:
-    "Shows FOA who wrote and who sent each announcement, and answers a query about one",
-  toConfirm: true,
-} as const;
-
 const WHILE_INVITATION_PENDING = {
   policy: "coordinatorInvitationLinks",
   periodKey: "coordinatorInvitationLinks",
@@ -356,6 +348,15 @@ const WHILE_FILE_KEPT = {
   policy: "files",
   periodKey: "files",
   basis: "Lets the person who uploaded a file, and staff, find and manage it",
+  toConfirm: true,
+} as const;
+
+/** Announcements to registrants (#84): kept with the competition's records. */
+const ANNOUNCEMENT_RECORD = {
+  policy: "announcements",
+  periodKey: "announcements",
+  basis:
+    "Shows FOA who wrote and who sent each announcement, and lets it answer questions about the instructions and help contacts it sent",
   toConfirm: true,
 } as const;
 
@@ -654,21 +655,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     retention: DELIVERY_LOG,
     onExpiry: "delete_row",
   })("user_id", "identity"),
-  ...(["user_id", "title", "body"] as const).map((column) =>
-    rowsOf("inbox_item", {
-      subject: { kind: "user", via: "user_id" },
-      retention: INBOX_MESSAGE,
-      onExpiry: "delete_row",
-    })(column, column === "user_id" ? "identity" : "content")
-  ),
-  // Announcements to registrants (#84)
-  ...(["title_ciphertext", "body_ciphertext"] as const).map((column) =>
-    rowsOf("inbox_item", {
-      subject: { kind: "user", via: "user_id" },
-      retention: INBOX_MESSAGE,
-      onExpiry: "delete_row",
-    })(column, "content")
-  ),
+  // A delivery keyed by destination (#84) names its recipient by blind index.
   ...(
     ["contact_hash", "recipient_account_hash", "recipient_hashes"] as const
   ).map((column) =>
@@ -678,13 +665,15 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       onExpiry: "delete_row",
     })(column, "technical")
   ),
-  rowsOf("announcement", {
-    subject: { kind: "content_subject", via: "help_contacts_ciphertext" },
-    retention: ANNOUNCEMENT_RECORD,
-    onExpiry: "retain",
-  })("help_contacts_ciphertext", "contact"),
-  actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
-  actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+  ...(
+    ["user_id", "title", "body", "title_ciphertext", "body_ciphertext"] as const
+  ).map((column) =>
+    rowsOf("inbox_item", {
+      subject: { kind: "user", via: "user_id" },
+      retention: INBOX_MESSAGE,
+      onExpiry: "delete_row",
+    })(column, column === "user_id" ? "identity" : "content")
+  ),
   capturedMessage("to_address", "contact"),
   capturedMessage("subject", "content"),
   capturedMessage("body_text", "content"),
@@ -1124,6 +1113,17 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     })(column, "technical")
   ),
   actorColumn("entry_transition", "actor_user_id", ENTRY_RECORD),
+  // Announcements to registrants (#84): help contacts and staff accounts.
+  {
+    table: "announcement",
+    column: "help_contacts_ciphertext",
+    category: "contact",
+    subject: { kind: "content_subject", via: "help_contacts_ciphertext" },
+    retention: ANNOUNCEMENT_RECORD,
+    onExpiry: "delete_row",
+  },
+  actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
+  actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
   // Legal holds (#114): a released hold stays as the record of who held
   // what and why, until the releasedLegalHolds policy deletes it.
   ...(

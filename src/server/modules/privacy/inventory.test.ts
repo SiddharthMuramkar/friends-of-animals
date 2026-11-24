@@ -258,7 +258,7 @@ describe("the data inventory", () => {
       ).toMatchObject({
         purpose: expect.stringContaining("announcement"),
         retention: {
-          period: expect.stringContaining("365 days after the person reads it"),
+          period: expect.stringMatching(/^365 days after the person reads it/),
           basis: expect.any(String),
           toConfirm: true,
         },

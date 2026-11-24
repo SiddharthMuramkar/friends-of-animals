@@ -102,6 +102,11 @@
           "refresh_token": "A sign-in provider's refresh token for the person, when one is used",
           "user_id": "Links a sign-in method to the person's account"
         },
+        "announcement": {
+          "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
+          "created_by": "Records which competition manager wrote the announcement",
+          "sent_by": "Records which competition manager sent the announcement"
+        },
         "audit_log": {
           "actor_user_id": "Records which account took the action",
           "after": "The changed fields after the action: ids and values, never a whole row",
@@ -269,7 +274,7 @@
           "body": "What FOA told the person in the app, which may name them or their child",
           "title": "What FOA told the person in the app, which may name them or their child",
           "user_id": "Says whose in-app message it is",
-          "title_ciphertext": "Shows the recipient the rendered announcement title, which may name a help contact",
+          "title_ciphertext": "Shows the recipient the rendered announcement title",
           "body_ciphertext": "Shows the recipient the announcement instructions and help contacts"
         },
         "institution": {
@@ -427,11 +432,6 @@
         "verification": {
           "identifier": "A hash of the email sign-in identifier or a namespaced keyed hash of the phone number finds the recipient's verification even before they have an account. A namespaced guardian record ID locates codes for guardian confirmation.",
           "value": "The hashed email code, keyed SMS code digest or keyed guardian confirmation code digest, stored with the count of failed attempts"
-        },
-        "announcement": {
-          "help_contacts_ciphertext": "Provides the help contacts named in a competition's announcement",
-          "created_by": "Records which competition manager wrote the announcement",
-          "sent_by": "Records which competition manager sent the announcement"
         },
         "legal_hold": {
           "subject_id": "Names the account, participant or institution whose records are held",
