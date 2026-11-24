@@ -364,6 +364,25 @@ Whether a User wants messages by email, SMS or both. A message the law requires
 goes out whatever the choice; SMS goes only while the SMS Runtime setting is on.
 _Avoid_: Notification preferences, opt-out
 
+**Campaign**:
+A message a community manager writes once and sends to a Segment, through the
+outbox: in-app and by email, never by SMS. Only people with current Consent to
+be messaged receive it, and each message carries a Withdrawal link.
+_Avoid_: Newsletter, blast, marketing email, announcement (an announcement goes
+to a competition's registrants)
+
+**Segment**:
+Who a Campaign is for: everyone, or those matching chosen roles, competitions
+and cities, always narrowed to people whose Consent to News and updates (or a
+guardian's Consent to messages about their child) holds now. A child's message
+goes to the guardian who gave that Consent.
+_Avoid_: Audience list, mailing list, target group
+
+**Withdrawal link**:
+The link in every Campaign message that, after the person confirms, records a
+Withdrawal of the Consent the message was sent on. Opening it changes nothing.
+_Avoid_: Unsubscribe link, opt-out link
+
 ## Events and background work
 
 **Domain event**:
