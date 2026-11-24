@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { listingSlugBase, listingSlugCandidate } from "./slug";
+import { isListingSlug, listingSlugBase, listingSlugCandidate } from "./slug";
 
 describe("listingSlugBase", () => {
   it.each([
@@ -34,5 +34,22 @@ describe("listingSlugCandidate", () => {
     expect(
       [1, 2, 3].map((attempt) => listingSlugCandidate("safe-paws", attempt))
     ).toEqual(["safe-paws", "safe-paws-2", "safe-paws-3"]);
+  });
+});
+
+describe("isListingSlug", () => {
+  it("accepts what listing slugs look like, and nothing else", () => {
+    expect(isListingSlug("paws-trust")).toBe(true);
+    expect(isListingSlug("paws-trust-2")).toBe(true);
+    for (const slug of [
+      "",
+      "register",
+      "Paws",
+      "paws--trust",
+      "-paws",
+      "a/b",
+    ]) {
+      expect(isListingSlug(slug), slug).toBe(false);
+    }
   });
 });

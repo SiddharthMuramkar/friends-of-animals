@@ -1,0 +1,268 @@
+{
+  "directory": {
+    "type": {
+      "ngo": "NGO",
+      "rescue_organisation": "Rescue organisation",
+      "shelter": "Shelter",
+      "independent_rescuer": "Independent rescuer",
+      "foster_caregiver": "Foster caregiver"
+    },
+    "services": {
+      "rescue": "Rescue",
+      "shelter": "Shelter",
+      "veterinary_care": "Veterinary care",
+      "ambulance": "Animal ambulance",
+      "adoption": "Adoption",
+      "fostering": "Fostering",
+      "feeding": "Feeding",
+      "sterilisation": "Sterilisation",
+      "education": "Education and awareness"
+    },
+    "status": {
+      "pending_verification": "Waiting for FOA",
+      "verified": "Verified",
+      "rejected": "Not accepted",
+      "suspended": "Suspended",
+      "withdrawn": "Withdrawn"
+    },
+    "documentKind": {
+      "registration_certificate": "Registration certificate",
+      "awbi_recognition": "AWBI recognition letter",
+      "identity_proof": "Proof of identity",
+      "address_proof": "Proof of address",
+      "other": "Something else"
+    },
+    "fileStatus": {
+      "pending_upload": "Not uploaded",
+      "uploaded": "Being checked",
+      "scanning": "Being checked",
+      "clean": "Received",
+      "quarantined": "Refused by the safety check",
+      "rejected": "Refused: the file wasn't what it said it was",
+      "deleted": "Removed"
+    },
+    "form": {
+      "sections": {
+        "about": "Who you are",
+        "area": "Where you work",
+        "contact": "How FOA and people can reach you",
+        "public": "What the public page shows"
+      },
+      "fields": {
+        "type": {
+          "label": "You are",
+          "error": "Choose what describes you."
+        },
+        "name": {
+          "label": "Name",
+          "hint": "Your organisation's name, or your own if you rescue or foster on your own. It becomes part of your page's address.",
+          "error": "Enter a name of 2 to 120 characters."
+        },
+        "description": {
+          "label": "What you do",
+          "hint": "A few sentences about your work, for people looking for help. Up to 2,000 characters.",
+          "error": "Write up to 2,000 characters about what you do."
+        },
+        "services": {
+          "label": "Services",
+          "hint": "Choose everything you offer.",
+          "error": "Choose at least one service."
+        },
+        "address": {
+          "label": "Address",
+          "hint": "FOA uses it to check who you are. It is never shown on your public page.",
+          "error": "Enter your address, up to 300 characters."
+        },
+        "city": {
+          "label": "Town or city",
+          "error": "Enter your town or city."
+        },
+        "state": {
+          "label": "State",
+          "error": "Enter your state."
+        },
+        "pinCode": {
+          "label": "PIN code",
+          "hint": "Six digits. People will find you by distance from it.",
+          "error": "Enter a PIN code of six digits, not starting with 0."
+        },
+        "contactPhone": {
+          "label": "Mobile number",
+          "hint": "An Indian mobile number. FOA uses it to reach you.",
+          "error": "Enter an Indian mobile number of 10 digits."
+        },
+        "contactEmail": {
+          "label": "Email address (optional)",
+          "error": "Enter an email address like name@example.com."
+        },
+        "website": {
+          "label": "Website (optional)",
+          "error": "Enter a web address like example.org."
+        },
+        "publicContactFields": {
+          "label": "Contacts on your public page",
+          "hint": "People will see only what you tick. Your address never shows; your town, state and PIN code do.",
+          "error": "Add the email address or website you chose to show, or untick it."
+        }
+      },
+      "publicContact": {
+        "phone": "Show my mobile number",
+        "email": "Show my email address",
+        "website": "Show my website"
+      },
+      "alerts": {
+        "invalid_input": "Some answers need fixing. Each one says what to change.",
+        "already_registered": "You already have a listing waiting or on the directory. You can register another once it is withdrawn or not accepted.",
+        "listing_not_editable": "This listing can't be changed in its current status.",
+        "unexpected": "Something went wrong on our side. Please try again in a few minutes."
+      }
+    },
+    "register": {
+      "meta": {
+        "title": "List your organisation",
+        "description": "Join FOA's directory of animal-welfare organisations and rescuers."
+      },
+      "eyebrow": "NGO directory",
+      "title": "List your organisation",
+      "lead": "NGOs, rescue organisations, shelters, independent rescuers and foster caregivers can join FOA's directory. FOA checks every listing before it goes public.",
+      "loading": "Loading the form…",
+      "next": "After you send it, upload proof such as a registration certificate or an identity proof, so FOA can check your listing.",
+      "submit": "Send for checking",
+      "submitting": "Sending…",
+      "myListings": "See your listings"
+    },
+    "mine": {
+      "meta": {
+        "title": "Your directory listings",
+        "description": "The directory listings you look after."
+      },
+      "eyebrow": "NGO directory",
+      "title": "Your directory listings",
+      "lead": "Keep your listing up to date, send FOA proof, and see what FOA decided.",
+      "loading": "Loading your listings…",
+      "empty": "You have no listing yet.",
+      "register": "List your organisation",
+      "registered": "Thank you. Your listing is waiting for FOA to check it. Upload your proof below to help FOA decide.",
+      "changedOn": "Since {date}",
+      "reason": "FOA's note: {reason}"
+    },
+    "listing": {
+      "meta": {
+        "title": "Your listing",
+        "description": "One of your directory listings."
+      },
+      "back": "Your listings",
+      "loading": "Loading the listing…",
+      "forbidden": {
+        "title": "You can't open this listing",
+        "body": "Only the people who look after a listing can open it. If you think you should, contact FOA.",
+        "back": "Your listings"
+      },
+      "status": "Status",
+      "reasonLine": "Latest note: {reason}",
+      "since": "Since {date}",
+      "publicPage": "See the public page",
+      "edit": "Change the details",
+      "detailsTitle": "Details",
+      "details": {
+        "type": "Type",
+        "services": "Services",
+        "description": "What you do",
+        "address": "Address",
+        "place": "Town, state and PIN code",
+        "contactPhone": "Mobile",
+        "contactEmail": "Email",
+        "website": "Website",
+        "publicContacts": "Shown to the public",
+        "none": "None"
+      },
+      "place_value": "{city}, {state} {pinCode}",
+      "saved": "Saved. Your changes are on your public page.",
+      "savedPending": "Saved. FOA will see your changes when it checks your listing.",
+      "resubmitted": "Saved. Because the name or type changed, FOA checks your listing again before it goes back on the directory.",
+      "unchanged": "Nothing changed.",
+      "withdrawnNotice": "Withdrawn. Your listing is off the directory for good.",
+      "uploaded": "Uploaded. FOA will see it once its safety check is done.",
+      "documents": {
+        "title": "Proof for FOA",
+        "lead": "Only FOA staff can open these files. You see what you sent and whether it arrived safely.",
+        "empty": "Nothing sent yet.",
+        "caption": "Files sent to FOA",
+        "kind": "What it is",
+        "file": "File",
+        "limits": "A PDF, JPEG or PNG, up to 10 MB.",
+        "submit": "Upload",
+        "uploading": "Uploading…",
+        "column": {
+          "kind": "What it is",
+          "status": "Status",
+          "uploaded": "Sent"
+        },
+        "closed": "This listing can't take more files in its current status.",
+        "errors": {
+          "empty": "Choose a file to upload.",
+          "invalid_input": "Choose what the file is.",
+          "type_not_allowed": "Upload a PDF, JPEG or PNG.",
+          "too_large": "The file is over 10 MB. Upload a smaller one.",
+          "purpose_unavailable": "Uploads aren't open here.",
+          "listing_not_editable": "This listing can't take more files in its current status.",
+          "too_many_documents": "This listing has as many files as it can hold. Contact FOA if you need to send more.",
+          "upload_failed": "The upload didn't finish. Check your connection and try again.",
+          "forbidden": "You can't upload files to this listing.",
+          "not_found": "The upload couldn't be found. Please try again.",
+          "upload_missing": "The upload didn't arrive. Please try again.",
+          "size_mismatch": "The file changed while uploading. Please try again.",
+          "type_mismatch": "The file isn't the type it said it was.",
+          "upload_expired": "The upload took too long. Please try again.",
+          "unexpected": "Something went wrong on our side. Please try again in a few minutes."
+        }
+      },
+      "withdraw": {
+        "title": "Withdraw this listing",
+        "lead": "Withdrawing takes your listing off the directory for good. To list again later, register again.",
+        "reason": {
+          "label": "Why (optional)",
+          "hint": "FOA sees this. Up to {max} characters."
+        },
+        "submit": "Withdraw the listing",
+        "submitting": "Withdrawing…",
+        "errors": {
+          "reason_too_long": "Keep the reason to {max} characters.",
+          "transition_not_allowed": "This listing can't be withdrawn in its current status.",
+          "unexpected": "Something went wrong on our side. Please try again in a few minutes."
+        }
+      }
+    },
+    "edit": {
+      "meta": {
+        "title": "Change your listing",
+        "description": "Change what your directory listing says."
+      },
+      "title": "Change {name}",
+      "lead": "Changes to the details show on your public page at once. A new name or type goes back to FOA for checking first.",
+      "back": "Back to the listing",
+      "submit": "Save changes",
+      "submitting": "Saving…"
+    },
+    "public": {
+      "loading": "Loading the listing…",
+      "eyebrow": "NGO directory",
+      "verified": "Checked by FOA",
+      "servicesTitle": "Services",
+      "aboutTitle": "About",
+      "placeTitle": "Where",
+      "place_value": "{city}, {state} {pinCode}",
+      "contactTitle": "Contact",
+      "noContact": "This listing hasn't shared contact details. You can ask FOA to pass on a message.",
+      "phone": "Mobile",
+      "email": "Email",
+      "website": "Website",
+      "askFoa": "Contact FOA",
+      "disclaimer": "FOA checks who a listing is before it appears here. FOA doesn't run this organisation and isn't responsible for its work. If something about it worries you, tell FOA.",
+      "notFound": {
+        "title": "No listing at this address",
+        "body": "It may have moved off the directory."
+      }
+    }
+  }
+}

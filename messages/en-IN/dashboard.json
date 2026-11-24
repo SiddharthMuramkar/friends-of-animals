@@ -21,7 +21,8 @@
     "member": {
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
       "sessions": "See where you're signed in",
-      "children": "Your children, as a parent or guardian"
+      "children": "Your children, as a parent or guardian",
+      "directory": "Your listing in FOA's NGO directory"
     },
     "admin": {
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
@@ -31,7 +32,8 @@
       "safeguarding": "Safeguarding reports",
       "payments": "Payments needing review",
       "refunds": "Refunds",
-      "ledger": "Ledger"
+      "ledger": "Ledger",
+      "directory": "Directory listings"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
@@ -40,7 +42,8 @@
       "body": "The entries you're asked to judge will show here when judging opens."
     },
     "organisation": {
-      "body": "Your organisation's own page comes later. Your role there is already set."
+      "body": "Your listing in FOA's NGO directory. Keep it up to date and send FOA proof.",
+      "listing": "Open your listing"
     }
   }
 }

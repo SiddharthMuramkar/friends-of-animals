@@ -121,6 +121,36 @@ export function adminBreachPath(breachId: string): string {
   return `${ADMIN_BREACHES}/${encodeURIComponent(breachId)}`;
 }
 
+/**
+ * The NGO directory (#127): registering a listing, the listings a person
+ * acts for, and the staff review queue. Listed with APP_ROUTE_TEMPLATES
+ * rather than in APP_ROUTES, like the payments pages. The public listing
+ * page, /ngos/<slug>, is outside the signed-in tree.
+ */
+export const NGO_REGISTER = "/ngos/register";
+export const MY_LISTINGS = "/organisation";
+export const ADMIN_DIRECTORY = "/admin/directory";
+
+/** One listing the signed-in user acts for. */
+export function myListingPath(listingId: string): string {
+  return `${MY_LISTINGS}/${encodeURIComponent(listingId)}`;
+}
+
+/** Where the listing's people edit it. */
+export function editListingPath(listingId: string): string {
+  return `${myListingPath(listingId)}/edit`;
+}
+
+/** One listing in the staff review queue. */
+export function adminDirectoryListingPath(listingId: string): string {
+  return `${ADMIN_DIRECTORY}/${encodeURIComponent(listingId)}`;
+}
+
+/** A verified listing's public page. */
+export function publicListingPath(slug: string): string {
+  return `/ngos/${encodeURIComponent(slug)}`;
+}
+
 /** Where a competition manager or staff admin asks for a batch's refund. */
 export function adminBatchRefundPath(batchId: string): string {
   return `${adminPaymentBatchPath(batchId)}/refund`;
@@ -327,6 +357,12 @@ export const APP_ROUTE_TEMPLATES = [
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
+  NGO_REGISTER,
+  MY_LISTINGS,
+  "/organisation/[id]",
+  "/organisation/[id]/edit",
+  ADMIN_DIRECTORY,
+  "/admin/directory/[id]",
 ] as const;
 
 /**
@@ -361,6 +397,8 @@ export const SIGNED_IN_PREFIXES = [
   "/institutions/register",
   "/participant",
   "/guardian",
+  "/ngos/register",
+  "/organisation",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

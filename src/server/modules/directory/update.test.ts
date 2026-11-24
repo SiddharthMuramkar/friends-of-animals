@@ -45,6 +45,7 @@ describe("updateListing", () => {
     expect(result).toEqual({
       ok: true,
       changed: true,
+      resubmitted: false,
       status: "pending_verification",
       slug: "paws-trust",
     });
@@ -103,6 +104,7 @@ describe("updateListing", () => {
       expect(await edit(h, actor, listingId, changes)).toMatchObject({
         ok: true,
         changed: true,
+        resubmitted: true,
         status: "pending_verification",
         slug,
       });
@@ -143,6 +145,7 @@ describe("updateListing", () => {
     ).toEqual({
       ok: true,
       changed: false,
+      resubmitted: false,
       status: "verified",
       slug: "paws-trust",
     });
@@ -255,12 +258,10 @@ describe("withdrawListing", () => {
     const { listingId, actor } = await registeredListing(h);
 
     expect(
-      await h
-        .as(actor)
-        .withdrawListing({
-          listingId,
-          reason: "  We merged with another trust. ",
-        })
+      await h.as(actor).withdrawListing({
+        listingId,
+        reason: "  We merged with another trust. ",
+      })
     ).toEqual({ ok: true, status: "withdrawn", slug: "paws-trust" });
     expect(await h.as(actor).listMyListings()).toEqual([
       expect.objectContaining({

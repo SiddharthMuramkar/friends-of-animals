@@ -32,7 +32,14 @@ import { openListingDetails, sealListingDetails } from "./stored-listing";
 export type UpdateListingInput = ListingDetailsInput & { listingId: string };
 
 export type UpdateListingResult =
-  | { ok: true; changed: boolean; status: ListingStatus; slug: string }
+  | {
+      ok: true;
+      changed: boolean;
+      /** A new name or type sent a verified listing back to review. */
+      resubmitted: boolean;
+      status: ListingStatus;
+      slug: string;
+    }
   | InvalidInput
   | { ok: false; error: "listing_not_editable" };
 
@@ -59,7 +66,13 @@ export async function updateListing(
     });
     if (!plan.ok) return plan;
     if (!plan.changed) {
-      return { ok: true, changed: false, status: row.status, slug: row.slug };
+      return {
+        ok: true,
+        changed: false,
+        resubmitted: false,
+        status: row.status,
+        slug: row.slug,
+      };
     }
 
     const now = ctx.clock.now();
@@ -97,7 +110,13 @@ export async function updateListing(
         payload: { listingId, userId: row.ownerUserId },
       });
     }
-    return { ok: true, changed: true, status: plan.to, slug: row.slug };
+    return {
+      ok: true,
+      changed: true,
+      resubmitted,
+      status: plan.to,
+      slug: row.slug,
+    };
   });
 }
 

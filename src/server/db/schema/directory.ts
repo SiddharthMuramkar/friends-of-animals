@@ -85,9 +85,7 @@ export const directoryListing = pgTable(
     /** An Indian PIN code; #128 measures distance from it. */
     pinCode: text("pin_code").notNull(),
     /** E.164, encrypted for purpose "directory_listing.contact_phone". */
-    contactPhoneCiphertext: encryptedText(
-      "contact_phone_ciphertext"
-    ).notNull(),
+    contactPhoneCiphertext: encryptedText("contact_phone_ciphertext").notNull(),
     /** Lower-cased, encrypted for "directory_listing.contact_email". */
     contactEmailCiphertext: encryptedText("contact_email_ciphertext"),
     website: text(),
@@ -184,9 +182,7 @@ export const directoryListingDocument = pgTable(
     createdAt: timestamptz("created_at").notNull(),
   },
   (table) => [
-    uniqueIndex("directory_listing_document_file_unique").on(
-      table.fileAssetId
-    ),
+    uniqueIndex("directory_listing_document_file_unique").on(table.fileAssetId),
     index("directory_listing_document_listing_idx").on(
       table.listingId,
       table.createdAt

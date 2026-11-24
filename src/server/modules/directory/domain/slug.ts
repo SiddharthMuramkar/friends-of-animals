@@ -35,3 +35,13 @@ export function listingSlugBase(name: string): string {
 export function listingSlugCandidate(base: string, attempt: number): string {
   return attempt <= 1 ? base : `${base}-${attempt}`;
 }
+
+/** Whether `slug` could be a listing's: what listingSlugCandidate makes. */
+export function isListingSlug(slug: string): boolean {
+  return (
+    slug.length > 0 &&
+    slug.length <= SLUG_MAX_LENGTH + 20 &&
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) &&
+    !RESERVED_SLUGS.has(slug)
+  );
+}

@@ -171,18 +171,4 @@ export type ListingDetails = {
 
 export type ListingField = keyof ListingDetails;
 
-/** The form's fields, in form order. */
-export const LISTING_FIELDS = [
-  "type",
-  "name",
-  "description",
-  "services",
-  "address",
-  "city",
-  "state",
-  "pinCode",
-  "contactPhone",
-  "contactEmail",
-  "website",
-  "publicContactFields",
-] as const satisfies readonly ListingField[];
+export { LISTING_FIELDS } from "./fields";
