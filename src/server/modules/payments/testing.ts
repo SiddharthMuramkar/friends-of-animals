@@ -226,7 +226,7 @@ export async function uploadProof(
     .completeUpload({ fileId: requested.fileId });
   if (!completed.ok) throw new Error(JSON.stringify(completed));
   if (status) {
-    // Stands in for the scanner (docs/agents/seam-1.md).
+    // Stands in for the scanner (README.md, "Testing and CI").
     await h.db
       .update(fileAsset)
       .set({ status })

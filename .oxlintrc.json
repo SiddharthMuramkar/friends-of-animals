@@ -21,13 +21,7 @@
   "options": {
     "reportUnusedDisableDirectives": "error"
   },
-  "ignorePatterns": [
-    "docs/handoff/**",
-    ".next/**",
-    "next-env.d.ts",
-    "drizzle/**",
-    "public/**"
-  ],
+  "ignorePatterns": [".next/**", "next-env.d.ts", "drizzle/**", "public/**"],
   "overrides": [
     {
       "files": ["src/**/*.tsx"],
@@ -64,7 +58,7 @@
       }
     },
     {
-      "files": ["src/**/*.test.tsx", "src/components/ui/**"],
+      "files": ["src/**/*.test.tsx"],
       "rules": {
         "react/jsx-no-literals": "off"
       }

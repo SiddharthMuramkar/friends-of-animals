@@ -1,19 +1,21 @@
 @AGENTS.md
 
-## Cloud agents
+Read `README.md` before starting a ticket. It explains the architecture, the ticket board (what is done and what is left), the migration rules, and how to work and land a ticket.
 
-`.cursor/environment.json` is the Cursor cloud-agent setup: `.cursor/cloud-install.sh` installs Node 26, pnpm and the dependencies, and `.cursor/cloud-start.sh` starts a local Postgres (no Docker) with the database and login from `.env.example`.
+## Issue tracker
 
-## Agent skills
+Issues live in GitHub Issues on `SiddharthMuramkar/friends-of-animals`. Use the `gh` CLI for them. The only git remote is `foa`.
 
-### Issue tracker
+- Read an issue: `gh issue view <n> --json number,title,body,labels,comments`.
+- Blocking uses GitHub's native issue dependencies: `gh issue edit <child> --add-blocked-by <blocker>`. A ticket is startable when `gh api repos/SiddharthMuramkar/friends-of-animals/issues/<n> --jq .issue_dependencies_summary.blocked_by` prints 0.
+- Sub-issues: `gh issue create --parent <n> ...` or `gh issue edit <parent> --add-sub-issue <child>`.
+- A PR that finishes a ticket says `Closes #N`. A PR that lands one part of a ticket says `Refs #N`.
+- Comment with the reason before closing an issue by hand.
 
-Issues live in GitHub Issues on SiddharthMuramkar/friends-of-animals, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+## Triage labels
 
-### Triage labels
+The five default labels are used as-is: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
 
-The five default labels are used as-is: needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix. See `docs/agents/triage-labels.md`.
+## Domain docs
 
-### Domain docs
-
-Single-context: one `GLOSSARY.md` plus `docs/adr/` at the repo root, both created when first needed. See `docs/agents/domain.md`.
+Single context: one `GLOSSARY.md` and `docs/adr/` at the repo root. Name domain concepts with the glossary's terms, and call out any change that contradicts an ADR.

@@ -83,7 +83,7 @@ async function readTemplate(): Promise<Blob> {
  * Use-case tests should use `createHarness()` from "@/test/harness", which
  * builds on this. Lower-level code takes the database as an argument, so a
  * test passes it one directly, never by mocking an app module such as
- * "@/server/db" (docs/agents/seam-1.md; CI's integrity job rejects it):
+ * "@/server/db" (README.md, "Testing and CI"; CI's integrity job rejects it):
  *
  *   import { createTestDb } from "@/test/db";
  *

@@ -6,9 +6,9 @@ name: CI
 # Postgres service on the runner (docs/adr/0001-ci-e2e-and-prebuilt-deploys.md).
 #
 # To stay inside GitHub's concurrent-job budget, the E2E and real-Postgres
-# jobs run on main, by hand, in the merge queue, and on PRs whose branch
-# starts with train/ or revert/ or that carry the `full-ci` label. Other PRs
-# run every other job; "CI gate" accepts those two as skipped only then.
+# jobs run on main, by hand, and on PRs whose branch starts with revert/ or
+# that carry the `full-ci` label (add it before merging). Other PRs run every
+# other job; "CI gate" accepts those two as skipped only then.
 
 on:
   pull_request:
@@ -41,7 +41,6 @@ jobs:
           FULL: >-
             ${{
               github.event_name != 'pull_request' ||
-              startsWith(github.head_ref, 'train/') ||
               startsWith(github.head_ref, 'revert/') ||
               contains(github.event.pull_request.labels.*.name, 'full-ci')
             }}
@@ -417,23 +416,9 @@ jobs:
         with:
           persist-credentials: false
 
-      # #132 adds the `test:pg` script; until then there is nothing to run.
-      - id: suite
-        name: Find the test:pg script
-        run: |
-          if jq -e '.scripts["test:pg"]' package.json > /dev/null; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No test:pg script in package.json yet (#132): nothing to run."
-          fi
-
-      - if: steps.suite.outputs.present == 'true'
-        uses: ./.github/actions/setup
-      - if: steps.suite.outputs.present == 'true'
-        run: pnpm db:migrate
-      - if: steps.suite.outputs.present == 'true'
-        run: pnpm test:pg
+      - uses: ./.github/actions/setup
+      - run: pnpm db:migrate
+      - run: pnpm test:pg
 
   gate:
     # The one required check. Every job must succeed; e2e and pg-concurrency

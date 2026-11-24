@@ -871,6 +871,11 @@ unset OFFSITE_RESTORE_R2_ACCESS_KEY_ID OFFSITE_RESTORE_R2_SECRET_ACCESS_KEY
 
 ## Preview databases and the sweeper
 
+**Dormant.** There are no Vercel previews (see
+[ADR 0001](../docs/adr/0001-ci-e2e-and-prebuilt-deploys.md)), so nothing
+creates preview databases and the sweeper finds none. Kept for when previews
+come back.
+
 `scripts/sweep-preview-dbs.sh` (hourly via `foa-preview-sweep.timer`) lists
 pg-nonprod databases whose comment starts with `foa-preview `:
 
@@ -1521,11 +1526,11 @@ Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
    `/etc/foa/firewall.env`, the Hostinger firewall and CrowdSec (whitelist
    and LAPI allowlist).
    Until then 6432 is open to the internet, protected by TLS, SCRAM with
-   32-byte random passwords, PgBouncer 1.26.1 and CrowdSec. Vercel **builds**
-   run in `iad1` (Washington), not in `bom1` with the functions, and the
-   migrations run in the build: turning on "Use Static IPs for builds" needs a
-   static-IP region for builds as well, and its IPs on the allowlist, or the
-   allowlist blocks every migration.
+   32-byte random passwords, PgBouncer 1.26.1 and CrowdSec. Production
+   migrations run in the "Deploy production" GitHub Actions job (`vercel
+   build` on a GitHub runner), not on Vercel, so an allowlist must also let
+   that job reach 6432 (or the migration step must move to the VPS), or it
+   blocks every migration.
 2. **Off-site copy of files (#68, HR-25, HR-13)**: B2 bucket and key, a
    read-only R2 token, the settings in `worker-prod`, the retention value
    (30 days proposed) and one restore tried against real buckets (above).
@@ -1546,12 +1551,7 @@ Upgrade: bump the tag in `errors.yml`, `git pull`, then `up -d --wait` again.
 7. **Workers (HR-07):** apply the roles and start `workers.yml` (Workers,
    "First start"), and settle the CPU and memory caps there for the shared
    VPS.
-8. **One build per branch** (owner): Vercel → Project Settings → Build and
-   Deployment → On-Demand Concurrent Builds → "Run up to one build per
-   branch". The API refused the change for lack of permission. Meanwhile the
-   migration's advisory lock keeps concurrent builds of one branch from
-   applying the same migration twice.
-9. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
+8. **Edge rate limit** (deferred, #118): CrowdSec's HTTP scenarios are the
    edge's abuse control today (Edge, "Abuse control"). If Umami's
    `/api/send` or GlitchTip's envelopes are ever flooded, build Caddy with
    a pinned `caddy-ratelimit` (an image built and pinned here, not
