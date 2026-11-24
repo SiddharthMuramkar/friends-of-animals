@@ -131,11 +131,35 @@ export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
 }
 
+/**
+ * Volunteering (#123): a member's application, a guardian's view of their
+ * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
+ * rather than in APP_ROUTES, like the payments pages.
+ */
+export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
+export const ADMIN_VOLUNTEERS = "/admin/volunteers";
+
+export function adminVolunteerApplicationPath(applicationId: string): string {
+  return `${ADMIN_VOLUNTEERS}/${encodeURIComponent(applicationId)}`;
+}
+
+export function guardianChildVolunteerPath(childId: string): string {
+  return `${guardianChildPath(childId)}/volunteer`;
+}
+
 /** The breach log and its staff-only detail pages (#116). */
 export const ADMIN_BREACHES = "/admin/breaches";
 
 export function adminBreachPath(breachId: string): string {
   return `${ADMIN_BREACHES}/${encodeURIComponent(breachId)}`;
+}
+
+/** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_CAMPAIGNS = "/admin/campaigns";
+export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
+
+export function adminCampaignPath(campaignId: string): string {
+  return `${ADMIN_CAMPAIGNS}/${encodeURIComponent(campaignId)}`;
 }
 
 /** Where a competition manager or staff admin asks for a batch's refund. */
@@ -326,6 +350,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/refunds/[id]",
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
+  ADMIN_CAMPAIGNS,
+  ADMIN_NEW_CAMPAIGN,
+  "/admin/campaigns/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,
@@ -346,6 +373,10 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]",
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
+  "/guardian/children/[id]/volunteer",
+  DASHBOARD_VOLUNTEER,
+  ADMIN_VOLUNTEERS,
+  "/admin/volunteers/[id]",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
@@ -365,6 +396,17 @@ export const INVITATIONS_PREFIX = "/invitations";
  */
 export function invitationPath(token: string): string {
   return `${INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+/**
+ * Where a campaign message's withdrawal link opens (#126). The path carries
+ * its token, the bearer credential, so analytics leaves the prefix out
+ * (src/lib/analytics/umami.ts). Anyone holding the link can open it.
+ */
+export const WITHDRAWAL_PREFIX = "/withdraw";
+
+export function withdrawalPath(token: string): string {
+  return `${WITHDRAWAL_PREFIX}/${encodeURIComponent(token)}`;
 }
 
 /**

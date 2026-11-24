@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { SESSION_LIFETIME_DAYS } from "../../server/identity/settings";
-import { invitationPath, SIGNED_IN_PREFIXES } from "../app-routes";
+import {
+  invitationPath,
+  SIGNED_IN_PREFIXES,
+  withdrawalPath,
+} from "../app-routes";
 import { publicCsp, signedInCsp } from "../csp";
 import { CSP_SOURCES, cspContext } from "../csp-sources";
 
@@ -141,6 +145,8 @@ describe("isExcludedPath", () => {
       "/donate/checkout/ord_1",
       // A coordinator invitation's link is its bearer credential (#74).
       invitationPath(TOKEN),
+      // A campaign message's withdrawal link is its bearer credential (#126).
+      withdrawalPath(TOKEN),
     ]) {
       expect(isExcludedPath(path, ANALYTICS_EXCLUDED_PREFIXES)).toBe(true);
     }

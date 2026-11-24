@@ -22,6 +22,9 @@ const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   // Erasure (#115b) waits for counsel in production (HR-30); seeded data
   // is fake, so a local run or preview can try it end to end.
   "privacy.erasureEnabled": true,
+  // Volunteer applications (#123) open where nothing is real; production
+  // keeps them closed until HR-55 and HR-38.
+  "volunteers.applicationsOpen": true,
 };
 
 /**

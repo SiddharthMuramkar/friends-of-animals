@@ -19,6 +19,10 @@ import {
 } from "../privacy/domain/periods";
 import { MAX_REMINDER_OFFSET_HOURS } from "../reminders/domain/offsets";
 import {
+  VOLUNTEER_AGE_RULE_BOUNDS,
+  VOLUNTEER_AGE_RULE_DEFAULTS,
+} from "../volunteers/domain/eligibility";
+import {
   booleanSetting,
   integerSetting,
   type SettingDefinition,
@@ -136,6 +140,21 @@ export const SETTINGS = {
   // still names its payer. Off deletes the account; the payment rows stay
   // either way (HR-30, HR-47).
   "privacy.erasureKeepsPayerAccount": booleanSetting({ default: true }),
+  // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
+  // and counsel sign M6 off (HR-55) and police checks are in place
+  // (HR-38); local runs and previews are seeded open. The age rules are
+  // FOA's defaults until leadership confirms them (HR-57).
+  "volunteers.applicationsOpen": booleanSetting({ default: false }),
+  "volunteers.minAgeYears": integerSetting({
+    default: VOLUNTEER_AGE_RULE_DEFAULTS.minAgeYears,
+    ...VOLUNTEER_AGE_RULE_BOUNDS.minAgeYears,
+    unit: "years",
+  }),
+  "volunteers.guardianApprovalBelowAgeYears": integerSetting({
+    default: VOLUNTEER_AGE_RULE_DEFAULTS.guardianApprovalBelowAgeYears,
+    ...VOLUNTEER_AGE_RULE_BOUNDS.guardianApprovalBelowAgeYears,
+    unit: "years",
+  }),
   // Reminders (#84): two reminders before submissions close, to whoever
   // still owes an entry. A change applies to each reminder when it runs,
   // and the hourly reminder sync plans any new time.
@@ -185,6 +204,9 @@ export const SETTINGS = {
     max: CONTACT_RETENTION.maximumMonths,
     unit: "months",
   }),
+  "retention.volunteerApplicationsDays": retentionDays(
+    RETENTION_PERIODS.volunteerApplications
+  ),
   "retention.releasedLegalHoldsDays": retentionDays(
     RETENTION_PERIODS.releasedLegalHolds
   ),

@@ -13,8 +13,10 @@ import {
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY_REQUESTS,
   ADMIN_REFUNDS,
+  ADMIN_VOLUNTEERS,
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
+  DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
 } from "@/lib/app-routes";
@@ -78,6 +80,12 @@ async function Areas() {
     )
   );
   const finance = grants.some((grant) => grant.role === "finance");
+  // Community managers and super admins vet volunteers (#123).
+  const community = grants.some(
+    (grant) =>
+      grant.role === "community_manager" ||
+      (grant.role === "super_admin" && grant.scope.type === "global")
+  );
   const competitions = grants.some(
     (grant) =>
       grant.role === "competition_manager" ||
@@ -129,6 +137,7 @@ async function Areas() {
             money={money}
             finance={finance}
             competitions={competitions}
+            community={community}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -145,6 +154,7 @@ async function AreaBody({
   money,
   finance,
   competitions,
+  community,
 }: {
   area: DashboardLink["area"];
   id?: string;
@@ -153,6 +163,7 @@ async function AreaBody({
   money: boolean;
   finance: boolean;
   competitions: boolean;
+  community: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -177,6 +188,7 @@ async function AreaBody({
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
             { href: APP_ROUTES.guardian, label: t("member.children") },
             { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
+            { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
           ])
         : null}
       {area === "institution" && id
@@ -227,6 +239,9 @@ async function AreaBody({
               : []),
             ...(finance
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
+              : []),
+            ...(community
+              ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
               : []),
           ])
         : null}

@@ -22,6 +22,7 @@
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
       "sessions": "See where you're signed in",
       "children": "Your children, as a parent or guardian",
+      "volunteer": "Volunteer with Friends of Animals",
       "privacy": "Your privacy requests: see, correct or erase your data"
     },
     "admin": {
@@ -33,6 +34,7 @@
       "payments": "Payments needing review",
       "refunds": "Refunds",
       "ledger": "Ledger",
+      "volunteers": "Volunteer applications",
       "privacyRequests": "Privacy requests"
     },
     "institution": {

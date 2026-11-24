@@ -5,8 +5,10 @@
       "roles": "Roles",
       "audit": "Audit log",
       "breaches": "Breach log",
+      "campaigns": "Campaigns",
       "consentForms": "Signed forms",
       "privacy": "Data inventory",
+      "volunteers": "Volunteers",
       "privacyRequests": "Privacy requests"
     },
     "loading": "Loading…",

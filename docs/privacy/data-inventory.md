@@ -68,6 +68,17 @@ encrypted. A closed request and its notes are deleted 3 years after it closes
 kind of record and what it kept, as proof of the erasure and so it can be done
 again after a backup is restored (HR-30).
 
+## Volunteer applications
+
+A volunteer application holds the applicant's date of birth (encrypted,
+copied from their participant profile when they have one), the areas they
+offered and when they are free, the guardian who approved a 14- to
+17-year-old's application, the consent events behind the two declarations,
+and the community manager who decided, with a decline reason (encrypted).
+An application declined or withdrawn is deleted 365 days after it closes
+(`volunteerApplications`); an approved one stays while the person volunteers
+(HR-31, HR-55, pending confirmation).
+
 ## Scheduled retention
 
 The worker runs the retention sweep

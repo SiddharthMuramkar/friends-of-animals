@@ -28,6 +28,8 @@ import art from "../../messages/en-IN/art.json";
 import adminBreaches from "../../messages/en-IN/adminBreaches.json";
 import adminGrievance from "../../messages/en-IN/adminGrievance.json";
 import privacyRequests from "../../messages/en-IN/privacyRequests.json";
+import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -53,6 +55,7 @@ import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import guardian from "../../messages/en-IN/guardian.json";
+import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
@@ -104,6 +107,8 @@ export const NAMESPACES = [
   "adminBreaches",
   "adminGrievance",
   "privacyRequests",
+  "adminVolunteers",
+  "campaigns",
   "auth",
   "authPhone",
   "awareness",
@@ -129,6 +134,7 @@ export const NAMESPACES = [
   "files",
   "footer",
   "guardian",
+  "volunteer",
   "home",
   "impact",
   "inbox",
@@ -184,6 +190,8 @@ export const messages = {
   ...adminBreaches,
   ...adminGrievance,
   ...privacyRequests,
+  ...adminVolunteers,
+  ...campaigns,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -209,6 +217,7 @@ export const messages = {
   ...files,
   ...footer,
   ...guardian,
+  ...volunteer,
   ...home,
   ...impact,
   ...inbox,

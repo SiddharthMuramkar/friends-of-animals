@@ -34,6 +34,7 @@ import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
 import { PRIVACY_REQUESTS } from "./privacy-requests";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
+import { VOLUNTEER_APPLICATIONS } from "./volunteers";
 import type { RetentionPolicy } from "./types";
 
 export type { CandidateQuery, RetentionPolicy } from "./types";
@@ -55,6 +56,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   CONTACT_MESSAGES,
   SAFEGUARDING_REPORTS,
   BREACH_RECORDS,
+  VOLUNTEER_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
   PRIVACY_REQUESTS,
@@ -112,6 +114,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "announcements",
   /** Erasure records (#115b): kept as the proof of an erasure (HR-30). */
   "erasureRecords",
+  /** Campaigns (#126): kept with the campaign's record. */
+  "campaigns",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];
