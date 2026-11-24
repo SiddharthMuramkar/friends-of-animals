@@ -66,7 +66,7 @@ export type RoundEntry = {
 
 /**
  * Every entry of the institution registration's students, in any status,
- * in the order the students' entries were made. With `lock`, the entries
+ * by student name. With `lock`, the entries
  * are locked until the transaction ends.
  */
 export async function loadRoundEntries(
@@ -110,7 +110,7 @@ export async function loadRoundEntries(
         eq(registration.route, "institution")
       )
     )
-    .orderBy(asc(entry.createdAt), asc(entry.id));
+    .orderBy(asc(participantProfile.fullName), asc(entry.code));
   return lock ? query.for("update", { of: entry }) : query;
 }
 

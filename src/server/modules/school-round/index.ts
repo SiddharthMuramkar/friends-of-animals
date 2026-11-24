@@ -11,7 +11,15 @@
 // `schoolRoundUseCases`.
 
 import type { UseCaseContext } from "../../use-cases";
+import {
+  finaliseSchoolRound,
+  type FinaliseSchoolRoundInput,
+} from "./use-cases/finalise-school-round";
 import { getSchoolRound } from "./use-cases/get-school-round";
+import {
+  listSchoolRoundOutcomes,
+  type ListSchoolRoundOutcomesInput,
+} from "./use-cases/list-school-round-outcomes";
 import { recordPanel, type RecordPanelInput } from "./use-cases/record-panel";
 import {
   saveShortlist,
@@ -28,6 +36,12 @@ export type { RecordPanelResult } from "./use-cases/record-panel";
 export { PANEL_FIELD_MAX, PANEL_MAX_MEMBERS } from "./use-cases/record-panel";
 export type { SaveShortlistResult } from "./use-cases/save-shortlist";
 export type { PickProblem } from "./domain/picks";
+export type { FinaliseSchoolRoundResult } from "./use-cases/finalise-school-round";
+export type {
+  ListSchoolRoundOutcomesResult,
+  SchoolRoundOutcome,
+} from "./use-cases/list-school-round-outcomes";
+export { JUDGING_STATEMENT_VERSION } from "./domain/judging-statement";
 export type { FinaliseBlocker } from "./domain/finalise";
 export type { SchoolRoundStatus } from "./domain/status";
 
@@ -37,4 +51,8 @@ export const schoolRoundUseCases = (ctx: UseCaseContext) => ({
   getSchoolRound: (input: RegistrationRef) => getSchoolRound(ctx, input),
   recordPanel: (input: RecordPanelInput) => recordPanel(ctx, input),
   saveShortlist: (input: SaveShortlistInput) => saveShortlist(ctx, input),
+  finaliseSchoolRound: (input: FinaliseSchoolRoundInput) =>
+    finaliseSchoolRound(ctx, input),
+  listSchoolRoundOutcomes: (input: ListSchoolRoundOutcomesInput) =>
+    listSchoolRoundOutcomes(ctx, input),
 });
