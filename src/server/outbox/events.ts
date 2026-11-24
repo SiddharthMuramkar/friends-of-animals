@@ -365,6 +365,15 @@ export type DomainEvent =
     }
   | {
       /**
+       * One recipient's message of a sent campaign (#126) is due. The
+       * handler checks the consent it rests on again before it goes.
+       */
+      type: "campaign.message_due";
+      aggregate: { type: "campaign_recipient"; id: string };
+      payload: { campaignId: string; recipientId: string };
+    }
+  | {
+      /**
        * The registration's competition was cancelled (#80). Its family
        * contact (or the adult whose own it is) is told, with how its fee
        * comes back: `refund` says through the gateway, by hand, from the
@@ -510,6 +519,10 @@ export const EVENT_PAYLOADS = {
     pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
   }),
   "breach.authority_notice": z.object({ breachId: z.uuid() }),
+  "campaign.message_due": z.object({
+    campaignId: z.uuid(),
+    recipientId: z.uuid(),
+  }),
   "registration.competition_cancelled": z.object({
     registrationId: z.uuid(),
     competitionId: z.uuid(),
@@ -631,6 +644,9 @@ export const SUBSCRIBERS = {
   // The authority is an address, not a user, so no route row can name it:
   // the email goes by its own handler, with its route's template (#116).
   "breach.authority_notice": ["breaches.send_authority_notice"],
+  // The campaigns module plans its own channels on the consent each
+  // message rests on, with its route's template (#126).
+  "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
   // guardians' go by route row (#80).

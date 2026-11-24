@@ -346,6 +346,17 @@ export function invitationPath(token: string): string {
 }
 
 /**
+ * Where a campaign message's withdrawal link opens (#126). The path carries
+ * its token, the bearer credential, so analytics leaves the prefix out
+ * (src/lib/analytics/umami.ts). Anyone holding the link can open it.
+ */
+export const WITHDRAWAL_PREFIX = "/withdraw";
+
+export function withdrawalPath(token: string): string {
+  return `${WITHDRAWAL_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+/**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
  * without a session cookie to sign in; #65's CSP gives these a nonce.
  * Each tree also needs the proxy's matcher to list it, and a layout that

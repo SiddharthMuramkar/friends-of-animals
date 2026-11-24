@@ -3,6 +3,7 @@ import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 
 import type { AppDb } from "../../../db/app-db";
 import {
+  campaignRecipient,
   cmsPost,
   competition,
   consentEvent,
@@ -38,6 +39,10 @@ type AggregateSource = {
 // The aggregate links that identify people or institutions in the event.
 // Read them in batches alongside payload subjects, which can outlive the links.
 const aggregateSources = {
+  campaign_recipient: {
+    table: campaignRecipient,
+    subjects: [["user", campaignRecipient.userId]],
+  },
   cms_post: {
     table: cmsPost,
     subjects: [

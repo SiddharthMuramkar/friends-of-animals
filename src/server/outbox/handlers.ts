@@ -45,6 +45,7 @@ import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import { fanOutBreachNotices } from "../modules/breaches/fan-out";
 import { sendAuthorityNotice } from "../modules/breaches/authority-message";
+import { deliverCampaignMessage } from "../modules/campaigns/deliver";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -178,6 +179,8 @@ export const HANDLERS: Handlers = {
   // Emails the authority about a breach, once (#116).
   "breaches.send_authority_notice": (deps, { payload }) =>
     sendAuthorityNotice(deps, payload),
+  // One recipient's campaign message, on the consent it rests on (#126).
+  "campaigns.deliver_message": deliverCampaignMessage,
 };
 
 /** Whether this code has a handler by that name. */

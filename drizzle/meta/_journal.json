@@ -554,6 +554,20 @@
       "when": 1795495272354,
       "tag": "0078_116_breach_notice_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1795502961348,
+      "tag": "0079_126_campaigns",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1795503136531,
+      "tag": "0080_126_campaign_messages",
+      "breakpoints": true
     }
   ]
 }
