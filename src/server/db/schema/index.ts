@@ -43,5 +43,6 @@ export * from "./reminders";
 export * from "./contact";
 export * from "./public-forms";
 export * from "./privacy";
+export * from "./directory";
 export * from "./campaigns";
 export * from "./volunteers";

@@ -1,0 +1,101 @@
+{
+  "adminDirectory": {
+    "meta": {
+      "title": "Directory listings",
+      "description": "Check and decide on NGO directory listings."
+    },
+    "eyebrow": "Admin",
+    "title": "Directory listings",
+    "lead": "Check each listing and its proof, then verify, reject, suspend or reinstate it. Every decision needs a reason, which the listing's owner sees.",
+    "loading": "Loading listings…",
+    "forbidden": {
+      "title": "Only FOA admins can see this",
+      "body": "Ask a super admin for the staff admin role if you need it.",
+      "back": "Go to the home page"
+    },
+    "filter": {
+      "label": "Show"
+    },
+    "table": {
+      "caption": "Directory listings, oldest registration first",
+      "name": "Name",
+      "type": "Type",
+      "place": "Place",
+      "status": "Status",
+      "registered": "Registered",
+      "place_value": "{city}, {state}"
+    },
+    "empty": "No listings here.",
+    "more": "Next page",
+    "first": "First page",
+    "review": {
+      "meta": {
+        "title": "Check a listing",
+        "description": "Every detail of one directory listing, its proof and its decision."
+      },
+      "back": "All listings",
+      "notFound": {
+        "title": "No listing with that link",
+        "body": "It may have been typed wrongly. Go back to the list to find it."
+      },
+      "registeredBy": "Registered by",
+      "registeredOn": "Registered on {date}",
+      "detailsTitle": "Details",
+      "documentsTitle": "Proof",
+      "documentsLead": "Opening a file is recorded in the audit log.",
+      "checklistTitle": "What FOA expects for this type",
+      "checklistNote": "A guide until FOA confirms its checklist; it isn't enforced.",
+      "expected": {
+        "required": "Expected",
+        "optional": "Optional",
+        "extra": "Extra"
+      },
+      "provided": "Sent",
+      "missing": "Not sent",
+      "noDocuments": "No proof sent yet.",
+      "open": "Open {kind}",
+      "documentUnavailable": "This file can't be opened: it is still being checked, or it was refused.",
+      "publicPage": "See the public page",
+      "decisionTitle": "Decision",
+      "noDecision": "There is nothing more to decide: a listing that wasn't accepted or was withdrawn stays that way. Its owner can register again.",
+      "reason": {
+        "label": "Reason",
+        "hint": "The listing's owner sees this. Up to {max} characters.",
+        "required": "Write a reason for this decision.",
+        "tooLong": "Keep the reason to {max} characters."
+      },
+      "decide": {
+        "verify": "Verify",
+        "reject": "Reject",
+        "suspend": "Suspend",
+        "reinstate": "Reinstate"
+      },
+      "deciding": "Saving…",
+      "decided": {
+        "verified": "Verified. The listing is on the directory, and its owner now represents it.",
+        "rejected": "Rejected. The owner will be told why.",
+        "suspended": "Suspended. The listing is off the directory, and the owner will be told why.",
+        "reinstated": "Reinstated. The listing is back on the directory."
+      },
+      "alerts": {
+        "transition_not_allowed": "That decision isn't possible any more: someone else may have decided first. The page now shows the current status.",
+        "unexpected": "Something went wrong on our side. Please try again in a few minutes."
+      },
+      "details": {
+        "type": "Type",
+        "services": "Services",
+        "description": "What they do",
+        "address": "Address",
+        "place": "Town, state and PIN code",
+        "contactPhone": "Mobile",
+        "contactEmail": "Email",
+        "website": "Website",
+        "publicContacts": "Shown to the public",
+        "reason": "Latest reason",
+        "none": "None"
+      },
+      "place_value": "{city}, {state} {pinCode}",
+      "opening": "Opening…"
+    }
+  }
+}

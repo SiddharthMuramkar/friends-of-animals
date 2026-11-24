@@ -553,6 +553,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`consent-forms`](#consent-forms) | A school uploads signed paper consent forms; FOA staff review them                                                             | #83                     |
 | [`consent-links`](#consent-links) | A school sends a guardian a consent link answered after a one-time code                                                        | #83                     |
 | [`contact`](#contact)             | The public contact form and the staff contact inbox                                                                            | #113                    |
+| [`directory`](#directory)         | NGO directory listings: registration, staff verification, representatives' edits and documents, the public listing page        | #127                    |
 | [`entries`](#entries)             | A participant's entry in a competition and its uploaded picture                                                                | #85                     |
 | [`files`](#files)                 | Uploads, the malware scan, image derivatives, signed delivery                                                                  | #63, #85                |
 | [`guardians`](#guardians)         | Guardians, the children they manage, teen logins, guardian requests                                                            | #81                     |
@@ -729,6 +730,22 @@ The public contact form, routed by topic to a staff team, and the staff inbox.
 - **Pages:** `/contact`; staff `/admin/inbox`, `/admin/inbox/[id]`. **Events:** `contact_message.received`. **Open:** acknowledgement wording (HR-50).
 - **Tests:** `submit.test.ts`, `inbox.test.ts`, `acknowledge.test.ts`; E2E `113-contact-inbox.spec.ts`.
 
+### directory
+
+The NGO directory (#127). An NGO, rescue organisation, shelter, independent rescuer or foster caregiver registers a **directory listing**; FOA staff verify it before it goes public. The listing is the organisation: `organisation_representative` grants are scoped to its id (`organisation:<listingId>`).
+
+- **Tables** (`directory.ts`): `directory_listing` (type, name, description, `services` as a `directory_service[]`, encrypted address, contact phone and email, plain city, state and pin code, `public_contact_fields`, status, reason, `verified_at` of the first verification, `owner_user_id`); `directory_listing_document` (a `kind` on a file of purpose `directory_document`; goes with its file). Every enum has all its values from the start (ADR 0004).
+- **States** (`domain/listing-status.ts`): `pending_verification` → `verified` or `rejected` (staff), or `withdrawn` (its people); `verified` → `suspended` (staff) or `withdrawn`; `suspended` → `verified` (reinstated); `rejected` and `withdrawn` are final. Staff moves need a reason of 1 to 1,000 characters; withdrawing takes an optional one.
+- **Edits** (`domain/listing-edit.ts`): detail edits on a verified listing go live at once; a new name or type sends it back to `pending_verification` and emits `directory.listing_submitted` again. Rejected, suspended and withdrawn listings can't be edited. The slug is made once from the name and never changes.
+- **Who acts for a listing** (`listingResource`): its registrant until FOA first verifies it, then only its organisation representatives, so revoking the role bites even for the registrant. The first verification grants the registrant the role; later verifications grant nothing.
+- **Use cases:** `registerListing`, `listMyListings`, `getMyListing`, `updateListing`, `withdrawListing`, `requestListingDocumentUpload` (its people); `listListingsForReview`, `getListingForReview`, `getListingDocumentUrl`, `verifyListing`, `rejectListing`, `suspendListing`, `reinstateListing` (staff admin, super admin); `getPublicListing`, `publicListingSlugs` (anyone).
+- **Rules:** one open listing per registrant (`directory_listing_one_open_per_owner`); an Indian mobile is required; the public page shows only the contacts the listing ticked, never the address (HR-61 default). Documents: PDF, JPEG or PNG up to 10 MiB, at most 10 per listing; only staff open them, through Files' delivery gate, which audits each read; the uploader can't. The checklist of expected documents per type is a guide, not enforced (HR-62).
+- **Pages:** `/ngos/register`, `/organisation`, `/organisation/[id]`, `/organisation/[id]/edit` (signed in); staff `/admin/directory`, `/admin/directory/[id]`; public `/ngos/[slug]` (cached by tag `directory-listing:<slug>`; `src/proxy.ts` answers any slug that isn't a verified listing with a 404).
+- **Events:** `directory.listing_submitted` (no route yet), `directory.listing_verified`, `.rejected`, `.suspended`, `.reinstated` → `notifications.dispatch`, which emails and inboxes the registrant with the reason (`drizzle/0088_127_directory_messages.sql`).
+- **Seeds for #128 and #129:** `services` and `pin_code` are what search by service and distance reads (#128 adds the pin-code table, a GIN index on `services` and `earthdistance`, HR-59, HR-60); `toPublicListing` is the public read model it lists. Adoption listings (#129) point at `directory_listing.id` and check `isPubliclyListed(status)` and the representative role at its scope. `h.seed.directoryListing({ status })` builds one in tests.
+- **Retention:** policy `directoryListings`, kept while listed, no job yet (HR-31).
+- **Tests:** `register.test.ts`, `decide.test.ts`, `update.test.ts`, `documents.test.ts`, `review-queue.test.ts`, `outcome-messages.test.ts`, `public.test.ts`, `register.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/directory.test.ts`, `src/proxy.directory.test.ts`; E2E `127-ngo-directory.spec.ts`.
+
 ### entries
 
 An **Entry** is the work one confirmed individual registration submits for a competition. A registration has at most one Entry. Its first completed upload creates the row and the **Entry ID**. Later uploads retry a failed first file or replace the **live file**. The words travel with the file: there is no draft. Why every status value exists before any judging uses it: ADR 0004.
@@ -820,7 +837,7 @@ A replacement that goes live emits no event.
 Uploads, the scan, derivatives and signed delivery. The steps are in [Files pipeline](#files-pipeline).
 
 - **Tables:** `file_asset` (`files.ts`); `file_processing`, `file_derivative` (`media.ts`).
-- **Purposes** (`domain/purposes.ts`): `test_upload` 10 MiB (not production), `cms_image` 20 MiB, `offline_payment_proof` 10 MiB, `entry_image` 20 MiB, `consent_form` 10 MiB (not production).
+- **Purposes** (`domain/purposes.ts`): `test_upload` 10 MiB (not production), `cms_image` 20 MiB, `offline_payment_proof` 10 MiB, `entry_image` 20 MiB, `consent_form` 10 MiB (not production), `directory_document` 10 MiB (#127; staff-only, like `consent_form`).
 - **File states** (`domain/file-status.ts`): `pending_upload` → `uploaded` (or `rejected`) → `scanning` → `clean`, `quarantined` or `rejected`; any → `deleted`. `quarantined`, `rejected` and `deleted` never come back.
 - **Use cases:** `requestUpload` (any signed-in user), `completeUpload` (the uploader), `getFileDownloadUrl` (uploader, staff admin, super admin, plus the status gate), `getFileStatus` (uploader), `getFileDerivativeUrl` (no page caller yet). Other modules also use the files domain directly: entries' upload grants, `cms/posts/images.ts`, consent forms, offline payment proofs.
 - **Routes:** `/api/files/presign`, `/api/files/[id]/complete`, `/api/files/[id]`; the `/account/files` demo outside production.
