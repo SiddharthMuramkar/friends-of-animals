@@ -118,7 +118,9 @@ test("a member asks for a copy of their data, and only they can download it", as
   await officer.getByRole("button", { name: "Add note" }).click();
   await expect(officer.getByText("Your note is saved.")).toBeVisible();
   await officer.getByRole("button", { name: "Prepare the copy" }).click();
-  await expect(officer.getByText("The copy is being prepared.")).toBeVisible();
+  await expect(
+    officer.getByText("The copy is being prepared.", { exact: true })
+  ).toBeVisible();
   await expectAccessible(officer, "/admin/privacy/requests/[id], export");
   await drainOutbox(page.request);
 

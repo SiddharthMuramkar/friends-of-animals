@@ -125,7 +125,12 @@ describe("planErasure", () => {
         accountKeeper: { basis: "financial_floor", until: FLOOR },
       }).fingerprint
     ).not.toBe(one.fingerprint);
-    expect(planErasure({ ...member, entries: 1 }).fingerprint).not.toBe(
+    // A kind of record appearing (a message delivered, an entry made)
+    // doesn't change it; a legal hold does.
+    expect(planErasure({ ...member, entries: 1 }).fingerprint).toBe(
+      one.fingerprint
+    );
+    expect(planErasure({ ...member, onLegalHold: true }).fingerprint).not.toBe(
       one.fingerprint
     );
   });

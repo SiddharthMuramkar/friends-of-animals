@@ -21,9 +21,10 @@
 //   someone files an erasure for them.
 // - A legal hold keeps everything (but still withdraws consents).
 //
-// The fingerprint covers each kind's action and basis, never counts, ids or
-// dates, so a new message between preview and approval doesn't change it,
-// but a new payment (which keeps the account) does.
+// The fingerprint covers every kind's action and basis, whether the person
+// has any of it or not, never counts, ids or dates: a message delivered
+// between preview and run doesn't change it, but a new payment (which
+// keeps the account) or a legal hold does.
 //
 // Pure, and loads under plain Node.
 
@@ -177,22 +178,24 @@ export function planErasure(facts: ErasureFacts): ErasurePlan {
       "rights_record"
     ),
   ];
-  const categories = planned
-    .filter((each) => each.count > 0)
-    .map((each) =>
-      facts.onLegalHold && each.action !== "withdraw"
-        ? {
-            ...each,
-            action: "retain" as const,
-            basis: "legal_hold" as const,
-            until: null,
-          }
-        : each
-    );
+  // Under a legal hold everything stays; consents are still withdrawn.
+  const decided = planned.map((each) =>
+    facts.onLegalHold && each.action !== "withdraw"
+      ? {
+          ...each,
+          action: "retain" as const,
+          basis: "legal_hold" as const,
+          until: null,
+        }
+      : each
+  );
+  const categories = decided.filter((each) => each.count > 0);
   const outcome = categories.some((each) => each.action === "retain")
     ? "partially_completed"
     : "completed";
-  return { categories, outcome, fingerprint: fingerprintOf(categories) };
+  // Every kind's decision, present or not: a record appearing between the
+  // preview and the run (a message delivered) doesn't change the plan.
+  return { categories, outcome, fingerprint: fingerprintOf(decided) };
 }
 
 /** A hash of each kind's action and basis: what the officer approved. */
