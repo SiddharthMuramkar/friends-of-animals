@@ -3,17 +3,36 @@
 // is never purged here: offline_payment.proof_file_asset_id stays NOT NULL
 // (Decision 2), so a quarantined proof is kept with its payment record
 // under the financial policy, and this policy skips any file a payment
-// still names.
+// still names. It also skips a file an entry, a signed consent form or
+// media work still points at: those references block the row's delete, and
+// one failing delete would stop every policy after this one.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { fileAsset, legalHold, offlinePayment } from "../../../db/schema";
+import {
+  consentForm,
+  entryFile,
+  fileAsset,
+  fileDerivative,
+  fileProcessing,
+  legalHold,
+  offlinePayment,
+} from "../../../db/schema";
 import { retireQuarantinedPostImage } from "../../cms/posts/images";
 import { purgeQuarantinedFile, stageQuarantinePurge } from "../../files/purge";
 import { instant, rowPolicy } from "./define";
 import type { RetentionPolicy } from "./types";
+
+/** True while any row still points at the file, so it cannot be deleted. */
+const stillReferenced = (fileId: unknown) => sql`(
+  EXISTS (SELECT 1 FROM ${offlinePayment} WHERE ${offlinePayment.proofFileAssetId} = ${fileId})
+  OR EXISTS (SELECT 1 FROM ${entryFile} WHERE ${entryFile.fileAssetId} = ${fileId})
+  OR EXISTS (SELECT 1 FROM ${consentForm} WHERE ${consentForm.fileAssetId} = ${fileId})
+  OR EXISTS (SELECT 1 FROM ${fileProcessing} WHERE ${fileProcessing.fileAssetId} = ${fileId})
+  OR EXISTS (SELECT 1 FROM ${fileDerivative} WHERE ${fileDerivative.fileAssetId} = ${fileId})
+)`;
 
 export const QUARANTINED_FILES: RetentionPolicy = {
   ...rowPolicy({
@@ -29,10 +48,7 @@ export const QUARANTINED_FILES: RetentionPolicy = {
     ),
     where: and(
       eq(fileAsset.status, "quarantined"),
-      sql`NOT EXISTS (
-        SELECT 1 FROM ${offlinePayment}
-        WHERE ${offlinePayment.proofFileAssetId} = ${fileAsset.id}
-      )`
+      sql`NOT ${stillReferenced(fileAsset.id)}`
     ),
     subjects: [["user", fileAsset.ownerUserId]],
   }),
@@ -47,12 +63,10 @@ export const QUARANTINED_FILES: RetentionPolicy = {
       .for("update");
     if (!file) return "skipped";
 
-    const [proof] = await db
-      .select({ id: offlinePayment.id })
-      .from(offlinePayment)
-      .where(eq(offlinePayment.proofFileAssetId, id))
-      .limit(1);
-    if (proof) return "skipped";
+    const [{ referenced }] = await db
+      .select({ referenced: sql<boolean>`${stillReferenced(id)}` })
+      .from(sql`(SELECT 1) AS one`);
+    if (referenced) return "skipped";
 
     const subjects = [{ type: "user", id: file.ownerUserId }];
     const holds = await db

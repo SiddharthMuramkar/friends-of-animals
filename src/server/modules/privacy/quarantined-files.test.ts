@@ -8,6 +8,10 @@ import {
   schoolWithStudents,
   signInStaff,
 } from "@/server/modules/payments/testing";
+import {
+  confirmedAdult,
+  submittedImage,
+} from "@/server/modules/entries/testing";
 import { SCHEDULES } from "@/server/outbox/schedules";
 import { EICAR_TEST_BYTES } from "@/test/eicar";
 import { createHarness, TEST_FILES, type Harness } from "@/test/harness";
@@ -374,5 +378,31 @@ describe("quarantined file retention", () => {
     await schedule.run(h.deps);
     expect(await assetIds(h)).toEqual([]);
     expect(h.storage.keys(TEST_FILES.bucket)).toEqual([]);
+  });
+  it("keeps a quarantined entry upload the entry still names and goes on with the rest of the run", async () => {
+    const h = await createHarness();
+    await h.settings.set("retention.enforce", true);
+    const asha = await confirmedAdult(h);
+    vi.spyOn(h.scanner, "scan").mockResolvedValueOnce({
+      verdict: "infected",
+      signature: "fixture verdict",
+    });
+    await submittedImage(h, asha);
+    await h.drain();
+    const [entryUpload] = await h.db
+      .select({ id: fileAsset.id, status: fileAsset.status })
+      .from(fileAsset);
+    expect(entryUpload?.status).toBe("quarantined");
+
+    const unrelated = await upload(h);
+    await h.drain();
+    h.clock.advance({ days: 31 });
+
+    // entry_file.file_asset_id blocks the delete: purging the upload would
+    // fail and stop every policy after this one.
+    const run = await h.as(WORKER).runRetentionSweep();
+    expect(run.policies.quarantinedFiles).toMatchObject({ deleted: 1 });
+    expect(await assetIds(h)).toEqual([entryUpload!.id]);
+    expect(h.storage.keys(TEST_FILES.bucket)).not.toContain(unrelated.key);
   });
 });
