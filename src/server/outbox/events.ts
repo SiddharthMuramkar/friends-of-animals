@@ -388,11 +388,28 @@ export type DomainEvent =
       type: "institution_registration.competition_cancelled";
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string; competitionId: string };
-    };
+    }
+  // Volunteer applications (#123): a 14- to 17-year-old applied and their
+  // guardians are asked; an application reached the community team; a
+  // community manager approved it (the volunteer role is granted) or
+  // declined it with a reason.
+  | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
+  | VolunteerApplicationEvent<"volunteer.application_submitted">
+  | VolunteerApplicationEvent<"volunteer.application_approved">
+  | VolunteerApplicationEvent<"volunteer.application_declined">;
+
+/** Something happened to a volunteer application (#123). Ids only. */
+type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
+  type: T;
+  aggregate: { type: "volunteer_application"; id: string };
+  payload: { applicationId: string };
+};
 
 export type EventType = DomainEvent["type"];
 
 export type EventOf<T extends EventType> = Extract<DomainEvent, { type: T }>;
+
+const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -520,6 +537,10 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "volunteer.guardian_approval_requested": VOLUNTEER_APPLICATION,
+  "volunteer.application_submitted": VOLUNTEER_APPLICATION,
+  "volunteer.application_approved": VOLUNTEER_APPLICATION,
+  "volunteer.application_declined": VOLUNTEER_APPLICATION,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** Validate a stored event, including withdrawals written before #82. */
@@ -640,6 +661,12 @@ export const SUBSCRIBERS = {
   ],
   // The coordinators' notice goes by route row (#80).
   "institution_registration.competition_cancelled": ["notifications.dispatch"],
+  // The applicant, their guardians and the community team are told by
+  // route row (#123).
+  "volunteer.guardian_approval_requested": ["notifications.dispatch"],
+  "volunteer.application_submitted": ["notifications.dispatch"],
+  "volunteer.application_approved": ["notifications.dispatch"],
+  "volunteer.application_declined": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

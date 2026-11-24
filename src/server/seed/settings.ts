@@ -19,6 +19,9 @@ import type { SeedDeps } from "./types";
  */
 const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "sms.enabled": true,
+  // Volunteer applications (#123) open where nothing is real; production
+  // keeps them closed until HR-55 and HR-38.
+  "volunteers.applicationsOpen": true,
 };
 
 /**
