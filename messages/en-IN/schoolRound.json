@@ -1,0 +1,120 @@
+{
+  "schoolRound": {
+    "meta": {
+      "title": "School round",
+      "description": "Record your judging panel, pick your shortlist for FOA and finalise your school round."
+    },
+    "eyebrow": "Your institution",
+    "title": "School round",
+    "lead": "Judge your students’ entries against FOA’s rubric, record who judged, pick your shortlist for FOA and finalise.",
+    "loading": "Loading…",
+    "for": "{institution} · {competition}",
+    "reference": "Registration {reference}",
+    "status": {
+      "open": "Open",
+      "overdue": "Overdue",
+      "finalised": "Finalised",
+      "closed_on_behalf": "Closed by FOA"
+    },
+    "limits": "Per category you can shortlist up to {shortlist, plural, one {# entry} other {# entries}} and declare up to {positions, plural, =0 {no school positions} one {# school position} other {# school positions}}.",
+    "judgingGuide": "Read FOA’s judging guide",
+    "panel": {
+      "title": "Judging panel",
+      "lead": "Who judged your entries: up to {max} people, with their role. No contact details.",
+      "member": "Panel member {n}",
+      "fullName": "Full name",
+      "designation": "Role",
+      "designationHint": "For example: Art teacher",
+      "save": "Save panel",
+      "saving": "Saving…",
+      "none": "No panel recorded yet.",
+      "count": "{count, plural, one {# member} other {# members}}"
+    },
+    "shortlist": {
+      "title": "Shortlist",
+      "empty": "None of your students submitted an entry, so there is nothing to shortlist. You can still finalise.",
+      "category": "{discipline} · {ageGroup}",
+      "pickedCount": "{count, plural, =0 {Nothing picked} one {# picked} other {# picked}} of up to {limit}",
+      "pick": "Shortlist {code}",
+      "position": "School position for {code}",
+      "noPosition": "No position",
+      "positionOption": "{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} place",
+      "notSubmitted": "Can’t be shortlisted: this entry never reached “submitted”.",
+      "save": "Save shortlist",
+      "saving": "Saving…",
+      "placed": "{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} place",
+      "shortlisted": "Shortlisted"
+    },
+    "discipline": {
+      "drawing": "Drawing",
+      "painting": "Painting",
+      "art": "Art",
+      "craft": "Craft",
+      "photography": "Photography",
+      "essay": "Essay",
+      "videography": "Videography"
+    },
+    "finalise": {
+      "title": "Finalise",
+      "lead": "Finalising makes your shortlist official. Shortlisted entries go to FOA for judging; every family is told the outcome. After this you can’t change the panel or the shortlist.",
+      "checklist": "Before you finalise",
+      "panel": "A judging panel is recorded",
+      "conduct": "The competition’s conduct is certified",
+      "conductLink": "Certify conduct",
+      "picks": "Every shortlisted entry is still submitted",
+      "done": "Done",
+      "todo": "Not yet",
+      "summaryTitle": "What will happen",
+      "summary": "{shortlisted, plural, =0 {No entry will be shortlisted} one {# entry will be shortlisted and sent to FOA} other {# entries will be shortlisted and sent to FOA}}; {others, plural, =0 {no other entry} one {# other entry} other {# other entries}} will be marked not shortlisted.",
+      "statementTitle": "What you confirm",
+      "statement": "I confirm that our judging panel judged every entry of {institution} in {competition} fairly, against FOA’s rubric, and that this shortlist and these school positions are the panel’s decision.",
+      "version": "Statement version {version}",
+      "attest": "I confirm the statement above",
+      "submit": "Finalise school round",
+      "submitting": "Finalising…",
+      "finalised": "Finalised by {name} on {date}.",
+      "finalisedByFormer": "Finalised on {date} by a coordinator who no longer has an account.",
+      "shortlistOnly": "This competition takes digital work only from your shortlist. Finalising for it comes in a later update."
+    },
+    "result": {
+      "title": "Your shortlist",
+      "none": "No entry was shortlisted.",
+      "notShortlisted": "Not shortlisted: {count, plural, one {# entry} other {# entries}}."
+    },
+    "outcome": {
+      "panel_saved": "The panel is saved.",
+      "shortlist_saved": "The shortlist is saved.",
+      "finalised": "Your school round is finalised. Families are being told the outcome.",
+      "panel_empty": "Add at least one panel member.",
+      "panel_too_large": "A panel can have at most 10 members.",
+      "invalid_input": "Check the names and roles: each needs 1 to 120 characters.",
+      "shortlist_invalid": "The shortlist wasn’t saved. Fix the problems below and save again.",
+      "unknown_category": "That category has no entries in your round.",
+      "finalise_blocked": "The round wasn’t finalised. Finish the steps in the checklist and tick the statement.",
+      "shortlist_only": "This competition can’t be finalised here yet.",
+      "round_not_editable": "This round can’t be changed any more.",
+      "not_open": "The school round isn’t open.",
+      "not_found": "We couldn’t find that registration.",
+      "forbidden": "You no longer act for this institution.",
+      "failed": "Something went wrong and nothing was saved. Try again."
+    },
+    "problem": {
+      "unknown_entry": "One picked entry isn’t in your round.",
+      "wrong_category": "{code} is in another category.",
+      "not_submitted": "{code} never reached “submitted”, so it can’t be shortlisted.",
+      "duplicate_entry": "{code} was picked twice.",
+      "shortlist_full": "You picked {count}; the limit is {limit}.",
+      "position_out_of_range": "{code}: positions go from 1 to {limit}.",
+      "position_taken": "{code}: another entry already holds that position."
+    },
+    "notOpen": {
+      "title": "Your school round isn’t open",
+      "body": "It opens when the competition moves to school judging, after submissions close, for registrations with at least one confirmed student."
+    },
+    "notFound": {
+      "title": "We couldn’t find that registration",
+      "body": "It may belong to another institution, or the link may be wrong."
+    },
+    "back": "Back to entries"
+  }
+}
