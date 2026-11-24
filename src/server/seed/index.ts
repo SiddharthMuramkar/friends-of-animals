@@ -24,6 +24,7 @@ import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
 import { seedBreaches } from "./breaches";
 import { seedLedger } from "./ledger";
+import { seedLedgerPeriods } from "./ledger-periods";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
@@ -86,6 +87,8 @@ const seeders: readonly Seeder[] = [
   // teen whose own login is linked to them (#81).
   seedGuardians,
   seedLedger,
+  // After the ledger seed: its postings are in open months (#109).
+  seedLedgerPeriods,
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,
