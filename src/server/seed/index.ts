@@ -8,6 +8,7 @@
 // its data depends on.
 
 import { seedAccess } from "./access";
+import { seedAnnouncements } from "./announcements";
 import { seedFunctions } from "./builders";
 import { seedCompetitionTerms } from "./competition-terms";
 import { seedCoordinators } from "./coordinators";
@@ -18,6 +19,7 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedEntries } from "./entries";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
 import { seedBreaches } from "./breaches";
@@ -72,6 +74,8 @@ const seeders: readonly Seeder[] = [
   // After the competitions, their terms and the accounts: adults who
   // registered themselves for NEIGH27, one paid.
   seedParticipants,
+  // After the participants seed: Asha's entries, one per outcome (#85).
+  seedEntries,
   // After the participants seed: a guardian, their under-13 child and a
   // teen whose own login is linked to them (#81).
   seedGuardians,
@@ -80,6 +84,8 @@ const seeders: readonly Seeder[] = [
   // NEIGH27 (#82).
   seedChildConsents,
   seedConsentLinks,
+  // After every registration seed: the sent one's count comes from them.
+  seedAnnouncements,
   seedNotifications,
   seedContact,
   seedCms,

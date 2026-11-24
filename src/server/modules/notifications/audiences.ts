@@ -21,6 +21,7 @@ import { createFormatter, createTranslator } from "next-intl";
 import adminRubrics from "../../../../messages/en-IN/adminRubrics.json";
 import competitionStatus from "../../../../messages/en-IN/competitionStatus.json";
 import { formats, LOCALE } from "../../../i18n/formats";
+import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
 import {
   competition,
@@ -34,6 +35,10 @@ import {
   contactMessageValues,
   contactTeamMembers,
 } from "../contact/notify";
+import {
+  ANNOUNCEMENT_VARIABLES,
+  announcementMessageFor,
+} from "../announcements/render";
 import {
   ENTRY_ATTEMPT_VARIABLES,
   ENTRY_RECEIPT_VARIABLES,
@@ -166,6 +171,9 @@ function subjectUserOf(delivery: Delivery): string | null {
       // About a registration's entry (#85): `registration_owner` and
       // `guardian_of_participant` find who hears of it.
       return null;
+    case "competition.announcement_sent":
+      // For a competition's registrants (`announcement_registrants`).
+      return null;
   }
 }
 
@@ -281,6 +289,9 @@ export const AUDIENCES = {
   },
   /** Everyone holding the finance role (#80): a refund needs them. */
   finance_team: async (db) => financeTeam(db),
+  /** The announcements handler resolves both audiences from one roster. */
+  announcement_registrants: async () => [],
+  announcement_contacts: async () => [],
   /**
    * The breach dispatcher checks the saved recipient and live guardian links
    * for this route. The generic audience resolver grants no recipients.
@@ -303,7 +314,11 @@ export function isAudienceKey(key: string): key is AudienceKey {
 type EventVariables<T extends EventType> = {
   /** The names it provides, beyond RECIPIENT_VARIABLES. */
   names: readonly string[];
-  load(db: AppDb, delivery: Delivery<T>): Promise<Record<string, string>>;
+  load(
+    db: AppDb,
+    delivery: Delivery<T>,
+    cipher: FieldCipher
+  ): Promise<Record<string, string>>;
 };
 
 /**
@@ -493,6 +508,11 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "entry.file_failed": {
     names: ENTRY_ATTEMPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload),
+  },
+  "competition.announcement_sent": {
+    names: ANNOUNCEMENT_VARIABLES,
+    load: async (db, { payload }, cipher) =>
+      (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
   },
 };
 

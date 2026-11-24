@@ -38,5 +38,6 @@ export * from "./payment-test-gateway";
 export * from "./refunds";
 export * from "./posts";
 export * from "./breaches";
+export * from "./announcements";
 export * from "./contact";
 export * from "./public-forms";

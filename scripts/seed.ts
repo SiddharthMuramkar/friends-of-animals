@@ -13,6 +13,7 @@ import postgres from "postgres";
 
 import {
   fieldKeyEnvSchema,
+  LOCAL_APP_URL,
   migrationEnvSchema,
   parseEnv,
 } from "../src/env.schema";
@@ -21,6 +22,8 @@ import { directTls } from "../src/server/db/database-url";
 import * as schema from "../src/server/db/schema";
 import { DEVELOPMENT_AUTH_SECRET } from "../src/server/identity/settings";
 import { systemClock } from "../src/server/ports/clock";
+import { unconfiguredStorage } from "../src/server/ports/storage";
+import { storageFor } from "../src/server/ports/storage-for";
 import { seedPreview } from "../src/server/seed";
 import { seedTarget } from "../src/server/seed/target";
 import { loadEnvFiles } from "./load-env";
@@ -61,10 +64,21 @@ const client = postgres(url, {
 
 try {
   console.log(`Seeding ${new URL(url).pathname.slice(1)}...`);
+  // The store the app reads this deployment's files from: R2 when it is
+  // configured, else a local run's disk store. Seeded entry pictures (#85)
+  // are written there; with neither, they are left out.
+  const storage = storageFor({
+    APP_ENV: process.env.APP_ENV === "preview" ? "preview" : "local",
+    APP_URL: process.env.APP_URL || LOCAL_APP_URL,
+    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+  });
   await seedPreview({
     db: drizzle({ client, schema }),
     clock: systemClock,
     ...fieldCrypto,
+    ...(storage === unconfiguredStorage ? {} : { storage }),
     // The app's own secret, as productionDeps() picks it: seeded staff
     // authenticators are sealed with it.
     auth: {

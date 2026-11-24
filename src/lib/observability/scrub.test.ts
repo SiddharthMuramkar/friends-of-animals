@@ -166,6 +166,21 @@ describe("stripQuery", () => {
       "GET /consent/[redacted]"
     );
   });
+
+  it("redacts an entry page's Entry ID and keeps the new-entry form (#85)", () => {
+    expect(
+      stripQuery(
+        "https://friendsofanimals.dev/participant/entries/NEIGH27-E-7K3QZ9"
+      )
+    ).toBe("https://friendsofanimals.dev/participant/entries/[redacted]");
+    expect(redactText("GET /participant/entries/NEIGH27-E-7K3QZ9 failed")).toBe(
+      "GET /participant/entries/[redacted] failed"
+    );
+    expect(stripQuery("/participant/entries/new?registration=x")).toBe(
+      "/participant/entries/new"
+    );
+    expect(stripQuery("/participant/entries")).toBe("/participant/entries");
+  });
 });
 
 describe("scrubEvent", () => {

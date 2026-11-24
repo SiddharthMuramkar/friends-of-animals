@@ -310,6 +310,16 @@ export type DomainEvent =
     }
   | {
       /**
+       * A competition manager sent an announcement (#84): its confirmed
+       * registrants are told. Ids only: who they are is planned again when
+       * it goes.
+       */
+      type: "competition.announcement_sent";
+      aggregate: { type: "announcement"; id: string };
+      payload: { announcementId: string; competitionId: string };
+    }
+  | {
+      /**
        * One person is to be told of a breach (#116). The dispatcher reads
        * their saved scope in the breach log and checks it before each send.
        */
@@ -443,6 +453,10 @@ export const EVENT_PAYLOADS = {
   }),
   "refund.failed": z.object({ refundId: z.uuid() }),
   "guardian.guardian_requested": z.object({ requestId: z.uuid() }),
+  "competition.announcement_sent": z.object({
+    announcementId: z.uuid(),
+    competitionId: z.uuid(),
+  }),
   "breach.principal_notice": z.object({
     breachId: z.uuid(),
     recipientUserId: z.uuid(),
@@ -539,6 +553,8 @@ export const SUBSCRIBERS = {
   // The guardian a teen names may have no account yet: the request goes to
   // the address the teen gave by its own handler (#81).
   "guardian.guardian_requested": ["guardians.send_guardian_request"],
+  // One handler reaches accounts and contact details from one roster (#84).
+  "competition.announcement_sent": ["announcements.fan_out"],
   // A breach notice goes by route row (audience `breach_recipient`, #116).
   "breach.principal_notice": ["notifications.dispatch"],
   // Plans one page of a breach's notices to every account, in the worker.

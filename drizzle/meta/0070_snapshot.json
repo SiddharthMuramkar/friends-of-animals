@@ -1,6 +1,6 @@
 {
-  "id": "dc0ab30a-b98b-4e8d-8abc-2cd968d2ad62",
-  "prevId": "a9737fbe-c4a5-4390-9901-9b1252b6369f",
+  "id": "b3d2b104-948b-41a2-b430-4bc0db0ff390",
+  "prevId": "c1c9b66b-fa80-4afd-acf1-174a202a3efc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6888,6 +6888,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "title_ciphertext": {
+          "name": "title_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body_ciphertext": {
+          "name": "body_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "link": {
           "name": "link",
           "type": "text",
@@ -7026,7 +7038,25 @@
           "name": "user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "contact_hash": {
+          "name": "contact_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipient_account_hash": {
+          "name": "recipient_account_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipient_hashes": {
+          "name": "recipient_hashes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
         },
         "channel": {
           "name": "channel",
@@ -7084,6 +7114,54 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "message_delivery_recipient_account_idx": {
+          "name": "message_delivery_recipient_account_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "template_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "channel",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "recipient_account_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "message_delivery_recipient_hashes_idx": {
+          "name": "message_delivery_recipient_hashes_idx",
+          "columns": [
+            {
+              "expression": "recipient_hashes",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "gin",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -7112,10 +7190,24 @@
             "channel"
           ],
           "nullsNotDistinct": false
+        },
+        "message_delivery_contact_once": {
+          "name": "message_delivery_contact_once",
+          "columns": [
+            "event_id",
+            "template_key",
+            "contact_hash",
+            "channel"
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
       "checkConstraints": {
+        "message_delivery_one_recipient": {
+          "name": "message_delivery_one_recipient",
+          "value": "(\"message_delivery\".\"user_id\" IS NULL) <> (\"message_delivery\".\"contact_hash\" IS NULL)"
+        },
         "message_delivery_reason_iff_suppressed": {
           "name": "message_delivery_reason_iff_suppressed",
           "value": "(\"message_delivery\".\"status\" = 'suppressed') = (\"message_delivery\".\"reason\" IS NOT NULL)"
@@ -10667,53 +10759,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.breach_fan_out": {
-      "name": "breach_fan_out",
-      "schema": "",
-      "columns": {
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "after_user_id": {
-          "name": "after_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "breach_fan_out_breach_id_breach_record_id_fk": {
-          "name": "breach_fan_out_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_fan_out",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "tableTo": "breach_record",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.breach_notification": {
-      "name": "breach_notification",
+    "public.announcement": {
+      "name": "announcement",
       "schema": "",
       "columns": {
         "id": {
@@ -10722,239 +10769,89 @@
           "primaryKey": true,
           "notNull": true
         },
-        "breach_id": {
-          "name": "breach_id",
+        "competition_id": {
+          "name": "competition_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipient_user_id": {
-          "name": "recipient_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "channel": {
-          "name": "channel",
-          "type": "message_channel",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipient_role": {
-          "name": "recipient_role",
-          "type": "breach_notice_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "about_count": {
-          "name": "about_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "guardian_profile_ids": {
-          "name": "guardian_profile_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::uuid[]"
-        },
-        "queued_at": {
-          "name": "queued_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "suppressed_at": {
-          "name": "suppressed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "breach_notification_recipient_user_id_idx": {
-          "name": "breach_notification_recipient_user_id_idx",
-          "columns": [
-            {
-              "expression": "recipient_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "breach_notification_breach_id_breach_record_id_fk": {
-          "name": "breach_notification_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_notification",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "tableTo": "breach_record",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "breach_notification_recipient_user_id_user_id_fk": {
-          "name": "breach_notification_recipient_user_id_user_id_fk",
-          "tableFrom": "breach_notification",
-          "columnsFrom": [
-            "recipient_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "breach_notification_once": {
-          "name": "breach_notification_once",
-          "columns": [
-            "breach_id",
-            "recipient_user_id",
-            "channel"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "breach_notification_about_someone": {
-          "name": "breach_notification_about_someone",
-          "value": "\"breach_notification\".\"about_count\" >= 1"
-        },
-        "breach_notification_one_outcome": {
-          "name": "breach_notification_one_outcome",
-          "value": "\"breach_notification\".\"sent_at\" IS NULL OR \"breach_notification\".\"suppressed_at\" IS NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.breach_record": {
-      "name": "breach_record",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "title_ciphertext": {
-          "name": "title_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aware_at": {
-          "name": "aware_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "severity": {
-          "name": "severity",
-          "type": "breach_severity",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "personal_data_involved": {
-          "name": "personal_data_involved",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "minors_affected": {
-          "name": "minors_affected",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "affected_count": {
-          "name": "affected_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "impact_ciphertext": {
-          "name": "impact_ciphertext",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "status": {
           "name": "status",
-          "type": "breach_status",
+          "type": "announcement_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'open'"
+          "default": "'draft'"
         },
-        "contained_at": {
-          "name": "contained_at",
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_at": {
+          "name": "event_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "principals_notified_at": {
-          "name": "principals_notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authority_notified_at": {
-          "name": "authority_notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "authority_reference_ciphertext": {
-          "name": "authority_reference_ciphertext",
+        "confirmed_theme": {
+          "name": "confirmed_theme",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "authority_email_queued_at": {
-          "name": "authority_email_queued_at",
-          "type": "timestamp with time zone",
+        "permitted_materials": {
+          "name": "permitted_materials",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "authority_email_sent_at": {
-          "name": "authority_email_sent_at",
-          "type": "timestamp with time zone",
+        "duration": {
+          "name": "duration",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
+        "submission_steps": {
+          "name": "submission_steps",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "lead_user_id": {
-          "name": "lead_user_id",
+        "physical_artwork_requirements": {
+          "name": "physical_artwork_requirements",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deadlines": {
+          "name": "deadlines",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "help_contacts_ciphertext": {
+          "name": "help_contacts_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -10970,20 +10867,38 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "sent_by": {
+          "name": "sent_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipient_count": {
+          "name": "recipient_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
-        "breach_record_log_order_idx": {
-          "name": "breach_record_log_order_idx",
+        "announcement_competition_newest_idx": {
+          "name": "announcement_competition_newest_idx",
           "columns": [
             {
-              "expression": "(\"status\" <> 'closed') desc",
-              "isExpression": true,
+              "expression": "competition_id",
+              "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "aware_at",
+              "expression": "created_at",
               "isExpression": false,
               "asc": false,
               "nulls": "last"
@@ -11000,17 +10915,11 @@
           "method": "btree",
           "concurrently": false
         },
-        "breach_record_status_closed_at_idx": {
-          "name": "breach_record_status_closed_at_idx",
+        "announcement_created_by_idx": {
+          "name": "announcement_created_by_idx",
           "columns": [
             {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "closed_at",
+              "expression": "created_by",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -11021,11 +10930,11 @@
           "method": "btree",
           "concurrently": false
         },
-        "breach_record_lead_user_id_idx": {
-          "name": "breach_record_lead_user_id_idx",
+        "announcement_sent_by_idx": {
+          "name": "announcement_sent_by_idx",
           "columns": [
             {
-              "expression": "lead_user_id",
+              "expression": "sent_by",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -11038,11 +10947,37 @@
         }
       },
       "foreignKeys": {
-        "breach_record_lead_user_id_user_id_fk": {
-          "name": "breach_record_lead_user_id_user_id_fk",
-          "tableFrom": "breach_record",
+        "announcement_competition_id_competition_id_fk": {
+          "name": "announcement_competition_id_competition_id_fk",
+          "tableFrom": "announcement",
           "columnsFrom": [
-            "lead_user_id"
+            "competition_id"
+          ],
+          "tableTo": "competition",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "announcement_created_by_user_id_fk": {
+          "name": "announcement_created_by_user_id_fk",
+          "tableFrom": "announcement",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "announcement_sent_by_user_id_fk": {
+          "name": "announcement_sent_by_user_id_fk",
+          "tableFrom": "announcement",
+          "columnsFrom": [
+            "sent_by"
           ],
           "tableTo": "user",
           "columnsTo": [
@@ -11056,186 +10991,15 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "breach_record_affected_count_not_negative": {
-          "name": "breach_record_affected_count_not_negative",
-          "value": "\"breach_record\".\"affected_count\" >= 0"
+        "announcement_sent_stamped": {
+          "name": "announcement_sent_stamped",
+          "value": "(\"announcement\".\"status\" = 'sent') = (\"announcement\".\"sent_at\" IS NOT NULL) AND (\"announcement\".\"sent_at\" IS NULL) = (\"announcement\".\"recipient_count\" IS NULL)"
         },
-        "breach_record_closed_has_closed_at": {
-          "name": "breach_record_closed_has_closed_at",
-          "value": "(\"breach_record\".\"status\" = 'closed') = (\"breach_record\".\"closed_at\" IS NOT NULL)"
-        },
-        "breach_record_contained_has_contained_at": {
-          "name": "breach_record_contained_has_contained_at",
-          "value": "\"breach_record\".\"status\" <> 'contained' OR \"breach_record\".\"contained_at\" IS NOT NULL"
-        },
-        "breach_record_notified_has_a_notice": {
-          "name": "breach_record_notified_has_a_notice",
-          "value": "\"breach_record\".\"status\" <> 'notified' OR \"breach_record\".\"principals_notified_at\" IS NOT NULL OR \"breach_record\".\"authority_notified_at\" IS NOT NULL"
-        },
-        "breach_record_reference_after_notice": {
-          "name": "breach_record_reference_after_notice",
-          "value": "\"breach_record\".\"authority_reference_ciphertext\" IS NULL OR \"breach_record\".\"authority_notified_at\" IS NOT NULL"
+        "announcement_recipient_count_not_negative": {
+          "name": "announcement_recipient_count_not_negative",
+          "value": "\"announcement\".\"recipient_count\" >= 0"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.breach_timeline_event": {
-      "name": "breach_timeline_event",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "breach_timeline_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note_ciphertext": {
-          "name": "note_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "author_user_id": {
-          "name": "author_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "breach_timeline_event_breach_id_idx": {
-          "name": "breach_timeline_event_breach_id_idx",
-          "columns": [
-            {
-              "expression": "breach_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "breach_timeline_event_breach_id_breach_record_id_fk": {
-          "name": "breach_timeline_event_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_timeline_event",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "tableTo": "breach_record",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "breach_timeline_event_note_has_text": {
-          "name": "breach_timeline_event_note_has_text",
-          "value": "\"breach_timeline_event\".\"kind\" <> 'note' OR \"breach_timeline_event\".\"note_ciphertext\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.breach_unreachable": {
-      "name": "breach_unreachable",
-      "schema": "",
-      "columns": {
-        "breach_id": {
-          "name": "breach_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_type": {
-          "name": "subject_type",
-          "type": "breach_subject_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "subject_id": {
-          "name": "subject_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "breach_unreachable_reason",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "breach_unreachable_breach_id_breach_record_id_fk": {
-          "name": "breach_unreachable_breach_id_breach_record_id_fk",
-          "tableFrom": "breach_unreachable",
-          "columnsFrom": [
-            "breach_id"
-          ],
-          "tableTo": "breach_record",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        }
-      },
-      "compositePrimaryKeys": {
-        "breach_unreachable_pk": {
-          "name": "breach_unreachable_pk",
-          "columns": [
-            "breach_id",
-            "subject_type",
-            "subject_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
@@ -11688,7 +11452,8 @@
         "pending",
         "sent",
         "failed",
-        "suppressed"
+        "suppressed",
+        "sending"
       ]
     },
     "public.message_suppression_reason": {
@@ -11896,62 +11661,12 @@
         "archived"
       ]
     },
-    "public.breach_notice_role": {
-      "name": "breach_notice_role",
+    "public.announcement_status": {
+      "name": "announcement_status",
       "schema": "public",
       "values": [
-        "principal",
-        "guardian",
-        "principal_and_guardian"
-      ]
-    },
-    "public.breach_severity": {
-      "name": "breach_severity",
-      "schema": "public",
-      "values": [
-        "critical",
-        "high",
-        "medium",
-        "low"
-      ]
-    },
-    "public.breach_status": {
-      "name": "breach_status",
-      "schema": "public",
-      "values": [
-        "open",
-        "contained",
-        "notified",
-        "closed"
-      ]
-    },
-    "public.breach_subject_type": {
-      "name": "breach_subject_type",
-      "schema": "public",
-      "values": [
-        "user",
-        "participant_profile"
-      ]
-    },
-    "public.breach_timeline_kind": {
-      "name": "breach_timeline_kind",
-      "schema": "public",
-      "values": [
-        "recorded",
-        "updated",
-        "contained",
-        "principals_notified",
-        "authority_notified",
-        "note",
-        "closed"
-      ]
-    },
-    "public.breach_unreachable_reason": {
-      "name": "breach_unreachable_reason",
-      "schema": "public",
-      "values": [
-        "no_guardian",
-        "no_account"
+        "draft",
+        "sent"
       ]
     }
   },

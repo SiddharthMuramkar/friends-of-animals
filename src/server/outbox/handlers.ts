@@ -12,6 +12,7 @@
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
 import type { Deps } from "../deps";
+import type { BlindIndex } from "../crypto/blind-index";
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
@@ -33,6 +34,7 @@ import { sendRegistrationConfirmation } from "../modules/registration/confirmati
 import { sendGuardianRequest } from "../modules/guardians/guardian-request-message";
 import { sendTeenInvitation } from "../modules/guardians/teen-invitation-message";
 import { sendApprovedRefund } from "../modules/payments/refunds/sync-refund";
+import { fanOutAnnouncement } from "../modules/announcements/fan-out";
 import {
   ledgerWorker,
   postPaymentCapture,
@@ -66,6 +68,8 @@ export type OutboxDeps = {
    * and link (#74).
    */
   cipher: FieldCipher;
+  /** Keys an external announcement destination for its delivery claim (#84). */
+  blindIndex: BlindIndex;
   /**
    * The site's base URL, for links in messages. A worker started without
    * APP_URL has none, and a message that needs a link fails until it does.
@@ -146,6 +150,8 @@ export const HANDLERS: Handlers = {
   // Emails a teen's request to the guardian they named (#81).
   "guardians.send_guardian_request": (deps, { payload }) =>
     sendGuardianRequest(deps, payload),
+  // Sends a competition's announcement to its registrants (#84).
+  "announcements.fan_out": fanOutAnnouncement,
   // Brings an entry's file up to date with its scan and derivatives (#85).
   "entries.apply_file_outcome": (deps, { payload }) =>
     applyEntryFileOutcome(deps, payload),

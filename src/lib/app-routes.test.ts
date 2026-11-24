@@ -14,11 +14,15 @@ import {
   adminPaymentReviewCasePath,
   adminInstitutionPath,
   APP_ROUTES,
+  entryDetailPath,
   guardianChildPath,
   institutionCompetitionsPath,
   institutionRegistrationPath,
   isNonProductionPath,
   newStudentPath,
+  newEntryPath,
+  NEW_PARTICIPANT_ENTRY,
+  PARTICIPANT_ENTRIES,
   payMyRegistrationPath,
   individualRegisterPath,
   individualRegisterSlug,
@@ -36,6 +40,23 @@ describe("isSignedInPage", () => {
     for (const path of Object.values(APP_ROUTES)) {
       expect(isSignedInPage(path), path).toBe(true);
     }
+  });
+
+  it("recognises the participant entry pages as signed-in routes", () => {
+    expect(newEntryPath(COMPETITION_ID)).toBe(
+      `${NEW_PARTICIPANT_ENTRY}?registration=${COMPETITION_ID}`
+    );
+    for (const path of [
+      PARTICIPANT_ENTRIES,
+      NEW_PARTICIPANT_ENTRY,
+      entryDetailPath("NEIGH27-E-5EEDA1"),
+    ]) {
+      expect(isSignedInPage(path), path).toBe(true);
+      expect(isSignedInPath(path), path).toBe(true);
+    }
+    expect(isSignedInPage(`${PARTICIPANT_ENTRIES}/NEIGH27-E-5EEDA1/x`)).toBe(
+      false
+    );
   });
 
   it("knows the payments pages (#79), though the review list isn't in APP_ROUTES", () => {
