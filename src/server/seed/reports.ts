@@ -147,46 +147,44 @@ export const seedReports: Seeder = async (deps) => {
         createdAt: day(-60),
         updatedAt: day(-60),
       });
-      await tx
-        .insert(entryTransition)
-        .values([
-          {
-            id: id(60 + index * 3),
-            entryId,
-            sequence: 1,
-            fromStatus: null,
-            toStatus: "submitted",
-            trigger: "essay_typed",
-            entryFileId: fileId,
-            actorKind: "user",
-            actorUserId: account.id,
-            at: day(-60),
-          },
-          {
-            id: id(61 + index * 3),
-            entryId,
-            sequence: 2,
-            fromStatus: "submitted",
-            toStatus: "submitted_to_foa",
-            trigger: "forwarded_to_foa",
-            actorKind: "system",
-            at: day(-44),
-          },
-          ...(index === 0
-            ? [
-                {
-                  id: id(62),
-                  entryId,
-                  sequence: 3,
-                  fromStatus: "submitted_to_foa",
-                  toStatus: "foa_verified",
-                  trigger: "foa_verified",
-                  actorKind: "system",
-                  at: day(-43),
-                } as const,
-              ]
-            : []),
-        ]);
+      await tx.insert(entryTransition).values([
+        {
+          id: id(60 + index * 3),
+          entryId,
+          sequence: 1,
+          fromStatus: null,
+          toStatus: "submitted",
+          trigger: "essay_typed",
+          entryFileId: fileId,
+          actorKind: "user",
+          actorUserId: account.id,
+          at: day(-60),
+        },
+        {
+          id: id(61 + index * 3),
+          entryId,
+          sequence: 2,
+          fromStatus: "submitted",
+          toStatus: "submitted_to_foa",
+          trigger: "forwarded_to_foa",
+          actorKind: "system",
+          at: day(-44),
+        },
+        ...(index === 0
+          ? [
+              {
+                id: id(62),
+                entryId,
+                sequence: 3,
+                fromStatus: "submitted_to_foa",
+                toStatus: "foa_verified",
+                trigger: "foa_verified",
+                actorKind: "system",
+                at: day(-43),
+              } as const,
+            ]
+          : []),
+      ]);
       if (index !== 0) return;
       const [pin] = await tx
         .select({ id: rubric.id })
