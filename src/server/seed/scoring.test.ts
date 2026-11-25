@@ -3,6 +3,7 @@ import { physicalArtwork } from "../db/schema";
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { SEED_JUDGING } from "./judging-rounds";
+import { SEED_COMPETITION_MANAGER } from "./competitions";
 import { SEED_SCORING } from "./scoring";
 
 describe("blind scoring preview", () => {
@@ -11,6 +12,26 @@ describe("blind scoring preview", () => {
     await h.seed.preview();
     const app = h.as(await h.signIn(SEED_SCORING.judges[0]));
     const roundId = SEED_SCORING.roundId;
+    const staff = h.as(await h.signIn(SEED_COMPETITION_MANAGER));
+    expect(await staff.getRoundRankings({ roundId })).toMatchObject({
+      ok: true,
+      assignedCount: 6,
+      unscoredCount: 4,
+      ranked: [
+        {
+          code: "JURY27-E-5EED03",
+          rank: 1,
+          scoreNumerator: "70",
+          scoreDenominator: "1",
+          sheetsCounted: 2,
+        },
+      ],
+      unscored: expect.arrayContaining(
+        [{ code: "JURY27-E-5EED01" }, { code: "JURY27-E-5EED02" }].map((e) =>
+          expect.objectContaining(e)
+        )
+      ),
+    });
     const list = await app.listMyAssignments({ roundId });
     expect(list).toMatchObject({
       ok: true,

@@ -758,10 +758,28 @@ const judgeConflictRecord = rowsOf("judge_conflict", {
   onExpiry: "delete_row",
 });
 const INVENTORY_FIELDS: readonly InventoryField[] = [
-  ...["created_by_user_id", "opened_by_user_id", "cancelled_by_user_id"].map(
-    (c) => actorColumn("judging_round", c, STAFF_RECORD)
-  ),
+  ...[
+    "created_by_user_id",
+    "opened_by_user_id",
+    "cancelled_by_user_id",
+    "locked_by_user_id",
+  ].map((c) => actorColumn("judging_round", c, STAFF_RECORD)),
   actorColumn("round_entry", "admitted_by_user_id", STAFF_RECORD),
+  ...[
+    "code",
+    "rank",
+    "score_numerator",
+    "score_denominator",
+    "outcome",
+    "award_position",
+    "suitable_for_auction",
+  ].map((c) =>
+    rowsOf("round_result", {
+      subject: ENTRY_PARTICIPANT,
+      retention: JUDGING_RECORD,
+      onExpiry: "delete_row",
+    })(c, c === "code" ? "identity" : "content")
+  ),
   actorColumn("round_assignment", "assigned_by_user_id", STAFF_RECORD),
   rowsOf("round_assignment", {
     subject: { kind: "user", via: "judge_user_id" },

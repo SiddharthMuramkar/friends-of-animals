@@ -55,10 +55,9 @@ export async function assignedWork(
     )
     .orderBy(asc(entry.code));
   const conflicts = await conflictedEntryIds(db, roundId, judgeUserId);
-  const physical =
-    round.status === "open" && round.judgesPhysical
-      ? await physicallyReadyEntryIds(db, round.competitionId)
-      : null;
+  const physical = round.judgesPhysical
+    ? await physicallyReadyEntryIds(db, round.competitionId)
+    : null;
   const allowed = rows.filter(
     (row) =>
       !conflicts.has(row.entryId) && (!physical || physical.has(row.entryId))

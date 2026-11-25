@@ -36,6 +36,13 @@ export const JUDGING_POLICY = {
   "judge.onboard": roundJudge,
   "score.read": roundJudge,
   "score.write": roundJudge,
+  "judging.round.lock": role(
+    "competition_manager",
+    "staff_admin",
+    "super_admin"
+  ),
+  "judging.round.override": role("staff_admin", "super_admin"),
+  "judging.round.tag": role("competition_manager"),
   "judging.round.manage": role("competition_manager"),
   "judging.round.read": role(
     "competition_manager",
