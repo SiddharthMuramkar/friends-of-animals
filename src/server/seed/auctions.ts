@@ -33,7 +33,6 @@ import { postToLedger } from "../modules/ledger/post";
 import { auctionCaptureLines } from "../modules/auctions/domain/proceeds";
 import { PROFILE_PURPOSE } from "../modules/registration/student-profile";
 import { IDENTITY_HASH_PURPOSE } from "../modules/registration/domain/prepare-student";
-import { currentLotConsent } from "../modules/auctions/lifecycle";
 import type { SeedDeps, Seeder } from "./types";
 import { seedEntryDerivatives } from "./entries";
 import { seedFilesLocation } from "./files";
@@ -496,11 +495,7 @@ export const seedAuctions: Seeder = async (deps) => {
             | "cancelled"
             | "awaiting_payment"
             | "sold",
-          story:
-            work.story +
-            (n <= 2
-              ? " AI illustration; sample image, not actual participant artwork."
-              : ""),
+          story: work.story,
           basePricePaise: 100000n,
           reservePricePaise: 150000n,
           opensAt: days(starts),
@@ -513,7 +508,12 @@ export const seedAuctions: Seeder = async (deps) => {
         })
         .onConflictDoNothing()
         .returning({ id: auctionLot.id });
-      if (n <= 2) {
+      if (
+        n <= 2 &&
+        process.env.APP_ENV === "local" &&
+        process.env.APP_URL &&
+        deps.storage
+      ) {
         const [sample] = await db
           .select()
           .from(auctionLot)
@@ -524,6 +524,8 @@ export const seedAuctions: Seeder = async (deps) => {
               eq(auctionLot.status, status as "open" | "scheduled")
             )
           );
+        const { currentLotConsent } =
+          await import("../modules/auctions/lifecycle");
         if (sample && (await currentLotConsent(deps, sample)))
           await seedLocalAuctionImage(deps, {
             entryId,
