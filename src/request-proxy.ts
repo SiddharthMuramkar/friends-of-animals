@@ -22,6 +22,7 @@ import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
+import { parseLotCode } from "@/server/modules/auctions/domain/lot-code";
 import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
 import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
@@ -105,6 +106,8 @@ export type RequestProxyDeps = {
    * Without one, every animal slug is the 404.
    */
   isAdoptableSlug?: SlugLookup;
+  /** Fresh auction visibility check; never cache consent across requests. */
+  isPublicAuctionLot?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -114,6 +117,7 @@ export function createProxy({
   isPublicPostSlug,
   isPublicListingSlug = async () => false,
   isAdoptableSlug = async () => false,
+  isPublicAuctionLot = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -193,6 +197,16 @@ export function createProxy({
     }
   }
 
+  async function isAuctionLot(raw: string): Promise<boolean> {
+    const code = parseLotCode(decodedSlug(raw));
+    if (!code) return false;
+    try {
+      return await isPublicAuctionLot(code);
+    } catch {
+      console.error("Proxy: could not verify auction lot visibility.");
+      return false;
+    }
+  }
   // Unlisted slugs render at request time, and the header's <Suspense>
   // starts streaming before the page's notFound() runs, so they would keep
   // a 200 status (cacheComponents rules out dynamicParams = false).
@@ -250,7 +264,9 @@ export function createProxy({
           ? await isPublicListing(raw)
           : section === "adopt"
             ? await isAdoptable(raw)
-            : await isPublishedCompetition(raw);
+            : section === "auctions"
+              ? await isAuctionLot(raw)
+              : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };

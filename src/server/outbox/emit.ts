@@ -44,7 +44,14 @@ export async function emitBatch(
   const deliveries = events.flatMap((event) => {
     const payload = EVENT_PAYLOADS[event.type].parse(event.payload);
     const eventId = uuidv7(now);
-    const handlers: readonly string[] = SUBSCRIBERS[event.type];
+    // Auction cancellation is needed only for auction-purpose withdrawals;
+    // unrelated consent changes retain their existing notification delivery.
+    const handlers: readonly string[] =
+      event.type === "consent.withdrawn" && event.payload.purpose !== "auction"
+        ? SUBSCRIBERS[event.type].filter(
+            (handler) => handler !== "auctions.withdraw_consent"
+          )
+        : SUBSCRIBERS[event.type];
     return handlers.map((handler) => ({
       id: uuidv7(now),
       eventId,

@@ -64,6 +64,7 @@ import donations from "../../messages/en-IN/donations.json";
 import receipts from "../../messages/en-IN/receipts.json";
 import adminDonations from "../../messages/en-IN/adminDonations.json";
 import artworkCustody from "../../messages/en-IN/artworkCustody.json";
+import auctions from "../../messages/en-IN/auctions.json";
 import artwork from "../../messages/en-IN/artwork.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
@@ -165,6 +166,7 @@ export const NAMESPACES = [
   "entries",
   "artwork",
   "artworkCustody",
+  "auctions",
   "error",
   "files",
   "footer",
@@ -266,6 +268,7 @@ export const messages = {
   ...entries,
   ...artwork,
   ...artworkCustody,
+  ...auctions,
   ...error,
   ...files,
   ...footer,

@@ -314,6 +314,12 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "results.release_due":
     case "results.prize_awarded":
     case "results.published":
+    case "auction.lot_created":
+    case "auction.lot.open":
+    case "auction.lot.close":
+    case "auction.lot_opened":
+    case "auction.lot_closed":
+    case "auction.lot_cancelled":
     case "artwork.retain_unrequested":
     case "artwork.requested":
     case "artwork.dispatched":
@@ -910,6 +916,12 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "results.release_due": { names: [], load: async () => ({}) },
   "results.prize_awarded": { names: PRIZE_VARIABLES, load: (db, delivery) => prizeValues(db, delivery.payload) },
   "results.published": { names: [], load: async () => ({}) },
+  "auction.lot_created": { names: [], load: async () => ({}) },
+  "auction.lot.open": { names: [], load: async () => ({}) },
+  "auction.lot.close": { names: [], load: async () => ({}) },
+  "auction.lot_opened": { names: [], load: async () => ({}) },
+  "auction.lot_closed": { names: [], load: async () => ({}) },
+  "auction.lot_cancelled": { names: [], load: async () => ({}) },
   "artwork.retain_unrequested": { names: [], load: async () => ({}) },
   "entry.foa_verified": {
     names: VERIFICATION_VARIABLES,

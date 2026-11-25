@@ -13,7 +13,8 @@
       "verification": "FOA verification",
       "adoptions": "Adoptions",
       "privacyRequests": "Privacy requests",
-      "judging": "Judging rounds"
+      "judging": "Judging rounds",
+      "auctions": "Auctions"
     },
     "loading": "Loading…",
     "denied": {

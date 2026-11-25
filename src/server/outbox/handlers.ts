@@ -14,6 +14,12 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 
 import { publishResultsRelease } from "../modules/results/releases";
 import { sendFamilyPrize } from "../modules/results/messages";
+import {
+  runOpenLot,
+  runCloseLot,
+  runSettleClosedLot,
+  withdrawAuctionConsent,
+} from "../modules/auctions/lifecycle";
 import { retainUnrequested } from "../modules/physical-artwork/custody";
 import { openArtworkResultsWindow } from "../modules/physical-artwork/results-window";
 import type { Deps } from "../deps";
@@ -268,6 +274,14 @@ export const HANDLERS: Handlers = {
       );
     }
   },
+  "auctions.open_lot": (deps, { payload }) =>
+    runOpenLot(deps, payload).then(() => undefined),
+  "auctions.close_lot": (deps, { payload }) =>
+    runCloseLot(deps, payload).then(() => undefined),
+  "auctions.settle_closed": (deps, { payload }) =>
+    runSettleClosedLot(deps, payload).then(() => undefined),
+  "auctions.withdraw_consent": (deps, { payload }) =>
+    withdrawAuctionConsent(deps, payload),
   "artwork.open_results_window": (deps, { payload }) =>
     openArtworkResultsWindow(deps, payload),
   "artwork.retain_unrequested": (deps, { payload }) =>

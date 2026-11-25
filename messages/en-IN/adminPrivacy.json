@@ -696,6 +696,14 @@
           "via": "Records how FOA returned the requested original.",
           "requested_by": "Identifies the creator, guardian or coordinator who requested a return."
         },
+        "auction_lot": {
+          "artwork_id": "Links an auction lot to the creator’s original artwork.",
+          "consent_event_id": "Links the auction consent evidence used to establish eligibility.",
+          "lot_code": "Identifies the artwork’s public auction lot.",
+          "story": "Describes the artist’s original work and its inspiration.",
+          "cancellation_reason": "Records why the creator’s lot stopped.",
+          "created_by": "Identifies the auction manager who created the lot."
+        },
         "round_result": {
           "code": "Identifies the participant’s ranked entry",
           "rank": "Records the participant’s place in the locked category ranking",

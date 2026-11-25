@@ -2,7 +2,7 @@
  * The one registry of public routes. The header, footer and sitemap read it,
  * so a page that isn't here isn't linked. Labels live in messages/en-IN/nav.json
  * under nav.links.<id>. Spec modules that aren't built yet (gallery,
- * events, volunteer, auctions) stay out. Pages
+ * events, volunteer) stay out. Pages
  * behind sign-in are in src/lib/app-routes.ts.
  */
 
@@ -87,6 +87,13 @@ const DEFINITIONS = {
     sitemap: { updated: "2026-11-24", priority: 0.7 },
   },
   adoptable: { path: "/adopt/[slug]", hue: "green" },
+  auctions: {
+    path: "/auctions",
+    hue: "yellow",
+    footer: "organisation",
+    sitemap: { updated: "2026-11-25", priority: 0.6 },
+  },
+  auctionLot: { path: "/auctions/[lotCode]", hue: "yellow" },
   about: {
     path: "/about",
     hue: "blue",

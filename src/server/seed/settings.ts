@@ -24,6 +24,7 @@ const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   // The accountant's export waits for HR-47 in production (#109).
   "ledger.accountantExport": true,
   // Local runs and previews pay through the test checkout (#106).
+  "auctions.enabled": true,
   "donations.enabled": true,
   "donations.recurringEnabled": true,
   // Erasure (#115b) waits for counsel in production (HR-30); seeded data

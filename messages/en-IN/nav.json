@@ -38,7 +38,9 @@
       "signIn": "Sign in",
       "signUpPhone": "Create an account with your phone",
       "signInPhone": "Sign in with your phone",
-      "myChildren": "My children"
+      "myChildren": "My children",
+      "auctions": "Artwork auctions",
+      "auctionLot": "Auction lot"
     }
   }
 }

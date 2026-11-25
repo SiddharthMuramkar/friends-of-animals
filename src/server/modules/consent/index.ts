@@ -3,6 +3,7 @@
 // each purpose for a child on its own (#82). Its use cases join
 // `as(actor)` through `consentUseCases`.
 
+import { myAuctionConsents, withdrawMyAuctionConsent } from "./own-auction";
 import type { UseCaseContext } from "../../use-cases";
 import {
   childConsentHistory,
@@ -100,6 +101,9 @@ export const consentUseCases = (ctx: UseCaseContext) => ({
   withdrawConsent: (input: { purpose: GivablePurpose }) =>
     withdrawConsent(ctx, input),
   myConsents: () => myConsents(ctx),
+  myAuctionConsents: () => myAuctionConsents(ctx),
+  withdrawMyAuctionConsent: (input: { competitionId: string }) =>
+    withdrawMyAuctionConsent(ctx, input),
   childConsents: (input: { childId: string }) => childConsents(ctx, input),
   giveChildConsent: (input: GiveChildConsentInput) =>
     giveChildConsent(ctx, input),

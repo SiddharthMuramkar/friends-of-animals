@@ -323,6 +323,12 @@
           "label": "FOA pays shipping",
           "description": "When off, the sender pays shipping."
         }
+      },
+      "auctions": {
+        "enabled": {
+          "label": "Enable auctions",
+          "description": "Allow scheduling and public viewing of auction lots. Leave off until FOA and counsel approve auction eligibility and consent terms."
+        }
       }
     }
   }

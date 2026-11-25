@@ -64,6 +64,7 @@ export * from "./physical-artwork";
 
 export * from "./scoring";
 export * from "./artwork-custody";
+export * from "./auctions";
 
 export * from "./round-results";
 

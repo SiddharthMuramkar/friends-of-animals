@@ -30,6 +30,9 @@ const NONE: ErasureFacts = {
   keptProfileBasis: "financial_record",
   payments: 0,
   paymentsUntil: null,
+  donorRecognition: 0,
+  recurringMandates: 0,
+  donationRecords: 0,
   children: 0,
   consentRecords: 0,
   auditEntries: 0,
@@ -116,7 +119,7 @@ describe("planErasure", () => {
     expect(plan.outcome).toBe("partially_completed");
   });
 
-  it("fingerprints decisions, not counts", () => {
+  it("fingerprints decisions and stable donor/mandate counts, not changing message counts", () => {
     const one = planErasure(member);
     expect(
       planErasure({ ...member, messages: 40, signIn: 9 }).fingerprint
@@ -126,6 +129,12 @@ describe("planErasure", () => {
         ...member,
         accountKeeper: { basis: "financial_floor", until: FLOOR },
       }).fingerprint
+    ).not.toBe(one.fingerprint);
+    expect(
+      planErasure({ ...member, recurringMandates: 1 }).fingerprint
+    ).not.toBe(one.fingerprint);
+    expect(
+      planErasure({ ...member, donorRecognition: 1 }).fingerprint
     ).not.toBe(one.fingerprint);
     // A kind of record appearing (a message delivered, an entry made)
     // doesn't change it; a legal hold does.

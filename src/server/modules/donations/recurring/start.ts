@@ -11,6 +11,10 @@ import {
 import { uuidv7 } from "../../../ids";
 import { invalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
+import {
+  donationStartAllowed,
+  lockDonationStart,
+} from "../../privacy/requests/subject-data/financial-start";
 import { DONOR_PURPOSE, donorEmailHash } from "../donors";
 import { defaultWallName } from "../domain/donor";
 import { normalizePan } from "../domain/pan";
@@ -57,6 +61,8 @@ export async function startRecurringDonation(
   const pan = has80G ? normalizePan(parsed.data.pan) : null;
   if (has80G && !pan)
     return { ok: false, error: "invalid_input", fields: ["pan"] } as const;
+  if (!(await donationStartAllowed(ctx.db, userId, now)))
+    return { ok: false, error: "donations_closed" } as const;
   const [account] = await ctx.db
     .select({ name: user.name, email: user.email })
     .from(user)
@@ -97,7 +103,8 @@ export async function startRecurringDonation(
     customerNotify: false,
     notes: { recurringDonationId: id },
   });
-  await ctx.db.transaction(async (tx) => {
+  const persisted = await ctx.db.transaction(async (tx) => {
+    if (!(await lockDonationStart(tx, userId, now))) return false;
     await tx.insert(donor).values({
       id: donorId,
       userId,
@@ -138,7 +145,16 @@ export async function startRecurringDonation(
       },
       actorRole: role,
     });
+    return true;
   });
+  if (!persisted) {
+    // This never-authorised subscription's checkout has not left the server.
+    // Clean up the provider's draft if approval overtook its creation.
+    await ctx.payments.cancelSubscription(subscription.id, {
+      atCycleEnd: false,
+    });
+    return { ok: false, error: "donations_closed" } as const;
+  }
   return {
     ok: true,
     id,
