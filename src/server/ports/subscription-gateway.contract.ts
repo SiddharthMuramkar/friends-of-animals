@@ -19,12 +19,12 @@ export type SubscriptionGatewayContractSetup = () => Promise<{
    * The donor authorises the mandate at Checkout: returns what Checkout
    * hands back to the browser, signed as the gateway signs it.
    */
-  authorise(subscriptionId: string): Promise<SubscriptionCheckoutReturn>;
+  authorise: (subscriptionId: string) => Promise<SubscriptionCheckoutReturn>;
   /** The gateway charges the next billing cycle, now. */
-  charge(
+  charge: (
     subscriptionId: string,
     options?: { international?: boolean }
-  ): Promise<{ paymentId: string }>;
+  ) => Promise<{ paymentId: string }>;
 }>;
 
 const MONTHLY_1000 = {

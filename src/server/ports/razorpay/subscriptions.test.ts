@@ -13,7 +13,12 @@ describe("Razorpay subscriptions", () => {
       notes: { recurringDonationId: "id" },
     };
     const mockFetch: typeof fetch = async (input, init) => {
-      const url = String(input);
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
       requests.push({
         url,
         method: init?.method ?? "GET",

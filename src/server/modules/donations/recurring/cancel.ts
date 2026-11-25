@@ -28,10 +28,13 @@ async function requestCancel(
     if (!row) return null;
     if (!canCancelRecurring(row.status) || row.cancelRequestedAt) return row;
     const now = ctx.clock.now();
+    // Provider timestamps are second-resolution: any unrecorded charge in
+    // the cancellation second is uncertain, so return it rather than keep it.
+    const requestedAt = new Date(Math.floor(now.getTime() / 1000) * 1000);
     await tx
       .update(recurringDonation)
       .set({
-        cancelRequestedAt: now,
+        cancelRequestedAt: requestedAt,
         cancelRequestedBy: by,
         nextChargeAt: null,
         updatedAt: now,

@@ -15,10 +15,7 @@ import { emit } from "../../../outbox/emit";
 import type { OutboxDeps } from "../../../outbox/handlers";
 import { readSetting } from "../../settings/read";
 import { startSystemRefund } from "../../payments/refunds/start-system-refund";
-import {
-  decideDonationPayments,
-  isForeignPayment,
-} from "../domain/donation-capture";
+import { decideDonationPayments } from "../domain/donation-capture";
 import { captureDonation } from "../payments";
 import { planRecurringSync, type RemoteCharge } from "./domain/recurring-sync";
 
