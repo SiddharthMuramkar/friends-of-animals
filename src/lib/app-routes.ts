@@ -239,6 +239,11 @@ export function adoptionApplicationsPath(
  * public stories page, /adopt/stories, is in src/lib/routes.ts.
  */
 export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_VERIFICATION = "/admin/verification";
+export function adminVerificationEntryPath(entryId: string): string {
+  return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
+}
+
 export const ADMIN_ADOPTIONS = "/admin/adoptions";
 
 export function myAdoptionApplicationPath(applicationId: string): string {
@@ -509,6 +514,8 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_VERIFICATION,
+  "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",

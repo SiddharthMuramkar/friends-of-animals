@@ -1,3 +1,7 @@
+import {
+  VERIFICATION_VARIABLES,
+  verificationValues,
+} from "../verification/message-values";
 // Who a route's message goes to, and what each event lets a template say.
 //
 // A route row names an audience by key. Each audience turns an event into
@@ -240,6 +244,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The fan-out job and the authority's own email (#116); no route row
       // sends to a user for either.
       return null;
+    case "entry.foa_verified":
+    case "entry.sent_back":
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -279,6 +285,8 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
       return null;
+    case "entry.replacement_live":
+    case "competition.submissions_closed":
     case "competition.school_judging_started":
     case "school_round.shortlist_finalised":
       // Open the rounds and queue the families' messages (#89); no route
@@ -338,6 +346,8 @@ function volunteerApplicationOf(delivery: Delivery): string | null {
 function registrationOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
     case "registration.confirmed":
+    case "entry.foa_verified":
+    case "entry.sent_back":
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -418,7 +428,10 @@ export const AUDIENCES = {
    * cancelled).
    */
   institution_coordinators: async (db, delivery) =>
-    delivery.eventType === "institution_registration.competition_cancelled"
+    (delivery.eventType === "institution_registration.competition_cancelled" ||
+      delivery.eventType === "entry.foa_verified" ||
+      delivery.eventType === "entry.sent_back") &&
+    delivery.payload.institutionRegistrationId
       ? institutionCoordinators(db, delivery.payload.institutionRegistrationId)
       : [],
   /**
@@ -809,6 +822,16 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: INSTITUTION_CANCELLATION_VARIABLES,
     load: (db, { payload }) =>
       institutionCancellationValues(db, payload.institutionRegistrationId),
+  },
+  "competition.submissions_closed": { names: [], load: async () => ({}) },
+  "entry.replacement_live": { names: [], load: async () => ({}) },
+  "entry.foa_verified": {
+    names: VERIFICATION_VARIABLES,
+    load: (db, { payload }) => verificationValues(db, payload.verificationId),
+  },
+  "entry.sent_back": {
+    names: VERIFICATION_VARIABLES,
+    load: (db, { payload }) => verificationValues(db, payload.verificationId),
   },
   "entry.submitted": {
     names: ENTRY_RECEIPT_VARIABLES,

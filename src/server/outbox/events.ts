@@ -687,7 +687,6 @@ const ENTRY_VERIFICATION_EVENT = z.object({
 });
 const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
 
-
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
   userId: z.uuid(),

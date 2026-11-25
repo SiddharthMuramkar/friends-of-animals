@@ -103,10 +103,7 @@ export async function routeOfEntry(
  * F15: a decision on a school-route entry locks its school round first, so
  * it waits for (and is waited on by) a reopening of that round (#90).
  */
-export async function lockRoundOf(
-  tx: AppDb,
-  route: EntryRoute
-): Promise<void> {
+export async function lockRoundOf(tx: AppDb, route: EntryRoute): Promise<void> {
   if (!route.institutionRegistrationId) return;
   await tx
     .select({ id: schoolRound.id })

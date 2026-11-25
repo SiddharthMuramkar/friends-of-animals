@@ -234,8 +234,11 @@ function outboxEvent(
         payload: { ...ids, replacement: event !== "entry.failed" },
       } as const;
     case "entry.replacement_live":
-      // The participant sees it on their page; no message for now.
-      return null;
+      return {
+        type: "entry.replacement_live",
+        aggregate,
+        payload: { entryId: ids.entryId, entryFileId: ids.entryFileId },
+      } as const;
   }
 }
 
@@ -335,6 +338,8 @@ export async function settleEntryFile(
     }
     const event =
       decision.event &&
+      (decision.event !== "entry.replacement_live" ||
+        row.status === "sent_back") &&
       outboxEvent(decision.event, {
         entryId: row.id,
         entryFileId,

@@ -7,7 +7,17 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, asc, eq, isNotNull, max, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  ne,
+  isNotNull,
+  max,
+  sql,
+  notExists,
+  inArray,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
@@ -15,6 +25,7 @@ import {
   competition,
   competitionAgeGroup,
   entry,
+  entryFile,
   entryTransition,
   entryVerification,
   institution,
@@ -116,6 +127,19 @@ export async function listVerificationQueue(
     .where(
       and(
         eq(entry.status, "submitted_to_foa"),
+        ne(competition.status, "cancelled"),
+        eq(registration.status, "confirmed"),
+        notExists(
+          ctx.db
+            .select({ id: entryFile.id })
+            .from(entryFile)
+            .where(
+              and(
+                eq(entryFile.entryId, entry.id),
+                inArray(entryFile.status, ["pending", "processing"])
+              )
+            )
+        ),
         ...(competitionId ? [eq(entry.competitionId, competitionId)] : []),
         ...(route
           ? [

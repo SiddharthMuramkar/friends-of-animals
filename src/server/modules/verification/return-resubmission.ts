@@ -34,6 +34,17 @@ export async function returnResubmission(
     const locked = await lockEntry(tx, payload.entryId);
     if (!locked) return;
     const latest = await latestVerification(tx, payload.entryId);
+    const file = locked.files.find((file) => file.id === payload.entryFileId);
+    if (
+      file?.status !== "live" ||
+      locked.files.at(-1)?.id !== file.id ||
+      !latest?.resubmittedAt ||
+      file.uploadCompletedAt < latest.resubmittedAt ||
+      locked.files.some(
+        (f) => f.status === "pending" || f.status === "processing"
+      )
+    )
+      return;
     const decision = decide(
       verificationStateOf(locked.row.status, latest),
       { kind: "replacement_live" },

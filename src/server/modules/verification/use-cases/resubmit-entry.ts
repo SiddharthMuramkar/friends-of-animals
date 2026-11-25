@@ -24,6 +24,11 @@ import { entry } from "../../../db/schema";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
+import {
+  participationRefusals,
+  lockParticipationPins,
+} from "../../consent/participation-gate";
+import { lockRegistrationStatus } from "../../entries/registration-facts";
 import { ENTRY_TEXT_LIMITS } from "../../entries/domain/entry-text";
 import { authorizeEntrySubmission } from "../../entries/registration-facts";
 import { lockEntry } from "../../entries/store";
@@ -48,7 +53,8 @@ const resubmitInput = z
   })
   // New words come together: a title without its description is a mistake.
   .refine(
-    (input) => (input.title === undefined) === (input.description === undefined),
+    (input) =>
+      (input.title === undefined) === (input.description === undefined),
     { path: ["description"] }
   );
 
@@ -64,7 +70,9 @@ export type ResubmitEntryResult =
             VerificationRefusal,
             "not_sent_back" | "resubmission_closed" | "already_verified"
           >
-        | "upload_in_progress";
+        | "upload_in_progress"
+        | "registration_not_confirmed"
+        | "participation_consent_required";
     };
 
 export async function resubmitEntry(
@@ -88,6 +96,14 @@ export async function resubmitEntry(
 
   return ctx.db.transaction(async (tx): Promise<ResubmitEntryResult> => {
     await lockRoundOf(tx, route);
+    await lockParticipationPins(tx, [route.registrationId]);
+    if (
+      (await lockRegistrationStatus(tx, route.registrationId)) !== "confirmed"
+    )
+      return { ok: false, error: "registration_not_confirmed" };
+    if ((await participationRefusals(tx, ctx, [route.registrationId])).size)
+      return { ok: false, error: "participation_consent_required" };
+    await authorizeEntrySubmission({ ...ctx, db: tx }, route.registrationId);
     const locked = await lockEntry(tx, entryId);
     if (!locked) throw new Error("unreachable: entry vanished");
     if (

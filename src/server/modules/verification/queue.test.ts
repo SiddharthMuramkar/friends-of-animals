@@ -59,7 +59,7 @@ describe("individual entries reaching FOA", () => {
   it("go on as soon as a file still being checked at the deadline passes", async () => {
     const h = await createHarness();
     const submitted = await submittedIndividualEntry(h);
-    const late = confirmedAdult(h, {
+    const late = await confirmedAdult(h, {
       competition: submitted.competition,
     });
     const code = await submittedImage(h, late);
@@ -78,7 +78,7 @@ describe("individual entries reaching FOA", () => {
 
   it("never forwards an entry whose file was refused", async () => {
     const h = await createHarness();
-    const participant = confirmedAdult(h);
+    const participant = await confirmedAdult(h);
     const code = await submittedImage(h, participant, {
       bytes: EICAR_TEST_BYTES,
     });
@@ -185,17 +185,17 @@ describe("listVerificationQueue", () => {
     });
 
     for (const actor of [individual.actor, manager]) {
-      await expect(
-        h.as(actor).listVerificationQueue({})
-      ).rejects.toMatchObject({ code: "forbidden" });
+      await expect(h.as(actor).listVerificationQueue({})).rejects.toMatchObject(
+        { code: "forbidden" }
+      );
     }
     await expect(
       h.as(withoutFactor).listVerificationQueue({})
     ).rejects.toMatchObject({
       code: expect.stringMatching(/second_factor_required|enrolment_required/),
     });
-    await expect(
-      h.as(h.visitor()).listVerificationQueue({})
-    ).rejects.toThrow(DomainError);
+    await expect(h.as(h.visitor()).listVerificationQueue({})).rejects.toThrow(
+      DomainError
+    );
   });
 });

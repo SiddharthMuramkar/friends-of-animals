@@ -17,10 +17,15 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
-import { entryVerification } from "../../../db/schema";
+import {
+  entryVerification,
+  competition,
+  registration,
+} from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
 import type { UseCaseContext } from "../../../use-cases";
@@ -55,7 +60,14 @@ export type DecideEntryResult =
   | { ok: true; status: "foa_verified" }
   | { ok: true; status: "sent_back"; resubmissionDueAt: Date }
   | InvalidInput
-  | { ok: false; error: "not_found" | VerificationRefusal };
+  | {
+      ok: false;
+      error:
+        | "not_found"
+        | "upload_in_progress"
+        | "registration_not_confirmed"
+        | VerificationRefusal;
+    };
 
 export async function verifyEntry(
   ctx: UseCaseContext,
@@ -94,9 +106,29 @@ async function decideOn(
   return ctx.db.transaction(async (tx): Promise<DecideEntryResult> => {
     const route = await routeOfEntry(tx, { entryId });
     if (!route) return { ok: false, error: "not_found" };
+    const [heldCompetition] = await tx
+      .select({ status: competition.status })
+      .from(competition)
+      .where(eq(competition.id, route.competitionId))
+      .for("share");
+    if (!heldCompetition || heldCompetition.status === "cancelled")
+      return { ok: false, error: "registration_not_confirmed" };
     await lockRoundOf(tx, route);
+    const [registered] = await tx
+      .select({ status: registration.status })
+      .from(registration)
+      .where(eq(registration.id, route.registrationId))
+      .for("share");
+    if (registered?.status !== "confirmed")
+      return { ok: false, error: "registration_not_confirmed" };
     const locked = await lockEntry(tx, entryId);
     if (!locked) return { ok: false, error: "not_found" };
+    if (
+      locked.files.some(
+        (file) => file.status === "pending" || file.status === "processing"
+      )
+    )
+      return { ok: false, error: "upload_in_progress" };
     const from = locked.row.status;
     const now = ctx.clock.now();
     const decision = decide(
@@ -127,7 +159,9 @@ async function decideOn(
         decidedAt: now,
       });
     } else {
-      throw new Error(`A verifier's decision can't move an entry to ${decision.to}`);
+      throw new Error(
+        `A verifier's decision can't move an entry to ${decision.to}`
+      );
     }
     await applyVerificationMove(tx, ctx, {
       entryId,

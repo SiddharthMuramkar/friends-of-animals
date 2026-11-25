@@ -31,9 +31,10 @@ import {
   submissionFacts,
   submissionWindows,
 } from "../../entries/registration-facts";
-import { isImageDiscipline, type ImageDiscipline } from "../../entries/rules";
+import { isImageDiscipline, isEntryDiscipline } from "../../entries/rules";
 import { moduleDerivativeUrl } from "../../files/use-cases/derivative-url";
 import { institutionResource } from "../../institutions/coordinators/policy";
+import { latestVerification } from "../../verification/store";
 import { submissionGate, type RosterHold } from "../domain/roster";
 import { loadRegistrationScope } from "../registration-scope";
 
@@ -54,6 +55,12 @@ export type StudentSubmission = {
     registrationNumber: string;
   };
   entry: {
+    id: string;
+    correction: {
+      reasonCode: string;
+      reasonText: string | null;
+      dueAt: Date;
+    } | null;
     code: string;
     status: EntryStatus;
     title: string;
@@ -72,7 +79,7 @@ export type StudentSubmission = {
   /** The upload the coordinator can make now; null when `hold` says why not. */
   upload: {
     mode: "submit" | "retry" | "replace";
-    disciplines: ImageDiscipline[];
+    disciplines: Discipline[];
   } | null;
   hold: StudentSubmissionHold | null;
 };
@@ -154,6 +161,7 @@ export async function getStudentSubmission(
     .as("newest");
   const [row] = await ctx.db
     .select({
+      id: entry.id,
       code: entry.code,
       status: entry.status,
       title: entry.title,
@@ -180,16 +188,39 @@ export async function getStudentSubmission(
       scope.competition.id
     ) ?? null;
   const now = ctx.clock.now();
-  const gate = submissionGate(scope.competition.digitalScope, window, now);
+  const latest =
+    row?.status === "sent_back"
+      ? await latestVerification(ctx.db, row.id)
+      : null;
+  const correction =
+    latest?.reasonCode && latest.resubmissionDueAt
+      ? {
+          reasonCode: latest.reasonCode,
+          reasonText: latest.reasonText,
+          dueAt: latest.resubmissionDueAt,
+        }
+      : null;
+  const gate = correction
+    ? now < correction.dueAt
+      ? "open"
+      : "deadline_passed"
+    : submissionGate(scope.competition.digitalScope, window, now);
   const offered = row
-    ? [row.discipline].filter(isImageDiscipline)
+    ? [row.discipline].filter(
+        correction ? isEntryDiscipline : isImageDiscipline
+      )
     : (
         (await submissionFacts(ctx.db, student.registrationId))?.competition
           .disciplines ?? []
       ).filter(isImageDiscipline);
   const decision =
     window && row
-      ? decideUpload({ entry: { status: row.status, files: [] }, window, now })
+      ? decideUpload({
+          entry: { status: row.status, files: [] },
+          window,
+          now,
+          resubmissionDueAt: correction?.dueAt ?? null,
+        })
       : null;
   const hold: StudentSubmissionHold | null =
     student.status !== "confirmed"
@@ -207,7 +238,7 @@ export async function getStudentSubmission(
     reference: scope.reference,
     institutionName: scope.institutionName,
     competitionName: scope.competition.name,
-    closesAt: window?.closesAt ?? null,
+    closesAt: correction?.dueAt ?? window?.closesAt ?? null,
     student: {
       registrationId: student.registrationId,
       name: student.name,
@@ -215,6 +246,8 @@ export async function getStudentSubmission(
     },
     entry: row
       ? {
+          id: row.id,
+          correction,
           code: row.code,
           status: row.status,
           title: row.title,
