@@ -43,6 +43,12 @@ describe("the competitions seed", () => {
       }))
     ).toEqual([
       {
+        code: "KIND27",
+        slug: "kindness-in-action",
+        participation: "both",
+        status: "results_published",
+      },
+      {
         code: "ORIG27",
         slug: "originals-for-animals",
         participation: "both",
@@ -138,7 +144,7 @@ describe("the competitions seed", () => {
     ).toBeNull();
   });
 
-  it("seeds a global competition manager who sees all thirteen", async () => {
+  it("seeds a global competition manager who sees all fourteen", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = await h.signIn(SEED_COMPETITION_MANAGER);
@@ -157,6 +163,7 @@ describe("the competitions seed", () => {
       "registration_closed",
       "registration_closed",
       "registration_open",
+      "results_published",
       "results_published",
       "school_judging",
     ]);
@@ -184,6 +191,12 @@ describe("the competitions seed", () => {
           submissionsClosed: keyDates[2]!.at <= now,
         }))
       ).toEqual([
+        {
+          status: "results_published",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
         {
           status: "foa_judging",
           openingPassed: true,
@@ -324,7 +337,7 @@ describe("the competitions seed", () => {
         await h.as(manager).verifySecondFactor({ code: h.totpCode() }),
         account.email
       ).toEqual({ ok: true });
-      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(13);
+      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(14);
     }
   });
 
@@ -340,7 +353,7 @@ describe("the competitions seed", () => {
     expect(await h.db.select({ id: competition.id }).from(competition)).toEqual(
       ids
     );
-    expect(once).toMatchObject({ competitions: 13 });
+    expect(once).toMatchObject({ competitions: 14 });
   });
 });
 

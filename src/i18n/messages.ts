@@ -14,6 +14,7 @@ import adminInbox from "../../messages/en-IN/adminInbox.json";
 import adminSettings from "../../messages/en-IN/adminSettings.json";
 import adminHome from "../../messages/en-IN/adminHome.json";
 import adminReports from "../../messages/en-IN/adminReports.json";
+import objectiveReports from "../../messages/en-IN/objectiveReports.json";
 import admin from "../../messages/en-IN/admin.json";
 import adminAudit from "../../messages/en-IN/adminAudit.json";
 import adminTemplates from "../../messages/en-IN/adminTemplates.json";
@@ -123,6 +124,7 @@ export const NAMESPACES = [
   "admin",
   "adminHome",
   "adminReports",
+  "objectiveReports",
   "adminAudit",
   "adminTemplates",
   "adminRoles",
@@ -240,6 +242,7 @@ export const messages = {
   ...admin,
   ...adminHome,
   ...adminReports,
+  ...objectiveReports,
   ...adminAudit,
   ...adminTemplates,
   ...adminRoles,

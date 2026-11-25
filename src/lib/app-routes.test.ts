@@ -193,6 +193,10 @@ describe("isSignedInPage", () => {
       "/admin",
       "/admin/queues/results_to_approve",
       "/admin/reports",
+      "/admin/reports/objectives",
+      "/admin/reports/objectives/export.csv",
+      "/admin/reports/social",
+      "/admin/reports/social/export.csv",
       "/admin/reports/competitions/SKIES26",
       "/admin/reports/competitions/SKIES26/export.csv",
     ]) {

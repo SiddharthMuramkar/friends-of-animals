@@ -35,6 +35,8 @@ import type { DonationStatus } from "../modules/donations/domain/donation-status
 import type { DonorType } from "../modules/donations/domain/donor";
 import { RECEIPT_LINK_LIFETIME_MS } from "../modules/donations/domain/receipt-link";
 import { DONOR_PURPOSE, donorEmailHash } from "../modules/donations/donors";
+import { settleDonationRefund } from "../modules/donations/payments";
+import { periodMonthOf } from "../modules/ledger/domain/period";
 import { issueReceipt } from "../modules/donations/receipts/issue";
 import { isPeriodClosed } from "../modules/ledger/domain/period-lock";
 import { loadKnownPeriods } from "../modules/ledger/periods";
@@ -332,5 +334,87 @@ export async function seedTransparencyDonations(deps: SeedDeps): Promise<void> {
         issuedAt: at,
       });
     }
+  });
+}
+
+// A genuine accepted and subsequently returned domestic gift for #135's
+// gross/refund/net report. The receipt and its reversal use the normal
+// settlement and ledger reconcile seams; no report-only financial record.
+export const SEED_OBJECTIVE_DONATION = {
+  donationId: "01938a00-0000-7000-8000-000000135101",
+  donorId: "01938a00-0000-7000-8000-000000135102",
+  batchId: "01938a00-0000-7000-8000-000000135103",
+  refundId: "01938a00-0000-7000-8000-000000135104",
+  name: "Sample returned donor",
+  email: "returned-donation@example.test",
+  amountMinor: 25_050n,
+  checkoutToken: token("SeedReturnedGift_"),
+} as const;
+
+export async function seedObjectiveDonation(deps: SeedDeps): Promise<void> {
+  const seed = SEED_OBJECTIVE_DONATION;
+  const now = deps.clock.now();
+  const capturedAt = new Date(+now - 2 * 86_400_000);
+  const returnedAt = new Date(+now - 86_400_000);
+  await deps.db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: donation.id })
+      .from(donation)
+      .where(eq(donation.id, seed.donationId));
+    if (existing) return;
+    const periods = await loadKnownPeriods(tx);
+    if (
+      isPeriodClosed(periodMonthOf(capturedAt), periods) ||
+      isPeriodClosed(periodMonthOf(returnedAt), periods)
+    )
+      return;
+    const paymentId = "pay_seed_135_returned";
+    await insertDonation(
+      tx,
+      deps,
+      seed,
+      {
+        type: "individual",
+        status: "captured",
+        batchStatus: "captured",
+        paymentId,
+        showOnWall: false,
+        wallName: null,
+      },
+      capturedAt
+    );
+    await issueReceipt(tx, deps, {
+      donationId: seed.donationId,
+      donorId: seed.donorId,
+      amountMinor: seed.amountMinor,
+      gatewayPaymentId: paymentId,
+      issuedAt: capturedAt,
+    });
+    await tx.insert(refund).values({
+      id: seed.refundId,
+      batchId: seed.batchId,
+      gatewayPaymentId: paymentId,
+      kind: "discretionary",
+      status: "refunded",
+      method: "gateway",
+      amountMinor: seed.amountMinor,
+      currency: "INR",
+      reason: "Demonstration gift returned at donor request",
+      requestedAt: returnedAt,
+      decidedAt: returnedAt,
+      sentAt: returnedAt,
+      refundedAt: returnedAt,
+      updatedAt: returnedAt,
+      gatewayRefundId: "rfnd_seed_135_returned",
+    });
+    await settleDonationRefund(
+      tx,
+      {
+        clock: { now: () => returnedAt },
+        actor: { kind: "system", process: "seed" },
+      },
+      seed.refundId,
+      null
+    );
   });
 }

@@ -3,7 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { ADMIN_REPORTS, adminCompetitionReportPath } from "@/lib/app-routes";
+import {
+  ADMIN_REPORTS,
+  ADMIN_OBJECTIVES,
+  ADMIN_SOCIAL_METRICS,
+  adminCompetitionReportPath,
+} from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
 import { AdminDenied } from "../_components/admin-denied";
 import { adminCall } from "../_lib/boundary";
@@ -21,9 +26,26 @@ export default async function Page() {
     () => as(actor).listReportCompetitions(),
     ADMIN_REPORTS
   );
+  const access = actor.kind === "user" ? await as(actor).myAccess() : null;
+  const objective = await getTranslations("objectiveReports");
+  const leader = access?.grants.some(
+    (g) =>
+      g.scope.type === "global" &&
+      ["super_admin", "staff_admin"].includes(g.role)
+  );
   return (
     <Section width="wide" className="pt-10 sm:pt-14">
       <PageHeader title={t("title")} lead={t("lead")} />
+      {leader ? (
+        <div className="mt-6 flex flex-wrap gap-4">
+          <SiteLink href={ADMIN_OBJECTIVES}>
+            {objective("openObjectives")}
+          </SiteLink>
+          <SiteLink href={ADMIN_SOCIAL_METRICS}>
+            {objective("openSocial")}
+          </SiteLink>
+        </div>
+      ) : null}
       {!call.ok ? (
         <AdminDenied />
       ) : !call.value.length ? (
