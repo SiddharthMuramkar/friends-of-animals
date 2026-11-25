@@ -273,6 +273,12 @@ export function adminAdoptionApplicationPath(applicationId: string): string {
  */
 export const ADOPTION_STORIES_PATH = "/adopt/stories";
 
+/** Published ledger figures (#110); kept out of the shared client registry. */
+export const TRANSPARENCY_PATH = "/transparency";
+export function transparencyYearPath(fy: string): string {
+  return `${TRANSPARENCY_PATH}?fy=${encodeURIComponent(fy)}`;
+}
+
 /** An adoptable animal's public page. */
 export function adoptableAnimalPath(slug: string): string {
   return `/adopt/${encodeURIComponent(slug)}`;

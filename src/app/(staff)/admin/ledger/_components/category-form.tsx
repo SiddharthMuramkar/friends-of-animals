@@ -36,6 +36,7 @@ export function CategoryForm({
     kinds: Option[];
     name: string;
     publicLabel: string;
+    publicLabelHint: string;
     publicGroup: string;
     chooseGroup: string;
     groups: Option[];
@@ -125,6 +126,7 @@ export function CategoryForm({
           id={`${id}-label`}
           name="publicLabel"
           label={t.publicLabel}
+          hint={t.publicLabelHint}
           error={state.error === "invalid_public_label" ? error : undefined}
           value={draft.publicLabel ?? account?.publicLabel ?? ""}
           onChange={(event) => updateField("publicLabel", event.target.value)}

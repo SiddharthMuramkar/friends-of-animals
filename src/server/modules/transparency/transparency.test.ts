@@ -117,6 +117,12 @@ describe("public transparency", () => {
       wallName: "Private custom alias",
       email: "private-company@example.test",
     });
+    await capturedDonation(h, {
+      donorType: "corporate",
+      organisationName: "Example Foundation",
+      discloseOrganisation: false,
+      email: "undisclosed-same@example.test",
+    });
     await startedDonation(h, {
       showOnWall: true,
       wallName: "Unpaid supporter",
@@ -127,7 +133,7 @@ describe("public transparency", () => {
     const visitor = h.as(h.visitor());
     const published = await visitor.getTransparency();
     expect(published).toMatchObject({
-      donationsMinor: 280_000n,
+      donationsMinor: 330_000n,
       organisations: [{ name: "Example Foundation", totalMinor: 130_000n }],
       supporters: ["Public A"],
     });
@@ -162,13 +168,120 @@ describe("public transparency", () => {
     const newFinance = await twoFinanceUsers(h);
     await lock(h, newFinance, "2027-02");
     expect(await visitor.getTransparency()).toMatchObject({
-      donationsMinor: 200_000n,
+      donationsMinor: 250_000n,
       months: [
-        { month: "2027-01", donationsMinor: 280_000n },
+        { month: "2027-01", donationsMinor: 330_000n },
         { month: "2027-02", donationsMinor: -80_000n },
       ],
       organisations: [{ name: "Example Foundation", totalMinor: 50_000n }],
       supporters: ["Public A"],
+    });
+  });
+  it("selects only published financial years, keeps empty locked months and removes a reopened month", async () => {
+    const h = await createHarness();
+    await openDonations(h);
+    await capturedDonation(h, { showOnWall: true, wallName: "Last year" });
+    const finance = await twoFinanceUsers(h);
+    await lock(h, finance, "2027-01");
+    h.clock.advance({ days: 90 });
+    const next = await twoFinanceUsers(h);
+    await lock(h, next, "2027-03");
+    await capturedDonation(h, { showOnWall: true, wallName: "This year" });
+    await lock(h, next, "2027-04");
+    const visitor = h.as(h.visitor());
+    expect(await visitor.getTransparency()).toMatchObject({
+      years: ["2027-28", "2026-27"],
+      fy: "2027-28",
+      months: [{ month: "2027-04", donationsMinor: 50_000n }],
+      supporters: ["This year"],
+    });
+    expect(await visitor.getTransparency({ fy: "2026-27" })).toMatchObject({
+      fy: "2026-27",
+      months: [
+        { month: "2027-01", donationsMinor: 50_000n },
+        { month: "2027-03", donationsMinor: 0n, income: [], spending: [] },
+      ],
+      supporters: ["Last year"],
+    });
+    expect(await visitor.getTransparency({ fy: "2030-31" })).toEqual(
+      await visitor.getTransparency()
+    );
+    const requested = await h.as(next.requester.actor).requestPeriodUnlock({
+      month: "2027-04",
+      reason: "Reconciliation correction",
+    });
+    if (!requested.ok) throw new Error(requested.error);
+    await h
+      .as(next.approver.actor)
+      .approveFinanceRequest({ requestId: requested.requestId });
+    expect(await visitor.getTransparency()).toMatchObject({
+      fy: "2026-27",
+      years: ["2026-27"],
+      supporters: ["Last year"],
+    });
+    expect(await visitor.getFundsRaised()).toEqual({
+      fy: "2026-27",
+      amountMinor: 50_000n,
+      publishedThrough: "2027-03",
+    });
+  });
+  it("counts category activity even after deactivation and never uses a private account name", async () => {
+    const h = await createHarness();
+    const finance = await twoFinanceUsers(h);
+    const staff = h.as(finance.requester.actor);
+    for (const [code, publicLabel] of [
+      ["5710", "Outreach supplies"],
+      ["5711", null],
+    ] as const) {
+      expect(
+        await staff.createLedgerAccount({
+          code,
+          kind: "expense",
+          name: "Private donor surname",
+          publicGroup: "programs",
+          publicLabel,
+        })
+      ).toMatchObject({ ok: true });
+      expect(
+        await staff.createManualEntry({
+          ...expenseEntry("2027-01-03", 10_000n),
+          lines: [
+            { accountCode: code, side: "debit", amountMinor: 10_000n },
+            { accountCode: "1000", side: "credit", amountMinor: 10_000n },
+          ],
+        })
+      ).toMatchObject({ ok: true });
+      expect(await staff.deactivateLedgerAccount({ code })).toMatchObject({
+        ok: true,
+      });
+    }
+    await lock(h, finance, "2027-01");
+    expect(await h.as(h.visitor()).getTransparency()).toEqual({
+      published: true,
+      years: ["2026-27"],
+      fy: "2026-27",
+      incomeMinor: 0n,
+      spendingMinor: 20_000n,
+      donationsMinor: 0n,
+      months: [
+        {
+          month: "2027-01",
+          income: [],
+          incomeMinor: 0n,
+          donationsMinor: 0n,
+          spendingMinor: 20_000n,
+          spending: [
+            {
+              group: "programs",
+              label: "Outreach supplies",
+              amountMinor: 10_000n,
+            },
+            { group: "programs", label: null, amountMinor: 10_000n },
+          ],
+        },
+      ],
+      organisations: [],
+      supporters: [],
     });
   });
 });

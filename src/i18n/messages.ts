@@ -71,6 +71,7 @@ import guardian from "../../messages/en-IN/guardian.json";
 import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
+import transparency from "../../messages/en-IN/transparency.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
 import judgingGuide from "../../messages/en-IN/judgingGuide.json";
@@ -163,6 +164,7 @@ export const NAMESPACES = [
   "volunteer",
   "home",
   "impact",
+  "transparency",
   "inbox",
   "institutions",
   "judgingGuide",
@@ -259,6 +261,7 @@ export const messages = {
   ...volunteer,
   ...home,
   ...impact,
+  ...transparency,
   ...inbox,
   ...institutions,
   ...judgingGuide,

@@ -991,8 +991,19 @@ FOA's double-entry books (#105), with the period lock, the two-approver rule, bu
 - **Money rules:** paise `bigint`; typed rupees parsed digit by digit, never through a float, up to Rs 100 crore per line. Periods are IST calendar months. A capture debits the asset account for its method (gateway → clearing, cash → cash, cheque or transfer → bank) and credits `4100`; a refund mirrors its capture and never exceeds it. One posting per source: a replay returns `duplicate`.
 - **Jobs:** `ledger.post_capture` on `payment.batch_captured`; `ledger.post_refund` on `refund.processed`; nightly `ledger.reconcile_payments` posts anything they missed; daily `ledger.expire_approvals` expires requests past their window.
 - **Seed:** a second finance user (`ledger-approver@example.test`), March 2026 locked, a lock of April 2026 and a Rs 75,000 manual entry waiting, and budgets for every month of the current financial year on five categories. The months are fixed so no journey's posting falls in a locked month.
-- **Missing:** transparency (#110), auction sources; approvers aren't notified of waiting requests (they check `/admin/ledger/approvals`). Donations post as sources `donation` and `foreign_donation` ([`donations`](#donations)).
+- **Missing:** auction sources; approvers aren't notified of waiting requests (they check `/admin/ledger/approvals`). Donations post as sources `donation` and `foreign_donation` ([`donations`](#donations)).
 - **Tests:** `finance-writes.test.ts`, `payment-postings.test.ts`, `refund-postings.pg.test.ts`, `backfill.test.ts`, `guards.test.ts`, `period-lock.test.ts`, `closed-period.test.ts`, `approval-decisions.test.ts`, `manual-entry-approval.test.ts`, `period-lock.pg.test.ts`, `budgets.test.ts`, `export.test.ts`; E2E `105-ledger.spec.ts`, `109-period-lock.spec.ts`, `109-budgets.spec.ts`.
+
+### transparency
+
+Public ledger read model (#110). No new tables or runtime settings.
+
+- **Use cases:** `getTransparency({fy?})` and `getFundsRaised()` are public; the latter reads the exact donations total of the latest published financial year. The page's FY parameter selects one of the years with a locked month; a missing or unknown FY selects the latest one.
+- **Read model:** one repeatable-read, read-only snapshot selects explicitly locked periods, then net credits less debits for income (debits less credits for expenses) by the posting's `period_month`, including late adjustments. All categories count, even inactive ones; public labels, safe system category names or public group names are displayed, never private account names, journal descriptions, memos or budgets. Donation totals are the three donation income accounts (42xx), net of refunds. Reopening a month removes it from the public model.
+- **Recognition:** an individual's chosen wall name appears only for an opted-in donation with a positive net contribution in those months; names are deduplicated and never paired with amounts. An organisation's total includes only its disclosed gifts and their published refund reversals. Each gift's disclosure stands on its own, so private gifts are never added to its public total. No names of contacts, emails, PAN, receipt numbers, IDs or transaction-level data are selected. Fully returned donations do not appear as support.
+- **Pages:** `/transparency?fy=2026-27` shows the yearly totals, monthly categories, disclosed organisations and donor wall. `/impact` displays the same funds-raised figure and links to that year. Public reads stream at request time, not through the editable CMS or sample counters. HR-47 (accountant confirms the categories and report).
+- **Seed:** two historic captured donations with receipts (a named individual and disclosed organisation), posted before March 2026 is locked. No new historic donations are added to an already locked ledger.
+- **Tests:** `modules/transparency/transparency.test.ts`, `seed/donations.test.ts`; E2E `110-transparency.spec.ts` on dedicated desktop and mobile databases.
 
 ### notifications
 
@@ -1796,14 +1807,14 @@ Each `*.live.test.ts` runs a port contract against a real service in a folder it
 
 Playwright never starts a server. It tests whatever `PLAYWRIGHT_BASE_URL` points at and refuses to load without it.
 
-- Projects: `desktop` and `mobile` (Pixel 7) run every spec except `prod-smoke.spec.ts`; `prod-smoke` runs only that file. All Chromium.
+- Projects: `desktop` and `mobile` (Pixel 7) run the regular journeys; `prod-smoke` runs only the read-only production smoke. `transparency-desktop` and `transparency-mobile` run just #110 against fresh, isolated databases because locking a period changes the whole ledger. All Chromium.
 - `retries: 0`: a check that fails only sometimes is still a failure. Traces and screenshots are kept on failure in `test-results/` (`pnpm exec playwright show-trace <path>/trace.zip`).
 - Accessibility: `tests/e2e/support/a11y.ts` gives `expectAccessible(page, label)` (a `<main>`, one `h1`, a title, zero axe violations), `expectRendersAccessibly` and `expectAccessibleInDark`. Specs call these on every page they visit.
 - `tests/e2e/support/mailbox.ts` reads the capture mailbox (`readCode`, `readEmail`, `freshEmail`, `freshPhone`) and `drainOutbox()` calls `POST /api/preview/drain`, because CI runs no worker. Both need `CAPTURE_MAILBOX_TOKEN`.
 - `seed-*.ts` fixtures write straight into the app's database. They refuse unless the base URL is loopback and `APP_ENV=local`, and they need the same `BETTER_AUTH_SECRET` and field keys as the server (or none on both).
 - Name new specs `tests/e2e/<issue>-<slug>.spec.ts`.
 
-**How CI runs them.** Each E2E job starts Postgres 18, generates random `CAPTURE_MAILBOX_TOKEN`, `BETTER_AUTH_SECRET`, `FIELD_ENCRYPTION_KEYS` and `FIELD_HMAC_KEY`, runs `pnpm db:migrate && pnpm db:seed && pnpm build && pnpm check:build`, then starts two servers from one build: `pnpm start` on `:3000` with `APP_ENV=local`, and `APP_ENV=staging` on `127.0.0.1:3101`. The staging one serves `55-guardian-launch-pause.spec.ts` (via `PLAYWRIGHT_GUARDIAN_PAUSED_URL`), which checks the "coming soon" screens of the paused guardian flows. Then `pnpm test:e2e --project=<desktop|mobile> --shard=<n>/3`.
+**How CI runs them.** Each E2E job starts Postgres 18, generates random `CAPTURE_MAILBOX_TOKEN`, `BETTER_AUTH_SECRET`, `FIELD_ENCRYPTION_KEYS` and `FIELD_HMAC_KEY`, runs `pnpm db:migrate && pnpm db:seed && pnpm build && pnpm check:build`, then starts two servers from one build: `pnpm start` on `:3000` with `APP_ENV=local`, and `APP_ENV=staging` on `127.0.0.1:3101`. The staging one serves `55-guardian-launch-pause.spec.ts` (via `PLAYWRIGHT_GUARDIAN_PAUSED_URL`), which checks the "coming soon" screens of the paused guardian flows. Then `pnpm test:e2e --project=<desktop|mobile> --shard=<n>/3`. Each dedicated transparency job runs `pnpm test:e2e --project=transparency-desktop --workers=1` (or `transparency-mobile`) on its own freshly migrated and seeded Postgres. For a local run, use a fresh disposable database and run only one of those projects: do not point it at a shared database because it locks the current month.
 
 ### Run one journey locally
 
