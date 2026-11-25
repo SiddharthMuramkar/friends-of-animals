@@ -223,13 +223,35 @@ describe("auction lot lifecycle", () => {
       creatorCredit: "Isha D.",
     });
     expect(await manager.scheduleLot(ref)).toMatchObject({ ok: true });
+    // Nothing public until a stamped derivative exists, never the original.
     expect(await visitor.getLot(code)).toMatchObject({
       creatorCredit: "Isha D.",
+      image: null,
     });
+    expect(await visitor.readLotImage(code)).toMatchObject({ ok: false });
+    await h.drain();
+    expect(await visitor.getLot(code)).toMatchObject({
+      creatorCredit: "Isha D.",
+      image: {
+        url: `/media/auctions/${code.lotCode}`,
+        width: expect.any(Number),
+        height: expect.any(Number),
+      },
+    });
+    const image = await visitor.readLotImage(code);
+    expect(image).toMatchObject({ ok: true, contentType: "image/webp" });
+    // The media adapter received the resized copy, not the uploaded bytes.
+    expect(h.media.stamps).toContainEqual(
+      expect.objectContaining({
+        variant: "gallery",
+        bytes: expect.any(Uint8Array),
+      })
+    );
     expect(await guardian.withdrawChildConsent(consent)).toMatchObject({
       ok: true,
       changed: true,
     });
+    expect(await visitor.readLotImage(code)).toMatchObject({ ok: false });
     // No stale credit even though the worker hasn't drained the event.
     expect(await visitor.getLot(code)).toBeNull();
     expect(await visitor.browseLots()).toEqual([]);

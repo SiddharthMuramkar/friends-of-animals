@@ -58,7 +58,7 @@ async function Lots({
         <p className="mt-4 text-ink">{t("empty")}</p>
       ) : (
         <ul className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-6 sm:grid-cols-2">
-          {lots.map((lot) => (
+          {lots.map((lot, index) => (
             <li
               key={lot.lotCode}
               className="min-w-0 rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6"
@@ -66,7 +66,7 @@ async function Lots({
               <h3 className="text-h4 text-ink">
                 {t("lot", { code: lot.lotCode })}
               </h3>
-              <LotDetails lot={lot} />
+              <LotDetails lot={lot} priority={index === 0} />
               <ButtonLink className="mt-5" href={auctionLotPath(lot.lotCode)}>
                 {t("view", { code: lot.lotCode })}
               </ButtonLink>

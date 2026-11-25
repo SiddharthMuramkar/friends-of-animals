@@ -10,6 +10,11 @@
 //
 // Pure: no I/O, no "server-only", so the worker and tests can load it.
 
+import {
+  STAMP_SETTINGS,
+  type StampedKind,
+} from "../../stamping/domain/variants";
+
 /** Each kind of derived copy, by the name stored with it. */
 export const DERIVATIVE_KINDS = {
   /** Lists, cards and the participant's own dashboard. */
@@ -48,7 +53,10 @@ export type PdfDerivativeKind = typeof PDF_DERIVATIVE_KIND;
 export type VisualDerivativeKind = DerivativeKind | VideoDerivativeKind;
 
 /** Any stored derivative. */
-export type StoredDerivativeKind = VisualDerivativeKind | PdfDerivativeKind;
+export type StoredDerivativeKind =
+  | VisualDerivativeKind
+  | PdfDerivativeKind
+  | StampedKind;
 
 /** Image/video kinds, for input checks for dimension-bearing viewers. */
 export const VISUAL_DERIVATIVE_KINDS = [
@@ -59,11 +67,16 @@ export const VISUAL_DERIVATIVE_KINDS = [
 export const STORED_DERIVATIVE_KINDS = [
   ...VISUAL_DERIVATIVE_KINDS,
   PDF_DERIVATIVE_KIND,
+  ...Object.values(STAMP_SETTINGS).map((settings) => settings.kind),
 ] as [StoredDerivativeKind, ...StoredDerivativeKind[]];
 
 /** The file extension a derivative of `kind` is stored and served with. */
 export function derivativeExtension(kind: StoredDerivativeKind): string {
   if (kind === PDF_DERIVATIVE_KIND) return "pdf";
+  const stamped = Object.values(STAMP_SETTINGS).find(
+    (settings) => settings.kind === kind
+  );
+  if (stamped) return stamped.extension;
   return Object.hasOwn(VIDEO_DERIVATIVE_KINDS, kind)
     ? VIDEO_DERIVATIVE_KINDS[kind as VideoDerivativeKind].extension
     : "webp";

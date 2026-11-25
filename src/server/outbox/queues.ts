@@ -18,6 +18,7 @@ export const DEDICATED_QUEUES = {
     "files.process_video",
     "files.process_pdf",
     "certificate.render",
+    "stamping.render",
   ],
 } as const satisfies Record<string, readonly HandlerName[]>;
 
