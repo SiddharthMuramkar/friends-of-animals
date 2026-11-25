@@ -117,7 +117,7 @@ async function Consents({ params, searchParams }: Props) {
             >
               <SectionHeading id={heading} title={title} />
               <section
-                aria-labelledby={creditHeading}
+                aria-labelledby={`${heading} ${creditHeading}`}
                 className="rounded-3xl border-2 border-border bg-surface p-5 sm:p-6"
               >
                 <h3 id={creditHeading} className="text-lead font-bold text-ink">

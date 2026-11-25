@@ -383,7 +383,10 @@ jobs:
           if [[ "$PROJECT" == transparency-* ]]; then
             pnpm test:e2e --project="$PROJECT" --workers=1
           else
-            pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3"
+            # Each shard runs an app, Postgres and Chromium on the same
+            # CI runner. Keep journeys serial within a shard while
+            # the six shards run in parallel; races use test:pg below.
+            pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3" --workers=1
           fi
 
       - name: Server log
