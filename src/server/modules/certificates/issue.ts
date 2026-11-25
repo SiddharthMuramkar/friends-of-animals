@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
@@ -18,6 +18,7 @@ import type { EventOf } from "../../outbox/events";
 import type { Clock } from "../../ports/clock";
 import type { Actor } from "../../actor";
 import { withUniqueCode, type RandomBytes } from "../codes/codes";
+import { lockSubject } from "../privacy/requests/submit";
 import { publishedResults } from "../results/read-published";
 import { isSchoolRoundFinished } from "../school-round/domain/status";
 import {
@@ -71,6 +72,15 @@ export async function issueCertificates(
 ) {
   await authorize(ctx, "certificates.issue");
   return ctx.db.transaction(async (tx) => {
+    // Erasure holds the same subject locks before it gathers files. Acquire
+    // them in a stable order before the competition lock, like render and
+    // archive jobs, so replay cannot repopulate an erased pupil's bytes.
+    const subjects = await tx
+      .selectDistinct({ id: registration.participantProfileId })
+      .from(registration)
+      .where(eq(registration.competitionId, input.competitionId))
+      .orderBy(asc(registration.participantProfileId));
+    for (const subject of subjects) await lockSubject(tx, subject.id);
     // Every issuance/replay for this competition uses the same lock. The
     // partial unique indexes independently protect the earned identities.
     const [comp] = await tx
@@ -90,6 +100,7 @@ export async function issueCertificates(
       .select({
         registration,
         name: participantProfile.fullName,
+        identityHash: participantProfile.identityHash,
         entry,
         schoolRound,
         pick: schoolRoundPick,
@@ -120,7 +131,10 @@ export async function issueCertificates(
       participantProfileId: r.registration.participantProfileId,
       route: r.registration.route,
       standing:
-        r.registration.status === "confirmed" ? "confirmed" : "not_confirmed",
+        r.registration.status === "confirmed" &&
+        !r.identityHash.startsWith("erased:")
+          ? "confirmed"
+          : "not_confirmed",
       entryReachedSubmitted: r.entry?.submittedAt != null,
       schoolRound: r.schoolRound
         ? {

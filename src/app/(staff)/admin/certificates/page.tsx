@@ -6,6 +6,7 @@ import { Section } from "@/components/site/section";
 import { buttonStyles, ButtonLink } from "@/components/site/button-link";
 import { adminCall } from "../_lib/boundary";
 import { AdminDenied } from "../_components/admin-denied";
+import { SubmitButton } from "@/components/form";
 import { ADMIN_CERTIFICATES } from "@/lib/app-routes";
 export const instant = false;
 export const metadata = {
@@ -21,6 +22,33 @@ async function retry(certificateId: string, competitionId: string) {
   );
   redirect(
     `${ADMIN_CERTIFICATES}?competition=${encodeURIComponent(competitionId)}&result=${result.ok && result.value.ok ? "ok" : "error"}`
+  );
+}
+async function correct(
+  certificateId: string,
+  competitionId: string,
+  mode: "revoke" | "reissue",
+  form: FormData
+) {
+  "use server";
+  const path = `${ADMIN_CERTIFICATES}?competition=${encodeURIComponent(competitionId)}`;
+  const field = (name: string) => {
+    const value = form.get(name);
+    return typeof value === "string" ? value : "";
+  };
+  const reason = field("reason");
+  const result = await adminCall(async () => {
+    const app = as(await currentActor());
+    return mode === "revoke"
+      ? app.revokeCertificate({ certificateId, reason })
+      : app.reissueCertificate({
+          certificateId,
+          reason,
+          recipientName: field("recipientName"),
+        });
+  }, path);
+  redirect(
+    `${path}&result=${result.ok && result.value.ok ? mode : "correction-error"}`
   );
 }
 export default async function Page({
@@ -54,7 +82,19 @@ export default async function Page({
       ) : (
         <div className="mt-8 grid gap-6">
           {query.result && (
-            <output>{t(query.result === "ok" ? "success" : "failure")}</output>
+            <output>
+              {t(
+                query.result === "ok"
+                  ? "success"
+                  : query.result === "revoke"
+                    ? "revokedSuccess"
+                    : query.result === "reissue"
+                      ? "reissuedSuccess"
+                      : query.result === "correction-error"
+                        ? "correctionError"
+                        : "failure"
+              )}
+            </output>
           )}
           {comps.value.length > 0 && (
             <search>
@@ -107,6 +147,91 @@ export default async function Page({
                     {t("verify")}
                     <span className="sr-only"> {c.number}</span>
                   </ButtonLink>
+                  {c.revokedReason && (
+                    <p className="wrap-anywhere">
+                      {t("recordedReason", { reason: c.revokedReason })}
+                    </p>
+                  )}
+                  {c.correction && (
+                    <details className="rounded-2xl border border-border p-3">
+                      <summary className="cursor-pointer font-semibold min-h-12 py-3">
+                        {t("correct")}
+                        <span className="sr-only"> {c.number}</span>
+                      </summary>
+                      <div className="grid gap-6">
+                        <p>{t("correctionHelp")}</p>
+                        <form
+                          action={correct.bind(
+                            null,
+                            c.id,
+                            selected!.id,
+                            "revoke"
+                          )}
+                          aria-labelledby={`revoke-${c.id}`}
+                          className="grid gap-2"
+                        >
+                          <h3 id={`revoke-${c.id}`} className="font-semibold">
+                            {t("revoke")}
+                          </h3>
+                          <label htmlFor={`revokeReason-${c.id}`}>
+                            {t("reason")}
+                          </label>
+                          <textarea
+                            id={`revokeReason-${c.id}`}
+                            name="reason"
+                            required
+                            maxLength={1000}
+                            className="min-h-24 rounded-xl border-2 border-border-strong bg-surface p-3"
+                          />
+                          <SubmitButton
+                            variant="secondary"
+                            pendingLabel={t("saving")}
+                          >
+                            {t("revoke")}
+                          </SubmitButton>
+                        </form>
+                        <form
+                          action={correct.bind(
+                            null,
+                            c.id,
+                            selected!.id,
+                            "reissue"
+                          )}
+                          aria-labelledby={`reissue-${c.id}`}
+                          className="grid gap-2"
+                        >
+                          <h3 id={`reissue-${c.id}`} className="font-semibold">
+                            {t("reissue")}
+                          </h3>
+                          <label htmlFor={`correctName-${c.id}`}>
+                            {t("correctName")}
+                          </label>
+                          <input
+                            id={`correctName-${c.id}`}
+                            name="recipientName"
+                            required
+                            maxLength={150}
+                            defaultValue={c.correction.recipientName}
+                            autoComplete="off"
+                            className="min-h-12 rounded-xl border-2 border-border-strong bg-surface p-3"
+                          />
+                          <label htmlFor={`reissueReason-${c.id}`}>
+                            {t("reason")}
+                          </label>
+                          <textarea
+                            id={`reissueReason-${c.id}`}
+                            name="reason"
+                            required
+                            maxLength={1000}
+                            className="min-h-24 rounded-xl border-2 border-border-strong bg-surface p-3"
+                          />
+                          <SubmitButton pendingLabel={t("saving")}>
+                            {t("reissue")}
+                          </SubmitButton>
+                        </form>
+                      </div>
+                    </details>
+                  )}
                   {c.status === "issued" && c.renderStatus === "failed" && (
                     <form action={retry.bind(null, c.id, selected!.id)}>
                       <button

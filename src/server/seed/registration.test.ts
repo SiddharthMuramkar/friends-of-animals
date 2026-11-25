@@ -12,6 +12,7 @@ import { SEED_CANCELLED } from "./competition-cancelled";
 import { SEED_COORDINATORS } from "./coordinators";
 import { SEED_SCHOOL_SUBMISSIONS } from "./institution-submissions";
 import { SEED_PAYMENTS } from "./payments";
+import { SEED_CERTIFICATE_SCHOOL } from "./certificate-school";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 import { SEED_SCOPES } from "./scopes";
 
@@ -65,6 +66,13 @@ describe("the registration seed", () => {
         institutionId: SEED_SCOPES.institution.id,
         competitionId: "01938a00-0000-7000-8000-000000009301",
         reference: "ORIG27-I-5EED1",
+        status: "active",
+      }),
+      expect.objectContaining({
+        id: SEED_CERTIFICATE_SCHOOL.institutionRegistrationId,
+        institutionId: SEED_CERTIFICATE_SCHOOL.institutionId,
+        competitionId: SEED_CERTIFICATE_SCHOOL.competitionId,
+        reference: SEED_CERTIFICATE_SCHOOL.reference,
         status: "active",
       }),
     ]);

@@ -247,7 +247,8 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         code: SEED_AUCTION_COMPETITION.code,
         name: SEED_AUCTION_COMPETITION.name,
         theme: "Imagine a kind place for every animal.",
-        participation: "individuals",
+        participation: "both",
+        digitalScope: "shortlist_only",
         disciplines: ["drawing"],
         ageGroups: [
           { label: "6–12", minAge: 6, maxAge: 12 },

@@ -42,6 +42,14 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "revoked_at",
     "superseded_by_id",
   ],
+  certificate_archive: [
+    "id",
+    "institution_registration_id",
+    "status",
+    "bucket",
+    "created_at",
+    "expires_at",
+  ],
   certificate_ready_notice: ["release_id", "created_at"],
   account: [
     "access_token_expires_at",

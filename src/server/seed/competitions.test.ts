@@ -57,7 +57,7 @@ describe("the competitions seed", () => {
       {
         code: "AUCT27",
         slug: "art-for-kindness",
-        participation: "individuals",
+        participation: "both",
         status: "results_published",
       },
       {
