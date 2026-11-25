@@ -27,6 +27,7 @@ import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
 import { parseLotCode } from "@/server/modules/auctions/domain/lot-code";
 import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
+import { EVENT_SLUG_PATTERN } from "@/server/modules/events/domain/slug";
 import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
@@ -111,6 +112,7 @@ export type RequestProxyDeps = {
   isAdoptableSlug?: SlugLookup;
   /** Fresh auction visibility check; never cache consent across requests. */
   isPublicAuctionLot?: SlugLookup;
+  isPublicEventSlug?: SlugLookup;
   isPublicGalleryItem?: SlugLookup;
 };
 
@@ -122,6 +124,7 @@ export function createProxy({
   isPublicListingSlug = async () => false,
   isAdoptableSlug = async () => false,
   isPublicAuctionLot = async () => false,
+  isPublicEventSlug = async () => false,
   isPublicGalleryItem = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
@@ -209,6 +212,16 @@ export function createProxy({
       return await isPublicAuctionLot(code);
     } catch {
       console.error("Proxy: could not verify auction lot visibility.");
+      return false;
+    }
+  }
+  async function isEvent(raw: string) {
+    const slug = decodedSlug(raw);
+    if (!EVENT_SLUG_PATTERN.test(slug)) return false;
+    try {
+      return await isPublicEventSlug(slug);
+    } catch {
+      console.error("Proxy: could not verify event visibility.");
       return false;
     }
   }
@@ -332,7 +345,9 @@ export function createProxy({
             ? await isAdoptable(raw)
             : section === "auctions"
               ? await isAuctionLot(raw)
-              : await isPublishedCompetition(raw);
+              : section === "events"
+                ? await isEvent(raw)
+                : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };

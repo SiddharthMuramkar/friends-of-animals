@@ -31,6 +31,8 @@ import { reminderJob, type ReminderJobRow } from "../../db/schema";
 import { invalidInput, type InvalidInput } from "../../input";
 import { emit } from "../../outbox/emit";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
+import { dispatchEvent } from "../notifications/dispatch";
+import { eventReminderRecipients } from "../events/notices";
 import { loadRosterDeliveryPlan } from "../announcements/delivery-plan";
 import {
   deliverToRoster,
@@ -208,7 +210,7 @@ async function decide(
 async function deliveriesFor(
   ctx: ReminderRunContext,
   definition: ReminderDefinition,
-  audience: ReminderAudience,
+  audience: Extract<ReminderAudience, { kind: "competition_roster" }>,
   at: Date,
   smsEnabled: boolean
 ): Promise<RosterDelivery[]> {
@@ -260,15 +262,7 @@ export async function runReminder(
     deadlineAt: row.deadlineAt,
     now,
   });
-  const smsEnabled = await ctx.settings.get("sms.enabled");
-  const deliveries = await deliveriesFor(
-    ctx,
-    definition,
-    audience,
-    now,
-    smsEnabled
-  );
-  // Every message is claimed under the row's id, whichever delivery runs it.
+  // Every message is claimed under the reminder row's ID, whichever delivery runs it.
   const delivery: Delivery<"reminder.due"> = {
     id: row.id,
     eventId: row.id,
@@ -277,6 +271,19 @@ export async function runReminder(
     attempt: 1,
     payload: { reminderJobId: row.id },
   };
+  if (audience.kind === "event_registrants") {
+    const recipients = await eventReminderRecipients(ctx.db, delivery);
+    await dispatchEvent(ctx, delivery, definition.templateKey);
+    return { ok: true, outcome: "sent", recipients: recipients.length };
+  }
+  const smsEnabled = await ctx.settings.get("sms.enabled");
+  const deliveries = await deliveriesFor(
+    ctx,
+    definition,
+    audience,
+    now,
+    smsEnabled
+  );
   const failure = await deliverToRoster(
     ctx,
     delivery,

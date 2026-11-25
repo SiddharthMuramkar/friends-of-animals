@@ -24,7 +24,7 @@ describe("ROUTES", () => {
   });
 
   it("never links modules that are not built yet", () => {
-    const unbuilt = ["/transparency", "/login", "/events", "/volunteer"];
+    const unbuilt = ["/transparency", "/login", "/volunteer"];
     for (const route of all) {
       expect(unbuilt).not.toContain(route.path);
     }
@@ -38,6 +38,7 @@ describe("navigation groups", () => {
       "/schools",
       "/awareness",
       "/blog",
+      "/events",
       "/about",
     ]);
   });

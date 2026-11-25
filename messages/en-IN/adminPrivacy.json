@@ -766,6 +766,23 @@
           "courier": "Courier used to send the original artwork.",
           "tracking_number": "Courier tracking number for fulfilment and delivery confirmation."
         },
+        "event": {
+          "created_by_user_id": "The organiser account that created the event."
+        },
+        "event_registration": {
+          "subject_user_id": "The attendee's own account",
+          "subject_profile_id": "The attendee's participant profile",
+          "registered_by_user_id": "The account booking a place",
+          "checked_in_by_user_id": "The organiser confirming attendance",
+          "event_id": "The event the person registered for",
+          "status": "Whether the person has a place, waits, cancels, attends or is absent",
+          "registered_at": "When the person booked",
+          "waitlisted_at": "When the person began waiting",
+          "waitlist_order": "The order in which this person joined the queue",
+          "promoted_at": "When a place was confirmed",
+          "cancelled_at": "When the booking was cancelled",
+          "checked_in_at": "When the person's attendance was recorded"
+        },
         "community_member": {
           "subject_user_id": "The account whose private FOA journey this belongs to",
           "subject_profile_id": "The participant whose private FOA journey this belongs to",

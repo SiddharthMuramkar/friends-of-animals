@@ -62,6 +62,7 @@ import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
+import events from "../../messages/en-IN/events.json";
 import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -167,6 +168,7 @@ export const NAMESPACES = [
   "adoption",
   "adoptionApplications",
   "community",
+  "events",
   "donate",
   "donationCheckout",
   "donorDashboard",
@@ -276,6 +278,7 @@ export const messages = {
   ...adoption,
   ...adoptionApplications,
   ...community,
+  ...events,
   ...donate,
   ...donationCheckout,
   ...donorDashboard,

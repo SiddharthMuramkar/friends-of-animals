@@ -33,6 +33,7 @@ import * as schema from "../../../../db/schema";
 import {
   account,
   communityMember,
+  eventRegistration,
   engagementMilestone,
   timelineEntry,
   auditLog,
@@ -165,6 +166,20 @@ export const PARTICIPANT_FILE_PURPOSES = [
 
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
+  {
+    table: eventRegistration,
+    where: (scope) =>
+      or(
+        within(eventRegistration.subjectUserId, users(scope)),
+        within(eventRegistration.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    withhold: [
+      "registered_by_user_id",
+      "checked_in_by_user_id",
+      "waitlist_order",
+    ],
+  },
   {
     table: communityMember,
     where: (scope) =>

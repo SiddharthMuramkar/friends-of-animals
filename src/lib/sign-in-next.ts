@@ -7,6 +7,7 @@ export function signInNext(raw: unknown): string | null {
   return (
     judgeInvitationNext(next) ??
     (next === "/account/auctions" ? next : null) ??
+    (next && /^\/events\/[a-z0-9-]{3,80}$/.test(next) ? next : null) ??
     (next &&
     /^\/(?:account\/)?auctions\/LOT-\d{2}-[0-9A-HJKMNP-TV-Z]{5}$/.test(next)
       ? next

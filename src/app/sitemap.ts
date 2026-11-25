@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { eventSitemapRows } from "./events/_lib/public-reads";
+import { slugHref } from "@/lib/routes";
 import { siteUrl } from "@/env";
 import { ADOPTION_STORIES_PATH, TRANSPARENCY_PATH } from "@/lib/app-routes";
 import { sitemapRoutes } from "@/lib/routes";
@@ -28,6 +30,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: "2026-11-25",
       priority: 0.7,
     },
+    ...(await eventSitemapRows()).map(({ slug }) => ({
+      url: new URL(slugHref("event", slug), base).href,
+      priority: 0.6,
+    })),
     ...postSitemapEntries(await loadPublishedPosts(), base),
   ];
 }

@@ -224,6 +224,8 @@ export const SETTINGS = {
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
   "reminders.schoolRoundShortlistDueFirstHours": reminderHours(72),
   "reminders.schoolRoundShortlistDueSecondHours": reminderHours(24),
+  "reminders.eventStartsFirstHours": reminderHours(24),
+  "reminders.eventStartsSecondHours": reminderHours(2),
   // Physical artwork (#93), HR-40: no requests until FOA supplies the address.
   "artwork.dispatchDays": integerSetting({
     default: 14,

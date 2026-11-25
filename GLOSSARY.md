@@ -1044,6 +1044,26 @@ A person's private dated history of their competitions, recognitions,
 community life, events and volunteering. A Guardian sees the journey of
 each linked child separately from their own.
 
+## Events and campaigns
+
+**Event**:
+A scheduled FOA activity people attend. An Event of kind campaign is a
+community activity, not a Campaign message sent to a Segment.
+
+**Organiser**:
+A content or community manager who publishes Events, manages registrations
+and checks attendees in.
+
+**Event registration**:
+A private place on an Event, for the attendee (their own account or a
+distinct linked participant profile). Registered and Checked in hold a
+place. Waitlisted waits in booking order; a freed place promotes the next
+person automatically. Cancelled and No-show are terminal.
+
+**Check-in**:
+An Organiser's confirmation of actual attendance at an Event, which
+appears on the attendee's Engagement timeline.
+
 ## Volunteering
 
 **Volunteer**:
