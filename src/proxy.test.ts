@@ -7,7 +7,7 @@ import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { individualLink } from "@/app/participate/_lib/individual-link";
-import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { ADMIN_HOME, APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { cspContext } from "@/lib/csp-sources";
@@ -175,7 +175,6 @@ describe("proxy: the signed-in nonce policy", () => {
       "/account",
       "/account/nope",
       "/account/sessions/x",
-      "/admin",
       "/admin/competitions/x",
       "/admin/competitions/x/delete",
       "/admin/competitions/x/edit/more",
@@ -272,9 +271,25 @@ describe("proxy: the signed-in nonce policy", () => {
       );
     });
 
+    it("serves the new admin home with the staff nonce and requires a session", async () => {
+      vi.stubEnv("APP_ENV", "preview");
+      const response = await proxy(request(ADMIN_HOME, SESSION));
+      expect(getRewrittenUrl(response)).toBeNull();
+      const policy = response.headers.get("content-security-policy");
+      expect(policy).toMatch(/script-src 'self' 'nonce-[^']+'/);
+      expect(pageHeaders(response).get("x-nonce")).toBe(
+        getScriptNonceFromHeader(policy!)
+      );
+      const guest = await proxy(request(ADMIN_HOME));
+      expect(guest.status).toBe(307);
+      expect(guest.headers.get("location")).toBe(
+        "https://foa.example.test/sign-in"
+      );
+    });
+
     it("answers a path with no page with the static 404", async () => {
       vi.stubEnv("APP_ENV", "preview");
-      for (const path of ["/admin", "/admin/nope"]) {
+      for (const path of ["/admin/nope", "/admin/home/nope"]) {
         const response = await proxy(request(path, SESSION));
 
         expect(getRewrittenUrl(response), path).toBe(
