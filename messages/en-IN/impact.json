@@ -44,7 +44,7 @@
         },
         "funds": {
           "name": "Money raised",
-          "def": "Donations received, shown on the transparency page once giving opens."
+          "def": "Donations net of refunds in the latest published financial year, from the same reconciled ledger as the transparency page."
         }
       },
       "rules": {
@@ -71,7 +71,14 @@
         "money": "What money came in and where it went, on a transparency page.",
         "method": "Any change to how we count, explained here."
       },
-      "transparency": "The transparency page is being built."
+      "transparency": "Read our published accounts"
+    },
+    "funds": {
+      "title": "Funds raised",
+      "loading": "Reading the published accounts…",
+      "empty": "No financial months have been published yet.",
+      "period": "Financial year {fy}, published through {month}. Donations net of refunds.",
+      "link": "See the published accounts"
     }
   }
 }

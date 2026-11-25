@@ -39,7 +39,13 @@ the safeguarding reporter's child indicator are demographic data.
 
 Ledger descriptions and line memos may name counterparties. Finance authorship
 stays with the append-only journal. Ledger category names and public labels may
-also name people.
+also name people. The transparency read model (#110) selects only the
+categories' designated public labels (or a safe group/system label), never
+private names, journal descriptions, memos or finance authors. For each
+published financial year it selects opted-in individual wall names and
+disclosed organisation names and totals only. Individual amounts, contact
+details, PAN, receipt details, identifiers and budgets never leave the
+private read models.
 
 Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's

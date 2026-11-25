@@ -333,6 +333,18 @@ with a contact person, which chooses whether its name may be shown in
 public. A guest donor has no account.
 _Avoid_: Supporter, patron, sponsor
 
+**Donor wall**:
+The public thanks to individuals who chose to have their name shown for a
+Donation. It shows only the chosen name, not the person's amount or contact.
+It thanks them for published donations that have not been fully returned.
+_Avoid_: Donor list, donor database
+
+**Organisation disclosure**:
+A company's or CSR partner's choice when giving a Donation to show its name
+and give the public its total for the published months of the financial year.
+A gift for which it chose privacy is not added to its disclosed total.
+_Avoid_: Donor wall opt-in (that is an individual's choice)
+
 **Receipt**:
 The numbered record of a captured Donation: FOA-RCPT, the financial year and
 six digits (FOA-RCPT-2627-000123), gapless within the year. Everything it

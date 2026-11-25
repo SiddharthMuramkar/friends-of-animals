@@ -59,7 +59,12 @@ test("a member authorises, receives a receipt and cancels a monthly donation", a
   await page
     .getByRole("button", { name: "Yes, cancel my monthly donation" })
     .click();
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Status: Cancelled", { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByText("Next charge: None scheduled", { exact: true })
+  ).toBeVisible();
   await both(page, "cancelled monthly donation");
 });
 test("finance can view the recurring donation register", async ({

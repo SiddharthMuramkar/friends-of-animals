@@ -17,6 +17,7 @@ import { gzipSync } from "node:zlib";
 import {
   DONATION_CHECKOUT_PREFIX,
   SIGNED_IN_PREFIXES,
+  TRANSPARENCY_PATH,
 } from "../src/lib/app-routes";
 import { ROUTES } from "../src/lib/routes";
 import {
@@ -116,7 +117,7 @@ function checkCsp(): string[] {
   );
   return cspOutputFailures({
     manifest,
-    routes: Object.values(ROUTES),
+    routes: [...Object.values(ROUTES), { path: TRANSPARENCY_PATH }],
     // A donation's checkout (#106) renders per request with the nonce too.
     signedInPrefixes: [...SIGNED_IN_PREFIXES, DONATION_CHECKOUT_PREFIX],
     pages,
