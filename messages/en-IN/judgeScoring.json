@@ -28,7 +28,7 @@
     "commentHelp": "Up to 2,000 characters. Keep comments about the work, not who made it.",
     "save": "Save changes",
     "saveStatus": {
-      "idle": "",
+      "idle": "Ready to score.",
       "unsaved": "Changes not yet saved.",
       "saving": "Saving…",
       "saved": "Saved.",

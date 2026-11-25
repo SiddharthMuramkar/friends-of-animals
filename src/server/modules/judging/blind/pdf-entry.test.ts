@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { PDF_IDENTITY_MARKER } from "@/test/pdf-fixtures";
 import {

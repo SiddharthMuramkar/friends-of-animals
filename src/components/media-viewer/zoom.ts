@@ -22,5 +22,8 @@ export function clampPan(
 ): Point {
   const x = Math.max(0, (image.width * zoom - viewport.width) / 2),
     y = Math.max(0, (image.height * zoom - viewport.height) / 2);
-  return { x: clamp(point.x, -x, x), y: clamp(point.y, -y, y) };
+  return {
+    x: x === 0 ? 0 : clamp(point.x, -x, x),
+    y: y === 0 ? 0 : clamp(point.y, -y, y),
+  };
 }
