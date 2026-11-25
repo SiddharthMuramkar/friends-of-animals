@@ -191,6 +191,8 @@ export async function eventNoticeValues(db: AppDb, delivery: Notice) {
         ? delivery.payload.status === "registered"
           ? "Registered"
           : "Waitlisted"
-        : "Registered",
+        : delivery.eventType === "event.registration_cancelled"
+          ? "Cancelled"
+          : "Registered",
   };
 }
