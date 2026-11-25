@@ -5,7 +5,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, exists } from "drizzle-orm";
+import { and, asc, eq, exists, inArray } from "drizzle-orm";
 
 import type { Actor } from "../../actor";
 import type { AppDb } from "../../db/app-db";
@@ -13,6 +13,7 @@ import {
   competitionAgeGroup,
   competitionCategory,
   entry,
+  entryFile,
   institutionRegistration,
   participantProfile,
   registration,
@@ -25,7 +26,7 @@ import {
 import { monotonicUuidv7 } from "../../ids";
 import type { Clock } from "../../ports/clock";
 import type { Discipline } from "../competitions/domain/vocabulary";
-import type { EntryStatus } from "../entries/domain/status";
+import type { EntryFileStatus, EntryStatus } from "../entries/domain/status";
 import type { Pick } from "./domain/picks";
 import {
   assertSchoolRoundTransition,
@@ -213,5 +214,132 @@ export async function recordRoundTransition(
     actorUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,
     reason: move.reason ?? null,
     at: now,
+  });
+}
+
+/** What a shortlisted entry's latest upload shows (#91). */
+export type UploadState = "checking" | "live" | "rejected" | "failed";
+
+/** A confirmed student of a shortlist-only round, with their entry (#91). */
+export type RoundStudent = {
+  registrationId: string;
+  registrationNumber: string | null;
+  name: string;
+  ageGroupLabel: string | null;
+  disciplines: Discipline[];
+  entry: {
+    entryId: string;
+    code: string;
+    title: string;
+    description: string;
+    statement: string | null;
+    discipline: Discipline;
+    status: EntryStatus;
+    /** The latest upload's state; null if it has none. */
+    upload: UploadState | null;
+    /** One of its uploads is live: it can go on to FOA. */
+    hasLiveFile: boolean;
+    /** Its school position, if its pick has one. */
+    position: number | null;
+  } | null;
+};
+
+const UPLOAD_STATE: Record<EntryFileStatus, UploadState | null> = {
+  pending: "checking",
+  processing: "checking",
+  live: "live",
+  rejected: "rejected",
+  failed: "failed",
+  superseded: null,
+};
+
+/** Every confirmed student of the institution registration, by name. */
+export async function loadRoundStudents(
+  db: AppDb,
+  institutionRegistrationId: string
+): Promise<RoundStudent[]> {
+  const students = await db
+    .select({
+      registrationId: registration.id,
+      registrationNumber: registration.registrationNumber,
+      name: participantProfile.fullName,
+      ageGroupLabel: competitionAgeGroup.label,
+      ageGroupId: registration.ageGroupId,
+      competitionId: registration.competitionId,
+      entryId: entry.id,
+      code: entry.code,
+      title: entry.title,
+      description: entry.description,
+      statement: entry.statement,
+      discipline: entry.discipline,
+      status: entry.status,
+      position: schoolRoundPick.position,
+    })
+    .from(registration)
+    .innerJoin(
+      participantProfile,
+      eq(participantProfile.id, registration.participantProfileId)
+    )
+    .leftJoin(
+      competitionAgeGroup,
+      eq(competitionAgeGroup.id, registration.ageGroupId)
+    )
+    .leftJoin(entry, eq(entry.registrationId, registration.id))
+    .leftJoin(schoolRoundPick, eq(schoolRoundPick.entryId, entry.id))
+    .where(
+      and(
+        eq(registration.institutionRegistrationId, institutionRegistrationId),
+        eq(registration.route, "institution"),
+        eq(registration.status, "confirmed")
+      )
+    )
+    .orderBy(asc(participantProfile.fullName), asc(registration.id));
+  const entryIds = students.flatMap((row) =>
+    row.entryId ? [row.entryId] : []
+  );
+  const files =
+    entryIds.length === 0
+      ? []
+      : await db
+          .select({ entryId: entryFile.entryId, status: entryFile.status })
+          .from(entryFile)
+          .where(inArray(entryFile.entryId, entryIds))
+          .orderBy(asc(entryFile.attemptNumber));
+  const categories = students[0]
+    ? await db
+        .select({
+          ageGroupId: competitionCategory.ageGroupId,
+          discipline: competitionCategory.discipline,
+        })
+        .from(competitionCategory)
+        .where(eq(competitionCategory.competitionId, students[0].competitionId))
+    : [];
+  return students.map((row) => {
+    const own = files.filter((file) => file.entryId === row.entryId);
+    const latest = own.at(-1);
+    return {
+      registrationId: row.registrationId,
+      registrationNumber: row.registrationNumber,
+      name: row.name,
+      ageGroupLabel: row.ageGroupLabel,
+      disciplines: categories
+        .filter((category) => category.ageGroupId === row.ageGroupId)
+        .map((category) => category.discipline),
+      entry:
+        row.entryId && row.code && row.title && row.discipline && row.status
+          ? {
+              entryId: row.entryId,
+              code: row.code,
+              title: row.title,
+              description: row.description ?? "",
+              statement: row.statement,
+              discipline: row.discipline,
+              status: row.status,
+              upload: latest ? UPLOAD_STATE[latest.status] : null,
+              hasLiveFile: own.some((file) => file.status === "live"),
+              position: row.position,
+            }
+          : null,
+    };
   });
 }

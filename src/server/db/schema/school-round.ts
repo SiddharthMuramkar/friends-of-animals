@@ -8,7 +8,7 @@
 //
 // Personal data (listed in src/server/modules/privacy/inventory.ts): the
 // panel members' names and designations, and the user ids of who picked,
-// attested and finalised.
+// attested, finalised and declared (#91).
 //
 // Loads under plain Node (drizzle-kit, the seed script): relative imports
 // only, no "server-only".
@@ -31,7 +31,7 @@ import { SCHOOL_ROUND_STATUSES } from "../../modules/school-round/domain/status"
 import { competition, competitionCategory } from "./competitions";
 import { entry } from "./entries";
 import { user } from "./identity";
-import { institutionRegistration } from "./registration";
+import { institutionRegistration, registration } from "./registration";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
@@ -169,6 +169,36 @@ export const schoolRoundPick = pgTable(
   ]
 );
 
+/**
+ * What the coordinator declared when creating a shortlisted entry under the
+ * shortlist-only scope (#91): the keys of SHORTLIST_ONLY_DECLARATIONS, all
+ * of them, with the wording's version. Uploading again records them again.
+ */
+export const schoolRoundDeclaration = pgTable(
+  "school_round_declaration",
+  {
+    entryId: uuid("entry_id")
+      .primaryKey()
+      .references(() => entry.id, { onDelete: "cascade" }),
+    roundId: uuid("round_id")
+      .notNull()
+      .references(() => schoolRound.id, { onDelete: "cascade" }),
+    declarations: text().array().notNull(),
+    /** The version of the declarations' wording the coordinator confirmed. */
+    statementVersion: text("statement_version").notNull(),
+    declaredByUserId: uuid("declared_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    declaredAt: timestamptz("declared_at").notNull(),
+  },
+  (table) => [
+    index("school_round_declaration_round_id_idx").on(table.roundId),
+    index("school_round_declaration_declared_by_user_id_idx").on(
+      table.declaredByUserId
+    ),
+  ]
+);
+
 /** Every status change of a round, in order. */
 export const schoolRoundTransition = pgTable(
   "school_round_transition",
@@ -221,9 +251,9 @@ export const schoolRoundOutcome = pgEnum(
 export const schoolRoundFamilyNotice = pgTable(
   "school_round_family_notice",
   {
-    entryId: uuid("entry_id")
+    registrationId: uuid("registration_id")
       .primaryKey()
-      .references(() => entry.id, { onDelete: "cascade" }),
+      .references(() => registration.id, { onDelete: "cascade" }),
     roundId: uuid("round_id")
       .notNull()
       .references(() => schoolRound.id, { onDelete: "cascade" }),

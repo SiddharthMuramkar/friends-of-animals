@@ -862,8 +862,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "updated_at",
   ],
-  school_round_family_notice: [
+  school_round_declaration: [
+    "declarations",
+    "declared_at",
     "entry_id",
+    "round_id",
+    "statement_version",
+  ],
+  school_round_family_notice: [
+    "registration_id",
     "outcome",
     "position",
     "round_id",

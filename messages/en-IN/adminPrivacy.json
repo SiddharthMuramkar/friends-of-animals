@@ -509,6 +509,9 @@
           "finalised_by_user_id": "Records which coordinator finalised the school shortlist",
           "closed_by_user_id": "Records which competition manager closed an overdue school round on the school's behalf"
         },
+        "school_round_declaration": {
+          "declared_by_user_id": "Records which coordinator made the declarations for a shortlisted entry they created"
+        },
         "school_round_pick": {
           "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
         },

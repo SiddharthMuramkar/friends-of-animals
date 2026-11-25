@@ -302,6 +302,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "entry.school_shortlisted":
     case "entry.not_shortlisted":
+    case "registration.not_shortlisted":
       // The family contact isn't a user: their message goes by the school
       // round's own handler (#89), not by a route row.
       return null;
@@ -871,6 +872,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "entry.school_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,
     load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "registration.not_shortlisted": {
+    names: CONFIRMATION_VARIABLES,
+    load: (db, { payload }) => confirmationValues(db, payload.registrationId),
   },
   "entry.not_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,

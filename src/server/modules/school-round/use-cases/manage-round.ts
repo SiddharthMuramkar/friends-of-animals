@@ -24,6 +24,7 @@ import { recordMove } from "../../entries/store";
 import type { EntryStatus } from "../../entries/domain/status";
 import { planFinalisation, type FinaliseBlocker } from "../domain/finalise";
 import { planReopen, type ReopenBlocker } from "../domain/reopen";
+import { planShortlistOnlyRound } from "../shortlist-only-outcomes";
 import {
   isSchoolRoundFinished,
   type SchoolRoundStatus,
@@ -90,8 +91,7 @@ export async function closeSchoolRoundOnBehalf(
       return { ok: false, error: "competition_not_judging" };
     if (round.status !== "overdue")
       return { ok: false, error: "round_not_overdue" };
-    if (comp.digitalScope !== "all_participants")
-      return { ok: false, error: "shortlist_only" };
+    const shortlistOnly = comp.digitalScope === "shortlist_only";
     const entries = await loadRoundEntries(
       tx,
       round.institutionRegistrationId,
@@ -105,14 +105,33 @@ export async function closeSchoolRoundOnBehalf(
       judgingAttested: false,
       entries: entries.map((e) => ({
         entryId: e.entryId,
-        submitted: e.status === "submitted",
+        submitted:
+          e.status === (shortlistOnly ? "school_shortlisted" : "submitted"),
       })),
       picks,
     });
     if (!plan.ok)
       return { ok: false, error: "finalise_blocked", blockers: plan.blockers };
+    const shortlistPlan = shortlistOnly
+      ? await planShortlistOnlyRound(
+          tx,
+          round.institutionRegistrationId,
+          entries
+        )
+      : null;
+    if (shortlistPlan && !shortlistPlan.ok)
+      return {
+        ok: false,
+        error: "finalise_blocked",
+        blockers: shortlistPlan.blockers.map(({ entryId }) => ({
+          code: "pick_not_in_round",
+          entryId,
+        })),
+      };
+    const outcomes = shortlistPlan?.outcomes ?? plan.outcomes;
     const statusOf = new Map(entries.map((e) => [e.entryId, e.status]));
-    for (const outcome of plan.outcomes) {
+    for (const outcome of outcomes) {
+      if (outcome.statuses.length === 0) continue;
       await applySchoolRoundOutcome(tx, ctx, {
         entryId: outcome.entryId,
         from: statusOf.get(outcome.entryId)!,
@@ -137,10 +156,11 @@ export async function closeSchoolRoundOnBehalf(
       to: "closed_on_behalf",
       reason,
     });
-    const shortlisted = plan.outcomes.filter(
+    const shortlisted = outcomes.filter(
       (e) => e.outcome === "shortlisted"
     ).length;
-    const notShortlisted = plan.outcomes.length - shortlisted;
+    const notShortlisted =
+      shortlistPlan?.notShortlisted.length ?? outcomes.length - shortlisted;
     await recordAudit(tx, ctx, {
       action: "school_round.closed_on_behalf",
       entity: { type: "school_round", id: roundId },
@@ -245,7 +265,10 @@ export async function reopenSchoolRound(
       shortlistDeadline: await shortlistDeadlineOf(tx, competitionId),
       now: ctx.clock.now(),
       entries: entries.map((e) => {
-        let previous = before.get(e.entryId) ?? e.status;
+        let previous =
+          comp.digitalScope === "shortlist_only"
+            ? ("school_shortlisted" as const)
+            : (before.get(e.entryId) ?? e.status);
         const last = latest.get(e.entryId);
         if (
           previous === "processing" &&

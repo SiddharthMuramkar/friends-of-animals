@@ -1092,6 +1092,12 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "actor_user_id",
     WHILE_REGISTRATION_KEPT
   ),
+  // Who made a shortlisted entry's declarations (#91).
+  actorColumn(
+    "school_round_declaration",
+    "declared_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
   {
     table: "school_round_panel_member",
     column: "full_name",

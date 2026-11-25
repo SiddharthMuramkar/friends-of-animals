@@ -50,6 +50,12 @@ export async function applySchoolRoundOutcome(
   }
   await tx
     .update(entry)
-    .set({ status: from, updatedAt: ctx.clock.now() })
+    .set({
+      status: from,
+      updatedAt: ctx.clock.now(),
+      ...(from === "submitted_to_foa" && move.from === "school_shortlisted"
+        ? { submittedAt: ctx.clock.now() }
+        : {}),
+    })
     .where(eq(entry.id, move.entryId));
 }

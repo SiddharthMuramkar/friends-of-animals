@@ -834,6 +834,20 @@
       "when": 1795586801168,
       "tag": "0118_90_school_round_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1795587036657,
+      "tag": "0119_91_shortlist_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1795587055787,
+      "tag": "0120_91_registration_not_shortlisted",
+      "breakpoints": true
     }
   ]
 }

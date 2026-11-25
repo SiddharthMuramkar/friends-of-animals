@@ -149,10 +149,15 @@ export async function completeEntryUpload(
   return ctx.db.transaction((tx) => record(tx, ctx, request));
 }
 
-async function prepareEntryUpload(
+/**
+ * Takes and checks the bytes of `request.fileId` for its grant, outside the
+ * registration's lock; false if the uploader has no such upload. Shared
+ * with the school round's shortlisted entries (#91).
+ */
+export async function prepareEntryUpload(
   tx: AppDb,
   ctx: UseCaseContext,
-  request: Parsed,
+  request: { fileId: string; registrationId: string },
   ownerId: string
 ): Promise<boolean> {
   const upload = await lockEntryUpload(tx, request.fileId, ownerId);
@@ -340,7 +345,7 @@ export async function createEntry(
     discipline: Discipline;
     text: EntryText;
     userId: string;
-    status?: "processing" | "submitted";
+    status?: "processing" | "submitted" | "school_shortlisted";
   }
 ) {
   const id = uuidv7(now);
