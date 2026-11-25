@@ -165,6 +165,13 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
     h.pdf.rendered.filter((j) => j.data.type === "volunteer_service")
   ).toHaveLength(1);
   expect(await h.as(worker).issueCertificates(input)).toEqual({ issued: 0 });
+  // Include the one seeded service PDF and still detect orphan or duplicate files.
+  expect(
+    await h.db
+      .select()
+      .from(fileAsset)
+      .where(eq(fileAsset.purpose, "certificate_pdf"))
+  ).toHaveLength(17);
   expect(
     await h.db
       .select()
