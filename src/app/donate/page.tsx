@@ -8,7 +8,6 @@ import { StickerScatter } from "@/components/art/sticker-scatter";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { Callout } from "@/components/site/callout";
 import { ContactFact } from "@/components/site/contact-fact";
-import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { JsonLd } from "@/components/site/json-ld";
 import { Photo } from "@/components/site/photo";
@@ -23,6 +22,8 @@ import { isFactShown, SITE } from "@/lib/site";
 
 import { EasyRead } from "@/components/site/easy-read";
 import { ButtonLink } from "@/components/site/button-link";
+
+import { DonateSection } from "./_components/donate-section";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("donate.meta");
@@ -106,16 +107,10 @@ export default async function Page() {
         </div>
       </Section>
 
+      {/* The form while online giving is open; "not open yet" otherwise
+          (#106). Below the hero, so the heading stays the LCP element. */}
       <Section hue={HUE}>
-        <ExplainState
-          title={t("notLive.title")}
-          back={{ href: ROUTES.contact.path, label: t("notLive.back") }}
-          art="wait-horizon-myna"
-          className="mx-auto max-w-3xl"
-        >
-          <p>{t("notLive.body")}</p>
-          <p>{t("notLive.rules")}</p>
-        </ExplainState>
+        <DonateSection />
       </Section>
 
       <Section

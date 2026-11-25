@@ -1,20 +1,24 @@
-// The media job (#85): derived copies of each clean image.
+// The media jobs (#85, #86): derived copies of each clean image or video.
 //
 //   scan passes  → queueMediaWork, in the scan's transaction: a
 //                  file_processing row (queued) and a
-//                  files.processing_requested event, only if the file's
-//                  purpose and type get derivatives (./domain/media-work.ts)
-//   worker-media → processImageAsset, the files.process_image handler on
-//                  the media queue (src/server/outbox/queues.ts): reads the
-//                  original, makes the derivatives with the MediaProcessor,
-//                  stores them, then records the file_derivative rows and
-//                  marks the job done, emitting files.file_processed
+//                  files.processing_requested event (an image) or a
+//                  files.video_processing_requested event (a video), only
+//                  if the file's purpose and type get derivatives
+//                  (./domain/media-work.ts)
+//   worker-media → processImageAsset, the files.process_image handler, or
+//                  processVideoAsset (./process-video.ts), the
+//                  files.process_video handler, both on the media queue
+//                  (src/server/outbox/queues.ts): reads the original, makes
+//                  the derivatives with the MediaProcessor, stores them,
+//                  then records the file_derivative rows and marks the job
+//                  done, emitting files.file_processed
 //
-// A MediaError (a type it can't decode, corrupt pixels, too many pixels) is
-// final: the job is marked failed with its code and emits
-// files.file_processing_failed. Anything else (storage, the worker itself)
-// throws, so the relay retries with backoff; on the last try the job is
-// marked failed with processing_error before it throws.
+// A MediaError (a type it can't decode, corrupt pixels, too many pixels, a
+// clip too long) is final: the job is marked failed with its code and
+// emits files.file_processing_failed. Anything else (storage, the worker
+// itself) throws, so the relay retries with backoff; on the last try the
+// job is marked failed with processing_error before it throws.
 //
 // Delivery is at least once, so it is safe to repeat: only a clean file with
 // a queued job is processed, and the job is finished only if it is still
@@ -39,10 +43,14 @@ import {
   MediaError,
   type FileProcessingErrorCode,
   type MediaProcessor,
-  type MediaResult,
 } from "../../ports/media";
 import type { ObjectStorage } from "../../ports/storage";
-import { derivativeKeyFor, derivativeKindsFor } from "./domain/media-work";
+import type { StoredDerivativeKind } from "./domain/derivatives";
+import {
+  derivativeKeyFor,
+  derivativeKindsFor,
+  mediaJobFor,
+} from "./domain/media-work";
 import { storagePrefixOf } from "./domain/storage-key";
 
 export type MediaJobDeps = {
@@ -62,7 +70,8 @@ export async function queueMediaWork(
   clock: Clock,
   file: Pick<FileAssetRow, "id" | "purpose" | "contentType">
 ): Promise<boolean> {
-  if (derivativeKindsFor(file).length === 0) return false;
+  const job = mediaJobFor(file);
+  if (job === null) return false;
   const now = clock.now();
   const queued = await tx
     .insert(fileProcessing)
@@ -71,7 +80,10 @@ export async function queueMediaWork(
     .returning({ id: fileProcessing.fileAssetId });
   if (queued.length === 0) return false;
   await emit(tx, clock, {
-    type: "files.processing_requested",
+    type:
+      job === "video"
+        ? "files.video_processing_requested"
+        : "files.processing_requested",
     aggregate: { type: "file_asset", id: file.id },
     payload: { fileId: file.id },
   });
@@ -84,7 +96,7 @@ export async function processImageAsset(
 ): Promise<void> {
   const file = await startJob(deps, payload.fileId);
   if (!file) return;
-  try {
+  await settleMediaJob(deps, file, attempt, async () => {
     const bytes = await readAll(
       await deps.storage.read({ bucket: file.bucket, key: file.storageKey })
     );
@@ -92,7 +104,36 @@ export async function processImageAsset(
       bytes,
       kinds: derivativeKindsFor(file),
     });
-    await storeDerivatives(deps, file, result);
+    return result.derivatives.map((derivative) => ({
+      ...derivative,
+      durationMs: null,
+    }));
+  });
+}
+
+/** One derived copy made, to store and record. */
+export type MadeDerivative = {
+  kind: StoredDerivativeKind;
+  contentType: string;
+  width: number;
+  height: number;
+  durationMs: number | null;
+  bytes: Uint8Array;
+};
+
+/**
+ * Runs `make` and stores what it made; a MediaError fails the job for good,
+ * anything else is thrown for the relay to retry, and fails the job with
+ * processing_error on its last try.
+ */
+export async function settleMediaJob(
+  deps: MediaJobDeps,
+  file: FileAssetRow,
+  attempt: number,
+  make: () => Promise<MadeDerivative[]>
+): Promise<void> {
+  try {
+    await storeDerivatives(deps, file, await make());
   } catch (error) {
     if (error instanceof MediaError) {
       await finishFailed(deps, file.id, error.code);
@@ -109,7 +150,7 @@ export async function processImageAsset(
  * The file, if it is clean and its job is still queued, after counting
  * this attempt; otherwise null: nothing to do.
  */
-async function startJob(
+export async function startJob(
   { db, clock }: MediaJobDeps,
   fileId: string
 ): Promise<FileAssetRow | null> {
@@ -150,12 +191,12 @@ async function readAll(
 async function storeDerivatives(
   { db, clock, storage }: MediaJobDeps,
   file: FileAssetRow,
-  result: MediaResult
+  derivatives: readonly MadeDerivative[]
 ): Promise<void> {
   const prefix = storagePrefixOf(file);
   const now = clock.now();
   const rows: (typeof fileDerivative.$inferInsert)[] = [];
-  for (const derivative of result.derivatives) {
+  for (const derivative of derivatives) {
     const key = derivativeKeyFor({
       prefix,
       fileId: file.id,
@@ -176,6 +217,7 @@ async function storeDerivatives(
       contentType: derivative.contentType,
       width: derivative.width,
       height: derivative.height,
+      durationMs: derivative.durationMs,
       sizeBytes: derivative.bytes.length,
       createdAt: now,
     });

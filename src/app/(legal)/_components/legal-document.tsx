@@ -19,10 +19,10 @@ import {
   type ShownInline,
 } from "@/content/legal";
 import {
-  cmsPublicPath,
   legalDocumentKey,
   type CmsDocumentKey,
 } from "@/server/modules/cms/domain/documents";
+import { cmsPublicPath } from "@/server/modules/cms/domain/public-paths";
 import { legalKind } from "@/server/modules/cms/kinds/legal";
 import { loadShownOrgFacts } from "@/server/modules/cms/org-facts";
 import {

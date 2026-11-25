@@ -380,6 +380,7 @@ describe("the data inventory", () => {
       "entry_file.uploaded_by_user_id",
       "entry_file.pending_text",
       "entry_file.receipt_title",
+      "entry_file.essay_body",
       "entry_upload_grant.file_asset_id",
       "entry_upload_grant.registration_id",
       "entry_upload_grant.upload_key",

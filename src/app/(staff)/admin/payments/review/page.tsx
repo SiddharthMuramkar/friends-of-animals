@@ -173,7 +173,7 @@ async function CaseTable({
                 </th>
                 <td className={`${cell} wrap-anywhere`}>{payer}</td>
                 <td className={`${cell} wrap-anywhere`}>
-                  {each.competitionName}
+                  {each.competitionName ?? t("case.details.donation")}
                 </td>
                 <td className={cell}>{t(`reasons.${each.reason}`)}</td>
                 <td className={`${cell} whitespace-nowrap`}>

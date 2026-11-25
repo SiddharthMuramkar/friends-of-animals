@@ -5,6 +5,7 @@ import type { AppDb } from "../../db/app-db";
 import { ledgerAccount, ledgerLine, ledgerPosting } from "../../db/schema";
 
 import { istDateRange, type IstDateRangeResult } from "./domain/period";
+import { isLateAdjustment } from "./domain/period-lock";
 import { parsePostingSeq } from "./domain/posting";
 import { trialBalance } from "./domain/trial-balance";
 import { findSourcePosting } from "./post";
@@ -109,9 +110,11 @@ export async function listPostings(
       return {
         ok: true,
         totals: paiseTotals(totals!),
-        postings: rows
-          .slice(0, limit)
-          .map((row) => ({ ...row, ...paiseTotals(row) })),
+        postings: rows.slice(0, limit).map((row) => ({
+          ...row,
+          ...paiseTotals(row),
+          lateAdjustment: isLateAdjustment(row),
+        })),
         nextCursor,
       } as const;
     },
@@ -145,6 +148,7 @@ export async function getPosting(ctx: PolicyContext, seq: string | bigint) {
     ok: true,
     posting: {
       ...posting,
+      lateAdjustment: isLateAdjustment(posting),
       lines,
       reversalOfSeq: original[0]?.seq ?? null,
       reversedBySeq: reversal?.seq ?? null,

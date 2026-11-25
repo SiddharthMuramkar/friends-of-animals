@@ -15,6 +15,14 @@ export const MEDIA_FIXTURES = {
   iphoneHeic: "iphone.heic",
   /** gps.jpg cut short in its scan data: the header reads, the pixels don't. */
   corruptJpeg: "corrupt.jpg",
+  /**
+   * A 1 s QuickTime clip (H.264, AAC) stored 320 x 240 and turned a quarter
+   * by its display matrix, so it shows as 240 x 320, with an ISO 6709
+   * location, camera make and model and a creation time (#86).
+   */
+  gpsMov: "gps.mov",
+  /** A 1 s WebM clip (VP8, Opus), 320 x 240, with a title tag (#86). */
+  clipWebm: "clip.webm",
 } as const;
 
 export type MediaFixture = keyof typeof MEDIA_FIXTURES;

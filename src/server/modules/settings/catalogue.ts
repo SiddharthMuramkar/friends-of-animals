@@ -11,12 +11,25 @@
 
 import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
+  DEFAULT_APPROVAL_EXPIRY_DAYS,
+  DEFAULT_MANUAL_ENTRY_APPROVAL_THRESHOLD_RUPEES,
+} from "../ledger/domain/approval";
+import {
   CONTACT_RETENTION,
   MAX_RETENTION_DAYS,
   minimumRetentionDays,
   RETENTION_PERIODS,
   type RetentionPeriod,
 } from "../privacy/domain/periods";
+import { MAX_REMINDER_OFFSET_HOURS } from "../reminders/domain/offsets";
+import {
+  MIN_ADOPTER_AGE_BOUNDS,
+  MIN_ADOPTER_AGE_DEFAULT,
+} from "../adoption/domain/application-eligibility";
+import {
+  VOLUNTEER_AGE_RULE_BOUNDS,
+  VOLUNTEER_AGE_RULE_DEFAULTS,
+} from "../volunteers/domain/eligibility";
 import {
   booleanSetting,
   integerSetting,
@@ -34,6 +47,19 @@ function retentionDays(period: RetentionPeriod) {
     min: minimumRetentionDays(period),
     max: MAX_RETENTION_DAYS,
     unit: "days",
+  });
+}
+
+/**
+ * When one reminder goes out (#84): hours before its deadline, up to 30
+ * days; 0 sends none. FOA confirms the defaults (HR-37).
+ */
+function reminderHours(defaultHours: number) {
+  return integerSetting({
+    default: defaultHours,
+    min: 0,
+    max: MAX_REMINDER_OFFSET_HOURS,
+    unit: "hours",
   });
 }
 
@@ -77,6 +103,33 @@ export const SETTINGS = {
   "org.registrationType": textSetting({ default: "", maxLength: 100 }),
   "org.registrationNumber": textSetting({ default: "", maxLength: 50 }),
   "org.pan": textSetting({ default: "", maxLength: 10 }),
+  // Donations (#106). Off until Razorpay's live keys (HR-15) and the
+  // accountant's chart and receipts (HR-47) are in place: the donate page
+  // then says donations open soon, and nothing starts. Seeded on for local
+  // runs and previews, which pay through the test checkout. The amounts
+  // and the expiry are defaults FOA confirms (HR-51).
+  "donations.enabled": booleanSetting({ default: false }),
+  // Whether someone without an account may give.
+  "donations.allowGuest": booleanSetting({ default: true }),
+  "donations.minAmountRupees": integerSetting({
+    default: 100,
+    min: 1,
+    max: 100_000,
+    unit: "rupees",
+  }),
+  "donations.maxAmountRupees": integerSetting({
+    default: 100_000,
+    min: 1,
+    max: 10_000_000,
+    unit: "rupees",
+  }),
+  // How long an online donation waits for Checkout before it expires.
+  "donations.pendingExpiryHours": integerSetting({
+    default: 24,
+    min: 1,
+    max: 168,
+    unit: "hours",
+  }),
   // Safeguarding (#116): concern reports one IP may send in an hour before
   // the form refuses and shows the helplines instead (HR-48).
   "safeguarding.reportsPerIpPerHour": integerSetting({
@@ -89,6 +142,84 @@ export const SETTINGS = {
   // Empty until FOA's counsel names the channel (HR-49); staff then file
   // the notice by hand and record the authority's reference.
   "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Ledger (#109). A manual entry moving more than this many rupees waits
+  // for a second finance user; 0 sends every manual entry for approval.
+  // A request nobody decides expires after the days below (HR-51).
+  "ledger.manualEntryApprovalThresholdRupees": integerSetting({
+    default: DEFAULT_MANUAL_ENTRY_APPROVAL_THRESHOLD_RUPEES,
+    min: 0,
+    max: 1_000_000_000,
+    unit: "rupees",
+  }),
+  "ledger.approvalExpiryDays": integerSetting({
+    default: DEFAULT_APPROVAL_EXPIRY_DAYS,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  // The accountant's ledger export. Off until FOA's accountant confirms its
+  // format (HR-47); seeded on for local runs and previews.
+  "ledger.accountantExport": booleanSetting({ default: false }),
+  // Privacy rights requests (#115): how many days the grievance officer
+  // has to answer. Access and correction requests use requestDueDays; an
+  // erasure, which withdraws the person's consents, uses erasureDueDays
+  // (the withdrawal SLA). Both wait for counsel's DPDP ruling (HR-30).
+  "privacy.requestDueDays": integerSetting({
+    default: 30,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  "privacy.erasureDueDays": integerSetting({
+    default: 30,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  // How long the requester's download link to their data export works;
+  // the export is deleted when it stops (#115b).
+  "privacy.exportLinkHours": integerSetting({
+    default: 72,
+    min: 1,
+    max: 168,
+    unit: "hours",
+  }),
+  // Erasing data can't be undone. Off until counsel rules on what erasure
+  // must keep (HR-30): the officer can preview an erasure, not run it.
+  // Seeded on for local runs and previews.
+  "privacy.erasureEnabled": booleanSetting({ default: false }),
+  // While a payment the person made is under its 8-year floor, erasure
+  // keeps their account (name and contact, nothing else) so the payment
+  // still names its payer. Off deletes the account; the payment rows stay
+  // either way (HR-30, HR-47).
+  "privacy.erasureKeepsPayerAccount": booleanSetting({ default: true }),
+  // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
+  // and counsel sign M6 off (HR-55) and police checks are in place
+  // (HR-38); local runs and previews are seeded open. The age rules are
+  // FOA's defaults until leadership confirms them (HR-57).
+  "volunteers.applicationsOpen": booleanSetting({ default: false }),
+  "volunteers.minAgeYears": integerSetting({
+    default: VOLUNTEER_AGE_RULE_DEFAULTS.minAgeYears,
+    ...VOLUNTEER_AGE_RULE_BOUNDS.minAgeYears,
+    unit: "years",
+  }),
+  "volunteers.guardianApprovalBelowAgeYears": integerSetting({
+    default: VOLUNTEER_AGE_RULE_DEFAULTS.guardianApprovalBelowAgeYears,
+    ...VOLUNTEER_AGE_RULE_BOUNDS.guardianApprovalBelowAgeYears,
+    unit: "years",
+  }),
+  // Adoption (#130): only adults adopt. FOA's default until leadership
+  // confirms it (HR-62); never below 18.
+  "adoption.minAdopterAgeYears": integerSetting({
+    default: MIN_ADOPTER_AGE_DEFAULT,
+    ...MIN_ADOPTER_AGE_BOUNDS,
+    unit: "years",
+  }),
+  // Reminders (#84): two reminders before submissions close, to whoever
+  // still owes an entry. A change applies to each reminder when it runs,
+  // and the hourly reminder sync plans any new time.
+  "reminders.entrySubmissionDueFirstHours": reminderHours(72),
+  "reminders.entrySubmissionDueSecondHours": reminderHours(24),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel
@@ -133,11 +264,20 @@ export const SETTINGS = {
     max: CONTACT_RETENTION.maximumMonths,
     unit: "months",
   }),
+  "retention.volunteerApplicationsDays": retentionDays(
+    RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.adoptionApplicationsDays": retentionDays(
+    RETENTION_PERIODS.adoptionApplications
+  ),
   "retention.releasedLegalHoldsDays": retentionDays(
     RETENTION_PERIODS.releasedLegalHolds
   ),
   "retention.financialRecordsDays": retentionDays(
     RETENTION_PERIODS.financialRecords
+  ),
+  "retention.privacyRequestsDays": retentionDays(
+    RETENTION_PERIODS.privacyRequests
   ),
 } satisfies Record<string, SettingDefinition<unknown>>;
 

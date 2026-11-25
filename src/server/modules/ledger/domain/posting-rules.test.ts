@@ -4,6 +4,8 @@ import { SYSTEM_ACCOUNT_CODES as CODES } from "./chart";
 import { checkLines, type LineDraft } from "./posting";
 import {
   assetAccountFor,
+  donationCaptureLines,
+  foreignDonationLines,
   LEDGER_SOURCE_TYPES,
   isLedgerSourceType,
   refundLines,
@@ -127,12 +129,56 @@ describe("refundLines()", () => {
   });
 });
 
+describe("donation postings (#106)", () => {
+  it.each([
+    ["individual", "4200"],
+    ["corporate", "4210"],
+    ["csr", "4220"],
+  ] as const)("credits a %s donation to %s", (donorType, income) => {
+    expect(
+      donationCaptureLines({
+        amountMinor: 50_000n,
+        method: "gateway",
+        donorType,
+      })
+    ).toEqual([
+      { accountCode: "1100", side: "debit", amountMinor: 50_000n },
+      { accountCode: income, side: "credit", amountMinor: 50_000n },
+    ]);
+  });
+
+  it("holds foreign money as owed back, never as income", () => {
+    expect(foreignDonationLines({ amountMinor: 50_000n })).toEqual([
+      { accountCode: "1100", side: "debit", amountMinor: 50_000n },
+      { accountCode: "2100", side: "credit", amountMinor: 50_000n },
+    ]);
+  });
+
+  it("returns foreign money by mirroring its posting", () => {
+    expect(
+      refundLines({
+        capture: foreignDonationLines({ amountMinor: 50_000n }),
+        amountMinor: 50_000n,
+        alreadyRefundedMinor: 0n,
+      })
+    ).toEqual({
+      ok: true,
+      lines: [
+        { accountCode: "2100", side: "debit", amountMinor: 50_000n },
+        { accountCode: "1100", side: "credit", amountMinor: 50_000n },
+      ],
+    });
+  });
+});
+
 describe("ledger source types", () => {
   it("names where each posting came from", () => {
     expect(LEDGER_SOURCE_TYPES).toEqual([
       "payment_capture",
       "offline_payment",
       "refund",
+      "donation",
+      "foreign_donation",
       "manual",
       "reversal",
     ]);

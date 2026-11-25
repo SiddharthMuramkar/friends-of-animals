@@ -9,7 +9,14 @@
 import { z } from "zod";
 
 /** What a whole-number setting counts. */
-export type SettingUnit = "hours" | "texts" | "reports" | "days" | "months";
+export type SettingUnit =
+  | "hours"
+  | "texts"
+  | "reports"
+  | "days"
+  | "months"
+  | "years"
+  | "rupees";
 
 /** How the settings screen asks for a value. */
 export type SettingInput =

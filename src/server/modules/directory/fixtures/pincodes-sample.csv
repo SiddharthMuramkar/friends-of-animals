@@ -1,0 +1,10 @@
+circlename,regionname,divisionname,officename,pincode,officetype,delivery,district,statename,latitude,longitude
+Maharashtra Circle,Pune Region,Pune City West Division,Pune G.P.O.,411001,HO,Delivery,PUNE,MAHARASHTRA,18.5200,73.8600
+Maharashtra Circle,Pune Region,Pune City East Division,"Pune Camp, Cantonment",411001,SO,Delivery,PUNE,MAHARASHTRA,18.5180,73.8640
+Maharashtra Circle,Pune Region,Pune City West Division,Deccan Gymkhana,411004,SO,Delivery,PUNE,MAHARASHTRA,18.5200,73.8400
+Maharashtra Circle,Pune Region,Pune City West Division,Kothrud,411038,SO,Delivery,PUNE,MAHARASHTRA,18.5100,73.8100
+Maharashtra Circle,Pune Region,Pune City East Division,Viman Nagar,411014,SO,Delivery,PUNE,MAHARASHTRA,18.5700,73.9100
+Maharashtra Circle,Pune Region,Pune Mofussil Division,Alandi Devachi,412105,SO,Delivery,PUNE,MAHARASHTRA,NA,NA
+Maharashtra Circle,Pune Region,Pune Mofussil Division,Talegaon Dabhade,410506,SO,Delivery,PUNE,MAHARASHTRA,73.6800,18.7300
+Maharashtra Circle,Mumbai Region,Mumbai GPO Division,Mumbai G.P.O.,400001,HO,Delivery,MUMBAI,MAHARASHTRA,18.9400,72.8400
+Maharashtra Circle,Mumbai Region,Mumbai GPO Division,Old Office,40001,BO,Non-Delivery,MUMBAI,MAHARASHTRA,18.9400,72.8400

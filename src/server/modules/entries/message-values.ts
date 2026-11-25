@@ -2,7 +2,10 @@
 // entry.file_rejected and entry.file_failed. Their route rows send them to
 // the registration's adult (`registration_owner`) or the child's guardians
 // (`guardian_of_participant`). Only an adult's own notice may use the
-// participant's name and the title saved with the submitted upload.
+// participant's name and the title saved with the submitted upload. On the
+// school route (#87) the student's family contact hears of the receipt
+// (./family-receipt.ts), which names the student and their institution, as
+// the registration confirmation does.
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -13,6 +16,7 @@ import {
   competition,
   entry,
   entryFile,
+  institution,
   participantProfile,
 } from "../../db/schema";
 
@@ -27,6 +31,7 @@ export const ENTRY_RECEIPT_VARIABLES = [
   ...ENTRY_ATTEMPT_VARIABLES,
   "participant.name",
   "entry.title",
+  "institution.name",
 ] as const;
 
 /** Resolves the attempt named by the event even if a newer file is live. */
@@ -48,7 +53,8 @@ export async function entryValues(
         ? {
             participantName: sql<
               string | null
-            >`case when ${participantProfile.ownerKind} = 'self' then ${participantProfile.fullName} end`,
+            >`case when ${participantProfile.ownerKind} in ('self', 'institution') then ${participantProfile.fullName} end`,
+            institutionName: institution.name,
             title: sql<
               string | null
             >`case when ${participantProfile.ownerKind} = 'self' then ${entryFile.receiptTitle} end`,
@@ -65,6 +71,10 @@ export async function entryValues(
       participantProfile,
       eq(participantProfile.id, entry.participantProfileId)
     )
+    .leftJoin(
+      institution,
+      eq(institution.id, participantProfile.managingInstitutionId)
+    )
     .where(
       and(eq(entry.id, entryId), eq(entry.registrationId, registrationId))
     );
@@ -77,6 +87,7 @@ export async function entryValues(
       ? {
           "participant.name": row.participantName ?? "",
           "entry.title": row.title ?? "",
+          "institution.name": row.institutionName ?? "",
         }
       : {}),
   };

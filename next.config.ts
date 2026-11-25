@@ -2,13 +2,18 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 import { umamiRewrites } from "./src/lib/analytics/umami";
-import { CONSENT_LINK_PREFIX, SIGNED_IN_PREFIXES } from "./src/lib/app-routes";
+import {
+  CONSENT_LINK_PREFIX,
+  DONATION_CHECKOUT_PREFIX,
+  SIGNED_IN_PREFIXES,
+} from "./src/lib/app-routes";
 import { cspHeaderRules } from "./src/lib/csp";
 import { cspContext } from "./src/lib/csp-sources";
 import { robotsHeaders } from "./src/lib/indexing";
 import {
   checkoutPageHeaders,
   consentLinkHeaders,
+  directorySearchHeaders,
   securityHeaders,
 } from "./src/lib/security-headers";
 import { unconfirmedFactsWarning } from "./src/lib/site";
@@ -46,10 +51,12 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders(process.env.APP_ENV) },
       ...checkoutPageHeaders(),
+      ...directorySearchHeaders(),
       ...consentLinkHeaders(),
       ...cspHeaderRules(cspContext(), [
         ...SIGNED_IN_PREFIXES,
         CONSENT_LINK_PREFIX,
+        DONATION_CHECKOUT_PREFIX,
       ]),
       ...robotsHeaders(),
     ];

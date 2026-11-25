@@ -45,8 +45,20 @@ export const RETENTION_PERIODS = {
   coordinatorInvitations: { defaultDays: 90 },
   /** Teen-login invitations and guardian requests, from when they closed. */
   guardianInvitations: { defaultDays: 30 },
+  /**
+   * Volunteer applications that closed without approval (#123): declined,
+   * withdrawn, or declined by the guardian, from when they closed.
+   */
+  volunteerApplications: { defaultDays: 365 },
+  /**
+   * Adoption applications (#130), from when they closed; one behind a
+   * published success story stays while the story is up.
+   */
+  adoptionApplications: { defaultDays: 730 },
   /** Legal holds, from when they were released. */
   releasedLegalHolds: { defaultDays: 365 },
+  /** Privacy rights requests and their notes, from when they closed (#115). */
+  privacyRequests: { defaultDays: 1095 },
   /** Payments, refunds and their reviews: the floor decides in practice. */
   financialRecords: {
     defaultDays: minimumFloorDays(FINANCIAL_FLOOR),

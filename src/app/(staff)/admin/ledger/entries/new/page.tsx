@@ -70,6 +70,7 @@ export default async function Page() {
             "non_positive_amount",
             "invalid_amount",
             "amount_too_large",
+            "period_locked",
           ]),
         }}
       />

@@ -1,6 +1,7 @@
 // completeEntryUpload({ registrationId, discipline?, fileId, title,
-// description, statement? }) (#85): the browser's PUT has finished; take
-// the file and record it against the registration's entry.
+// description, statement? }) (#85, #86): the browser's PUT has finished;
+// take the file (a picture, a video or an essay's PDF) and record it
+// against the registration's entry.
 //
 // - The registration's first upload creates its entry in `processing`,
 //   with its Entry ID ({comp}-E-{6}, from the codes module). There is no
@@ -35,6 +36,7 @@ import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { withUniqueCode } from "../../codes/codes";
+import type { Discipline } from "../../competitions/domain/vocabulary";
 import {
   participationRefusals,
   lockParticipationPins,
@@ -48,11 +50,7 @@ import { ENTRY_TEXT_LIMITS, type EntryText } from "../domain/entry-text";
 import type { EntryStatus } from "../domain/status";
 import { decideUpload, type UploadDecision } from "../domain/submission";
 import { checkUpload } from "../domain/upload-rules";
-import {
-  chooseDiscipline,
-  uploadRuleFor,
-  type ImageDiscipline,
-} from "../rules";
+import { chooseDiscipline, uploadRuleFor } from "../rules";
 import {
   authorizeEntrySubmission,
   lockRegistrationStatus,
@@ -69,8 +67,11 @@ import {
   supersedeEntryFiles,
   type LockedEntry,
 } from "../store";
-import { lockEntryImage, validUploadGrant } from "../upload-grants";
-import type { EntryUploadRefusal } from "./start-entry-upload";
+import { lockEntryUpload, validUploadGrant } from "../upload-grants";
+import {
+  ENTRY_UPLOAD_PURPOSES,
+  type EntryUploadRefusal,
+} from "./start-entry-upload";
 
 export type CompleteEntryUploadInput = {
   registrationId: string;
@@ -89,7 +90,7 @@ export type CompleteEntryUploadResult =
       ok: false;
       error:
         | EntryUploadRefusal
-        /** No upload of an entry picture by this id. */
+        /** No upload of an entry file by this id. */
         | "file_not_found"
         /** Nothing in storage yet: PUT, then complete again. */
         | "upload_missing"
@@ -121,7 +122,9 @@ export async function completeEntryUpload(
   const parsed = completeEntryUploadInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const request = parsed.data;
-  await authorizeEntrySubmission(ctx, request.registrationId);
+  const submitter = await authorizeEntrySubmission(ctx, request.registrationId);
+  if (submitter.scopeRefusal)
+    return { ok: false, error: submitter.scopeRefusal };
   const [registered] = await ctx.db
     .select({ status: registration.status })
     .from(registration)
@@ -147,7 +150,7 @@ async function prepareEntryUpload(
   request: Parsed,
   ownerId: string
 ): Promise<boolean> {
-  const upload = await lockEntryImage(tx, request.fileId, ownerId);
+  const upload = await lockEntryUpload(tx, request.fileId, ownerId);
   if (!upload) return false;
   const { file, grant } = upload;
   if (file.status !== "pending_upload" || grant?.prepared) return true;
@@ -181,7 +184,7 @@ async function record(
     request.registrationId
   );
   const current = await lockEntryOfRegistration(tx, request.registrationId);
-  const upload = await lockEntryImage(tx, request.fileId, actor.userId);
+  const upload = await lockEntryUpload(tx, request.fileId, actor.userId);
   if (!upload) return { ok: false, error: "file_not_found" };
   const { file } = upload;
 
@@ -209,9 +212,14 @@ async function record(
     current: current?.row.discipline,
   });
   if (!chosen.ok) return chosen;
+  const rule = uploadRuleFor(chosen.discipline)!;
+  // A file started for another kind of work doesn't belong to this entry.
+  if (file.purpose !== ENTRY_UPLOAD_PURPOSES[rule.kind]) {
+    return { ok: false, error: "file_not_found" };
+  }
   const check = checkUpload(
     { name: "", type: file.contentType, size: file.sizeBytes },
-    uploadRuleFor(chosen.discipline)!
+    rule
   );
   if (!check.ok) return { ok: false, error: check.reason };
   const window = facts.competition.window;
@@ -257,7 +265,7 @@ async function record(
     id: entryFileId,
     entryId: row.id,
     attemptNumber: (current?.files.at(-1)?.attemptNumber ?? 0) + 1,
-    kind: "image",
+    kind: rule.kind,
     fileAssetId: file.id,
     status: "pending",
     pendingText,
@@ -295,7 +303,8 @@ async function record(
   return { ok: true, entryCode: row.code, status };
 }
 
-async function createEntry(
+/** Inserts the registration's entry with a fresh Entry ID. */
+export async function createEntry(
   tx: AppDb,
   now: Date,
   {
@@ -303,11 +312,13 @@ async function createEntry(
     discipline,
     text,
     userId,
+    status = "processing",
   }: {
     facts: SubmissionFacts;
-    discipline: ImageDiscipline;
+    discipline: Discipline;
     text: EntryText;
     userId: string;
+    status?: "processing" | "submitted";
   }
 ) {
   const id = uuidv7(now);
@@ -326,7 +337,8 @@ async function createEntry(
           participantProfileId: facts.participantProfileId,
           discipline,
           ...text,
-          status: "processing",
+          status,
+          submittedAt: status === "submitted" ? now : null,
           createdByUserId: userId,
           createdAt: now,
           updatedAt: now,

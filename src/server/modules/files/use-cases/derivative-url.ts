@@ -18,14 +18,18 @@ import { fileAsset, fileDerivative } from "../../../db/schema";
 import { DomainError } from "../../../errors";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { deliveryDecision, type DeliveryRefusal } from "../domain/delivery";
-import { DERIVATIVE_KINDS, type DerivativeKind } from "../domain/derivatives";
+import {
+  derivativeExtension,
+  STORED_DERIVATIVE_KINDS,
+  type StoredDerivativeKind,
+} from "../domain/derivatives";
 import { DOWNLOAD_URL_TTL_SECONDS } from "./delivery";
 import { findReadableFile } from "./readable-file";
 import type { FilesContext } from "./upload";
 
 export type GetFileDerivativeUrlInput = {
   fileId: string;
-  kind: DerivativeKind;
+  kind: StoredDerivativeKind;
 };
 
 export type GetFileDerivativeUrlResult =
@@ -48,14 +52,9 @@ export type GetFileDerivativeUrlResult =
         | "derivative_not_ready";
     };
 
-const KINDS = Object.keys(DERIVATIVE_KINDS) as [
-  DerivativeKind,
-  ...DerivativeKind[],
-];
-
 const getFileDerivativeUrlInput = z.object({
   fileId: z.uuid(),
-  kind: z.enum(KINDS),
+  kind: z.enum(STORED_DERIVATIVE_KINDS),
 });
 
 /**
@@ -96,6 +95,7 @@ export async function getFileDerivativeUrl(
 
   const signed = await signedDerivative(ctx, file, kind);
   if (!signed) return { ok: false, error: "derivative_not_ready" };
+  const { durationMs: _durationMs, ...served } = signed;
   // A role allowed it, so the reader isn't the owner: staff looking at a
   // user's picture is on the record, as for the original.
   if (policy.allowed && policy.role !== null) {
@@ -107,7 +107,7 @@ export async function getFileDerivativeUrl(
       actorRole: policy.role,
     });
   }
-  return { ok: true, ...signed };
+  return { ok: true, ...served };
 }
 
 export type SignedDerivative = {
@@ -115,6 +115,8 @@ export type SignedDerivative = {
   expiresAt: Date;
   width: number;
   height: number;
+  /** A video's length; null for an image (#86). */
+  durationMs: number | null;
 };
 
 /**
@@ -126,7 +128,7 @@ export type SignedDerivative = {
 async function signedDerivative(
   ctx: Pick<FilesContext, "db" | "clock" | "storage">,
   file: { id: string; purpose: string },
-  kind: DerivativeKind
+  kind: StoredDerivativeKind
 ): Promise<SignedDerivative | null> {
   const [derivative] = await ctx.db
     .select()
@@ -147,13 +149,14 @@ async function signedDerivative(
     expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS,
     contentType: derivative.contentType,
     disposition: "inline",
-    filename: `${file.purpose}-${file.id.slice(0, 8)}-${kind}.webp`,
+    filename: `${file.purpose}-${file.id.slice(0, 8)}-${kind}.${derivativeExtension(kind)}`,
   });
   return {
     url,
     expiresAt: new Date(now.getTime() + DOWNLOAD_URL_TTL_SECONDS * 1000),
     width: derivative.width,
     height: derivative.height,
+    durationMs: derivative.durationMs,
   };
 }
 
@@ -166,7 +169,7 @@ async function signedDerivative(
 export async function moduleDerivativeUrl(
   ctx: Pick<FilesContext, "db" | "clock" | "storage">,
   fileId: string,
-  kind: DerivativeKind
+  kind: StoredDerivativeKind
 ): Promise<SignedDerivative | null> {
   const [file] = await ctx.db
     .select({

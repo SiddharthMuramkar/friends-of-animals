@@ -19,7 +19,11 @@
       "webp": "WebP",
       "pdf": "PDF",
       "heic": "HEIC",
-      "heif": "HEIF"
+      "heif": "HEIF",
+      "mp4": "MP4",
+      "mov": "MOV",
+      "threeGp": "3GP",
+      "webm": "WebM"
     },
     "upload": "Upload",
     "uploading": "Uploading…",

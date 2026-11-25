@@ -19,6 +19,10 @@ export default function robots(): MetadataRoute.Robots {
       "/judge",
       "/api",
       "/verify",
+      // Bearer pages of a donation (#106): their URLs carry a token.
+      "/donate/checkout",
+      "/donate/thank-you",
+      "/receipts",
     ],
   };
   if (!isIndexable()) return { rules };

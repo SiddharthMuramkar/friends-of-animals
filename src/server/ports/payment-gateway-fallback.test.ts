@@ -119,6 +119,7 @@ describe("fallbackPaymentGateway", () => {
         status: "captured",
         amountMinor: 150_000n,
         currency: "INR",
+        international: false,
       },
     ]);
   });
@@ -136,6 +137,7 @@ describe("fallbackPaymentGateway", () => {
         status: "failed",
         amountMinor: 150_000n,
         currency: "INR",
+        international: false,
       },
     ]);
   });

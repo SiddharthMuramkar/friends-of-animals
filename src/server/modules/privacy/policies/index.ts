@@ -31,8 +31,11 @@ import {
   READ_INBOX_ITEMS,
 } from "./messages";
 import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
+import { PRIVACY_REQUESTS } from "./privacy-requests";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
+import { VOLUNTEER_APPLICATIONS } from "./volunteers";
+import { ADOPTION_APPLICATIONS } from "./adoption";
 import type { RetentionPolicy } from "./types";
 
 export type { CandidateQuery, RetentionPolicy } from "./types";
@@ -54,8 +57,11 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   CONTACT_MESSAGES,
   SAFEGUARDING_REPORTS,
   BREACH_RECORDS,
+  VOLUNTEER_APPLICATIONS,
+  ADOPTION_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
+  PRIVACY_REQUESTS,
 ];
 
 /** Data the sweep never touches, and what governs it instead. */
@@ -64,6 +70,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "accounts",
   /** Kept while the institution takes part; no job yet (HR-31). */
   "institutions",
+  /** Kept while the listing is in the directory; no job yet (HR-31). */
+  "directoryListings",
   /** Deleted with the post. */
   "posts",
   /** Kept with the revision, including after the staff account goes. */
@@ -108,6 +116,16 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryPendingText",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
+  /**
+   * Donations (#106): the donor, the donation and its receipt, kept as
+   * financial records for 8 years after the end of their financial year
+   * (a statutory floor, HR-31, HR-47); no job yet. A receipt is frozen.
+   */
+  "donationRecords",
+  /** Erasure records (#115b): kept as the proof of an erasure (HR-30). */
+  "erasureRecords",
+  /** Campaigns (#126): kept with the campaign's record. */
+  "campaigns",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

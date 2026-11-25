@@ -4,7 +4,8 @@
 // The published ones are one per status the schedule moves through (#71):
 // their key dates are set from the seed clock, so each date agrees with
 // its status whenever a preview is seeded. Two more, past registration
-// and open for submissions, hold the entries seed's examples (#85).
+// and open for submissions, hold the entries seed's examples (#85), and a
+// third takes the seeded school's entries (#87).
 // Also two global competition managers with the seed authenticator (#60's
 // SEED_TOTP_SECRET), so previews can run the admin pages.
 // Loads under plain Node (the seed script): relative imports only, no
@@ -91,7 +92,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Open for submissions, with registration already closed, for the entries
- * seed (#85): Asha's processing and rejected examples are entered here.
+ * seed (#85): Asha's processing and rejected examples are entered here,
+ * and Ravi's video and typed essay (#86).
  */
 export const SEED_ENTRY_COMPETITIONS = [
   {
@@ -100,7 +102,8 @@ export const SEED_ENTRY_COMPETITIONS = [
     slug: "life-on-the-rooftops",
     name: "Life on the Rooftops",
     theme:
-      "Draw an animal you see from your rooftop and what makes that space safe for it.",
+      "Draw or film an animal you see from your rooftop and what makes that space safe for it.",
+    disciplines: ["drawing", "videography"],
   },
   {
     id: "01938a00-0000-7000-8000-000000008502",
@@ -108,9 +111,25 @@ export const SEED_ENTRY_COMPETITIONS = [
     slug: "birds-in-our-gardens",
     name: "Birds in Our Gardens",
     theme:
-      "Draw a bird that visits your neighbourhood and the plants it depends on.",
+      "Draw or write about a bird that visits your neighbourhood and the plants it depends on.",
+    disciplines: ["drawing", "essay"],
   },
 ] as const;
+
+/**
+ * Taking institutions only, past registration and open for submissions,
+ * free, with digital work from every participant, for the school-route
+ * submissions seed (#87): the verified institution's students, some with
+ * entries, and the coordinator's roster.
+ */
+export const SEED_SCHOOL_SUBMISSIONS_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000008701",
+  code: "TREES27",
+  slug: "trees-for-birds",
+  name: "Trees for Birds",
+  theme:
+    "Draw, paint or photograph a tree near your school and the birds that live in it.",
+} as const;
 
 /**
  * The seeded competitions as of `now`. Every key date is whole days from
@@ -160,7 +179,7 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           ...COMMON,
           ...fields,
           participation: "individuals",
-          disciplines: ["drawing"],
+          disciplines: [...fields.disciplines],
           ageGroups: [ADULT_AGE_GROUP],
           ageCutoffDate: "2027-01-01",
           keyDates: {
@@ -171,6 +190,26 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         },
       })
     ),
+    (({ id, slug, ...fields }): SeedCompetition => ({
+      id,
+      slug,
+      status: "registration_closed",
+      publishedAt: daysAgo(40),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        ...fields,
+        participation: "institutions",
+        disciplines: ["drawing", "painting", "photography"],
+        ageCutoffDate: "2027-01-01",
+        keyDates: {
+          registration_opens: ist(-35, "09:00"),
+          registration_closes: ist(-3, "23:59"),
+          submissions_close: ist(60, "23:59"),
+          school_round_closes: ist(75, "23:59"),
+        },
+      },
+    }))(SEED_SCHOOL_SUBMISSIONS_COMPETITION),
     {
       id: "01938a00-0000-7000-8000-000000002102",
       status: "published",
@@ -211,7 +250,9 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         participation: "institutions",
         disciplines: ["drawing", "painting", "craft"],
         ageCutoffDate: "2026-08-01",
-        digitalScope: "shortlist_only",
+        // Every participant submitted digitally, so its school round (#89)
+        // has entries to shortlist.
+        digitalScope: "all_participants",
         physicalArtwork: { kind: "top_n", count: 3 },
         publicDisplay: true,
         auctionPermitted: true,

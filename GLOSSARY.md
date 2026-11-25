@@ -98,6 +98,31 @@ A keyed fingerprint kept beside an Encrypted field, so the platform can find a
 record by that value (a User by phone at sign-in) without storing it readably.
 _Avoid_: Phone hash, lookup hash
 
+**Rights request**:
+A request under India's data protection law, by a User about their own data
+or by a Guardian about a linked child's: for a copy of it (access), to
+correct it, or to erase it. Each has a reference, a due date and a status
+the requester follows.
+_Avoid_: DSAR, privacy ticket, data request
+
+**Grievance officer**:
+The Role held by FOA's grievance officer: the only people who answer Rights
+requests, in the grievance queue. No other Role can, super admins included.
+_Avoid_: DPO, privacy admin
+
+**Data export**:
+The file of everything FOA keeps about one person, prepared for an access
+request. Only the person who made the request can download it, for a
+limited time; staff never see it.
+_Avoid_: Data dump, takeout
+
+**Erasure**:
+Carrying out an erasure request: the person's consents are withdrawn, and
+their records deleted or anonymised, except what the law makes FOA keep
+(payments under their floor, proof of consent, the Audit log) or a legal
+hold stops. What was kept, why and until when is recorded and told to them.
+_Avoid_: Deletion (for the whole process), right to be forgotten
+
 ## Safeguarding
 
 **Safeguarding report**:
@@ -255,11 +280,70 @@ _Avoid_: Mock payment, dummy gateway
 FOA's double-entry financial record. Each posting records money in INR with
 equal debits and credits, and corrections are recorded as new postings.
 
+**Locked period**:
+A month of the Ledger that finance has closed once it was reconciled. Nothing
+posts into it or any month before it; a correction goes in as a reversal in an
+open month. Locking or reopening one needs a second finance approver. The
+transparency page shows only locked periods, so a locked period is also a
+published period.
+_Avoid_: Closed month, frozen period
+
+**Late adjustment**:
+A capture or refund the platform records after its month was locked. It counts
+in the first open month after the locked ones, and says so.
+_Avoid_: Back-dated entry, prior-period adjustment
+
+**Finance request**:
+A money operation that waits for a second finance user before it happens:
+locking or reopening a month, or a manual entry above the limit in settings.
+The person who asked can withdraw it but never approve it, and it expires if
+nobody decides it in time.
+_Avoid_: Approval, maker-checker, dual control
+
+**Budget**:
+What FOA plans to receive or spend in one Ledger category in one month,
+compared with the actual in the budget report.
+_Avoid_: Forecast, allocation, target
+
 **Registration number**:
 What a confirmed registration is known by: the competition's code, "R" and
 six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
 Route is free.
 _Avoid_: Entry number, roll number, receipt number
+
+## Donations
+
+**Donation**:
+Money someone gives FOA, once online in INR (#106), and later monthly or
+recorded offline. An online donation is paid through a Payment batch whose
+purpose is the donation, and has exactly one Receipt once captured. Adults
+only; foreign money is returned while FOA isn't registered under FCRA.
+_Avoid_: Contribution, gift record, payment
+
+**Donor**:
+Who gave a Donation, as they gave it: a person, or a company or CSR partner
+with a contact person, which chooses whether its name may be shown in
+public. A guest donor has no account.
+_Avoid_: Supporter, patron, sponsor
+
+**Receipt**:
+The numbered record of a captured Donation: FOA-RCPT, the financial year and
+six digits (FOA-RCPT-2627-000123), gapless within the year. Everything it
+prints is frozen when it is issued; a full refund cancels it, and its number
+is never used again. Never sent as an attachment.
+_Avoid_: Invoice, acknowledgement, 80G certificate
+
+**Receipt link**:
+A link that opens one Receipt for 7 days. A new link is a new token; nothing
+extends an old one. The donor gets one by email, finance can make one to
+pass on by hand.
+_Avoid_: Download link, receipt URL
+
+**Checkout token**:
+The bearer in a Donation's checkout and thank-you links, so whoever started
+it can pay and see what happened without an account. It never opens the
+Receipt.
+_Avoid_: Donation password, access code
 
 ## Site content
 
@@ -364,6 +448,25 @@ Whether a User wants messages by email, SMS or both. A message the law requires
 goes out whatever the choice; SMS goes only while the SMS Runtime setting is on.
 _Avoid_: Notification preferences, opt-out
 
+**Campaign**:
+A message a community manager writes once and sends to a Segment, through the
+outbox: in-app and by email, never by SMS. Only people with current Consent to
+be messaged receive it, and each message carries a Withdrawal link.
+_Avoid_: Newsletter, blast, marketing email, announcement (an announcement goes
+to a competition's registrants)
+
+**Segment**:
+Who a Campaign is for: everyone, or those matching chosen roles, competitions
+and cities, always narrowed to people whose Consent to News and updates (or a
+guardian's Consent to messages about their child) holds now. A child's message
+goes to the guardian who gave that Consent.
+_Avoid_: Audience list, mailing list, target group
+
+**Withdrawal link**:
+The link in every Campaign message that, after the person confirms, records a
+Withdrawal of the Consent the message was sent on. Opening it changes nothing.
+_Avoid_: Unsubscribe link, opt-out link
+
 ## Events and background work
 
 **Domain event**:
@@ -385,8 +488,9 @@ dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
 **Derivative**:
-A copy the platform makes of an uploaded picture, such as a thumbnail or a
-display copy: upright, resized and stripped of location and camera details.
+A copy the platform makes of an uploaded picture or video, such as a
+thumbnail, a display copy, or a video's playable copy and its poster:
+upright, resized and stripped of location and camera details.
 Whoever may see the original may see its derivatives, once its scan passes.
 _Avoid_: Rendition, variant, thumbnail (one kind of derivative)
 
@@ -422,6 +526,15 @@ saves a new one; the old one finds its date has moved and does nothing. Unlike
 a Scheduled job, it is tied to one competition and one instant.
 _Avoid_: Status cron, status tick
 
+**Reminder**:
+A message a set number of hours before one of a competition's deadlines, such
+as its submissions closing, to whoever still owes that deadline when the
+reminder goes: an adult who entered, a child's guardian, or a school's
+coordinators, never someone who has met it. How many hours before is a runtime
+setting. Moving the deadline or changing the hours plans it again; the old one
+does nothing at its old time, and a cancelled competition's reminders never go.
+_Avoid_: Nudge, chaser, notification (that is any message)
+
 **Guard**:
 A condition on one move of a competition's status, such as "every enabled
 discipline has a published Rubric" before school judging. A Status job makes
@@ -447,6 +560,45 @@ _Avoid_: Scorecard, marking scheme
 What a coordinator of a registered institution reads before their school
 round: FOA's judging framework and the published Rubric of each discipline.
 _Avoid_: Judging kit, rules
+
+**Conduct certification**:
+A coordinator's statement, made once per Institution registration, that the
+competition was run in their school according to FOA's guidelines. The school
+round can't be finalised without it.
+_Avoid_: Conduct declaration, sign-off (the participation declaration is the
+institution's consent to take part)
+
+**School round**:
+The first Round on the institution route: one per Institution registration
+with a confirmed student, opened when its competition enters school judging.
+The coordinator records the Panel, picks the Shortlist and finalises it.
+_Avoid_: School judging (the competition's status), first round
+
+**Category**:
+One discipline for one age group of a competition, such as Drawing for
+Group A. Entries are shortlisted and placed within their Category.
+_Avoid_: Section, class
+
+**Panel**:
+The people who judged a School round, each with their full name and role.
+_Avoid_: Jury (FOA's judges), judges (alone)
+
+**Shortlist**:
+The entries a school picks, per Category, to go on to FOA judging, up to the
+competition's shortlist size. It is a draft until the School round is
+finalised; finalising makes each Entry school-shortlisted or not
+shortlisted.
+_Avoid_: Selection, finalists
+
+**School position**:
+A place (1st, 2nd, 3rd...) a school gives a shortlisted Entry in its
+Category, up to the competition's number of positions. Optional.
+_Avoid_: Rank, prize
+
+**Judging attestation**:
+The coordinator's statement, given when finalising, that the Shortlist and
+School positions are the Panel's fair judgement against FOA's Rubric.
+_Avoid_: Judging certificate, sign-off
 
 ## Registration
 
@@ -491,17 +643,29 @@ _Avoid_: Bulk upload, batch enrolment, import job
 
 ## Entries
 
-**Entry**
-The work a participant submits for a competition registration. An individual registration can have one entry.
+**Entry**:
+The work a participant submits for a competition registration; a registration
+has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
-The reference assigned to an entry when its first upload is confirmed, such as `NEIGH27-E-7K3QZ9`.
+The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
 
 **Live file**
-The entry’s current image after it passes its safety and processing checks.
+The entry’s current work (an image, a video, or an essay typed or as a PDF) after it passes its safety and processing checks. A typed essay has none to pass and is live as soon as it is saved.
 
 **Pending replacement**
 A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.
+
+**Digital submission scope**:
+Which of a competition's school-route participants send their work to FOA as
+a digital upload: all of them (the default), or only the entries on each
+school's shortlist.
+_Avoid_: Submission mode, upload policy
+
+**Submission roster**:
+A coordinator's list of every student of one Institution registration, with
+each student's Entry status and what the coordinator can do for them next.
+_Avoid_: Entries dashboard, student list
 
 ## Files
 
@@ -559,6 +723,68 @@ How long the off-site copy keeps a File after it has gone from R2 (30 days
 unless set), counted from the first night the copy found it gone.
 _Avoid_: Grace period, TTL
 
+## NGO directory
+
+**Directory listing**:
+An animal-welfare organisation's entry in FOA's directory, or an individual
+rescuer's or foster caregiver's own: what it does, where, and how to reach it.
+It stays private until FOA verifies it, and the public sees only the contacts
+it chose to show, never its address. The listing is the organisation that
+representatives and adoption listings belong to.
+_Avoid_: NGO profile, organisation page, directory entry
+
+**Organisation representative**:
+The Role, scoped to one Directory listing, of a person who keeps it up to date.
+The person who registered a listing gets it when FOA first verifies the
+listing; a super admin can grant it to others.
+_Avoid_: NGO admin, listing owner (after verification)
+
+**Listing document**:
+Proof a Directory listing sends for FOA's verification, such as a registration
+certificate or an identity proof. It is a File only Staff can open, not even
+the person who uploaded it.
+_Avoid_: Attachment, KYC document
+
+**Pin-code centre**:
+Where the directory search places a pin code: the middle of its post offices,
+from India Post's open pin-code directory. A Directory listing is found by
+distance from its pin-code centre, never from its address, so distances are
+approximate.
+_Avoid_: Geocode, listing location
+
+## Adoption
+
+**Adoption listing**:
+One animal a Directory listing offers for adoption: who it is, its health
+and vaccination notes, the adoption conditions and where it is. It stays a
+private draft until a representative publishes it with a photo, and it is
+public only while its Directory listing is verified. FOA facilitates; the
+listing organisation is responsible for the animal.
+_Avoid_: Pet listing, animal profile, adoption post
+
+**Adoptable animal**:
+What the public sees of a published Adoption listing on /adopt and its own
+page.
+_Avoid_: Pet, available animal
+
+**Adoption application**:
+An adult's request to adopt one Adoptable animal, with how to reach them and
+answers about their home. FOA's Adoption coordinator moves it through review,
+contact and an outcome; the listing organisation only reads it, and sees the
+applicant's contact once the coordinator puts them in touch.
+_Avoid_: Adoption request, enquiry
+
+**Adoption coordinator**:
+The FOA staff role that reviews Adoption applications, puts good matches in
+touch with the listing organisation and records the outcome. FOA facilitates;
+it never takes custody of an animal.
+_Avoid_: Adoption manager, adoption officer
+
+**Success story**:
+An adopter's own words about how their adopted animal settled in, shared on
+/adopt/stories only while they consent, never with their name or contact.
+_Avoid_: Testimonial, adoption post
+
 ## Engineering
 
 **Seed builder**:
@@ -583,7 +809,27 @@ A few end-to-end journeys per milestone, run in a browser against a pull
 request's preview deployment.
 _Avoid_: E2E suite, UI tests
 
+## Volunteering
+
+**Volunteer**:
+A User FOA has vetted and approved to help, who holds the volunteer Role.
+Volunteers are not Staff.
+_Avoid_: Helper, intern, staff volunteer
+
+**Volunteer application**:
+A person's request to volunteer: how they would like to help, when they are
+free, and their acceptance of the safeguarding declaration and the code of
+conduct. A 14- to 17-year-old's waits for their verified guardian's
+approval before a community manager approves or declines it.
+_Avoid_: Signup, volunteer form, registration
+
 ## Taking part
+
+**School route**:
+How a student takes part through their school: a coordinator enrols them in
+the Institution registration, the institution pays, and the coordinator
+submits their work.
+_Avoid_: Route A, institution route
 
 **Individual route**:
 How someone takes part in a competition on their own, instead of being

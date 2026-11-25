@@ -9,7 +9,13 @@
  * loads it under plain Node.
  */
 
-import { CHECKOUT_ROUTES, CONSENT_LINK_PREFIX } from "./app-routes";
+import {
+  CHECKOUT_ROUTES,
+  CONSENT_LINK_PREFIX,
+  DONATION_CHECKOUT_PREFIX,
+  DONATION_THANK_YOU,
+  RECEIPTS_PREFIX,
+} from "./app-routes";
 import type { HeaderRule } from "./csp";
 
 export type SecurityHeader = { key: string; value: string };
@@ -53,18 +59,47 @@ export function checkoutPageHeaders(): HeaderRule[] {
   }));
 }
 
-/** Bearer paths are never cached, indexed or sent as a referrer. */
-export function consentLinkHeaders(): HeaderRule[] {
+/** The directory search's path (#128): ROUTES.ngos in ./routes.ts. */
+export const DIRECTORY_SEARCH_PATH = "/ngos";
+
+/**
+ * The directory search's override (#128): its "Use my location" button may
+ * ask the browser for the visitor's position, on this page only and for
+ * this origin only. Listed after securityHeaders in next.config.ts.
+ */
+export function directorySearchHeaders(): HeaderRule[] {
   return [
     {
-      source: `${CONSENT_LINK_PREFIX}/:path*`,
+      source: DIRECTORY_SEARCH_PATH,
       headers: [
-        { key: "Referrer-Policy", value: "no-referrer" },
-        { key: "Cache-Control", value: "private, no-store" },
-        { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        {
+          key: "Permissions-Policy",
+          value: "camera=(), microphone=(), geolocation=(self)",
+        },
       ],
     },
   ];
+}
+
+const BEARER_HEADERS: SecurityHeader[] = [
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "Cache-Control", value: "private, no-store" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+];
+
+/**
+ * Bearer paths are never cached, indexed or sent as a referrer: consent
+ * links, and a donation's checkout, thank-you and receipt pages (#106),
+ * whose URLs carry a token.
+ */
+export function consentLinkHeaders(): HeaderRule[] {
+  return [
+    `${CONSENT_LINK_PREFIX}/:path*`,
+    `${DONATION_CHECKOUT_PREFIX}/:path*`,
+    DONATION_THANK_YOU,
+    RECEIPTS_PREFIX,
+    `${RECEIPTS_PREFIX}/:path*`,
+  ].map((source) => ({ source, headers: BEARER_HEADERS }));
 }
 
 /** The headers for one deployment, from its APP_ENV. */
@@ -76,7 +111,8 @@ export function securityHeaders(appEnv: string | undefined): SecurityHeader[] {
     },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-    // The pay page also allows payment (checkoutPageHeaders).
+    // The pay page also allows payment (checkoutPageHeaders), and the
+    // directory search geolocation (directorySearchHeaders).
     { key: "Permissions-Policy", value: PERMISSIONS_POLICY },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "X-Frame-Options", value: "DENY" },

@@ -22,10 +22,17 @@ import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.js
 import adminPayments from "../../messages/en-IN/adminPayments.json";
 import adminRefunds from "../../messages/en-IN/adminRefunds.json";
 import adminLedger from "../../messages/en-IN/adminLedger.json";
+import adminLedgerPeriods from "../../messages/en-IN/adminLedgerPeriods.json";
+import adminLedgerReports from "../../messages/en-IN/adminLedgerReports.json";
 import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
 import adminBreaches from "../../messages/en-IN/adminBreaches.json";
+import adminGrievance from "../../messages/en-IN/adminGrievance.json";
+import privacyRequests from "../../messages/en-IN/privacyRequests.json";
+import adminDirectory from "../../messages/en-IN/adminDirectory.json";
+import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
 import awareness from "../../messages/en-IN/awareness.json";
@@ -39,18 +46,28 @@ import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import competitionCancel from "../../messages/en-IN/competitionCancel.json";
 import contact from "../../messages/en-IN/contact.json";
 import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
+import institutionSubmissions from "../../messages/en-IN/institutionSubmissions.json";
+import schoolRound from "../../messages/en-IN/schoolRound.json";
 import guardianConsent from "../../messages/en-IN/guardianConsent.json";
 import guardianConsentDelivery from "../../messages/en-IN/guardianConsentDelivery.json";
 import coordinators from "../../messages/en-IN/coordinators.json";
 import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
+import directory from "../../messages/en-IN/directory.json";
+import adoption from "../../messages/en-IN/adoption.json";
+import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
+import donationCheckout from "../../messages/en-IN/donationCheckout.json";
+import donations from "../../messages/en-IN/donations.json";
+import receipts from "../../messages/en-IN/receipts.json";
+import adminDonations from "../../messages/en-IN/adminDonations.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import guardian from "../../messages/en-IN/guardian.json";
+import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
 import inbox from "../../messages/en-IN/inbox.json";
@@ -97,9 +114,16 @@ export const NAMESPACES = [
   "adminConsentForms",
   "adminRefunds",
   "adminLedger",
+  "adminLedgerPeriods",
+  "adminLedgerReports",
   "adminAnnouncements",
   "art",
   "adminBreaches",
+  "adminGrievance",
+  "privacyRequests",
+  "adminDirectory",
+  "adminVolunteers",
+  "campaigns",
   "auth",
   "authPhone",
   "awareness",
@@ -114,17 +138,27 @@ export const NAMESPACES = [
   "contact",
   "coordinators",
   "coordinatorConsents",
+  "institutionSubmissions",
+  "schoolRound",
   "guardianConsent",
   "guardianConsentDelivery",
   "contactForm",
   "credits",
   "dashboard",
+  "directory",
+  "adoption",
+  "adoptionApplications",
   "donate",
+  "donationCheckout",
+  "donations",
+  "receipts",
+  "adminDonations",
   "entries",
   "error",
   "files",
   "footer",
   "guardian",
+  "volunteer",
   "home",
   "impact",
   "inbox",
@@ -174,10 +208,17 @@ export const messages = {
   ...adminPayments,
   ...adminRefunds,
   ...adminLedger,
+  ...adminLedgerPeriods,
+  ...adminLedgerReports,
   ...adminConsentForms,
   ...adminAnnouncements,
   ...art,
   ...adminBreaches,
+  ...adminGrievance,
+  ...privacyRequests,
+  ...adminDirectory,
+  ...adminVolunteers,
+  ...campaigns,
   ...auth,
   ...authPhone,
   ...awareness,
@@ -192,17 +233,27 @@ export const messages = {
   ...contact,
   ...coordinators,
   ...coordinatorConsents,
+  ...institutionSubmissions,
+  ...schoolRound,
   ...guardianConsent,
   ...guardianConsentDelivery,
   ...contactForm,
   ...credits,
   ...dashboard,
+  ...directory,
+  ...adoption,
+  ...adoptionApplications,
   ...donate,
+  ...donationCheckout,
+  ...donations,
+  ...receipts,
+  ...adminDonations,
   ...entries,
   ...error,
   ...files,
   ...footer,
   ...guardian,
+  ...volunteer,
   ...home,
   ...impact,
   ...inbox,

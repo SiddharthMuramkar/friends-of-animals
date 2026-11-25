@@ -61,6 +61,8 @@ export type EntryUploadRequest = {
   registrationId: string;
   discipline: string;
   file: File;
+  /** A video's length as the browser read it, or null if it couldn't (#86). */
+  durationMs?: number | null;
   title: string;
   description: string;
   statement: string;
@@ -72,7 +74,14 @@ export type EntryUploadOutcome =
 
 export async function runEntryUpload(
   memory: UploadMemory,
-  { file, title, description, statement, ...target }: EntryUploadRequest,
+  {
+    file,
+    durationMs,
+    title,
+    description,
+    statement,
+    ...target
+  }: EntryUploadRequest,
   steps: EntryUploadSteps
 ): Promise<EntryUploadOutcome> {
   let attempt = memory.attempt;
@@ -81,7 +90,12 @@ export async function runEntryUpload(
     try {
       grant = await steps.start({
         ...target,
-        file: { name: file.name, type: file.type, size: file.size },
+        file: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          ...(durationMs === undefined ? {} : { durationMs }),
+        },
         replacesFileId: attempt?.grant.fileId,
         restartPendingUpload: attempt === null,
       });
