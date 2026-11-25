@@ -37,9 +37,13 @@ import {
   loadPicks,
   loadRound,
   loadRoundEntries,
+  loadRoundStudents,
   type PanelMember,
   type RoundEntry,
+  type RoundStudent,
 } from "../store";
+
+export type { RoundStudent } from "../store";
 
 export const roundInput = z.object({
   institutionId: z.uuid(),
@@ -82,6 +86,11 @@ export type SchoolRoundView = {
   panel: PanelMember[];
   /** Categories that have entries, by discipline then age group. */
   categories: RoundCategoryView[];
+  /**
+   * Shortlist-only scope (#91): every confirmed student, with the entry
+   * the coordinator created for them, if any. Empty under all participants.
+   */
+  students: RoundStudent[];
   /** How many entries the round has in all, every status. */
   entryCount: number;
   conductCertified: boolean;
@@ -180,15 +189,20 @@ export async function roundView(
     await isConductCertified(db, scope.id),
     await limitsOf(db, round.competitionId),
   ];
+  const shortlistOnly = scope.competition.digitalScope === "shortlist_only";
+  // Under shortlist only every entry is a pick the coordinator created, so
+  // only the panel, conduct and attestation can stand in the way.
   const plan = planFinalisation({
     panelSize: panel.length,
     conductCertified,
     judgingAttested: true,
-    entries: entries.map((each) => ({
-      entryId: each.entryId,
-      submitted: each.status === "submitted",
-    })),
-    picks,
+    entries: shortlistOnly
+      ? []
+      : entries.map((each) => ({
+          entryId: each.entryId,
+          submitted: each.status === "submitted",
+        })),
+    picks: shortlistOnly ? [] : picks,
   });
   let finalisedByName: string | null = null;
   if (round.finalisedByUserId) {
@@ -213,6 +227,7 @@ export async function roundView(
       entries,
       new Map(picks.map((pick) => [pick.entryId, pick.position]))
     ),
+    students: shortlistOnly ? await loadRoundStudents(db, scope.id) : [],
     entryCount: entries.length,
     conductCertified,
     blockers: plan.ok ? [] : plan.blockers,

@@ -729,6 +729,13 @@
       "when": 1795578498564,
       "tag": "0103_89_school_round_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1795582874096,
+      "tag": "0104_91_shortlist_only",
+      "breakpoints": true
     }
   ]
 }

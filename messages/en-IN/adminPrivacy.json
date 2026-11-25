@@ -467,6 +467,9 @@
           "judging_attested_by_user_id": "Records which coordinator attested the school judging",
           "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
         },
+        "school_round_declaration": {
+          "declared_by_user_id": "Records which coordinator made the declarations for a shortlisted entry they created"
+        },
         "school_round_pick": {
           "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
         },

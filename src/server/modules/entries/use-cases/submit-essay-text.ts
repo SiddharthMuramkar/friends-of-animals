@@ -72,6 +72,8 @@ export type SubmitEssayTextInput = {
 
 /** Why typed text can't be submitted, as the form names it. */
 export type EssayTextRefusal =
+  /** The school route takes digital work from the shortlist only (#91). */
+  | "shortlist_only"
   | "registration_not_confirmed"
   | "participation_consent_required"
   | "discipline_not_offered"
@@ -109,7 +111,9 @@ export async function submitEssayText(
   const parsed = submitEssayTextInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const request = parsed.data;
-  await authorizeEntrySubmission(ctx, request.registrationId);
+  const submitter = await authorizeEntrySubmission(ctx, request.registrationId);
+  if (submitter.scopeRefusal)
+    return { ok: false, error: submitter.scopeRefusal };
   return ctx.db.transaction((tx) => record(tx, ctx, request));
 }
 

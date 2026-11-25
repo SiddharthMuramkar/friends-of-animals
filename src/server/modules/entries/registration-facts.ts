@@ -7,7 +7,8 @@
 // verified guardian with an active link, may submit once it is confirmed.
 // On the school route (#87) a coordinator or the authorised person of the
 // student's institution submits instead, while the competition's digital
-// submission scope is all participants. An unknown registration, someone
+// submission scope is all participants (under shortlist only, the school
+// round's own use cases create the shortlist's entries, #91). An unknown registration, someone
 // else's and another institution's student are refused the same way, before
 // anything about the registration is checked.
 //
@@ -53,7 +54,8 @@ export type SubmissionFacts = {
  * (`child`), or on the school route a coordinator for their institution's
  * student (`student`). `scopeRefusal` says why the school route takes no
  * upload from a coordinator now: its competition takes digital work from
- * the school shortlist only (#91 adds that path).
+ * the school shortlist only, and the coordinator creates those entries in
+ * the school round instead (#91, school-round's startShortlistedEntry).
  */
 export type EntrySubmitter = {
   role: Role | null;

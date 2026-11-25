@@ -12,11 +12,9 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../access/can";
-import { entryUploadGrant, user } from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import {
@@ -24,8 +22,6 @@ import {
   lockParticipationPins,
 } from "../../consent/participation-gate";
 import type { EntryFilePurpose } from "../../files/domain/purposes";
-import { uploadKeyFor } from "../../files/domain/storage-key";
-import { presignUpload } from "../../files/use-cases/upload";
 import { checkUpload, type UploadKind } from "../domain/upload-rules";
 import { decideUpload } from "../domain/submission";
 import { chooseDiscipline, uploadRuleFor } from "../rules";
@@ -35,13 +31,7 @@ import {
   submissionFacts,
 } from "../registration-facts";
 import { lockEntryOfRegistration, snapshotOf } from "../store";
-import {
-  canIssueUploadGrant,
-  lockEntryUpload,
-  pendingUploadFileId,
-  scheduleUploadGrantCleanup,
-  validUploadGrant,
-} from "../upload-grants";
+import { issueEntryUploadGrant, lockUploader } from "../issue-upload-grant";
 
 export type StartEntryUploadInput = {
   registrationId: string;
@@ -134,12 +124,7 @@ export async function startEntryUpload(
 
   return ctx.db.transaction(async (tx): Promise<StartEntryUploadResult> => {
     await lockParticipationPins(tx, [registrationId]);
-    // Serializes one actor's grant requests even across registrations.
-    await tx
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.id, ownerId))
-      .for("no key update");
+    await lockUploader(tx, ownerId);
     const status = await lockRegistrationStatus(tx, registrationId);
     if (status !== "confirmed") {
       return { ok: false, error: "registration_not_confirmed" };
@@ -163,65 +148,22 @@ export async function startEntryUpload(
     if (!check.ok) return { ok: false, error: check.reason };
     const window = facts.competition.window;
     if (!window) return { ok: false, error: "submission_not_open" };
-    const now = ctx.clock.now();
     const decision = decideUpload({
       entry: current ? snapshotOf(current) : null,
       window,
-      now,
+      now: ctx.clock.now(),
     });
     if (!decision.ok) return { ok: false, error: decision.reason };
 
-    const previousFileId =
-      replacesFileId ??
-      (restartPendingUpload
-        ? await pendingUploadFileId(tx, ownerId, registrationId, now)
-        : undefined);
-    const previous = previousFileId
-      ? await lockEntryUpload(tx, previousFileId, ownerId)
-      : null;
-    const retiringFileId =
-      previous?.file.status === "pending_upload" &&
-      validUploadGrant(previous.grant, registrationId, now)
-        ? previous.file.id
-        : undefined;
-    if (
-      !(await canIssueUploadGrant(tx, {
-        ownerId,
-        registrationId,
-        now,
-        retiringFileId,
-        uploader: submitter.whose === "student" ? "coordinator" : "participant",
-      }))
-    ) {
-      return { ok: false, error: "upload_limit" };
-    }
-    if (retiringFileId) {
-      await tx
-        .update(entryUploadGrant)
-        .set({ retired: true })
-        .where(eq(entryUploadGrant.fileAssetId, retiringFileId));
-    }
-
-    const purpose = ENTRY_UPLOAD_PURPOSES[rule.kind];
-    const presigned = await presignUpload(ctx, tx, {
-      purpose,
+    return issueEntryUploadGrant(ctx, tx, {
+      ownerId,
+      registrationId,
+      uploader: submitter.whose === "student" ? "coordinator" : "participant",
+      purpose: ENTRY_UPLOAD_PURPOSES[rule.kind],
       contentType: check.contentType,
       sizeBytes: file.size,
+      replacesFileId,
+      restartPendingUpload,
     });
-    if (!presigned.ok) {
-      // The rule above is narrower than the purpose's, so this is a bug.
-      throw new Error(
-        `The ${purpose} purpose refused an upload: ${presigned.error}`
-      );
-    }
-    const { fileId, expiresAt } = presigned;
-    await tx.insert(entryUploadGrant).values({
-      fileAssetId: fileId,
-      registrationId,
-      uploadKey: uploadKeyFor({ prefix: ctx.files.keyPrefix, fileId }),
-      expiresAt,
-    });
-    await scheduleUploadGrantCleanup(tx, ctx.clock, { fileId, expiresAt });
-    return presigned;
   });
 }

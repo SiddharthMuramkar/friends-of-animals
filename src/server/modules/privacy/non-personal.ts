@@ -766,6 +766,13 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "updated_at",
   ],
+  school_round_declaration: [
+    "declarations",
+    "declared_at",
+    "entry_id",
+    "round_id",
+    "statement_version",
+  ],
   school_round_panel_member: ["id", "round_id", "sort_order"],
   school_round_pick: [
     "category_id",

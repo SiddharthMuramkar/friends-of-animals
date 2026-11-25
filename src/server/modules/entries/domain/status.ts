@@ -58,8 +58,14 @@ export type EntryTrigger =
   | "upload_retried"
   /** Picked in a finalised school round (#89). */
   | "school_shortlisted"
-  /** Under all-participants scope, a shortlisted entry goes on to FOA. */
+  /**
+   * A shortlisted entry goes on to FOA: at once under all-participants
+   * scope; under shortlist only once its upload is live and its round is
+   * finished (#91).
+   */
   | "sent_to_foa"
+  /** Under shortlist-only scope, the coordinator creates it shortlisted (#91). */
+  | "shortlisted_entry_created"
   /** Not picked in a finalised school round (#89). */
   | "not_shortlisted"
   | "essay_typed";
@@ -81,6 +87,16 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
     from: "school_shortlisted",
     to: "submitted_to_foa",
     trigger: "sent_to_foa",
+  },
+  // Shortlist-only scope (#91): the coordinator creates the entry in the
+  // school round, already shortlisted; it goes school_shortlisted →
+  // submitted_to_foa (the row above) once its upload is live and the round
+  // is finished. Its uploads never move it: a failed one leaves it
+  // school_shortlisted until the coordinator uploads again.
+  {
+    from: null,
+    to: "school_shortlisted",
+    trigger: "shortlisted_entry_created",
   },
   { from: "processing", to: "not_shortlisted", trigger: "not_shortlisted" },
   { from: "rejected", to: "not_shortlisted", trigger: "not_shortlisted" },

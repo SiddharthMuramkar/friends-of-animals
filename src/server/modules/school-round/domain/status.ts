@@ -65,6 +65,14 @@ export function assertSchoolRoundTransition(
   }
 }
 
+/**
+ * Whether the round is over: finalised, or closed on the school's behalf
+ * (#90). A shortlist-only entry goes on to FOA only then (#91).
+ */
+export function isRoundFinished(status: SchoolRoundStatus): boolean {
+  return status === "finalised" || status === "closed_on_behalf";
+}
+
 /** Whether the coordinator may still record the panel and change picks. */
 export function isSchoolRoundEditable(status: SchoolRoundStatus): boolean {
   return EDITABLE_STATUSES.includes(status);
