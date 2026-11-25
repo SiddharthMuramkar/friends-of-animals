@@ -729,6 +729,20 @@
       "when": 1795578498564,
       "tag": "0103_89_school_round_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1795582936510,
+      "tag": "0104_92_pre_enum_role_foa_verifier",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1795582942199,
+      "tag": "0105_92_foa_verification",
+      "breakpoints": true
     }
   ]
 }

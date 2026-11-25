@@ -50,3 +50,4 @@ export * from "./adoption";
 export * from "./campaigns";
 export * from "./volunteers";
 export * from "./school-round";
+export * from "./verification";

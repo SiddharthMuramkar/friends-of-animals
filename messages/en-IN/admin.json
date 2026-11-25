@@ -35,7 +35,8 @@
       "auction_manager": "Auction manager",
       "adoption_coordinator": "Adoption coordinator",
       "safeguarding_lead": "Safeguarding lead",
-      "grievance_officer": "Grievance officer"
+      "grievance_officer": "Grievance officer",
+      "foa_verifier": "FOA verifier"
     },
     "scopes": {
       "global": "Everywhere",

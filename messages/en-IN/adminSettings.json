@@ -164,6 +164,12 @@
           "description": "How many hours before the submission deadline the second reminder goes, to whoever still owes an entry then. Use 0 for no second reminder."
         }
       },
+      "entries": {
+        "resubmissionDays": {
+          "label": "Days to resubmit a sent-back entry",
+          "description": "When an FOA verifier sends an entry back, the participant, guardian or coordinator has this many days to fix it and resubmit. After that the entry stays sent back. Between 1 and 60; a change applies to entries sent back after it."
+        }
+      },
       "retention": {
         "enforce": {
           "label": "Delete expired records",

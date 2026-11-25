@@ -41,6 +41,7 @@ describe("the settings catalogue", () => {
       "volunteers.guardianApprovalBelowAgeYears": 18,
       "reminders.entrySubmissionDueFirstHours": 72,
       "reminders.entrySubmissionDueSecondHours": 24,
+      "entries.resubmissionDays": 7,
       "retention.enforce": false,
       "retention.expiredVerificationsDays": 1,
       "retention.expiredSessionsDays": 30,

@@ -165,6 +165,7 @@ describe("resolveAllSettings", () => {
       ["volunteers.guardianApprovalBelowAgeYears", 18, "default"],
       ["reminders.entrySubmissionDueFirstHours", 72, "default"],
       ["reminders.entrySubmissionDueSecondHours", 24, "default"],
+      ["entries.resubmissionDays", 7, "default"],
       ["retention.enforce", false, "default"],
       ["retention.expiredVerificationsDays", 1, "default"],
       ["retention.expiredSessionsDays", 30, "default"],
