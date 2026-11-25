@@ -1,5 +1,7 @@
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
+import { ButtonLink } from "@/components/site/button-link";
+import { MY_ARTWORK } from "@/lib/app-routes";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
@@ -22,6 +24,7 @@ import {
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
   DASHBOARD_ADOPTIONS,
+  DASHBOARD_DONATIONS,
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -108,12 +111,18 @@ async function Areas() {
       grant.role === "competition_manager" ||
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
+  const artwork = await getTranslations("artwork");
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
 
   return (
     <div className="mt-8 flex flex-col gap-8">
+      <div>
+        <ButtonLink href={MY_ARTWORK} variant="secondary">
+          {artwork("title")}
+        </ButtonLink>
+      </div>
       {/* The switcher: each area is a link, so the URL says which one is
           open and nothing else has to remember it. */}
       <nav aria-label={t("switcher")}>
@@ -219,6 +228,7 @@ async function AreaBody({
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
+            { href: DASHBOARD_DONATIONS, label: t("member.donations") },
           ])
         : null}
       {area === "judge"

@@ -848,6 +848,55 @@
       "when": 1795587055787,
       "tag": "0120_91_registration_not_shortlisted",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1795587606639,
+      "tag": "0121_107_pre_refund_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1795587612026,
+      "tag": "0122_107_recurring_donations",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1795587620166,
+      "tag": "0123_107_recurring_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1795587704675,
+      "tag": "0124_108_pre_offline_donation_proof",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1795587706387,
+      "tag": "0125_108_offline_donations",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1795588476940,
+      "tag": "0126_93_physical_artwork",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1795588479170,
+      "tag": "0127_93_artwork_messages",
+      "breakpoints": true
     }
   ]
 }

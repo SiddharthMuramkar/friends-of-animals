@@ -19,6 +19,7 @@
       "organisation": "Organisation {id}"
     },
     "member": {
+      "donations": "My donations",
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
       "sessions": "See where you're signed in",
       "children": "Your children, as a parent or guardian",

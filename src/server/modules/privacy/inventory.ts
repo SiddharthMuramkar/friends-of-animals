@@ -1434,6 +1434,30 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   })("reason_text", "content"),
   actorColumn("entry_verification", "decided_by_user_id", ENTRY_RECORD),
   actorColumn("entry_verification", "resubmitted_by_user_id", ENTRY_RECORD),
+  ...(
+    [
+      "entry_id",
+      "registration_id",
+      "institution_registration_id",
+      "artwork_code",
+      "courier_name",
+      "tracking_number",
+    ] as const
+  ).map((column) =>
+    rowsOf("physical_artwork", {
+      subject: ENTRY_PARTICIPANT,
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(
+      column,
+      column === "courier_name" || column === "tracking_number"
+        ? "content"
+        : "identity"
+    )
+  ),
+  actorColumn("physical_artwork", "requested_by", ENTRY_RECORD),
+  actorColumn("physical_artwork", "dispatched_by", ENTRY_RECORD),
+  actorColumn("physical_artwork", "received_by", ENTRY_RECORD),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",
@@ -1484,6 +1508,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       ["email_ciphertext", "contact", "retain"],
       ["email_hash", "contact", "retain"],
       ["organisation_name", "identity", "retain"],
+      ["pan_ciphertext", "financial", "retain"],
     ] as const
   ).map(([column, category, onExpiry]) =>
     rowsOf("donor", {
@@ -1497,12 +1522,26 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     retention: DONATION_RECORD,
     onExpiry: "set_null",
   })("wall_name", "identity"),
+  ...(["offline_reference", "offline_proof_file_id"] as const).map((column) =>
+    rowsOf("donation", {
+      subject: { kind: "donor", via: "donor_id" },
+      retention: DONATION_RECORD,
+      onExpiry: "retain",
+    })(column, "financial")
+  ),
+  actorColumn("donation", "offline_recorded_by", DONATION_RECORD),
   rowsOf("receipt", {
     subject: { kind: "donor", via: "donation_id" },
     retention: DONATION_RECORD,
     onExpiry: "retain",
   })("snapshot", "identity"),
   actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
+  rowsOf("recurring_donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  actorColumn("recurring_donation", "user_id", DONATION_RECORD),
   // Privacy rights requests (#115): who asked about whom, and the words
   // the requester and the grievance officer wrote, encrypted.
   privacyRequestColumn("subject_id", "identity"),

@@ -395,6 +395,21 @@ export type DomainEvent =
       payload: { competitionId: string };
     }
   | {
+      type: "artwork.requested";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.dispatched";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string; late: boolean };
+    }
+  | {
+      type: "artwork.received";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string; dispatchRecorded: boolean };
+    }
+  | {
       /**
        * An FOA verifier verified an entry (#92). The participant or their
        * guardian is told; on the school route, its coordinators.
@@ -495,6 +510,36 @@ export type DomainEvent =
       type: "donation.refunded";
       aggregate: { type: "donation"; id: string };
       payload: { donationId: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.activated";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.charge_failed";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.cancelled";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.refunded";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.payment_refused";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.cancel_requested";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
     }
   | {
       /** A donor asked for a new receipt link by email (#106). The token
@@ -852,6 +897,12 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
   }),
   "competition.submissions_closed": z.object({ competitionId: z.uuid() }),
+  "artwork.requested": z.object({ artworkId: z.uuid() }),
+  "artwork.dispatched": z.object({ artworkId: z.uuid(), late: z.boolean() }),
+  "artwork.received": z.object({
+    artworkId: z.uuid(),
+    dispatchRecorded: z.boolean(),
+  }),
   "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
   "entry.sent_back": ENTRY_VERIFICATION_EVENT,
   "entry.replacement_live": z.object({
@@ -877,6 +928,15 @@ export const EVENT_PAYLOADS = {
     donationId: z.uuid(),
     refundId: z.uuid(),
   }),
+  "recurring_donation.activated": z.object({ id: z.uuid() }),
+  "recurring_donation.charge_failed": z.object({ id: z.uuid() }),
+  "recurring_donation.cancelled": z.object({ id: z.uuid() }),
+  "recurring_donation.refunded": z.object({ id: z.uuid() }),
+  "recurring_donation.payment_refused": z.object({
+    id: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "recurring_donation.cancel_requested": z.object({ id: z.uuid() }),
   "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
@@ -1058,6 +1118,9 @@ export const SUBSCRIBERS = {
   // Individual entries go on to FOA when submissions close (#92).
   "competition.submissions_closed": ["verification.forward_individual_entries"],
   // The participant, guardian or coordinators hear by route row (#92).
+  "artwork.requested": ["notifications.dispatch", "reminders.schedule_artwork"],
+  "artwork.dispatched": ["reminders.schedule_artwork"],
+  "artwork.received": ["notifications.dispatch", "reminders.schedule_artwork"],
   "entry.foa_verified": ["notifications.dispatch"],
   "entry.sent_back": ["notifications.dispatch"],
   // A resubmitted file went live: the entry returns to FOA (#92).
@@ -1097,6 +1160,12 @@ export const SUBSCRIBERS = {
   "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
   "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
   "donation.refunded": ["donations.send_refund_notice"],
+  "recurring_donation.activated": ["recurring_donations.send_notice"],
+  "recurring_donation.charge_failed": ["recurring_donations.send_notice"],
+  "recurring_donation.cancelled": ["recurring_donations.send_notice"],
+  "recurring_donation.refunded": ["recurring_donations.send_notice"],
+  "recurring_donation.payment_refused": ["ledger.post_foreign_donation"],
+  "recurring_donation.cancel_requested": ["recurring_donations.cancel"],
   "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).

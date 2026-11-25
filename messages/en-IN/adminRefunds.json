@@ -12,6 +12,7 @@
       "discretionary": "Asked for",
       "cancellation": "Competition cancelled",
       "duplicate": "Payment in review",
+      "recurring_after_cancel": "Recurring charge after cancellation",
       "foreign_payment": "Foreign donation returned"
     },
     "statuses": {

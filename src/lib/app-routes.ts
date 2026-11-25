@@ -140,6 +140,14 @@ export function adminRefundPath(refundId: string): string {
 
 /** Finance's donations (#106): the list and each donation's page. */
 export const ADMIN_DONATIONS = "/admin/donations";
+export const ADMIN_OFFLINE_DONATION = `${ADMIN_DONATIONS}/offline` as const;
+export const ADMIN_RECURRING_DONATIONS = "/admin/donations/recurring";
+export const DASHBOARD_DONATIONS = "/dashboard/donations";
+export const MONTHLY_CHECKOUT_ROUTE = "/donate/checkout/monthly/[id]";
+export const recurringDonationPath = (id: string) =>
+  `${DASHBOARD_DONATIONS}/recurring/${encodeURIComponent(id)}`;
+export const monthlyCheckoutPath = (id: string) =>
+  `/donate/checkout/monthly/${encodeURIComponent(id)}`;
 
 export function adminDonationPath(donationId: string): string {
   return `${ADMIN_DONATIONS}/${encodeURIComponent(donationId)}`;
@@ -250,6 +258,12 @@ export const judgeOnboardingPath = (id: string) =>
   `${JUDGE_DASHBOARD}/rounds/${encodeURIComponent(id)}/onboarding`;
 export const isJudgeInvitationPage = (path: string) =>
   fitsTemplate(path, `${JUDGE_INVITATIONS_PREFIX}/[token]`);
+
+export const ADMIN_ARTWORK = "/admin/artwork";
+export const INSTITUTION_ARTWORK = "/institution/artwork";
+export const MY_ARTWORK = "/dashboard/artwork";
+export const adminArtworkPath = (artworkCode: string) =>
+  `${ADMIN_ARTWORK}/${encodeURIComponent(artworkCode)}`;
 
 export const ADMIN_VERIFICATION = "/admin/verification";
 export function adminVerificationEntryPath(entryId: string): string {
@@ -446,7 +460,10 @@ export function donationCheckoutPath(donationId: string, token: string) {
 }
 
 export function isDonationCheckoutPage(pathname: string): boolean {
-  return fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE);
+  return (
+    fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE) ||
+    fitsTemplate(pathname, MONTHLY_CHECKOUT_ROUTE)
+  );
 }
 
 /** A donation's thank-you page (#106), for the same token's holder. */
@@ -478,6 +495,7 @@ export const CHECKOUT_ROUTES = [
   PAY_FEES_ROUTE,
   PAY_MY_REGISTRATION_ROUTE,
   DONATION_CHECKOUT_ROUTE,
+  MONTHLY_CHECKOUT_ROUTE,
 ] as const;
 
 /** A payment batch's status and receipt (#77). */
@@ -539,6 +557,11 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/judging/rounds/[id]/conflicts",
   JUDGE_DASHBOARD,
   "/judge/rounds/[id]/onboarding",
+
+  ADMIN_ARTWORK,
+  "/admin/artwork/[artworkCode]",
+  INSTITUTION_ARTWORK,
+  MY_ARTWORK,
   ADMIN_VERIFICATION,
   "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
@@ -570,7 +593,11 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
   ADMIN_DONATIONS,
+  ADMIN_OFFLINE_DONATION,
+  ADMIN_RECURRING_DONATIONS,
   "/admin/donations/[id]",
+  DASHBOARD_DONATIONS,
+  "/dashboard/donations/recurring/[id]",
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",

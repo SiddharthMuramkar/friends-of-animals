@@ -1,3 +1,9 @@
+import type {
+  NewSubscription,
+  SubscriptionPlanInput,
+  SubscriptionCheckoutReturn,
+} from "./subscription-gateway";
+import { gatewayTestPlan, gatewayTestSubscription } from "../db/schema";
 // The non-production fallback adapter of the payment-gateway port (#77):
 // what local runs, CI's E2E job, previews and staging pay through while no
 // Razorpay test keys are set (HR-09). It plays the gateway: it makes
@@ -102,6 +108,125 @@ function parseWebhookBody(rawBody: string): FallbackWebhookBody | null {
 
 export class FallbackPaymentGateway implements PaymentGateway {
   readonly name = "fallback";
+
+  async createPlan(input: SubscriptionPlanInput) {
+    const planId = `plan_fallback_${uuidv7(this.#clock.now())}`;
+    await this.#db
+      .insert(gatewayTestPlan)
+      .values({ id: planId, amountMinor: input.amountMinor });
+    return { planId };
+  }
+  async createSubscription(input: NewSubscription) {
+    const [plan] = await this.#db
+      .select()
+      .from(gatewayTestPlan)
+      .where(eq(gatewayTestPlan.id, input.planId));
+    if (!plan) throw new Error("Unknown fallback plan");
+    const now = this.#clock.now();
+    const id = `sub_fallback_${uuidv7(now)}`;
+    await this.#db.transaction(async (tx) => {
+      await tx.insert(gatewayTestOrder).values({
+        id,
+        amountMinor: plan.amountMinor,
+        currency: "INR",
+        receipt: input.notes.recurringDonationId ?? id,
+        createdAt: now,
+      });
+      await tx
+        .insert(gatewayTestSubscription)
+        .values({ id, planId: plan.id, status: "created", notes: input.notes });
+    });
+    return this.fetchSubscription(id);
+  }
+  subscriptionCheckout({
+    subscriptionId,
+    description,
+  }: {
+    subscriptionId: string;
+    description: string;
+  }) {
+    return { keyId: "", subscriptionId, description };
+  }
+  verifySubscriptionCheckout(returned: SubscriptionCheckoutReturn) {
+    return sameSignature(
+      sign(`${returned.paymentId}|${returned.subscriptionId}`),
+      returned.signature
+    );
+  }
+  async fetchSubscription(id: string) {
+    const [row] = await this.#db
+      .select()
+      .from(gatewayTestSubscription)
+      .where(eq(gatewayTestSubscription.id, id));
+    if (!row) throw new Error("No fallback subscription");
+    return row;
+  }
+  async fetchSubscriptionCharges(
+    id: string,
+    options?: { except?: ReadonlySet<string> }
+  ) {
+    const rows = await this.#db
+      .select()
+      .from(gatewayTestPayment)
+      .where(eq(gatewayTestPayment.orderId, id));
+    return rows
+      .filter((row) => !options?.except?.has(row.id))
+      .map((row) => ({
+        paymentId: row.id,
+        invoiceId: null,
+        captured: row.status === "captured",
+        amountMinor: row.amountMinor,
+        currency: row.currency,
+        international: false,
+        createdAt: row.createdAt,
+      }));
+  }
+  async cancelSubscription(id: string, _options: { atCycleEnd: false }) {
+    const [row] = await this.#db
+      .update(gatewayTestSubscription)
+      .set({ status: "cancelled", endedAt: this.#clock.now(), chargeAt: null })
+      .where(
+        and(
+          eq(gatewayTestSubscription.id, id),
+          ne(gatewayTestSubscription.status, "cancelled")
+        )
+      )
+      .returning();
+    if (!row) throw new Error("Fallback subscription already ended");
+    return row;
+  }
+  async authoriseSubscription(id: string) {
+    return this.#db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(gatewayTestSubscription)
+        .where(eq(gatewayTestSubscription.id, id))
+        .for("update");
+      if (!row || row.status !== "created") return null;
+      const [order] = await tx
+        .select()
+        .from(gatewayTestOrder)
+        .where(eq(gatewayTestOrder.id, id));
+      if (!order) throw new Error("No fallback subscription order");
+      const now = this.#clock.now();
+      const next = new Date(now);
+      next.setUTCMonth(next.getUTCMonth() + 1);
+      const paymentId = `pay_fallback_${uuidv7(now)}`;
+      await tx.insert(gatewayTestPayment).values({
+        id: paymentId,
+        orderId: id,
+        status: "captured",
+        amountMinor: order.amountMinor,
+        currency: "INR",
+        createdAt: now,
+      });
+      await tx
+        .update(gatewayTestSubscription)
+        .set({ status: "active", currentStart: now, chargeAt: next })
+        .where(eq(gatewayTestSubscription.id, id));
+      return { paymentId, signature: sign(`${paymentId}|${id}`) };
+    });
+  }
   readonly #db: AppDb;
   readonly #clock: Clock;
 

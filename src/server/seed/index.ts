@@ -19,7 +19,9 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedRecurringDonations } from "./recurring-donations";
 import { seedDonations } from "./donations";
+import { seedOfflineDonations } from "./offline-donations";
 import { seedDirectory } from "./directory";
 import { seedAdoption } from "./adoption";
 import { seedAdoptionApplications } from "./adoption-applications";
@@ -47,6 +49,7 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
 import { seedSettings } from "./settings";
 import { seedVolunteers } from "./volunteers";
@@ -112,6 +115,8 @@ const seeders: readonly Seeder[] = [
   seedGuardians,
   // Before the ledger seed, whose reconcile posts its donations (#106).
   seedDonations,
+  seedOfflineDonations,
+  seedRecurringDonations,
   seedLedger,
   // After the ledger seed: its postings are in open months (#109).
   seedLedgerPeriods,
@@ -119,6 +124,7 @@ const seeders: readonly Seeder[] = [
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,
+  seedPhysicalArtwork,
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).
   seedVolunteers,

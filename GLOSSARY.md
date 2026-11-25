@@ -320,6 +320,13 @@ purpose is the donation, and has exactly one Receipt once captured. Adults
 only; foreign money is returned while FOA isn't registered under FCRA.
 _Avoid_: Contribution, gift record, payment
 
+**Recurring donation**:
+A signed-in adult's monthly mandate with the payment gateway. Each
+successful charge is a separate Donation with its own Receipt. The donor
+can request immediate cancellation; any captured charge after that
+request is returned and receives no Receipt.
+_Avoid_: Subscription gift, membership fee
+
 **Donor**:
 Who gave a Donation, as they gave it: a person, or a company or CSR partner
 with a contact person, which chooses whether its name may be shown in
@@ -685,6 +692,17 @@ The FOA-verified entries a round admits. A physical round additionally needs a p
 
 **Assignment**:
 One pooled entry allocated to one ready judge, provided their declared and live conflicts do not apply.
+
+## Physical artwork
+
+**Physical artwork**:
+The original work that FOA asks a verified Entry's sender to courier after digital verification. Each has one Artwork ID (for example `ORIG27-A-4P5X9R`), dispatch deadline, and a custody status independent of the Entry's digital status.
+
+**Sender**:
+The school coordinators for an institution registration or the participant or verified guardian for an individual registration. The sender records the courier name and tracking number; FOA records receipt.
+
+**Dispatch**:
+The sender's manual record that the parcel has been sent. FOA may receive a parcel even without recorded dispatch.
 
 ## Files
 

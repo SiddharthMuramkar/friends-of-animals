@@ -29,6 +29,7 @@ export type DonateField =
   | "donorType"
   | "name"
   | "email"
+  | "pan"
   | "organisationName"
   | "disclose"
   | "wallName"

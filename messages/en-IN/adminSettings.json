@@ -81,6 +81,10 @@
         }
       },
       "donations": {
+        "recurringEnabled": {
+          "label": "Monthly donations",
+          "description": "Accept recurring donations once the subscription gateway is configured and approved."
+        },
         "enabled": {
           "label": "Online donations",
           "description": "Lets people give on the donate page. Keep it off until Razorpay's live keys are set and the accountant has confirmed receipts and the chart of accounts; until then the page says donations open soon."
@@ -126,6 +130,10 @@
         "pan": {
           "label": "PAN",
           "description": "FOA's Permanent Account Number, 10 characters. It goes on donation receipts."
+        },
+        "foaFacilityAddress": {
+          "label": "Artwork receiving address",
+          "description": "The confirmed FOA facility address to which original artworks are couriered. Leave blank to refuse live requests."
         }
       },
       "safeguarding": {
@@ -292,6 +300,24 @@
         "privacyRequestsDays": {
           "label": "Keep closed privacy requests",
           "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
+        }
+      },
+      "artwork": {
+        "dispatchDays": {
+          "label": "Artwork dispatch window",
+          "description": "Calendar days from request to the dispatch deadline."
+        },
+        "dispatchReminderLeadHours": {
+          "label": "Dispatch reminder lead",
+          "description": "Hours before dispatch closes. Set 0 to turn off."
+        },
+        "packagingInstructions": {
+          "label": "Packaging instructions",
+          "description": "Instructions sent with each artwork request."
+        },
+        "shippingPayer": {
+          "label": "FOA pays shipping",
+          "description": "When off, the sender pays shipping."
         }
       }
     }

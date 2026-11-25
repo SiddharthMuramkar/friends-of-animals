@@ -1,3 +1,4 @@
+import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 // What each handler named in ./events.ts SUBSCRIBERS does with a delivery.
 // A handler may run more than once for one delivery (a worker that dies
 // after the handler's work but before settling runs it again once the
@@ -49,6 +50,7 @@ import {
   sendReceiptLink,
   sendRefundNotice,
   sendThankYou,
+  sendRecurringNotice,
 } from "../modules/donations/messages";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { sendEntryReceiptToFamily } from "../modules/entries/family-receipt";
@@ -162,6 +164,13 @@ export const HANDLERS: Handlers = {
     await postForeignDonation({ ...deps, actor: ledgerWorker }, payload);
   },
   "donations.send_thank_you": sendThankYou,
+  "recurring_donations.cancel": async (deps, { payload }) => {
+    await sendRecurringCancel(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload.id
+    );
+  },
+  "recurring_donations.send_notice": sendRecurringNotice,
   "donations.send_receipt_link": sendReceiptLink,
   "donations.send_refund_notice": sendRefundNotice,
   // Sends the messages the event's route rows name (#69).
@@ -250,6 +259,12 @@ export const HANDLERS: Handlers = {
         `Reminders for competition ${payload.competitionId} not scheduled: ${result.fields.join(", ")}`
       );
     }
+  },
+  "reminders.schedule_artwork": async (deps, { payload }) => {
+    await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "physical_artwork", subjectId: payload.artworkId }
+    );
   },
   // Reminds whoever owes the deadline now (#84). Safe to repeat: each
   // message is claimed under the reminder's id.

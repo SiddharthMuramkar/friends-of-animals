@@ -13,6 +13,7 @@ import {
   role,
   signedIn,
   signedOut,
+  stepUp,
   system,
   type Policy,
 } from "../../access/domain/policy";
@@ -37,9 +38,16 @@ export const DONATIONS_POLICY = {
   // Finance's list and detail. Names and emails of donors are personal
   // data: finance only, and super admin is no wildcard.
   "donation.read": role("finance"),
+  "donation.offline.record": stepUp(role("finance")),
   // Asking for a donation's money back. Finance decides it as any refund
   // (refunds.decide), and nobody decides their own request.
   "donation.refund.request": role("finance", "staff_admin", "super_admin"),
   // Expiring donations left unpaid: the worker's schedule, or the CLI.
   "donation.expire": system("worker", "cli"),
+  "recurring_donation.start": signedIn,
+  "recurring_donation.read_own": owner,
+  "recurring_donation.cancel": anyOf(owner, role("finance")),
+  "recurring_donation.list_mine": signedIn,
+  "recurring_donation.list": role("finance"),
+  "recurring_donation.expire": system("worker", "cli"),
 } satisfies Policy<string>;

@@ -18,6 +18,14 @@ describe("the settings seed", () => {
     expect(await rows()).toEqual(first);
     expect(first.map(({ key, value }) => ({ key, value }))).toEqual([
       { key: "adoption.minAdopterAgeYears", value: 18 },
+      { key: "artwork.dispatchDays", value: 14 },
+      { key: "artwork.dispatchReminderLeadHours", value: 72 },
+      {
+        key: "artwork.packagingInstructions",
+        value:
+          "Protect the original work with suitable packaging and mark it with the Artwork ID.",
+      },
+      { key: "artwork.shippingPayer", value: false },
       { key: "auth.emailSignIn", value: true },
       { key: "auth.staffSessionHours", value: 12 },
       { key: "breach.authorityEmail", value: "" },
@@ -26,6 +34,7 @@ describe("the settings seed", () => {
       { key: "donations.maxAmountRupees", value: 100_000 },
       { key: "donations.minAmountRupees", value: 100 },
       { key: "donations.pendingExpiryHours", value: 24 },
+      { key: "donations.recurringEnabled", value: true },
       { key: "entries.resubmissionDays", value: 7 },
       // The accountant's export waits for HR-47 only in production (#109).
       { key: "ledger.accountantExport", value: true },
@@ -33,6 +42,7 @@ describe("the settings seed", () => {
       { key: "ledger.manualEntryApprovalThresholdRupees", value: 50_000 },
 
       { key: "org.fcraEnabled", value: false },
+      { key: "org.foaFacilityAddress", value: "" },
       { key: "org.has80G", value: false },
       // FOA's tax facts stay empty: previews show "To be confirmed" (#111).
       { key: "org.legalName", value: "" },

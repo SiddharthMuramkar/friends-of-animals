@@ -35,6 +35,8 @@ import {
   givesAsOrganisation,
 } from "./domain/donor";
 import { DONOR_PURPOSE, donorEmailHash } from "./donors";
+import { readSetting } from "../settings/read";
+import { normalizePan } from "./domain/pan";
 import { isKnownMinor } from "./minor";
 
 export type StartDonationInput = {
@@ -43,6 +45,7 @@ export type StartDonationInput = {
   /** A person's name, or an organisation's contact person. */
   name: string;
   email: string;
+  pan?: string;
   organisationName?: string;
   /** Required for a company or CSR partner: may its name be shown? */
   discloseOrganisation?: boolean;
@@ -87,6 +90,7 @@ const startInput = z.strictObject({
   donorType: z.enum(DONOR_TYPES),
   name: text(100),
   email: z.string().trim().pipe(z.email().max(254)),
+  pan: z.string().max(100).optional(),
   organisationName: optionalText(120),
   discloseOrganisation: z.boolean().optional(),
   showOnWall: z.boolean(),
@@ -163,13 +167,18 @@ export async function startDonation(
   const email = normaliseEmailAddress(given.email);
   const payerUserId = actor.kind === "user" ? actor.userId : null;
 
-  await ctx.db.transaction(async (tx) => {
+  return ctx.db.transaction(async (tx): Promise<StartDonationResult> => {
+    const has80G = await readSetting(tx, "org.has80G");
+    const pan = has80G ? normalizePan(given.pan) : null;
+    if (has80G && !pan)
+      return { ok: false, error: "invalid_input", fields: ["pan"] };
     await tx.insert(donor).values({
       id: donorId,
       userId: payerUserId,
       type: given.donorType,
       name: ctx.cipher.encrypt(DONOR_PURPOSE.name, given.name),
       email: ctx.cipher.encrypt(DONOR_PURPOSE.email, email),
+      pan: pan ? ctx.cipher.encrypt(DONOR_PURPOSE.pan, pan) : null,
       emailHash: donorEmailHash(ctx.blindIndex, email),
       organisationName,
       discloseOrganisation,
@@ -224,6 +233,6 @@ export async function startDonation(
       },
       actorRole: role,
     });
+    return { ok: true, donationId, checkoutToken: checkout.token };
   });
-  return { ok: true, donationId, checkoutToken: checkout.token };
 }

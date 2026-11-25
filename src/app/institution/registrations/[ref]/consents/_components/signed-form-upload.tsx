@@ -75,7 +75,7 @@ export function SignedFormUpload({
           redirect: "error",
         });
         if (!response.ok) return setError("upload_failed");
-        const complete = await completeUploadAction({ fileId: upload.fileId });
+        const complete = await completeUploadAction(upload.fileId);
         if (!complete.ok)
           return setError(
             complete.error === "signed_out" ? "forbidden" : complete.error

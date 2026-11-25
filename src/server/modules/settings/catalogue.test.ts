@@ -34,6 +34,7 @@ describe("the settings catalogue", () => {
       // #106: donations off until HR-15 and HR-47; amounts and expiry
       // wait on HR-51.
       "donations.enabled": false,
+      "donations.recurringEnabled": false,
       "donations.allowGuest": true,
       "donations.minAmountRupees": 100,
       "donations.maxAmountRupees": 100_000,
@@ -56,6 +57,12 @@ describe("the settings catalogue", () => {
       "reminders.entrySubmissionDueSecondHours": 24,
       "reminders.schoolRoundShortlistDueFirstHours": 72,
       "reminders.schoolRoundShortlistDueSecondHours": 24,
+      "artwork.dispatchDays": 14,
+      "artwork.dispatchReminderLeadHours": 72,
+      "artwork.packagingInstructions":
+        "Protect the original work with suitable packaging and mark it with the Artwork ID.",
+      "artwork.shippingPayer": false,
+      "org.foaFacilityAddress": "",
       "entries.resubmissionDays": 7,
       "retention.enforce": false,
       "retention.expiredVerificationsDays": 1,
