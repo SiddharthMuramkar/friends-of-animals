@@ -228,6 +228,7 @@ export const SETTINGS = {
     unit: "clubs",
   }),
   "surveys.enabled": booleanSetting({ default: false }),
+  "invitations.enabled": booleanSetting({ default: false }),
   // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
   // and counsel sign M6 off (HR-55) and police checks are in place
   // (HR-38); local runs and previews are seeded open. The age rules are

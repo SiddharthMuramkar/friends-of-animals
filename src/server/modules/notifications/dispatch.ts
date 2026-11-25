@@ -595,8 +595,9 @@ async function deliverByPort(
     channel === "email" &&
     (message.delivery.eventType === "registration.competition_cancelled" ||
       message.delivery.eventType ===
-        "institution_registration.competition_cancelled");
-  // A pending cancellation email with an attempt already recorded may
+        "institution_registration.competition_cancelled" ||
+      message.delivery.eventType === "competition_invitation.due");
+  // A pending tracked email with an attempt already recorded may
   // have reached the provider. Only a definite rejection can be retried.
   const [claimed] = await deps.db
     .update(messageDelivery)
@@ -624,7 +625,7 @@ async function deliverByPort(
   const uncertain = () => ({
     deliveryId,
     error: new Error(
-      `Cancellation email for delivery ${deliveryId} needs reconciliation`
+      `${message.delivery.eventType === "competition_invitation.due" ? "Competition invitation" : "Cancellation"} email for delivery ${deliveryId} needs reconciliation`
     ),
   });
   if (!claimed) return tracked ? uncertain() : null;

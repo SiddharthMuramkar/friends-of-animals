@@ -52,6 +52,7 @@ describe("the settings seed", () => {
       { key: "entries.resubmissionDays", value: 7 },
       { key: "gallery.reportsPerIpPerHour", value: 10 },
       { key: "gallery.withdrawalPurgeMinutes", value: 15 },
+      { key: "invitations.enabled", value: true },
       // The accountant's export waits for HR-47 only in production (#109).
       { key: "ledger.accountantExport", value: true },
       { key: "ledger.approvalExpiryDays", value: 7 },

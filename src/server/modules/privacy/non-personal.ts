@@ -163,6 +163,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "closes_at",
     "closed_at",
   ],
+  competition_invitation: ["id"],
   survey_invitation: [
     "id",
     "created_at",

@@ -172,6 +172,7 @@ describe("resolveAllSettings", () => {
       ["clubs.enabled", false, "default"],
       ["clubs.maxPerInstitution", 1, "default"],
       ["surveys.enabled", false, "default"],
+      ["invitations.enabled", false, "default"],
       ["volunteers.applicationsOpen", false, "default"],
       ["volunteers.minAgeYears", 14, "default"],
       ["volunteers.guardianApprovalBelowAgeYears", 18, "default"],

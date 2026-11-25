@@ -1,0 +1,24 @@
+{
+  "competitionInvitations": {
+    "eyebrow": "Your next steps",
+    "title": "Competition invitations",
+    "lead": "Your competition was only the beginning. Choose how you would like to stay involved. These are invitations to explore; each activity has its own sign-up and eligibility rules.",
+    "loading": "Loading your invitations…",
+    "empty": "There are no invitations available for your account right now.",
+    "unavailable": "This invitation or opportunity is no longer available.",
+    "invitedFor": "{participant} — {competition}",
+    "guardian": "You received this invitation as the participant's verified guardian. A teen with their own login must join the community or apply to volunteer or start a club themselves. Your choices do not enrol them.",
+    "accepted": "Interest recorded",
+    "choose": "Explore: {action}",
+    "continue": "Continue: {action}",
+    "opening": "Opening…",
+    "back": "Back to dashboard",
+    "actions": {
+      "join_community": "Join the FOA community",
+      "volunteer": "Volunteer with FOA",
+      "start_club": "Start a club",
+      "join_campaigns": "Join campaigns",
+      "attend_events": "Attend events"
+    }
+  }
+}
