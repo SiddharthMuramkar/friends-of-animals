@@ -66,10 +66,12 @@ export const seedLedgerPeriods: Seeder = async (deps) => {
 
   await db.transaction(async (tx) => {
     // Seeded once: a database with requests already keeps them as they are.
+    // The pending lock is the marker because it is always written; the
+    // approved lock is skipped when the month can't be locked.
     const [seeded] = await tx
       .select({ id: financeApproval.id })
       .from(financeApproval)
-      .where(eq(financeApproval.id, IDS.lockRequest));
+      .where(eq(financeApproval.id, IDS.pendingLock));
     if (seeded) return;
 
     const yearEnd = parseIstDate(`${SEED_LOCKED_MONTH}-31`);

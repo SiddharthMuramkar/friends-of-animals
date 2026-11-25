@@ -1694,7 +1694,7 @@ PGlite is Postgres compiled to WebAssembly, running inside the test process. `vi
 pnpm test                                                   # everything, once
 pnpm test src/server/modules/payments/pay-again.test.ts     # one file
 pnpm test -t "<part of a test name>"                        # matching tests
-pnpm exec vitest run --shard=3/8                            # one CI shard
+pnpm exec vitest run --shard=3/10                           # one CI shard
 ```
 
 ### Seam 1: use-case tests through the harness
@@ -1823,7 +1823,7 @@ The CI job "Test integrity" fails if any test file (`tests/`, `src/test/`, `*.te
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Choose the jobs to run (`scope`) | `full` is true for non-PR runs, PR branches starting `revert/`, and PRs labelled `full-ci`                                                     |
 | Lint, Typecheck, Format check    | `pnpm lint`, `pnpm typecheck`, `pnpm format:check`                                                                                             |
-| Vitest (shard n/8)               | 8 parallel jobs                                                                                                                                |
+| Vitest (shard n/10)              | 10 parallel jobs                                                                                                                               |
 | Test integrity                   | The rules above                                                                                                                                |
 | Build without a database         | `pnpm build && pnpm check:build` with empty database URLs: pages must prerender without a database; bundle-size, browser-syntax and CSP checks |
 | Migrations                       | [What CI checks on migrations](#what-ci-checks-on-migrations)                                                                                  |
