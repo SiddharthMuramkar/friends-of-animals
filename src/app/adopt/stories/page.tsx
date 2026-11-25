@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { ButtonLink } from "@/components/site/button-link";
@@ -15,6 +16,8 @@ import { publishedStories } from "../_lib/public-reads";
 // consent: the animal, the organisation that listed it and the adopter's
 // words, never their name. A static shell with the stories streamed in
 // from a cached read that publishing or withdrawing a story refreshes.
+// The stories wait for a request (`connection()`): `next build` has no
+// database, so the read must never run while prerendering.
 
 const HUE = "green";
 
@@ -53,6 +56,7 @@ const CARD =
   "flex flex-col gap-3 rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6";
 
 async function Stories() {
+  await connection();
   const [t, species, format, stories] = await Promise.all([
     getTranslations("adoptionApplications.stories"),
     getTranslations("adoption.species"),
