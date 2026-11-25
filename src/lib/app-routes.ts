@@ -239,6 +239,13 @@ export function adminAdoptionApplicationPath(applicationId: string): string {
   return `${ADMIN_ADOPTIONS}/${encodeURIComponent(applicationId)}`;
 }
 
+/**
+ * Adopters' success stories (#130), public. Kept out of src/lib/routes.ts:
+ * its ROUTES ship to every page's browser code, and /awareness sits at the
+ * JS budget. The sitemap lists it by hand.
+ */
+export const ADOPTION_STORIES_PATH = "/adopt/stories";
+
 /** An adoptable animal's public page. */
 export function adoptableAnimalPath(slug: string): string {
   return `/adopt/${encodeURIComponent(slug)}`;

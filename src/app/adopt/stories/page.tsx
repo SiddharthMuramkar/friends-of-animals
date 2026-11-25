@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
+import { ADOPTION_STORIES_PATH } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 
@@ -15,14 +16,14 @@ import { publishedStories } from "../_lib/public-reads";
 // words, never their name. A static shell with the stories streamed in
 // from a cached read that publishing or withdrawing a story refreshes.
 
-const HUE = ROUTES.adoptionStories.hue;
+const HUE = "green";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("adoptionApplications.stories.meta");
   return pageMetadata({
     title: t("title"),
     description: t("description"),
-    path: ROUTES.adoptionStories.path,
+    path: ADOPTION_STORIES_PATH,
   });
 }
 

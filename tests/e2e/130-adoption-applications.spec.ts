@@ -33,9 +33,10 @@ const DISCLAIMER =
   "Friends of Animals facilitates adoption. The organisation that lists an animal is responsible for it";
 
 async function checkPage(page: Page, label: string) {
-  await expect(page.getByTestId("adoption-disclaimer")).toContainText(
-    DISCLAIMER
-  );
+  // A page left by a client-side navigation stays in the DOM, hidden.
+  await expect(
+    page.getByTestId("adoption-disclaimer").filter({ visible: true })
+  ).toContainText(DISCLAIMER);
   await expectAccessible(page, label);
   await expectAccessibleInDark(page, label);
 }
@@ -219,7 +220,7 @@ test("the coordinator puts an applicant in touch, and the organisation then sees
   );
 });
 
-test("an adoption closes the listing, and the adopter's story is published with their consent", async ({
+test("recording the adoption closes the animal's listing", async ({
   page,
   request,
   browser,
@@ -227,20 +228,23 @@ test("an adoption closes the listing, and the adopter's story is published with 
   seedAdoptionWorld,
 }, testInfo) => {
   const world = await seedAdoptionWorld({ published: true });
-  const name = `E2E Adopter Story ${testInfo.project.name}`;
+  const name = `E2E Adopter Closes ${testInfo.project.name}`;
   const mine = await applicant(page, request, seedAccount, world.draft, name);
 
   const staff = await coordinator(browser, testInfo, request, seedAccount);
   await staff
     .getByRole("link", { name: `${name} for ${world.draft.name}` })
     .click();
-  const detail = staff.url();
   await staff.getByRole("button", { name: "Start the review" }).click();
+  await expect(staff.getByText("Review started.")).toBeVisible();
   await staff
     .getByRole("button", {
       name: `Share the contact with ${world.listingName}`,
     })
     .click();
+  await expect(
+    staff.getByText("Contact shared with the organisation.")
+  ).toBeVisible();
   await staff.getByRole("button", { name: "Record the adoption" }).click();
   await expect(
     staff.getByText(
@@ -249,14 +253,33 @@ test("an adoption closes the listing, and the adopter's story is published with 
   ).toBeVisible();
 
   // The animal's page now says it was adopted, and takes no applications.
-  const visitor = await newDevice(browser, testInfo);
-  await visitor.goto(`/adopt/${world.draft.slug}`);
+  await page.goto(`/adopt/${world.draft.slug}`);
   await expect(
-    visitor.getByRole("link", { name: `Apply to adopt ${world.draft.name}` })
+    page.getByText("Adopted: this animal has found a home.")
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: `Apply to adopt ${world.draft.name}` })
   ).toHaveCount(0);
+  await page.goto(mine);
+  await expect(
+    page.getByText(`Congratulations on adopting ${world.draft.name}.`)
+  ).toBeVisible();
+});
+
+test("the adopter shares a success story, which the coordinator publishes on the stories page", async ({
+  page,
+  request,
+  browser,
+  seedAccount,
+  seedAdoptionWorld,
+}, testInfo) => {
+  const name = `E2E Adopter Story ${testInfo.project.name}`;
+  const email = await seedAccount({ name, grants: [] });
+  const world = await seedAdoptionWorld({ adoptedBy: email });
+  await signInByCode(page, request, email);
 
   const story = `${world.draft.name} sleeps on the sofa now and greets everyone at the door.`;
-  await page.goto(mine);
+  await page.goto(`/dashboard/adoptions/${world.applicationId}`);
   await page.getByLabel("Your story").fill(story);
   await page
     .getByRole("checkbox", {
@@ -270,10 +293,12 @@ test("an adoption closes the listing, and the adopter's story is published with 
     )
   ).toBeVisible();
 
-  await staff.goto(detail);
+  const staff = await coordinator(browser, testInfo, request, seedAccount);
+  await staff.goto(`/admin/adoptions/${world.applicationId}`);
   await staff.getByRole("button", { name: "Publish the story" }).click();
   await expect(staff.getByText("Story published.")).toBeVisible();
 
+  const visitor = await newDevice(browser, testInfo);
   await visitor.goto("/adopt/stories");
   await expect(visitor.getByText(story)).toBeVisible();
   await expect(visitor.getByText(name)).toHaveCount(0);

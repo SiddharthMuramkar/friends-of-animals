@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -7,6 +7,7 @@ import { fieldCryptoFor } from "../../../src/server/crypto/keys";
 import { directTls } from "../../../src/server/db/database-url";
 import * as schema from "../../../src/server/db/schema";
 import { uuidv7 } from "../../../src/server/ids";
+import { APPLICATION_PURPOSE } from "../../../src/server/modules/adoption/applications/record";
 import { detailsColumns } from "../../../src/server/modules/adoption/stored";
 import { sealListingDetails } from "../../../src/server/modules/directory/stored-listing";
 import { systemClock } from "../../../src/server/ports/clock";
@@ -20,14 +21,20 @@ export type AdoptionWorld = {
   ownerEmail: string;
   /** A draft animal with one photo whose copies are made (rows only). */
   draft: { id: string; slug: string; name: string };
+  /** With `adoptedBy`: the adopter's adopted application (#130). */
+  applicationId: string | null;
 };
 
 /**
  * `{ published: true }` (#130) publishes the animal instead of leaving it a
- * draft, so a journey can apply for it straight away.
+ * draft, so a journey can apply for it straight away. `{ adoptedBy: email }`
+ * records that account's adoption of it instead: an adopted application on
+ * the seeded contact-sharing consent, and the animal adopted, as the
+ * coordinator's moves would leave them.
  */
 export type SeedAdoptionWorld = (options?: {
   published?: boolean;
+  adoptedBy?: string;
 }) => Promise<AdoptionWorld>;
 
 /**
@@ -55,7 +62,7 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
     const listingIds: string[] = [];
 
     try {
-      await use(async ({ published = false } = {}) => {
+      await use(async ({ published = false, adoptedBy } = {}) => {
         const now = systemClock.now();
         const listingId = uuidv7(now);
         const tag = listingId.slice(-12);
@@ -70,6 +77,7 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
           ],
         });
         const draftId = uuidv7(now);
+        let applicationId: string | null = null;
         const fileId = uuidv7(now);
         const draft = {
           id: draftId,
@@ -135,8 +143,9 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
                 },
                 now
               ),
-              status: published ? "published" : "draft",
-              publishedAt: published ? now : null,
+              status: adoptedBy ? "adopted" : published ? "published" : "draft",
+              publishedAt: published || adoptedBy ? now : null,
+              closedAt: adoptedBy ? now : null,
               createdByUserId: owner.id,
               createdAt: now,
               updatedAt: now,
@@ -187,6 +196,70 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
               altText: `${draft.name} lying in the sun`,
               createdAt: now,
             });
+            if (adoptedBy) {
+              const [adopter] = await tx
+                .select({ id: schema.user.id })
+                .from(schema.user)
+                .where(eq(schema.user.email, adoptedBy));
+              const [document] = await tx
+                .select({ id: schema.consentDocument.id })
+                .from(schema.consentDocument)
+                .where(
+                  eq(schema.consentDocument.purpose, "adoption_contact_sharing")
+                )
+                .orderBy(desc(schema.consentDocument.version))
+                .limit(1);
+              if (!adopter || !document)
+                throw new Error("Nothing to adopt with.");
+              const consentId = uuidv7(now);
+              await tx.insert(schema.consentEvent).values({
+                id: consentId,
+                subjectType: "user",
+                subjectId: adopter.id,
+                giverUserId: adopter.id,
+                purpose: "adoption_contact_sharing",
+                documentId: document.id,
+                action: "given",
+                method: "web_form",
+                occurredAt: now,
+              });
+              applicationId = uuidv7(now);
+              const seal = (purpose: string, value: string) =>
+                cipher.encrypt(purpose, value);
+              await tx.insert(schema.adoptionApplication).values({
+                id: applicationId,
+                adoptionListingId: draftId,
+                applicantUserId: adopter.id,
+                dateOfBirthCiphertext: seal(
+                  APPLICATION_PURPOSE.dob,
+                  "1990-01-15"
+                ),
+                phoneCiphertext: seal(
+                  APPLICATION_PURPOSE.phone,
+                  "+919876543210"
+                ),
+                addressCiphertext: seal(
+                  APPLICATION_PURPOSE.address,
+                  "Flat 4, Sunrise Apartments, Aundh, Pune 411007"
+                ),
+                answersCiphertext: seal(
+                  APPLICATION_PURPOSE.answers,
+                  JSON.stringify({
+                    homeType: "flat",
+                    hasOutdoorSpace: false,
+                    otherAnimals: "",
+                    experience: "",
+                    whyThisAnimal: "A calm dog suits our flat.",
+                  })
+                ),
+                contactSharingConsentId: consentId,
+                status: "adopted",
+                contactSharedAt: now,
+                closedAt: now,
+                createdAt: now,
+                updatedAt: now,
+              });
+            }
           });
         } catch {
           // Drizzle errors can include bound values from the insert.
@@ -194,7 +267,7 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
             "Could not seed an adoption world on the local database."
           );
         }
-        return { listingId, listingName, ownerEmail, draft };
+        return { listingId, listingName, ownerEmail, draft, applicationId };
       });
     } finally {
       try {

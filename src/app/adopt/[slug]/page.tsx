@@ -10,6 +10,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADOPTION_STORIES_PATH,
   adoptableAnimalPath,
   applyToAdoptPath,
   publicListingPath,
@@ -185,7 +186,7 @@ async function AnimalView({ animal }: { animal: AdoptableAnimal }) {
             <ButtonLink href={applyToAdoptPath(animal.slug)}>
               {t("applyLink", { name: animal.name })}
             </ButtonLink>
-            <ButtonLink href={ROUTES.adoptionStories.path} variant="secondary">
+            <ButtonLink href={ADOPTION_STORIES_PATH} variant="secondary">
               {t("storiesLink")}
             </ButtonLink>
           </p>
