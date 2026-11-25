@@ -126,7 +126,7 @@ describe("finalising a shortlist-only round", () => {
   it("keeps an entry whose upload failed shortlisted until the coordinator uploads again", async () => {
     const h = await createHarness();
     const school = await shortlistOnlySchool(h, { students: 1 });
-    h.media.failNext(5, "media_decode_failed");
+    h.media.failNext(1, "media_decode_failed");
     const failed = await createdEntry(h, school, 1);
     await h.drain();
     expect(
@@ -151,7 +151,9 @@ describe("finalising a shortlist-only round", () => {
     expect(await statusOf(h, failed.entryId)).toMatchObject({
       status: "submitted_to_foa",
     });
-    const view = await h.as(school.coordinator.actor).getSchoolRound(school.ref);
+    const view = await h
+      .as(school.coordinator.actor)
+      .getSchoolRound(school.ref);
     if (!view.ok) throw new Error(view.error);
     expect(view.round.students[0]?.entry).toMatchObject({
       status: "submitted_to_foa",
@@ -185,6 +187,23 @@ describe("finalising a shortlist-only round", () => {
     expect(notShortlisted.text).toContain("Test School");
     expect(notShortlisted.text).not.toMatch(/PAWS27-E-/);
     expect(await sinceNow(h, () => h.drain())).toEqual([]);
+    expect(
+      await h
+        .as(school.coordinator.actor)
+        .listSchoolRoundOutcomes({ registrationId: school.registrationIds[1]! })
+    ).toMatchObject({
+      ok: true,
+      roundStatus: "finalised",
+      outcomes: [
+        {
+          registrationId: school.registrationIds[1],
+          entryId: null,
+          entryCode: null,
+          outcome: "not_shortlisted",
+          position: null,
+        },
+      ],
+    });
     const [round] = await h.db.select().from(schoolRound);
     expect(round?.familiesNotifiedAt).not.toBeNull();
   });
@@ -193,7 +212,9 @@ describe("finalising a shortlist-only round", () => {
     const h = await createHarness();
     const school = await shortlistOnlySchool(h);
     const { entryId } = await createdEntry(h, school, 1);
-    const view = await h.as(school.coordinator.actor).getSchoolRound(school.ref);
+    const view = await h
+      .as(school.coordinator.actor)
+      .getSchoolRound(school.ref);
     if (!view.ok) throw new Error(view.error);
 
     expect(

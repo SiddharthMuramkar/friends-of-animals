@@ -356,6 +356,12 @@ export type DomainEvent =
       payload: { entryId: string; registrationId: string; roundId: string };
     }
   | {
+      /** A confirmed student was not shortlisted, and had no entry (#91). */
+      type: "registration.not_shortlisted";
+      aggregate: { type: "registration"; id: string };
+      payload: { registrationId: string; roundId: string };
+    }
+  | {
       /** An institution registered for a competition (#75). */
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
@@ -741,6 +747,10 @@ export const EVENT_PAYLOADS = {
   }),
   "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
+  "registration.not_shortlisted": z.object({
+    registrationId: z.uuid(),
+    roundId: z.uuid(),
+  }),
   "payment.batch_captured": z.object({
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
@@ -927,6 +937,7 @@ export const SUBSCRIBERS = {
   // round's own handler, by its `family_contact` route (#89).
   "entry.school_shortlisted": ["school_round.send_family_outcome"],
   "entry.not_shortlisted": ["school_round.send_family_outcome"],
+  "registration.not_shortlisted": ["school_round.send_family_outcome"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],

@@ -32,8 +32,11 @@ import {
 import { emitBatch } from "../../outbox/emit";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
 import type { Clock } from "../../ports/clock";
-import { familyContactEmail } from "../registration/confirmation-message";
-import { loadPicks, loadRoundEntries } from "./store";
+import {
+  confirmationValues,
+  familyContactEmail,
+} from "../registration/confirmation-message";
+import { loadPicks, loadRoundEntries, loadRoundStudents } from "./store";
 
 /** The variables the two outcome templates may use, beyond the recipient's. */
 export const SCHOOL_ROUND_OUTCOME_VARIABLES = [
@@ -73,6 +76,27 @@ export async function queueFamilyOutcomes(
         payload: { entryId, registrationId, roundId },
       }))
     );
+    const [scope] = await tx
+      .select({ digitalScope: competition.digitalScope })
+      .from(competition)
+      .where(eq(competition.id, round.competitionId));
+    if (scope?.digitalScope === "shortlist_only") {
+      const students = await loadRoundStudents(
+        tx,
+        round.institutionRegistrationId
+      );
+      await emitBatch(
+        tx,
+        deps.clock,
+        students
+          .filter((student) => !student.entry)
+          .map(({ registrationId }) => ({
+            type: "registration.not_shortlisted" as const,
+            aggregate: { type: "registration" as const, id: registrationId },
+            payload: { registrationId, roundId },
+          }))
+      );
+    }
     await tx
       .update(schoolRound)
       .set({ familiesNotifiedAt: deps.clock.now() })
@@ -138,7 +162,11 @@ export async function outcomeValues(
 /** Emails one entry's family its school round outcome. */
 export async function sendFamilyOutcome(
   deps: OutboxDeps,
-  delivery: Delivery<"entry.school_shortlisted" | "entry.not_shortlisted">
+  delivery: Delivery<
+    | "entry.school_shortlisted"
+    | "entry.not_shortlisted"
+    | "registration.not_shortlisted"
+  >
 ): Promise<void> {
   const { registrationId } = delivery.payload;
   const message = await familyContactEmail(deps, {
@@ -146,7 +174,10 @@ export async function sendFamilyOutcome(
     registrationId,
     // A refund (#80) or a cancellation since: nothing to send.
     sendWhile: (status) => status === "confirmed",
-    values: () => outcomeValues(deps.db, delivery.payload),
+    values: () =>
+      "entryId" in delivery.payload
+        ? outcomeValues(deps.db, delivery.payload)
+        : confirmationValues(deps.db, registrationId),
   });
   if (message) await deps.email.send(message, { deliveryId: delivery.id });
 }

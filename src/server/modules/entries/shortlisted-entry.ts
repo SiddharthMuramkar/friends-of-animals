@@ -10,12 +10,10 @@
 //
 // Loads under plain Node: relative imports only.
 
-import { eq } from "drizzle-orm";
-
 import type { Role } from "../../access/domain/roles";
 import type { Actor } from "../../actor";
 import type { AppDb } from "../../db/app-db";
-import { entry, entryFile, type FileAssetRow } from "../../db/schema";
+import { entryFile, type FileAssetRow } from "../../db/schema";
 import type { Clock } from "../../ports/clock";
 import type { Discipline } from "../competitions/domain/vocabulary";
 import { acceptPendingUpload } from "../files/use-cases/upload";
@@ -63,10 +61,6 @@ export async function recordShortlistedUpload(
         .map((file) => file.id),
       upload.actorRole
     );
-    await tx
-      .update(entry)
-      .set({ ...upload.text, updatedAt: now })
-      .where(eq(entry.id, row.id));
   } else {
     row = await createEntry(tx, now, {
       facts: upload.facts,
@@ -85,6 +79,7 @@ export async function recordShortlistedUpload(
     kind: upload.kind,
     fileAssetId: upload.file.id,
     status: "pending",
+    pendingText: current ? upload.text : null,
     uploadedByUserId: upload.userId,
     uploadCompletedAt: now,
     createdAt: now,

@@ -165,7 +165,7 @@ export const schoolRoundDeclaration = pgTable(
   {
     entryId: uuid("entry_id")
       .primaryKey()
-      .references(() => entry.id),
+      .references(() => entry.id, { onDelete: "cascade" }),
     roundId: uuid("round_id")
       .notNull()
       .references(() => schoolRound.id, { onDelete: "cascade" }),

@@ -186,10 +186,13 @@ export type RoundStudent = {
   registrationNumber: string | null;
   name: string;
   ageGroupLabel: string | null;
+  disciplines: Discipline[];
   entry: {
     entryId: string;
     code: string;
     title: string;
+    description: string;
+    statement: string | null;
     discipline: Discipline;
     status: EntryStatus;
     /** The latest upload's state; null if it has none. */
@@ -221,9 +224,13 @@ export async function loadRoundStudents(
       registrationNumber: registration.registrationNumber,
       name: participantProfile.fullName,
       ageGroupLabel: competitionAgeGroup.label,
+      ageGroupId: registration.ageGroupId,
+      competitionId: registration.competitionId,
       entryId: entry.id,
       code: entry.code,
       title: entry.title,
+      description: entry.description,
+      statement: entry.statement,
       discipline: entry.discipline,
       status: entry.status,
       position: schoolRoundPick.position,
@@ -247,7 +254,9 @@ export async function loadRoundStudents(
       )
     )
     .orderBy(asc(participantProfile.fullName), asc(registration.id));
-  const entryIds = students.flatMap((row) => (row.entryId ? [row.entryId] : []));
+  const entryIds = students.flatMap((row) =>
+    row.entryId ? [row.entryId] : []
+  );
   const files =
     entryIds.length === 0
       ? []
@@ -256,6 +265,15 @@ export async function loadRoundStudents(
           .from(entryFile)
           .where(inArray(entryFile.entryId, entryIds))
           .orderBy(asc(entryFile.attemptNumber));
+  const categories = students[0]
+    ? await db
+        .select({
+          ageGroupId: competitionCategory.ageGroupId,
+          discipline: competitionCategory.discipline,
+        })
+        .from(competitionCategory)
+        .where(eq(competitionCategory.competitionId, students[0].competitionId))
+    : [];
   return students.map((row) => {
     const own = files.filter((file) => file.entryId === row.entryId);
     const latest = own.at(-1);
@@ -264,12 +282,17 @@ export async function loadRoundStudents(
       registrationNumber: row.registrationNumber,
       name: row.name,
       ageGroupLabel: row.ageGroupLabel,
+      disciplines: categories
+        .filter((category) => category.ageGroupId === row.ageGroupId)
+        .map((category) => category.discipline),
       entry:
         row.entryId && row.code && row.title && row.discipline && row.status
           ? {
               entryId: row.entryId,
               code: row.code,
               title: row.title,
+              description: row.description ?? "",
+              statement: row.statement,
               discipline: row.discipline,
               status: row.status,
               upload: latest ? UPLOAD_STATE[latest.status] : null,

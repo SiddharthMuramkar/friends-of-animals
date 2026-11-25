@@ -75,12 +75,16 @@
       "submitting": "Finalising…",
       "finalised": "Finalised by {name} on {date}.",
       "finalisedByFormer": "Finalised on {date} by a coordinator who no longer has an account.",
-      "shortlistOnly": "This competition takes digital work only from your shortlist. Finalising for it comes in a later update."
+      "shortlistOnly": "This competition takes digital work only from your shortlist. Finalising for it comes in a later update.",
+      "shortlistOnlyLead": "Finalising makes your shortlist official. Entries go to FOA as soon as their uploads pass checks; every family is told the outcome. After this you can’t add students or change the panel or positions.",
+      "shortlistOnlyPicks": "Every shortlisted entry belongs to the round",
+      "shortlistOnlySummary": "{shortlisted, plural, =0 {No student has been shortlisted} one {# student is shortlisted} other {# students are shortlisted}}. {others, plural, =0 {No other family} one {# other family} other {# other families}} will be told their student was not shortlisted."
     },
     "result": {
       "title": "Your shortlist",
       "none": "No entry was shortlisted.",
-      "notShortlisted": "Not shortlisted: {count, plural, one {# entry} other {# entries}}."
+      "notShortlisted": "Not shortlisted: {count, plural, one {# entry} other {# entries}}.",
+      "notShortlistedStudents": "Not shortlisted: {count, plural, one {# student} other {# students}}."
     },
     "outcome": {
       "panel_saved": "The panel is saved.",
@@ -92,7 +96,7 @@
       "shortlist_invalid": "The shortlist wasn’t saved. Fix the problems below and save again.",
       "unknown_category": "That category has no entries in your round.",
       "finalise_blocked": "The round wasn’t finalised. Finish the steps in the checklist and tick the statement.",
-      "shortlist_only": "This competition can’t be finalised here yet.",
+      "shortlist_only": "Create each shortlisted entry from the student list instead.",
       "round_not_editable": "This round can’t be changed any more.",
       "not_open": "The school round isn’t open.",
       "not_found": "We couldn’t find that registration.",
@@ -116,6 +120,71 @@
       "title": "We couldn’t find that registration",
       "body": "It may belong to another institution, or the link may be wrong."
     },
-    "back": "Back to entries"
+    "back": "Back to entries",
+    "shortlistOnly": {
+      "title": "Create shortlisted entries",
+      "lead": "Judge the physical work at school. Upload a clear, high-resolution photo or scan (or the discipline’s digital file) only for students selected for FOA judging. Keep the physical work with the school or student.",
+      "noEntry": "No shortlisted entry yet.",
+      "notShortlisted": "Not shortlisted.",
+      "createFor": "Create shortlisted entry for {name}",
+      "replaceFor": "Upload work again for {name}",
+      "create": "Create shortlisted entry",
+      "replace": "Upload replacement",
+      "discipline": "Discipline",
+      "choose": "Choose a discipline",
+      "titleField": "Title (required)",
+      "description": "Short description (required)",
+      "statement": "Artist’s statement (optional)",
+      "position": "School position (optional)",
+      "noPosition": "No position",
+      "placed": "School position: {position}",
+      "file": "Choose digital work (required)",
+      "photoHint": "Use a high-resolution photo or scan showing the full work clearly.",
+      "limit": "Accepted: {types}. Up to {size} MB.",
+      "declarations": "Required declarations",
+      "declaration": {
+        "original_work": "This is the student’s own work, made for this competition.",
+        "faithful_reproduction": "The upload faithfully shows the work as judged at school.",
+        "participation_covered": "Our institution’s participation declaration covers this student taking part and being judged.",
+        "physical_work_kept": "The physical work stays with the school or student until FOA requests it."
+      },
+      "busy": "Uploading…",
+      "problem": "The entry wasn’t saved",
+      "upload": {
+        "checking": "The upload is being checked. It will go to FOA once the round is finalised and checks pass.",
+        "live": "The upload passed its checks.",
+        "rejected": "The upload was rejected. Please upload safe work again.",
+        "failed": "The upload couldn’t be processed. Please upload it again."
+      },
+      "errors": {
+        "not_found": "This institution registration wasn’t found.",
+        "not_shortlist_only": "This competition takes submissions from all participants.",
+        "not_open": "The school round is not open yet.",
+        "round_not_editable": "The school round is no longer editable.",
+        "student_not_found": "This student doesn’t belong to the registration.",
+        "registration_not_confirmed": "The student’s registration must be confirmed.",
+        "entry_locked": "This entry has already moved on from the school round.",
+        "discipline_not_offered": "Choose a discipline offered to this student.",
+        "discipline_required": "Choose the discipline.",
+        "empty": "Choose a non-empty file.",
+        "wrong_type": "Choose a file in one of the accepted formats.",
+        "too_large": "Choose a smaller file.",
+        "too_long": "Choose a shorter video.",
+        "upload_limit": "You have reached the pending upload limit. Try again shortly.",
+        "shortlist_invalid": "Check the category’s shortlist and positions.",
+        "shortlist_full": "This category has reached its shortlist limit.",
+        "position_out_of_range": "Choose a school position within the allowed range.",
+        "position_taken": "This position is already held by another entry in the category.",
+        "declarations_invalid": "Confirm all required declarations.",
+        "file_not_found": "The upload expired or was not found. Try again.",
+        "upload_missing": "The file didn’t reach storage. Try again.",
+        "upload_rejected": "The file did not match its declaration. Try a different file.",
+        "invalid_input": "Check the entry details and declarations.",
+        "signed_out": "Sign in before uploading.",
+        "forbidden": "You no longer act for this institution.",
+        "storage_unavailable": "File storage is unavailable. Try again later.",
+        "unknown": "Something went wrong. Try again."
+      }
+    }
   }
 }

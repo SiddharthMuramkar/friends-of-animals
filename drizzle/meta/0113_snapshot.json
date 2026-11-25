@@ -1,5 +1,5 @@
 {
-  "id": "f54eb298-d6d3-4019-a886-ad8227ad65b5",
+  "id": "67a111d2-61c5-45f7-b6fc-9fc236e34c17",
   "prevId": "0c3b8ea2-f2db-4a33-ae20-c24d49b618fc",
   "version": "7",
   "dialect": "postgresql",
@@ -16145,7 +16145,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
         "school_round_declaration_round_id_school_round_id_fk": {

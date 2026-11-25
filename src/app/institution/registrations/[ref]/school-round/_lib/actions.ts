@@ -6,7 +6,14 @@ import { schoolRoundPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
-import { PANEL_MAX_MEMBERS } from "@/server/modules/school-round";
+import {
+  PANEL_MAX_MEMBERS,
+  startShortlistedEntryInput,
+  completeShortlistedEntryInput,
+  type StartShortlistedEntryInput,
+  type CompleteShortlistedEntryInput,
+} from "@/server/modules/school-round";
+import { forParticipant } from "@/app/participant/entries/_lib/upload-action";
 
 import {
   encodeProblems,
@@ -126,4 +133,28 @@ export async function finaliseSchoolRoundAction(formData: FormData) {
     outcome = failed("finaliseSchoolRound", error);
   }
   back(formData, outcome);
+}
+
+export async function startShortlistedEntryAction(
+  input: StartShortlistedEntryInput
+) {
+  return forParticipant(
+    currentActor,
+    as,
+    startShortlistedEntryInput,
+    input,
+    (app, data) => app.startShortlistedEntry(data)
+  );
+}
+
+export async function completeShortlistedEntryAction(
+  input: CompleteShortlistedEntryInput
+) {
+  return forParticipant(
+    currentActor,
+    as,
+    completeShortlistedEntryInput,
+    input,
+    (app, data) => app.completeShortlistedEntry(data)
+  );
 }

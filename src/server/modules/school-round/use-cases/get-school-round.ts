@@ -190,19 +190,18 @@ export async function roundView(
     await limitsOf(db, round.competitionId),
   ];
   const shortlistOnly = scope.competition.digitalScope === "shortlist_only";
-  // Under shortlist only every entry is a pick the coordinator created, so
-  // only the panel, conduct and attestation can stand in the way.
+  // Shortlist-only entries are already school-shortlisted, even while their
+  // uploads are checking; they can be finalised without waiting for the file.
   const plan = planFinalisation({
     panelSize: panel.length,
     conductCertified,
     judgingAttested: true,
-    entries: shortlistOnly
-      ? []
-      : entries.map((each) => ({
-          entryId: each.entryId,
-          submitted: each.status === "submitted",
-        })),
-    picks: shortlistOnly ? [] : picks,
+    entries: entries.map((each) => ({
+      entryId: each.entryId,
+      submitted:
+        each.status === (shortlistOnly ? "school_shortlisted" : "submitted"),
+    })),
+    picks,
   });
   let finalisedByName: string | null = null;
   if (round.finalisedByUserId) {
