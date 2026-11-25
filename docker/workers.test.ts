@@ -514,6 +514,9 @@ describe("docker/workers.yml", () => {
     );
     expect(mediaStage).toMatch(/^USER node$/m);
     expect(dockerfile.match(/install[^\n]*ffmpeg/g)).toHaveLength(1);
+    // PDF rendering runs in this same worker-media image, never the app.
+    expect(mediaStage).toMatch(/apt-get install[^\n]*poppler-utils/);
+    expect(dockerfile.match(/install[^\n]*poppler-utils/g)).toHaveLength(1);
     // A bounded scratch folder for ffmpeg.
     expect(media).toMatch(/^ {4}tmpfs:\n(?: {6}#.*\n)* {6}- \/tmp:size=1g$/m);
     expect(shared()).toContain("read_only: true");

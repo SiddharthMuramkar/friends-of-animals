@@ -182,7 +182,8 @@
       "video_too_long": "The video is longer than the time limit. Trim it or choose a shorter clip, then try again.",
       "no_video_stream": "The file has no video picture in it, only sound.",
       "media_decode_failed": "The file seems damaged or uses a format we can’t open. Try exporting it again.",
-      "media_timeout": "The video took too long to prepare. Try a shorter or smaller clip.",
+      "media_timeout": "The file took too long to prepare. Try a smaller file.",
+      "pdf_too_large": "The PDF has too many pages or is too large to prepare. Try a smaller PDF or type your essay.",
       "unsupported_type": "The file isn’t a type we can prepare.",
       "image_too_large": "The image has more pixels than we can prepare. Try a smaller copy.",
       "processing_error": "Something went wrong while preparing it. Please try again."

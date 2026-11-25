@@ -76,6 +76,7 @@ import impact from "../../messages/en-IN/impact.json";
 import transparency from "../../messages/en-IN/transparency.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
+import judgeScoring from "../../messages/en-IN/judgeScoring.json";
 import adminJudging from "../../messages/en-IN/adminJudging.json";
 import judging from "../../messages/en-IN/judging.json";
 import judgingGuide from "../../messages/en-IN/judgingGuide.json";
@@ -176,6 +177,7 @@ export const NAMESPACES = [
   "institutions",
   "judgingGuide",
   "judging",
+  "judgeScoring",
   "institutionRegistration",
   "legal",
   "nav",
@@ -277,6 +279,7 @@ export const messages = {
   ...judgingGuide,
   ...judging,
   ...adminJudging,
+  ...judgeScoring,
   ...institutionRegistration,
   ...legal,
   ...nav,

@@ -1,5 +1,5 @@
-// `pnpm test:media`: the ffmpeg adapter against real ffmpeg and ffprobe
-// (#86). Only the worker-media image installs them (Dockerfile, target
+// `pnpm test:media`: the video adapter against real ffmpeg/ffprobe (#86)
+// and the PDF adapter against real Poppler (#96). Only worker-media installs them (Dockerfile, target
 // worker-media), so run it there:
 //
 //   docker run --rm <a worker-media image> pnpm test:media

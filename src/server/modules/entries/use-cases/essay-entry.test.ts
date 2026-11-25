@@ -6,8 +6,12 @@ import {
   entryFile,
   entryTransition,
   fileAsset,
+  fileDerivative,
+  fileProcessing,
   outbox,
 } from "@/server/db/schema";
+import { drainUntilIdle } from "@/server/outbox";
+import { queueMissingEssayPdfWork } from "@/server/modules/files/backfill-essay-pdfs";
 import { openToIndividuals } from "@/server/modules/participants/testing";
 import { signInStaff } from "@/server/modules/payments/testing";
 import { sanitizeEssayBody } from "@/server/rich-text/essay";
@@ -37,7 +41,7 @@ const RLO = String.fromCodePoint(0x202e);
 // Typed text has nothing to scan, so it is live and the entry submitted at
 // once (the owner's ruling, 2026-11-19); it is stored through the
 // rich-text sanitiser's `essay` profile as paragraphs of plain text. A PDF
-// goes through the scan like any file, and is live once it passes.
+// goes through the scan and raster-only PDF preparation (#96), then is live.
 // Replacing an essay can switch between text and a document.
 
 async function essayist(h: Harness): Promise<Participant> {
@@ -255,7 +259,7 @@ describe("a typed essay", () => {
 });
 
 describe("an essay as a PDF", () => {
-  it("is processing until its scan passes, then submitted and readable", async () => {
+  it("is processing until its clean PDF copy is ready, then submitted and readable", async () => {
     const h = await createHarness();
     const asha = await essayist(h);
 
@@ -267,12 +271,36 @@ describe("an essay as a PDF", () => {
       contentType: "application/pdf",
     });
 
+    // The default worker scans, but only worker-media makes the judge's PDF.
+    await drainUntilIdle(h.deps);
+    expect(await onlyEntry(h)).toMatchObject({ status: "processing" });
+    expect(await h.db.select().from(fileDerivative)).toEqual([]);
+
     await h.drain();
 
     expect(await onlyEntry(h)).toMatchObject({ status: "submitted" });
     expect(await files(h)).toEqual([{ kind: "document", status: "live" }]);
+    expect(await h.db.select().from(fileDerivative)).toMatchObject([
+      {
+        fileAssetId: upload!.id,
+        kind: "pdf_clean",
+        contentType: "application/pdf",
+        storageKey: `local/derived/${upload!.id}/pdf_clean.pdf`,
+        width: null,
+        height: null,
+        durationMs: null,
+      },
+    ]);
     expect(h.media.processed).toEqual([]);
     expect(h.media.videos).toEqual([]);
+    expect(h.media.pdfs).toEqual([ESSAY_PDF_UPLOAD.bytes]);
+    const [copy] = await h.db.select().from(fileDerivative);
+    const rendered = new Uint8Array(
+      await new Response(
+        await h.storage.read({ bucket: copy!.bucket, key: copy!.storageKey })
+      ).arrayBuffer()
+    );
+    expect(rendered).not.toEqual(ESSAY_PDF_UPLOAD.bytes);
     const shown = await entryOf(h, asha, code);
     expect(shown.essay).toMatchObject({ kind: "document" });
     if (shown.essay?.kind !== "document") throw new Error("no document");
@@ -291,12 +319,84 @@ describe("an essay as a PDF", () => {
     });
     await h.drain();
 
+    expect(h.media.pdfs).toEqual([]);
+    expect(await h.db.select().from(fileDerivative)).toEqual([]);
     expect(await entryOf(h, asha, code)).toMatchObject({
       status: "rejected",
       latestUpload: "rejected",
       essay: null,
       uploadRule: { kind: "document" },
     });
+  });
+
+  it("refuses an essay PDF whose safe copy cannot be prepared", async () => {
+    const h = await createHarness();
+    const asha = await essayist(h);
+    h.media.failNext(1, "media_decode_failed");
+    const code = await submittedImage(h, asha, ESSAY_PDF_UPLOAD);
+    await h.drain();
+    expect(await entryOf(h, asha, code)).toMatchObject({
+      status: "failed",
+      latestProblem: "media_decode_failed",
+      essay: null,
+    });
+    expect(await h.db.select().from(fileDerivative)).toEqual([]);
+  });
+
+  it("backfills a previously clean, live PDF without reopening or resubmitting the entry", async () => {
+    const h = await createHarness();
+    const asha = await essayist(h);
+    const code = await submittedImage(h, asha, ESSAY_PDF_UPLOAD);
+    await h.drain();
+    // #86's persisted state: a live PDF, with no media processing or copy.
+    const [copy] = await h.db.select().from(fileDerivative);
+    await h.storage.delete({ bucket: copy!.bucket, key: copy!.storageKey });
+    await h.db.delete(fileDerivative);
+    await h.db.delete(fileProcessing);
+    const history = await moves(h);
+    const receipts = h.email.sent.length;
+    const previous = await onlyEntry(h);
+
+    expect(await queueMissingEssayPdfWork(h.deps)).toBe(1);
+    expect(await queueMissingEssayPdfWork(h.deps)).toBe(0);
+    await drainUntilIdle(h.deps);
+    expect(await entryOf(h, asha, code)).toMatchObject({ status: "submitted" });
+    expect(await h.db.select().from(fileDerivative)).toEqual([]);
+    await h.drain();
+
+    expect(await h.db.select().from(fileDerivative)).toMatchObject([
+      { kind: "pdf_clean", storageKey: copy!.storageKey },
+    ]);
+    expect(await onlyEntry(h)).toEqual(previous);
+    expect(await moves(h)).toEqual(history);
+    expect(h.email.sent).toHaveLength(receipts);
+    expect(await queueMissingEssayPdfWork(h.deps)).toBe(0);
+  });
+
+  it("leaves a legacy live entry submitted if backfill cannot make its safe copy", async () => {
+    const h = await createHarness();
+    const asha = await essayist(h);
+    const code = await submittedImage(h, asha, ESSAY_PDF_UPLOAD);
+    await h.drain();
+    const [copy] = await h.db.select().from(fileDerivative);
+    await h.storage.delete({ bucket: copy!.bucket, key: copy!.storageKey });
+    await h.db.delete(fileDerivative);
+    await h.db.delete(fileProcessing);
+    h.media.failNext(1, "media_decode_failed");
+    const before = await onlyEntry(h);
+
+    expect(await queueMissingEssayPdfWork(h.deps)).toBe(1);
+    await h.drain();
+    expect(await h.db.select().from(fileDerivative)).toEqual([]);
+    expect(await h.db.select().from(fileProcessing)).toMatchObject([
+      { status: "failed", errorCode: "media_decode_failed" },
+    ]);
+    expect(await onlyEntry(h)).toEqual(before);
+    expect(await entryOf(h, asha, code)).toMatchObject({
+      status: "submitted",
+      essay: { kind: "document" },
+    });
+    expect(await queueMissingEssayPdfWork(h.deps)).toBe(0);
   });
 
   it("refuses another type for an essay, and rejects a picture declared as a PDF", async () => {
@@ -321,7 +421,7 @@ describe("an essay as a PDF", () => {
 });
 
 describe("replacing an essay", () => {
-  it("keeps typed text live until a PDF that replaces it passes its scan", async () => {
+  it("keeps typed text live until a PDF that replaces it has a clean copy", async () => {
     const h = await createHarness();
     const asha = await essayist(h);
     const code = await typedEssay(h, asha);

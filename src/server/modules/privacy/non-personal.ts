@@ -870,6 +870,18 @@ export const NON_PERSONAL: NonPersonalColumns = {
   judging_round_rubric: ["round_id", "discipline", "rubric_id"],
   round_entry: ["round_id", "entry_id", "admitted_at"],
   round_assignment: ["round_id", "entry_id", "assigned_at"],
+  score_sheet: [
+    "id",
+    "round_id",
+    "entry_id",
+    "comment_version",
+    "complete",
+    "version",
+    "completed_at",
+    "created_at",
+    "updated_at",
+  ],
+  criterion_score: ["score_sheet_id", "criterion_id", "changed_at_version"],
   judge_invitation: [
     "id",
     "round_id",

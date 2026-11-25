@@ -15,8 +15,8 @@ export type FileState = {
   /** The media job's status, or null if it has none. */
   processing: "queued" | "done" | "failed" | null;
   /**
-   * Whether the file gets a media job at all. One that doesn't (an essay's
-   * PDF, #86) is ready as soon as its scan passes.
+   * Whether the file gets a media job at all. One that doesn't is ready as
+   * soon as its scan passes. Images, videos and essay PDFs all have jobs.
    */
   hasMediaJob: boolean;
 };

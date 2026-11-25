@@ -476,6 +476,11 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // Which coordinator declared a shortlisted entry they created (#91):
   // keyed by the entry, with no id of its own to list.
   school_round_declaration: "coordinator_pick",
+  // Private judging assessments can name both a judge and a participant.
+  // An officer handles requests without identifying the other person or
+  // disclosing an unfinished result.
+  score_sheet: "confidential_judging_assessment",
+  criterion_score: "confidential_judging_assessment",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };

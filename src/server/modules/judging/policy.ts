@@ -34,6 +34,8 @@ export const JUDGING_POLICY = {
   "judge.invitation.respond": signedIn,
   "judge.rounds.list": signedIn,
   "judge.onboard": roundJudge,
+  "score.read": roundJudge,
+  "score.write": roundJudge,
   "judging.round.manage": role("competition_manager"),
   "judging.round.read": role(
     "competition_manager",
