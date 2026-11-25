@@ -34,6 +34,7 @@ describe("the settings catalogue", () => {
       // #106: donations off until HR-15 and HR-47; amounts and expiry
       // wait on HR-51.
       "donations.enabled": false,
+      "donations.recurringEnabled": false,
       "donations.allowGuest": true,
       "donations.minAmountRupees": 100,
       "donations.maxAmountRupees": 100_000,
@@ -54,6 +55,9 @@ describe("the settings catalogue", () => {
       "adoption.minAdopterAgeYears": 18,
       "reminders.entrySubmissionDueFirstHours": 72,
       "reminders.entrySubmissionDueSecondHours": 24,
+      "reminders.schoolRoundShortlistDueFirstHours": 72,
+      "reminders.schoolRoundShortlistDueSecondHours": 24,
+      "entries.resubmissionDays": 7,
       "retention.enforce": false,
       "retention.expiredVerificationsDays": 1,
       "retention.expiredSessionsDays": 30,

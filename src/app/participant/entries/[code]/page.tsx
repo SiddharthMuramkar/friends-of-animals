@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { PARTICIPANT_ENTRIES } from "@/lib/app-routes";
+import { Correction } from "@/app/_components/verification/correction";
+import { PARTICIPANT_ENTRIES, entryDetailPath } from "@/lib/app-routes";
 import { essayBodyText } from "@/server/rich-text/essay";
 
 import { EntryStatusChip } from "../_components/entry-status";
@@ -20,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function EntryPage({
   params,
+  searchParams,
 }: PageProps<"/participant/entries/[code]">) {
   const { code } = await params;
   const [result, t, format] = await Promise.all([
@@ -30,7 +32,8 @@ export default async function EntryPage({
   if (!result.ok) notFound();
   const { entry } = result;
   const retry = entry.status === "rejected" || entry.status === "failed";
-  const replacement = entry.status === "submitted";
+  const replacement =
+    entry.status === "submitted" || entry.status === "sent_back";
   const checking =
     entry.latestUpload === "pending" || entry.latestUpload === "processing";
   const kind = entry.format;
@@ -177,6 +180,12 @@ export default async function EntryPage({
           </div>
         ) : null}
       </div>
+      <Correction
+        entry={entry}
+        href={entryDetailPath(entry.code)}
+        canCorrect={Boolean(entry.uploadRule) && !checking}
+        refused={Boolean((await searchParams).resubmitError)}
+      />
       {entry.uploadRule ? (
         <section aria-labelledby="entry-upload-heading" className="mt-8">
           <h2 id="entry-upload-heading" className="text-h3">

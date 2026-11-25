@@ -5,7 +5,9 @@
 // entries of that category, up to the competition's shortlist size, and
 // positions from 1 up to its number of school positions, each held once.
 // A save with any problem changes nothing and names every problem; a clean
-// one replaces the category's picks. Only while the round is open.
+// one replaces the category's picks. Only while the round is open, and only
+// under all-participants scope: under shortlist only, creating an entry
+// picks it (#91).
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -39,6 +41,8 @@ export type SaveShortlistResult =
   | InvalidInput
   | RoundRefusal
   | { ok: false; error: "unknown_category" }
+  /** Under shortlist only the picks are the entries the coordinator made (#91). */
+  | { ok: false; error: "shortlist_only" }
   | { ok: false; error: "shortlist_invalid"; problems: PickProblem[] };
 
 export async function saveShortlist(
@@ -53,6 +57,9 @@ export async function saveShortlist(
     "school_round.manage",
     ref,
     async ({ tx, scope, round, userId }): Promise<SaveShortlistResult> => {
+      if (scope.competition.digitalScope !== "all_participants") {
+        return { ok: false, error: "shortlist_only" };
+      }
       const entries = await loadRoundEntries(tx, scope.id, { lock: true });
       if (!entries.some((each) => each.categoryId === categoryId)) {
         return { ok: false, error: "unknown_category" };

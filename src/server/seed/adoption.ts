@@ -415,6 +415,9 @@ async function ownerOf(deps: SeedDeps, directoryListingId: string) {
 export const seedAdoption: Seeder = async (deps) => {
   const now = deps.clock.now();
   const { bucket, keyPrefix: prefix } = seedFilesLocation();
+  // Resize every illustration at once (sharp works off the main thread)
+  // rather than one by one inside the loop.
+  await Promise.all([...new Set(ANIMALS.map((a) => a.art))].map(copiesOf));
   for (const animal of ANIMALS) {
     const { id, photoId, fileId } = ids(animal.n);
     const owner = await ownerOf(deps, animal.directoryListingId);

@@ -5,7 +5,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 
 import type { AppDb } from "../../../db/app-db";
 import { donation, donor, refund } from "../../../db/schema";
@@ -22,7 +22,7 @@ export type DonationFact = {
 };
 
 export type ForeignDonationFact = {
-  source: { type: "foreign_donation"; id: string };
+  source: { type: "foreign_donation" | "recurring_after_cancel"; id: string };
   occurredAt: Date;
   amountMinor: bigint;
 };
@@ -83,14 +83,25 @@ export async function readForeignDonation(
       amountMinor: refund.amountMinor,
       currency: refund.currency,
       requestedAt: refund.requestedAt,
+      kind: refund.kind,
     })
     .from(refund)
-    .innerJoin(donation, eq(donation.paymentBatchId, refund.batchId))
-    .where(and(eq(refund.id, refundId), eq(refund.kind, "foreign_payment")));
+    .where(
+      and(
+        eq(refund.id, refundId),
+        inArray(refund.kind, ["foreign_payment", "recurring_after_cancel"])
+      )
+    );
   if (!row?.gatewayPaymentId) return undefined;
   if (row.currency !== "INR") throw new Error("Foreign money posts in INR");
   return {
-    source: { type: "foreign_donation", id: row.gatewayPaymentId },
+    source: {
+      type:
+        row.kind === "recurring_after_cancel"
+          ? "recurring_after_cancel"
+          : "foreign_donation",
+      id: row.gatewayPaymentId,
+    },
     occurredAt: row.requestedAt,
     amountMinor: row.amountMinor,
   };

@@ -1,6 +1,6 @@
 {
-  "id": "54c4cfe3-d7eb-4198-9976-1a59fed7db55",
-  "prevId": "4d47839e-e77a-441e-9b06-7aa3f2842660",
+  "id": "ee074137-6f64-431f-95a9-948ea757421c",
+  "prevId": "02897cf5-1142-465a-a627-e55ba6508fec",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12556,37 +12556,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "offline_method": {
-          "name": "offline_method",
-          "type": "offline_payment_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "offline_reference": {
-          "name": "offline_reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "offline_received_on": {
-          "name": "offline_received_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "offline_proof_file_id": {
-          "name": "offline_proof_file_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "offline_recorded_by": {
-          "name": "offline_recorded_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "captured_at": {
           "name": "captured_at",
           "type": "timestamp with time zone",
@@ -12685,32 +12654,6 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
-        },
-        "donation_offline_proof_file_id_file_asset_id_fk": {
-          "name": "donation_offline_proof_file_id_file_asset_id_fk",
-          "tableFrom": "donation",
-          "tableTo": "file_asset",
-          "columnsFrom": [
-            "offline_proof_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "donation_offline_recorded_by_user_id_fk": {
-          "name": "donation_offline_recorded_by_user_id_fk",
-          "tableFrom": "donation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "offline_recorded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12720,13 +12663,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "payment_batch_id"
-          ]
-        },
-        "donation_offline_proof_unique": {
-          "name": "donation_offline_proof_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "offline_proof_file_id"
           ]
         },
         "donation_checkout_token_hash_unique": {
@@ -12739,10 +12675,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "donation_offline_details": {
-          "name": "donation_offline_details",
-          "value": "(\"donation\".\"origin\" = 'offline_entry' AND \"donation\".\"offline_method\" IS NOT NULL AND \"donation\".\"offline_reference\" IS NOT NULL AND \"donation\".\"offline_received_on\" IS NOT NULL AND \"donation\".\"offline_proof_file_id\" IS NOT NULL AND \"donation\".\"payment_batch_id\" IS NULL) OR (\"donation\".\"origin\" <> 'offline_entry' AND \"donation\".\"offline_method\" IS NULL AND \"donation\".\"offline_reference\" IS NULL AND \"donation\".\"offline_received_on\" IS NULL AND \"donation\".\"offline_proof_file_id\" IS NULL AND \"donation\".\"offline_recorded_by\" IS NULL)"
-        },
         "donation_amount_positive": {
           "name": "donation_amount_positive",
           "value": "\"donation\".\"amount_minor\" > 0"
@@ -16510,6 +16442,195 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.entry_verification": {
+      "name": "entry_verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision": {
+          "name": "decision",
+          "type": "entry_verification_decision",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_text": {
+          "name": "reason_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_user_id": {
+          "name": "decided_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resubmission_due_at": {
+          "name": "resubmission_due_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmitted_at": {
+          "name": "resubmitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmitted_by_user_id": {
+          "name": "resubmitted_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmission_with_file": {
+          "name": "resubmission_with_file",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "entry_verification_entry_id_decided_at_idx": {
+          "name": "entry_verification_entry_id_decided_at_idx",
+          "columns": [
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "entry_verification_decided_by_user_id_idx": {
+          "name": "entry_verification_decided_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "decided_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "entry_verification_resubmitted_by_user_id_idx": {
+          "name": "entry_verification_resubmitted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "resubmitted_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "entry_verification_entry_id_entry_id_fk": {
+          "name": "entry_verification_entry_id_entry_id_fk",
+          "tableFrom": "entry_verification",
+          "tableTo": "entry",
+          "columnsFrom": [
+            "entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entry_verification_decided_by_user_id_user_id_fk": {
+          "name": "entry_verification_decided_by_user_id_user_id_fk",
+          "tableFrom": "entry_verification",
+          "tableTo": "user",
+          "columnsFrom": [
+            "decided_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "entry_verification_resubmitted_by_user_id_user_id_fk": {
+          "name": "entry_verification_resubmitted_by_user_id_user_id_fk",
+          "tableFrom": "entry_verification",
+          "tableTo": "user",
+          "columnsFrom": [
+            "resubmitted_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "entry_verification_sent_back_has_deadline": {
+          "name": "entry_verification_sent_back_has_deadline",
+          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"resubmission_due_at\" IS NOT NULL)"
+        },
+        "entry_verification_sent_back_has_reason": {
+          "name": "entry_verification_sent_back_has_reason",
+          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"reason_code\" IS NOT NULL)"
+        },
+        "entry_verification_reason_text_length": {
+          "name": "entry_verification_reason_text_length",
+          "value": "\"entry_verification\".\"reason_text\" IS NULL OR char_length(\"entry_verification\".\"reason_text\") BETWEEN 1 AND 500"
+        },
+        "entry_verification_resubmission_complete": {
+          "name": "entry_verification_resubmission_complete",
+          "value": "(\"entry_verification\".\"resubmitted_at\" IS NULL) = (\"entry_verification\".\"resubmission_with_file\" IS NULL) AND (\"entry_verification\".\"resubmitted_at\" IS NULL OR \"entry_verification\".\"decision\" = 'sent_back')"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -16579,7 +16700,8 @@
         "auction_manager",
         "adoption_coordinator",
         "safeguarding_lead",
-        "grievance_officer"
+        "grievance_officer",
+        "foa_verifier"
       ]
     },
     "public.role_scope_type": {
@@ -16750,8 +16872,7 @@
         "directory_document",
         "adoption_photo",
         "entry_video",
-        "entry_document",
-        "offline_donation_proof"
+        "entry_document"
       ]
     },
     "public.file_asset_status": {
@@ -17516,6 +17637,14 @@
         "overdue",
         "finalised",
         "closed_on_behalf"
+      ]
+    },
+    "public.entry_verification_decision": {
+      "name": "entry_verification_decision",
+      "schema": "public",
+      "values": [
+        "verified",
+        "sent_back"
       ]
     }
   },

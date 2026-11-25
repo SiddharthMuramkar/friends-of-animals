@@ -26,10 +26,13 @@ describe("the settings seed", () => {
       { key: "donations.maxAmountRupees", value: 100_000 },
       { key: "donations.minAmountRupees", value: 100 },
       { key: "donations.pendingExpiryHours", value: 24 },
+      { key: "donations.recurringEnabled", value: true },
+      { key: "entries.resubmissionDays", value: 7 },
       // The accountant's export waits for HR-47 only in production (#109).
       { key: "ledger.accountantExport", value: true },
       { key: "ledger.approvalExpiryDays", value: 7 },
       { key: "ledger.manualEntryApprovalThresholdRupees", value: 50_000 },
+
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },
       // FOA's tax facts stay empty: previews show "To be confirmed" (#111).
@@ -44,6 +47,8 @@ describe("the settings seed", () => {
       { key: "privacy.requestDueDays", value: 30 },
       { key: "reminders.entrySubmissionDueFirstHours", value: 72 },
       { key: "reminders.entrySubmissionDueSecondHours", value: 24 },
+      { key: "reminders.schoolRoundShortlistDueFirstHours", value: 72 },
+      { key: "reminders.schoolRoundShortlistDueSecondHours", value: 24 },
       { key: "retention.adoptionApplicationsDays", value: 730 },
       { key: "retention.capturedMessagesDays", value: 30 },
       { key: "retention.contactMessagesMonths", value: 24 },

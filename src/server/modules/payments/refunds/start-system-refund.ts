@@ -71,7 +71,7 @@ export type SystemRefund =
   | {
       /** A donation's foreign payment (#106), refunded in full at once
        * while FCRA is off. It settles no review case. */
-      kind: "foreign_payment";
+      kind: "foreign_payment" | "recurring_after_cancel";
       batchId: string;
       gatewayPaymentId: string;
       amountMinor: bigint;
@@ -104,7 +104,7 @@ export async function startSystemRefund(
     payableItems: [],
     zeroShareRegistrationIds: [],
   };
-  if (request.kind === "duplicate" || request.kind === "foreign_payment") {
+  if (request.kind !== "cancellation") {
     amountMinor = request.amountMinor;
     gatewayPaymentId = request.gatewayPaymentId;
   } else {

@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
+import { ButtonLink } from "@/components/site/button-link";
+import { DASHBOARD_DONATIONS } from "@/lib/app-routes";
 import { ExplainState } from "@/components/site/explain-state";
 import { SectionHeading } from "@/components/site/heading";
 import { Live } from "@/components/site/live";
@@ -133,6 +135,13 @@ function Terms({
         title={t("form.title")}
         lead={t("form.lead")}
       />
+      {terms.recurringEnabled && (
+        <div className="mt-6">
+          <ButtonLink variant="secondary" href={DASHBOARD_DONATIONS}>
+            {t("monthly")}
+          </ButtonLink>
+        </div>
+      )}
       <div className="mt-8">
         <DonateForm labels={labels} has80G={terms.has80G} />
       </div>

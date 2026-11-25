@@ -21,6 +21,13 @@ export type FinaliseFacts = {
   entries: readonly { entryId: string; submitted: boolean }[];
   /** The saved shortlist, every category together. */
   picks: readonly Pick[];
+  /**
+   * Who decides the round: the school finalising it (the default), or a
+   * competition manager closing an overdue round on its behalf (#90). The
+   * manager applies the school's saved picks as they are, so the panel,
+   * conduct certification and attestation the school owes aren't asked.
+   */
+  by?: "school" | "manager";
 };
 
 /** The entry statuses each outcome moves through, in order. */
@@ -70,9 +77,13 @@ export type FinalisationPlan =
  */
 export function planFinalisation(facts: FinaliseFacts): FinalisationPlan {
   const blockers: FinaliseBlocker[] = [];
-  if (facts.panelSize < 1) blockers.push({ code: "panel_missing" });
-  if (!facts.conductCertified) blockers.push({ code: "conduct_not_certified" });
-  if (!facts.judgingAttested) blockers.push({ code: "judging_not_attested" });
+  if ((facts.by ?? "school") === "school") {
+    if (facts.panelSize < 1) blockers.push({ code: "panel_missing" });
+    if (!facts.conductCertified) {
+      blockers.push({ code: "conduct_not_certified" });
+    }
+    if (!facts.judgingAttested) blockers.push({ code: "judging_not_attested" });
+  }
 
   // Saving picks already refuses these; finalising checks again rather
   // than move an entry the shortlist rules never allowed.

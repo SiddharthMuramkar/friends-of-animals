@@ -10,6 +10,7 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
   ADMIN_ADOPTIONS,
+  ADMIN_VERIFICATION,
   ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
@@ -19,6 +20,7 @@ import {
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
   DASHBOARD_ADOPTIONS,
+  DASHBOARD_DONATIONS,
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -96,6 +98,7 @@ async function Areas() {
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
   // Adoption coordinators handle adoption applications (#130).
+  const verifier = grants.some((grant) => grant.role === "foa_verifier");
   const adoption = grants.some(
     (grant) => grant.role === "adoption_coordinator"
   );
@@ -153,6 +156,7 @@ async function Areas() {
             competitions={competitions}
             community={community}
             adoption={adoption}
+            verifier={verifier}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -172,6 +176,7 @@ async function AreaBody({
   competitions,
   community,
   adoption,
+  verifier,
 }: {
   area: DashboardLink["area"];
   id?: string;
@@ -183,6 +188,7 @@ async function AreaBody({
   competitions: boolean;
   community: boolean;
   adoption: boolean;
+  verifier: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -210,6 +216,7 @@ async function AreaBody({
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
+            { href: DASHBOARD_DONATIONS, label: t("member.donations") },
           ])
         : null}
       {area === "organisation" && id
@@ -269,6 +276,9 @@ async function AreaBody({
               : []),
             ...(community
               ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
+              : []),
+            ...(verifier
+              ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
               : []),
             ...(adoption
               ? [{ href: ADMIN_ADOPTIONS, label: t("admin.adoptions") }]

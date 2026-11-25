@@ -17,11 +17,20 @@ import { z } from "zod";
 
 import { authorize } from "../../../access/can";
 import type { ScopedScope } from "../../../access/domain/roles";
-import { institutionRegistration, registration } from "../../../db/schema";
+import {
+  competition,
+  institutionRegistration,
+  registration,
+} from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import type { SchoolRoundStatus } from "../domain/status";
-import { loadPicks, loadRound, loadRoundEntries } from "../store";
+import {
+  loadPicks,
+  loadRound,
+  loadRoundEntries,
+  loadRoundStudents,
+} from "../store";
 
 const outcomesInput = z.union([
   z.object({ registrationId: z.uuid() }).strict(),
@@ -34,8 +43,8 @@ export type ListSchoolRoundOutcomesInput =
 
 export type SchoolRoundOutcome = {
   registrationId: string;
-  entryId: string;
-  entryCode: string;
+  entryId: string | null;
+  entryCode: string | null;
   outcome: "pending" | "shortlisted" | "not_shortlisted";
   /** The school position of a shortlisted entry, if it has one. */
   position: number | null;
@@ -77,8 +86,13 @@ export async function listSchoolRoundOutcomes(
           id: institutionRegistration.id,
           institutionId: institutionRegistration.institutionId,
           competitionId: institutionRegistration.competitionId,
+          digitalScope: competition.digitalScope,
         })
         .from(institutionRegistration)
+        .innerJoin(
+          competition,
+          eq(competition.id, institutionRegistration.competitionId)
+        )
         .where(eq(institutionRegistration.id, institutionRegistrationId))
     : [];
   // Unknown: only someone who could read any registration learns so.
@@ -106,23 +120,36 @@ export async function listSchoolRoundOutcomes(
         ])
       )
     : null;
-  return {
-    ok: true,
-    roundStatus: round?.status ?? null,
-    outcomes: entries.map((each): SchoolRoundOutcome => {
-      const base = {
-        registrationId: each.registrationId,
-        entryId: each.entryId,
-        entryCode: each.code,
-      };
-      if (!positions) return { ...base, outcome: "pending", position: null };
-      return positions.has(each.entryId)
-        ? {
-            ...base,
-            outcome: "shortlisted",
-            position: positions.get(each.entryId) ?? null,
-          }
-        : { ...base, outcome: "not_shortlisted", position: null };
-    }),
-  };
+  const outcomes = entries.map((each): SchoolRoundOutcome => {
+    const base = {
+      registrationId: each.registrationId,
+      entryId: each.entryId,
+      entryCode: each.code,
+    };
+    if (!positions) return { ...base, outcome: "pending", position: null };
+    return positions.has(each.entryId)
+      ? {
+          ...base,
+          outcome: "shortlisted",
+          position: positions.get(each.entryId) ?? null,
+        }
+      : { ...base, outcome: "not_shortlisted", position: null };
+  });
+  if (target.digitalScope === "shortlist_only") {
+    const withoutEntry = (await loadRoundStudents(ctx.db, target.id)).filter(
+      (student) =>
+        !student.entry &&
+        (studentRegistrationId === null ||
+          student.registrationId === studentRegistrationId)
+    );
+    for (const student of withoutEntry)
+      outcomes.push({
+        registrationId: student.registrationId,
+        entryId: null,
+        entryCode: null,
+        outcome: decided ? "not_shortlisted" : "pending",
+        position: null,
+      });
+  }
+  return { ok: true, roundStatus: round?.status ?? null, outcomes };
 }

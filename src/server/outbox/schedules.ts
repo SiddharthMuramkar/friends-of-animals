@@ -1,3 +1,4 @@
+import { recurringExpirySchedule } from "../modules/donations/recurring/cancel";
 // Scheduled jobs: status flips, reminders, retention, nightly copies (#55).
 // The VPS worker registers each one as a pg-boss schedule in
 // single-database mode (#61's worker runtime); previews run none, and a
@@ -53,6 +54,7 @@ export const SCHEDULES: readonly ScheduleDefinition[] = [
   expireFinanceRequestsSchedule,
   retentionSweepSchedule,
   expireDonationsSchedule,
+  recurringExpirySchedule,
   flagOverdueSchedule,
   remindersSyncSchedule,
 ];

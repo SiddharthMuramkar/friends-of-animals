@@ -78,7 +78,7 @@ describe("scheduling a competition's reminders", () => {
     const competition = await reminderCompetition(h);
     expect(await scheduleFor(h, competition.id)).toEqual({
       ok: true,
-      scheduled: 2,
+      scheduled: 4,
       kept: 0,
       superseded: 0,
       cancelled: 0,
@@ -89,7 +89,7 @@ describe("scheduling a competition's reminders", () => {
     expect(again).toEqual({
       ok: true,
       scheduled: 0,
-      kept: 2,
+      kept: 4,
       superseded: 0,
       cancelled: 0,
     });

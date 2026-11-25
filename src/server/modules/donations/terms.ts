@@ -8,6 +8,7 @@ import type { UseCaseContext } from "../../use-cases";
 export type DonationTerms = {
   open: boolean;
   has80G: boolean;
+  recurringEnabled: boolean;
   guestsAllowed: boolean;
   minAmountMinor: bigint;
   maxAmountMinor: bigint;
@@ -17,6 +18,7 @@ export type DonationTerms = {
 export const CLOSED_TERMS: DonationTerms = {
   open: false,
   has80G: false,
+  recurringEnabled: false,
   guestsAllowed: false,
   minAmountMinor: 10_000n,
   maxAmountMinor: 10_000_000n,
@@ -36,18 +38,19 @@ export async function getDonationTerms(
   ctx: UseCaseContext
 ): Promise<DonationTerms> {
   await authorize(ctx, "donation.start");
-  const [open, guestsAllowed, minRupees, maxRupees, has80G] = await Promise.all(
-    [
+  const [open, recurringEnabled, guestsAllowed, minRupees, maxRupees, has80G] =
+    await Promise.all([
       ctx.settings.get("donations.enabled"),
+      ctx.settings.get("donations.recurringEnabled"),
       ctx.settings.get("donations.allowGuest"),
       ctx.settings.get("donations.minAmountRupees"),
       ctx.settings.get("donations.maxAmountRupees"),
       ctx.settings.get("org.has80G"),
-    ]
-  );
+    ]);
   return {
     open,
     has80G,
+    recurringEnabled,
     guestsAllowed,
     minAmountMinor: BigInt(minRupees) * 100n,
     maxAmountMinor: BigInt(Math.max(minRupees, maxRupees)) * 100n,

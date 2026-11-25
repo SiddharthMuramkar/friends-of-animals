@@ -22,6 +22,7 @@ import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import type { WebhookOutcome } from "./domain/outcomes";
 import { syncRefundsOfPayment } from "./refunds/sync-refund";
+import { syncRecurringDonation } from "../donations/recurring/sync";
 import { syncBatch } from "./sync-batch";
 
 export type ReceiveGatewayWebhookInput = { rawBody: string; headers: Headers };
@@ -110,9 +111,13 @@ export async function receiveGatewayWebhook(
           )
         )
     : [];
-  const outcome: WebhookOutcome = batch
-    ? await syncBatch(ctx, batch.id, null)
-    : "ignored";
+  const outcome: WebhookOutcome = event.subscriptionId
+    ? (await syncRecurringDonation(ctx, event.subscriptionId))
+      ? "already_captured"
+      : "ignored"
+    : batch
+      ? await syncBatch(ctx, batch.id, null)
+      : "ignored";
   await ctx.db
     .update(gatewayWebhookEvent)
     .set({ outcome, processedAt: ctx.clock.now() })

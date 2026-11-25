@@ -11,6 +11,7 @@ import { TableScroller } from "@/components/site/table-scroller";
 import {
   ADMIN_DONATIONS,
   ADMIN_OFFLINE_DONATION,
+  ADMIN_RECURRING_DONATIONS,
   adminDonationPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
@@ -68,9 +69,14 @@ export default async function Page({
 
   return (
     <DonationsFrame title={t("title")} lead={t("lead")}>
-      <ButtonLink href={ADMIN_OFFLINE_DONATION}>
-        {t("offline.title")}
-      </ButtonLink>
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink href={ADMIN_OFFLINE_DONATION}>
+          {t("offline.title")}
+        </ButtonLink>
+        <ButtonLink href={ADMIN_RECURRING_DONATIONS} variant="secondary">
+          {t("recurring")}
+        </ButtonLink>
+      </div>
       <search>
         <form action={ADMIN_DONATIONS} method="get" className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -1,5 +1,6 @@
 {
   "adminDonations": {
+    "recurring": "Recurring donations",
     "meta": {
       "title": "Donations",
       "description": "Every donation, its receipt and its money."
@@ -96,6 +97,7 @@
         "discretionary": "Asked for",
         "cancellation": "Cancellation",
         "duplicate": "Second payment returned",
+        "recurring_after_cancel": "Charge after cancellation",
         "foreign_payment": "Foreign money returned"
       },
       "refundStatuses": {

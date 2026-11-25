@@ -52,6 +52,7 @@ import { encryptedText } from "../types/encrypted-text";
 import { user } from "./identity";
 import { offlinePaymentMethodEnum, paymentBatch } from "./payments";
 import { fileAsset } from "./files";
+import { recurringDonation } from "./recurring-donations";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
@@ -135,6 +136,10 @@ export const donation = pgTable(
     checkoutTokenHash: text("checkout_token_hash"),
     /** The captured gateway payment; null until captured. */
     gatewayPaymentId: text("gateway_payment_id"),
+    recurringDonationId: uuid("recurring_donation_id").references(
+      () => recurringDonation.id,
+      { onDelete: "restrict" }
+    ),
     /** When a pending online donation expires unpaid. */
     expiresAt: timestamptz("expires_at"),
     /** Offline gifts are recorded against a proof, not a gateway batch. */
@@ -153,6 +158,7 @@ export const donation = pgTable(
     updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
+    unique("donation_gateway_payment_unique").on(table.gatewayPaymentId),
     unique("donation_payment_batch_unique").on(table.paymentBatchId),
     unique("donation_offline_proof_unique").on(table.offlineProofFileId),
     check(

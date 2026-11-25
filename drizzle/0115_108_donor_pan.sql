@@ -1,1 +1,0 @@
-ALTER TABLE "donor" ADD COLUMN "pan_ciphertext" text;

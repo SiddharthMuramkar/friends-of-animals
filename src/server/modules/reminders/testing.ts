@@ -3,7 +3,7 @@
 // readers for what was planned and who was reminded. Tests only: nothing
 // in the app imports this file.
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, getTableColumns } from "drizzle-orm";
 
 import type { Actor } from "@/server/actor";
 import {
@@ -80,17 +80,27 @@ export function reminderRows(h: Harness, competitionId: string) {
   return h.db
     .select()
     .from(reminderJob)
-    .where(eq(reminderJob.subjectId, competitionId))
+    .where(
+      and(
+        eq(reminderJob.subjectId, competitionId),
+        eq(reminderJob.reminderName, "entry_submission_due")
+      )
+    )
     .orderBy(asc(reminderJob.fireAt), asc(reminderJob.createdAt));
 }
 
 /** The pending `reminder.due` deliveries, soonest first. */
 export function dueReminderEvents(h: Harness) {
   return h.db
-    .select()
+    .select({ ...getTableColumns(outbox) })
     .from(outbox)
+    .innerJoin(reminderJob, eq(reminderJob.id, outbox.aggregateId))
     .where(
-      and(eq(outbox.eventType, "reminder.due"), eq(outbox.status, "pending"))
+      and(
+        eq(outbox.eventType, "reminder.due"),
+        eq(outbox.status, "pending"),
+        eq(reminderJob.reminderName, "entry_submission_due")
+      )
     )
     .orderBy(asc(outbox.availableAt));
 }
