@@ -96,6 +96,7 @@ COPY vitest.config.ts vitest.media.config.ts ./
 COPY fixtures/media ./fixtures/media
 COPY public/brand/foa-logo.svg ./public/brand/foa-logo.svg
 COPY public/brand/foa-logo-watermark*.png ./public/brand/
+COPY public/brand/apple-touch-icon.png ./public/brand/apple-touch-icon.png
 USER node
 CMD ["node", "--import", "tsx", "src/worker-media/main.ts"]
 

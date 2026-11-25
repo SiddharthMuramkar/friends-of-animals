@@ -1090,7 +1090,7 @@ site's `APP_URL`, and staging its keys, if one comes back.
 | `worker-media`  | Runs the media entry point with a read-only root and a 1 GiB `/tmp` tmpfs. Health requires a heartbeat under 120 s old. | 2 GiB  |
 
 The media image also copies the approved `public/brand/foa-logo-watermark*.png`
-assets. The stamping job uses these exact files, sharp for safe artwork copies,
+assets and small tiles-only `apple-touch-icon.png`. The stamping job uses these exact files, sharp for safe artwork copies,
 and Poppler for the first-page certificate raster; it never renders in the web
 app or the default worker.
 

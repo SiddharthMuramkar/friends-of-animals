@@ -17,6 +17,7 @@ const ASSETS = {
   colour: "foa-logo-watermark.png",
   white: "foa-logo-watermark-white.png",
   black: "foa-logo-watermark-black.png",
+  tiles: "apple-touch-icon.png",
 } as const;
 
 async function certificatePixels(bytes: Uint8Array): Promise<Uint8Array> {
@@ -123,7 +124,7 @@ export function stampProcessor(
           .toBuffer({ resolveWithObject: true });
         const { width, height } = base.info;
         const margin = Math.max(1, Math.round(Math.min(width, height) * 0.03));
-        const markWidth = Math.floor(
+        const fullWidth = Math.floor(
           Math.min(
             width * 0.2,
             width - 2 * margin,
@@ -131,10 +132,20 @@ export function stampProcessor(
             320
           )
         );
-        // Full logo always: at extreme sizes an unreadable mark is worse
-        // than refusing to make a public copy. Never arbitrarily crop tiles.
-        if (markWidth < 48) throw new MediaError("media_decode_failed");
-        const markHeight = Math.round(markWidth * ASPECT);
+        // The brand guide approves the tiles alone at small sizes. Use the
+        // exact existing Apple touch icon (on white), not a crop/redraw.
+        // Below the smallest approved 16px mark, refuse an unreadable copy.
+        const tiles = fullWidth < 48;
+        const markWidth = tiles
+          ? Math.min(
+              47,
+              width - 2 * margin,
+              height - 2 * margin,
+              Math.max(16, fullWidth)
+            )
+          : fullWidth;
+        if (markWidth < 16) throw new MediaError("media_decode_failed");
+        const markHeight = tiles ? markWidth : Math.round(markWidth * ASPECT);
         // Extend only the certificate share raster, so neither the QR nor
         // text nor signatories can be covered by a second FOA mark.
         const canvas = cert
@@ -156,7 +167,9 @@ export function stampProcessor(
           width: markWidth,
           height: markHeight,
         };
-        const choice = await chooseAsset(canvas, rect);
+        const choice = tiles
+          ? { asset: ASSETS.tiles, backing: false }
+          : await chooseAsset(canvas, rect);
         const asset = await readFile(
           join(
             options.brandDirectory ?? join(process.cwd(), "public/brand"),

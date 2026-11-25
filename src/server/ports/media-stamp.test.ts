@@ -74,3 +74,30 @@ it("makes a bounded clean WebP gallery copy from a resized GPS photo, not from i
   expect(webpMetadata(image.bytes)).toEqual([]);
   expect((await sharp(image.bytes).metadata()).format).toBe("webp");
 });
+
+it("uses the exact approved tiles-only icon at a small placement rather than cropping the full mark", async () => {
+  const source = await sharp({
+    create: { width: 128, height: 128, channels: 3, background: "#333333" },
+  })
+    .png()
+    .toBuffer();
+  const result = await stampProcessor().stampImage({
+    bytes: source,
+    variant: "social",
+  });
+  expect(result).toMatchObject({
+    width: 128,
+    height: 128,
+    contentType: "image/png",
+  });
+  const patch = await sharp(result.bytes)
+    .extract({ left: 99, top: 99, width: 25, height: 25 })
+    .raw()
+    .toBuffer();
+  const icon = await sharp(await readFile("public/brand/apple-touch-icon.png"))
+    .resize({ width: 25 })
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+  expect(patch).toEqual(icon);
+});
