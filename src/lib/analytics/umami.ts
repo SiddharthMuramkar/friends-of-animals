@@ -23,6 +23,7 @@ import {
   INVITATIONS_PREFIX,
   isUnderPrefix,
   WITHDRAWAL_PREFIX,
+  FEEDBACK_PREFIX,
 } from "../app-routes";
 import { ROUTES } from "../routes";
 
@@ -51,6 +52,7 @@ export const ANALYTICS_EXCLUDED_PREFIXES = [
   "/donate/checkout",
   INVITATIONS_PREFIX,
   WITHDRAWAL_PREFIX,
+  FEEDBACK_PREFIX,
 ] as const;
 
 /** The deployment settings analytics depends on, read at build time. */

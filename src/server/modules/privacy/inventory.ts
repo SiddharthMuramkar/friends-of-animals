@@ -1859,6 +1859,25 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
   // Campaigns (#126): staff accounts, and each message's recipient and the
   // consents it rested on.
+  ...(
+    [
+      ["user_id", "identity"],
+      ["survey_id", "technical"],
+      ["answers", "content"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("survey_invitation", {
+      subject: { kind: "user", via: "user_id" },
+      retention: {
+        policy: "surveyResponses",
+        periodKey: "surveyResponses",
+        basis:
+          "FOA can invite each person once and count their feedback; individual records expire after the survey closes",
+        toConfirm: true,
+      },
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
   actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
   actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
   rowsOf("campaign_recipient", {

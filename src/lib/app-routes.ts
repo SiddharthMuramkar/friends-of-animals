@@ -359,6 +359,19 @@ export function adoptableAnimalPath(slug: string): string {
 }
 
 /** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_SURVEYS = "/admin/surveys";
+export const DASHBOARD_SURVEYS = "/dashboard/surveys";
+export const FEEDBACK_PREFIX = "/feedback";
+export function adminSurveyPath(id: string) {
+  return `${ADMIN_SURVEYS}?competitionId=${encodeURIComponent(id)}`;
+}
+export function surveyAnswerPath(id: string) {
+  return `${DASHBOARD_SURVEYS}?competitionId=${encodeURIComponent(id)}`;
+}
+export function feedbackPath(token: string) {
+  return `${FEEDBACK_PREFIX}/${encodeURIComponent(token)}`;
+}
+
 export const ADMIN_CAMPAIGNS = "/admin/campaigns";
 export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
 
@@ -679,6 +692,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/donations/[id]",
   DASHBOARD_DONATIONS,
   "/dashboard/donations/recurring/[id]",
+  ADMIN_SURVEYS,
+  "/admin/surveys/export.csv",
+  DASHBOARD_SURVEYS,
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",

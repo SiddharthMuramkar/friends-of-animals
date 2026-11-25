@@ -320,6 +320,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "surveys.enabled",
+        value: false,
+        defaultValue: false,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "volunteers.applicationsOpen",
         value: false,
         defaultValue: false,
@@ -693,6 +703,16 @@ describe("listSettings", () => {
       },
       {
         key: "retention.volunteerApplicationsDays",
+        value: 365,
+        defaultValue: 365,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 7305, unit: "days" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
+        key: "retention.surveyResponsesDays",
         value: 365,
         defaultValue: 365,
         source: "default",

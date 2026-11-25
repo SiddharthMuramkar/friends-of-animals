@@ -1124,3 +1124,12 @@ The code that names one person who takes part in competitions, such as
 FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
 _Avoid_: Participant number, registration number (that names one
 registration)
+
+**Feedback survey**:
+A competition manager's short questionnaire about a competition once its
+results have been published. FOA reports answers as aggregate results.
+
+**Survey invitation**:
+An offer to give feedback to an eligible adult participant, guardian or
+coordinator with current communication consent. A person with several
+qualifying links receives one invitation and can give one answer.

@@ -199,6 +199,7 @@ export const SETTINGS = {
   // and counsel sign M6 off (HR-55) and police checks are in place
   // (HR-38); local runs and previews are seeded open. The age rules are
   // FOA's defaults until leadership confirms them (HR-57).
+  "surveys.enabled": booleanSetting({ default: false }),
   "volunteers.applicationsOpen": booleanSetting({ default: false }),
   "volunteers.minAgeYears": integerSetting({
     default: VOLUNTEER_AGE_RULE_DEFAULTS.minAgeYears,
@@ -342,6 +343,9 @@ export const SETTINGS = {
   }),
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.surveyResponsesDays": retentionDays(
+    RETENTION_PERIODS.surveyResponses
   ),
   "retention.communityMembersDays": retentionDays(
     RETENTION_PERIODS.communityMembers

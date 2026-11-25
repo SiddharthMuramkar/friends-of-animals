@@ -38,6 +38,7 @@ import adminGrievance from "../../messages/en-IN/adminGrievance.json";
 import privacyRequests from "../../messages/en-IN/privacyRequests.json";
 import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import surveys from "../../messages/en-IN/surveys.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -143,6 +144,7 @@ export const NAMESPACES = [
   "privacyRequests",
   "adminDirectory",
   "adminVolunteers",
+  "surveys",
   "campaigns",
   "auth",
   "authPhone",
@@ -254,6 +256,7 @@ export const messages = {
   ...privacyRequests,
   ...adminDirectory,
   ...adminVolunteers,
+  ...surveys,
   ...campaigns,
   ...auth,
   ...authPhone,

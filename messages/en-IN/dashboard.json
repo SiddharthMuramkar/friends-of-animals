@@ -30,7 +30,8 @@
       "auctions": "My auction purchases",
       "community": "Your community",
       "timeline": "Engagement timeline",
-      "events": "My event registrations"
+      "events": "My event registrations",
+      "surveys": "Feedback surveys"
     },
     "admin": {
       "gallery": "Gallery curation",

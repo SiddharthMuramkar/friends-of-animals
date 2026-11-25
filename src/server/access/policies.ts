@@ -40,6 +40,7 @@ import { DIRECTORY_POLICY } from "../modules/directory/policy";
 import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
+import { SURVEYS_POLICY } from "../modules/surveys/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
 import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
@@ -88,6 +89,7 @@ export const POLICY = composePolicies(
   ADOPTION_POLICY,
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
+  SURVEYS_POLICY,
   CAMPAIGNS_POLICY,
   INSTITUTION_SUBMISSIONS_POLICY,
   SCHOOL_ROUND_POLICY,

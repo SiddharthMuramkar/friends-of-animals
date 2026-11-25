@@ -21,6 +21,7 @@ const NONE: ErasureFacts = {
   uploads: 0,
   entries: 0,
   communityHistory: 0,
+  surveyFeedback: 0,
   volunteerService: 0,
   auctionBids: 0,
   freeRegistrations: 0,
