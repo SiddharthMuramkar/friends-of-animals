@@ -17,6 +17,11 @@ describe("the entries seed", () => {
     expect(entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          code: "ORIG27-E-5EED04",
+          status: "foa_verified",
+          checking: false,
+        }),
+        expect.objectContaining({
           code: "NEIGH27-E-5EEDA1",
           status: "submitted",
           checking: false,
@@ -33,10 +38,10 @@ describe("the entries seed", () => {
         }),
       ])
     );
-    expect(entries).toHaveLength(3);
+    expect(entries).toHaveLength(4);
     expect(
       new Set(entries.map(({ registrationId }) => registrationId)).size
-    ).toBe(3);
+    ).toBe(4);
     // The rejected one can be tried again with another image.
     await expect(
       asha.getEntry({ code: "BIRDS27-E-5EEDA3" })

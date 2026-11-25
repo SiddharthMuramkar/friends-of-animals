@@ -146,7 +146,10 @@ describe("the guardian consents seed (#82)", () => {
       const registrations = await guardian.listMyRegistrations();
       expect(
         registrations.filter((each) => each.participantName === child.fullName)
-      ).toMatchObject([{ status: "pending_guardian", heldFor: "consent" }]);
+      ).toMatchObject([
+        { status: "pending_guardian", heldFor: "consent" },
+        { status: "confirmed", competition: { slug: "originals-for-animals" } },
+      ]);
       expect(
         await guardian.childConsentHistory({ childId: child.profileId })
       ).toEqual(history);

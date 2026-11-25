@@ -390,6 +390,21 @@ export type DomainEvent =
       payload: { competitionId: string };
     }
   | {
+      type: "artwork.requested";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.dispatched";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string; late: boolean };
+    }
+  | {
+      type: "artwork.received";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string; dispatchRecorded: boolean };
+    }
+  | {
       /**
        * An FOA verifier verified an entry (#92). The participant or their
        * guardian is told; on the school route, its coordinators.
@@ -876,6 +891,12 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
   }),
   "competition.submissions_closed": z.object({ competitionId: z.uuid() }),
+  "artwork.requested": z.object({ artworkId: z.uuid() }),
+  "artwork.dispatched": z.object({ artworkId: z.uuid(), late: z.boolean() }),
+  "artwork.received": z.object({
+    artworkId: z.uuid(),
+    dispatchRecorded: z.boolean(),
+  }),
   "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
   "entry.sent_back": ENTRY_VERIFICATION_EVENT,
   "entry.replacement_live": z.object({
@@ -1090,6 +1111,9 @@ export const SUBSCRIBERS = {
   // Individual entries go on to FOA when submissions close (#92).
   "competition.submissions_closed": ["verification.forward_individual_entries"],
   // The participant, guardian or coordinators hear by route row (#92).
+  "artwork.requested": ["notifications.dispatch", "reminders.schedule_artwork"],
+  "artwork.dispatched": ["reminders.schedule_artwork"],
+  "artwork.received": ["notifications.dispatch", "reminders.schedule_artwork"],
   "entry.foa_verified": ["notifications.dispatch"],
   "entry.sent_back": ["notifications.dispatch"],
   // A resubmitted file went live: the entry returns to FOA (#92).

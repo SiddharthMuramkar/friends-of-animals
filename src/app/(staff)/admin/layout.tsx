@@ -5,6 +5,7 @@ import { Suspense, type ComponentProps } from "react";
 import {
   ADMIN_ADOPTIONS,
   ADMIN_VERIFICATION,
+  ADMIN_ARTWORK,
   ADMIN_BREACHES,
   ADMIN_DONATIONS,
   ADMIN_CAMPAIGNS,
@@ -50,6 +51,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       { href: ADMIN_PRIVACY_REQUESTS, label: t("privacyRequests") },
       { href: ADMIN_VOLUNTEERS, label: t("volunteers") },
       { href: ADMIN_VERIFICATION, label: t("verification") },
+      { href: ADMIN_ARTWORK, label: t("artwork") },
       { href: ADMIN_ADOPTIONS, label: t("adoptions") },
     ],
   };

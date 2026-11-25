@@ -131,6 +131,13 @@ export const SEED_SCHOOL_SUBMISSIONS_COMPETITION = {
     "Draw, paint or photograph a tree near your school and the birds that live in it.",
 } as const;
 
+export const SEED_ARTWORK_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000009301",
+  code: "ORIG27",
+  slug: "originals-for-animals",
+  name: "Originals for Animals",
+} as const;
+
 /**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
@@ -165,6 +172,30 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           registration_closes: ist(55, "23:59"),
           submissions_close: ist(80, "23:59"),
           school_round_closes: ist(90, "23:59"),
+        },
+      },
+    },
+    {
+      id: SEED_ARTWORK_COMPETITION.id,
+      slug: SEED_ARTWORK_COMPETITION.slug,
+      status: "foa_judging",
+      publishedAt: daysAgo(260),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: SEED_ARTWORK_COMPETITION.code,
+        name: SEED_ARTWORK_COMPETITION.name,
+        theme: "Draw a safe place for the animals that live beside us.",
+        participation: "both",
+        disciplines: ["drawing"],
+        ageGroups: [...AGE_GROUPS, ADULT_AGE_GROUP],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "all_shortlisted" },
+        keyDates: {
+          registration_opens: ist(-220, "09:00"),
+          registration_closes: ist(-130, "23:59"),
+          submissions_close: ist(-60, "23:59"),
+          school_round_closes: ist(-30, "23:59"),
         },
       },
     },
