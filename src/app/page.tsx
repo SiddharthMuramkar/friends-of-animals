@@ -351,7 +351,9 @@ async function Gallery() {
       <Live fallback={[]} load={() => as(PUBLIC_READER).featuredGalleryItems()}>
         {(items) => <ArtworkCards items={items} priority={false} />}
       </Live>
-      <ButtonLink className="mt-6" href="/gallery" prefetch={false}>{(await getTranslations("gallery"))("viewAll")}</ButtonLink>
+      <ButtonLink className="mt-6" href="/gallery" prefetch={false}>
+        {(await getTranslations("gallery"))("viewAll")}
+      </ButtonLink>
       <CertificatePreview headingLevel={3} className="mt-16 sm:mt-20" />
     </Section>
   );

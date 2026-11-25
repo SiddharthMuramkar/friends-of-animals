@@ -456,7 +456,18 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
-  content_managers: async(db) => (await db.selectDistinct({userId:userRole.userId}).from(userRole).where(and(eq(userRole.role,"content_manager"),eq(userRole.scopeType,"global")))).map(row=>row.userId),
+  content_managers: async (db) =>
+    (
+      await db
+        .selectDistinct({ userId: userRole.userId })
+        .from(userRole)
+        .where(
+          and(
+            eq(userRole.role, "content_manager"),
+            eq(userRole.scopeType, "global")
+          )
+        )
+    ).map((row) => row.userId),
   certificate_reissued_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "certificate.reissued" && cipher
       ? reissueRecipients(db, delivery.payload.certificateId, cipher)

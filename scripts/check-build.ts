@@ -17,6 +17,7 @@ import { gzipSync } from "node:zlib";
 import {
   DONATION_CHECKOUT_PREFIX,
   CERTIFICATE_VERIFY_PREFIX,
+  GALLERY_REPORT_PREFIX,
   SIGNED_IN_PREFIXES,
   TRANSPARENCY_PATH,
 } from "../src/lib/app-routes";
@@ -124,6 +125,7 @@ function checkCsp(): string[] {
       ...SIGNED_IN_PREFIXES,
       DONATION_CHECKOUT_PREFIX,
       CERTIFICATE_VERIFY_PREFIX,
+      GALLERY_REPORT_PREFIX,
     ],
     pages,
   });

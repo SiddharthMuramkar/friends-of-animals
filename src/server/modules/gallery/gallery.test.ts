@@ -1,12 +1,21 @@
 import { solvedHumanCheck } from "@/test/human-check";
-import { auditLog, fileAsset, fileDerivative, galleryPurge } from "@/server/db/schema";
+import {
+  auditLog,
+  fileAsset,
+  fileDerivative,
+  galleryPurge,
+} from "@/server/db/schema";
 import { like } from "drizzle-orm";
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { consentCompetition } from "../consent/testing";
 import { confirmedChild, submittedImage } from "../entries/testing";
 import { signedInWith, managerOf } from "../judging/testing";
-import { closeSubmissions, entryIdOf, signedInVerifier } from "../verification/testing";
+import {
+  closeSubmissions,
+  entryIdOf,
+  signedInVerifier,
+} from "../verification/testing";
 
 it("curates a verified, consented entry; a visitor cannot curate and a withdrawn item is not public", async () => {
   const h = await createHarness();
@@ -17,62 +26,177 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
   const entryId = await entryIdOf(h, code);
   await closeSubmissions(h);
   const verifier = await signedInVerifier(h);
-  expect(await h.as(verifier).verifyEntry({ entryId })).toMatchObject({ ok: true });
-  const curator = h.as(await signedInWith(h, { role: "content_manager", scope: { type: "global" } }));
+  expect(await h.as(verifier).verifyEntry({ entryId })).toMatchObject({
+    ok: true,
+  });
+  const curator = h.as(
+    await signedInWith(h, {
+      role: "content_manager",
+      scope: { type: "global" },
+    })
+  );
   const visitor = h.as(h.visitor());
   const guardian = h.as(family.actor);
   const manager = h.as(await signedInWith(h, managerOf(competition.id)));
-  await expect(visitor.pickGalleryEntry({ entryId })).rejects.toMatchObject({ code: "forbidden" });
-  await expect(manager.listGalleryCandidates({ competitionId: competition.id })).rejects.toMatchObject({ code: "forbidden" });
-  expect(await guardian.giveChildConsent({ childId: family.childId, competitionId: competition.id, purpose: "public_display", documentId: competition.guardianDocuments.public_display! })).toMatchObject({ ok: true });
-  const candidates = await curator.listGalleryCandidates({ competitionId: competition.id });
-  expect(candidates, JSON.stringify(candidates)).toMatchObject([{ entryId, eligible: true }]);
+  await expect(visitor.pickGalleryEntry({ entryId })).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(
+    manager.listGalleryCandidates({ competitionId: competition.id })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await guardian.giveChildConsent({
+      childId: family.childId,
+      competitionId: competition.id,
+      purpose: "public_display",
+      documentId: competition.guardianDocuments.public_display!,
+    })
+  ).toMatchObject({ ok: true });
+  const candidates = await curator.listGalleryCandidates({
+    competitionId: competition.id,
+  });
+  expect(candidates, JSON.stringify(candidates)).toMatchObject([
+    { entryId, eligible: true },
+  ]);
   const picked = await curator.pickGalleryEntry({ entryId });
   if (!picked.ok) throw new Error(picked.error);
   const ref = { itemId: picked.itemId };
   expect(await visitor.getPublicGalleryItem(ref)).toBeNull();
-  await expect(visitor.editGalleryItem({ ...ref, title: "Private title", story: "", featured: true })).rejects.toMatchObject({ code: "forbidden" });
-  await expect(manager.publishGalleryItem(ref)).rejects.toMatchObject({ code: "forbidden" });
-  expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: false, error: "review_required" });
-  expect(await curator.editGalleryItem({ ...ref, title: "A dog and a cup of tea", story: "Kindness can be quiet.", featured: true })).toMatchObject({ ok: true });
-  expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: false, error: "stamp_pending" });
+  await expect(
+    visitor.editGalleryItem({
+      ...ref,
+      title: "Private title",
+      story: "",
+      featured: true,
+    })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  await expect(manager.publishGalleryItem(ref)).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  expect(await curator.publishGalleryItem(ref)).toMatchObject({
+    ok: false,
+    error: "review_required",
+  });
+  expect(
+    await curator.editGalleryItem({
+      ...ref,
+      title: "A dog and a cup of tea",
+      story: "Kindness can be quiet.",
+      featured: true,
+    })
+  ).toMatchObject({ ok: true });
+  expect(await curator.publishGalleryItem(ref)).toMatchObject({
+    ok: false,
+    error: "stamp_pending",
+  });
   await h.drain();
   expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: true });
-  expect(await visitor.getPublicGalleryItem(ref)).toMatchObject({ title: "A dog and a cup of tea", story: "Kindness can be quiet.", credit: { name: "Isha D." }, image: { url: `/media/gallery/${ref.itemId}` } });
-  expect(await visitor.readGalleryImage(ref)).toMatchObject({ ok: true, contentType: "image/webp" });
+  expect(await visitor.getPublicGalleryItem(ref)).toMatchObject({
+    title: "A dog and a cup of tea",
+    story: "Kindness can be quiet.",
+    credit: { name: "Isha D." },
+    image: { url: `/media/gallery/${ref.itemId}` },
+  });
+  expect(await visitor.readGalleryImage(ref)).toMatchObject({
+    ok: true,
+    contentType: "image/webp",
+  });
   expect(await visitor.featuredGalleryItems()).toHaveLength(1);
-  const allFiles = [...await h.db.select({key:fileAsset.storageKey}).from(fileAsset), ...await h.db.select({key:fileDerivative.storageKey}).from(fileDerivative)];
-  const publicJson = JSON.stringify([await visitor.listPublicGallery(), await visitor.getPublicGalleryItem(ref), await visitor.featuredGalleryItems()]);
+  const allFiles = [
+    ...(await h.db.select({ key: fileAsset.storageKey }).from(fileAsset)),
+    ...(await h.db
+      .select({ key: fileDerivative.storageKey })
+      .from(fileDerivative)),
+  ];
+  const publicJson = JSON.stringify([
+    await visitor.listPublicGallery(),
+    await visitor.getPublicGalleryItem(ref),
+    await visitor.featuredGalleryItems(),
+  ]);
   for (const file of allFiles) expect(publicJson).not.toContain(file.key);
-  await expect(visitor.listGalleryReports()).rejects.toMatchObject({code:"forbidden"});
-  await expect(manager.hideGalleryItem({...ref,reason:"moderator"})).rejects.toMatchObject({code:"forbidden"});
-  expect(await visitor.reportGalleryItem({...ref,reason:"identifies_child",details:"Test private concern",contact:"test-private@example.test",humanCheck:await solvedHumanCheck(h,h.visitor())})).toMatchObject({ok:true});
-  expect(await curator.listGalleryReports()).toMatchObject([{status:"open",details:"Test private concern",contact:"test-private@example.test"}]);
-  expect(await curator.hideGalleryItem({...ref,reason:"reported"})).toMatchObject({ok:true});
+  await expect(visitor.listGalleryReports()).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(
+    manager.hideGalleryItem({ ...ref, reason: "moderator" })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await visitor.reportGalleryItem({
+      ...ref,
+      reason: "identifies_child",
+      details: "Test private concern",
+      contact: "test-private@example.test",
+      humanCheck: await solvedHumanCheck(h, h.visitor()),
+    })
+  ).toMatchObject({ ok: true });
+  expect(await curator.listGalleryReports()).toMatchObject([
+    {
+      status: "open",
+      details: "Test private concern",
+      contact: "test-private@example.test",
+    },
+  ]);
+  expect(
+    await curator.hideGalleryItem({ ...ref, reason: "reported" })
+  ).toMatchObject({ ok: true });
   expect(await visitor.getPublicGalleryItem(ref)).toBeNull();
-  expect(await visitor.readGalleryImage(ref)).toMatchObject({ok:false});
-  expect(await curator.listGalleryReports()).toMatchObject([{status:"actioned"}]);
+  expect(await visitor.readGalleryImage(ref)).toMatchObject({ ok: false });
+  expect(await curator.listGalleryReports()).toMatchObject([
+    { status: "actioned" },
+  ]);
   await h.drain();
-  expect(h.cdn.purges).toEqual([["/","/gallery",`/gallery/${ref.itemId}`,`/media/gallery/${ref.itemId}`,`/gallery/${ref.itemId}/report`]]);
-  expect(await curator.restoreGalleryItem(ref)).toMatchObject({ok:true});
-  expect(await curator.editGalleryItem({...ref,title:"A dog and a cup of tea",story:"Kindness can be quiet.",featured:true})).toMatchObject({ok:true});
-  expect(await curator.publishGalleryItem(ref)).toMatchObject({ok:true});
-  const audits=await h.db.select().from(auditLog).where(like(auditLog.action,"gallery.%"));
-  expect(audits.map(a=>a.action)).toEqual(expect.arrayContaining(["gallery.reported","gallery.hidden"]));
+  expect(h.cdn.purges).toEqual([
+    [
+      "/",
+      "/gallery",
+      `/gallery/${ref.itemId}`,
+      `/media/gallery/${ref.itemId}`,
+      `/gallery/${ref.itemId}/report`,
+      `/gallery-report/${ref.itemId}`,
+    ],
+  ]);
+  expect(await curator.restoreGalleryItem(ref)).toMatchObject({ ok: true });
+  expect(
+    await curator.editGalleryItem({
+      ...ref,
+      title: "A dog and a cup of tea",
+      story: "Kindness can be quiet.",
+      featured: true,
+    })
+  ).toMatchObject({ ok: true });
+  expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: true });
+  const audits = await h.db
+    .select()
+    .from(auditLog)
+    .where(like(auditLog.action, "gallery.%"));
+  expect(audits.map((a) => a.action)).toEqual(
+    expect.arrayContaining(["gallery.reported", "gallery.hidden"])
+  );
   expect(JSON.stringify(audits)).not.toContain("Test private concern");
   expect(JSON.stringify(audits)).not.toContain("test-private@example.test");
 
-  expect(await guardian.withdrawChildConsent({ childId: family.childId, competitionId: competition.id, purpose: "public_display" })).toMatchObject({ ok: true });
+  expect(
+    await guardian.withdrawChildConsent({
+      childId: family.childId,
+      competitionId: competition.id,
+      purpose: "public_display",
+    })
+  ).toMatchObject({ ok: true });
   expect(await visitor.getPublicGalleryItem(ref)).toBeNull();
   expect(await visitor.listPublicGallery()).toMatchObject({ items: [] });
   expect(await visitor.readGalleryImage(ref)).toMatchObject({ ok: false });
   h.cdn.failNext();
   await h.drain();
-  expect(await curator.listGalleryItemsForAdmin()).toMatchObject([{ status: "unpublished" }]);
+  expect(await curator.listGalleryItemsForAdmin()).toMatchObject([
+    { status: "unpublished" },
+  ]);
   expect(await h.db.select().from(galleryPurge)).toHaveLength(2);
-  h.clock.advance({minutes:1});
+  h.clock.advance({ minutes: 1 });
   await h.drain();
   const purges = await h.db.select().from(galleryPurge);
-  expect(purges.every(p => p.status === "completed" && p.completedAt! <= p.deadlineAt)).toBe(true);
-
+  expect(
+    purges.every(
+      (p) => p.status === "completed" && p.completedAt! <= p.deadlineAt
+    )
+  ).toBe(true);
 });

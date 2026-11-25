@@ -107,7 +107,9 @@ async function Areas() {
   );
   // Adoption coordinators handle adoption applications (#130).
   const verifier = grants.some((grant) => grant.role === "foa_verifier");
-  const gallery=grants.some((g)=>["content_manager","staff_admin","super_admin"].includes(g.role));
+  const gallery = grants.some((g) =>
+    ["content_manager", "staff_admin", "super_admin"].includes(g.role)
+  );
   const auction = grants.some((g) => g.role === "auction_manager");
   const adoption = grants.some(
     (grant) => grant.role === "adoption_coordinator"
@@ -215,7 +217,7 @@ async function AreaBody({
   community: boolean;
   adoption: boolean;
   auction: boolean;
-  gallery:boolean;
+  gallery: boolean;
   verifier: boolean;
 }) {
   const [t, registration] = await Promise.all([
@@ -321,7 +323,9 @@ async function AreaBody({
             ...(verifier
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
               : []),
-            ...(gallery?[{href:APP_ROUTES.adminGallery,label:t("admin.gallery")}]:[]),
+            ...(gallery
+              ? [{ href: APP_ROUTES.adminGallery, label: t("admin.gallery") }]
+              : []),
             ...(auction
               ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]
               : []),

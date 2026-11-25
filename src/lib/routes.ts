@@ -88,9 +88,14 @@ const DEFINITIONS = {
     sitemap: { updated: "2026-11-24", priority: 0.7 },
   },
   adoptable: { path: "/adopt/[slug]", hue: "green" },
-  gallery: { path: "/gallery", hue: "pink", footer: "takePart", sitemap: {updated:"2026-11-25",priority:0.8} },
-  galleryItem: {path:"/gallery/[itemId]", hue:"pink"},
-  galleryReport: {path:"/gallery/[itemId]/report",hue:"pink"},
+  gallery: {
+    path: "/gallery",
+    hue: "pink",
+    footer: "takePart",
+    sitemap: { updated: "2026-11-25", priority: 0.8 },
+  },
+  galleryItem: { path: "/gallery/[itemId]", hue: "pink" },
+  galleryReport: { path: "/gallery/[itemId]/report", hue: "pink" },
   auctions: {
     path: "/auctions",
     hue: "yellow",

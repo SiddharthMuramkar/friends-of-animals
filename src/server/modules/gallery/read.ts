@@ -8,9 +8,15 @@ import { liveGallerySource } from "./evidence";
 
 export const galleryPath = (itemId: string) => `/gallery/${itemId}`;
 export const galleryMediaPath = (itemId: string) => `/media/gallery/${itemId}`;
-export async function galleryRow(ctx: Pick<UseCaseContext,"db">, itemId: string) {
+export async function galleryRow(
+  ctx: Pick<UseCaseContext, "db">,
+  itemId: string
+) {
   if (!z.uuid().safeParse(itemId).success) return null;
-  const [row] = await ctx.db.select().from(galleryItem).where(eq(galleryItem.id, itemId));
+  const [row] = await ctx.db
+    .select()
+    .from(galleryItem)
+    .where(eq(galleryItem.id, itemId));
   return row ?? null;
 }
 async function toPublic(ctx: UseCaseContext, row: GalleryItemRow) {
@@ -20,7 +26,10 @@ async function toPublic(ctx: UseCaseContext, row: GalleryItemRow) {
     itemId: row.id,
     title: row.title,
     story: row.story,
-    competition: { name: source.facts.competition.name, slug: source.facts.competition.slug },
+    competition: {
+      name: source.facts.competition.name,
+      slug: source.facts.competition.slug,
+    },
     category: source.facts.category,
     discipline: source.facts.entry.discipline,
     recognition: source.award,
@@ -33,49 +42,97 @@ async function toPublic(ctx: UseCaseContext, row: GalleryItemRow) {
     },
   };
 }
-export type PublicGalleryItem = NonNullable<Awaited<ReturnType<typeof toPublic>>>;
-export type GalleryFilters = { competition?: string; discipline?: string; category?: string; recognition?: string; cursor?: string };
-export async function listPublicGallery(ctx: UseCaseContext, input: GalleryFilters = {}, options: { featured?: boolean; limit?: number } = {}) {
+export type PublicGalleryItem = NonNullable<
+  Awaited<ReturnType<typeof toPublic>>
+>;
+export type GalleryFilters = {
+  competition?: string;
+  discipline?: string;
+  category?: string;
+  recognition?: string;
+  cursor?: string;
+};
+export async function listPublicGallery(
+  ctx: UseCaseContext,
+  input: GalleryFilters = {},
+  options: { featured?: boolean; limit?: number } = {}
+) {
   await authorize(ctx, "gallery.read_published");
   const limit = options.limit ?? 24;
   const items: PublicGalleryItem[] = [];
-  let cursor = z.uuid().safeParse(input.cursor).success ? input.cursor : undefined;
+  let cursor = z.uuid().safeParse(input.cursor).success
+    ? input.cursor
+    : undefined;
   // Paginate over visible results: rows that lost consent do not consume a
   // slot or leak counts. Independent live reads proceed in small batches.
   while (items.length <= limit) {
-    const rows = await ctx.db.select().from(galleryItem).where(and(
-      eq(galleryItem.status, "published"),
-      options.featured ? eq(galleryItem.featured, true) : undefined,
-      cursor ? lt(galleryItem.id, cursor) : undefined,
-    )).orderBy(desc(galleryItem.id)).limit(12);
+    const rows = await ctx.db
+      .select()
+      .from(galleryItem)
+      .where(
+        and(
+          eq(galleryItem.status, "published"),
+          options.featured ? eq(galleryItem.featured, true) : undefined,
+          cursor ? lt(galleryItem.id, cursor) : undefined
+        )
+      )
+      .orderBy(desc(galleryItem.id))
+      .limit(12);
     for (let i = 0; i < rows.length && items.length <= limit; i += 6) {
-      const projected = await Promise.all(rows.slice(i, i+6).map((r) => toPublic(ctx, r)));
+      const projected = await Promise.all(
+        rows.slice(i, i + 6).map((r) => toPublic(ctx, r))
+      );
       for (const item of projected) {
-        if (item && (!input.competition || item.competition.slug === input.competition) && (!input.discipline || item.discipline === input.discipline) && (!input.category || item.category === input.category) && (!input.recognition || (item.recognition?.value ?? "none") === input.recognition)) items.push(item);
+        if (
+          item &&
+          (!input.competition || item.competition.slug === input.competition) &&
+          (!input.discipline || item.discipline === input.discipline) &&
+          (!input.category || item.category === input.category) &&
+          (!input.recognition ||
+            (item.recognition?.value ?? "none") === input.recognition)
+        )
+          items.push(item);
       }
     }
     if (rows.length < 12) break;
     cursor = rows.at(-1)?.id;
   }
-  return { items: items.slice(0, limit), nextCursor: items.length > limit ? items[limit-1]!.itemId : null };
+  return {
+    items: items.slice(0, limit),
+    nextCursor: items.length > limit ? items[limit - 1]!.itemId : null,
+  };
 }
 export async function featuredGalleryItems(ctx: UseCaseContext) {
   return (await listPublicGallery(ctx, {}, { featured: true, limit: 3 })).items;
 }
-export async function getPublicGalleryItem(ctx: UseCaseContext, input: { itemId: string }) {
-  await authorize(ctx,"gallery.read_published");
+export async function getPublicGalleryItem(
+  ctx: UseCaseContext,
+  input: { itemId: string }
+) {
+  await authorize(ctx, "gallery.read_published");
   const row = await galleryRow(ctx, input.itemId);
   return row ? toPublic(ctx, row) : null;
 }
-export async function readGalleryImage(ctx: UseCaseContext, input: { itemId: string }) {
-  await authorize(ctx,"gallery.read_published");
+export async function readGalleryImage(
+  ctx: UseCaseContext,
+  input: { itemId: string }
+) {
+  await authorize(ctx, "gallery.read_published");
   const missing = { ok: false, error: "not_found" } as const;
   const row = await galleryRow(ctx, input.itemId);
-  const source = row && await liveGallerySource(ctx, row);
+  const source = row && (await liveGallerySource(ctx, row));
   if (!source?.image) return missing;
   try {
-    const body = await ctx.storage.read({ bucket: source.image.bucket, key: source.image.key });
-    return { ok: true, body, contentType: source.image.contentType, sizeBytes: source.image.sizeBytes } as const;
+    const body = await ctx.storage.read({
+      bucket: source.image.bucket,
+      key: source.image.key,
+    });
+    return {
+      ok: true,
+      body,
+      contentType: source.image.contentType,
+      sizeBytes: source.image.sizeBytes,
+    } as const;
   } catch (error) {
     if (error instanceof ObjectMissingError) return missing;
     throw error;
@@ -83,13 +140,35 @@ export async function readGalleryImage(ctx: UseCaseContext, input: { itemId: str
 }
 
 /** Staff review sees the same safe stamp, even for a draft; never an original. */
-export async function readGalleryDraftImage(ctx:UseCaseContext,input:{itemId:string}) {
-  await authorize(ctx,"gallery.curate");
-  const row=await galleryRow(ctx,input.itemId);
-  const missing={ok:false,error:"not_found"} as const;
-  if(!row) return missing;
-  const {eligibleEntry}=await import("./evidence");
-  const source=await eligibleEntry(ctx,row.entryId);
-  if(!source.eligible || !source.image || source.consentEventId!==row.consentEventId || source.fileId!==row.fileId)return missing;
-  try {return {ok:true,body:await ctx.storage.read({bucket:source.image.bucket,key:source.image.key}),contentType:source.image.contentType,sizeBytes:source.image.sizeBytes} as const;}catch(error){if(error instanceof ObjectMissingError)return missing;throw error;}
+export async function readGalleryDraftImage(
+  ctx: UseCaseContext,
+  input: { itemId: string }
+) {
+  await authorize(ctx, "gallery.curate");
+  const row = await galleryRow(ctx, input.itemId);
+  const missing = { ok: false, error: "not_found" } as const;
+  if (!row) return missing;
+  const { eligibleEntry } = await import("./evidence");
+  const source = await eligibleEntry(ctx, row.entryId);
+  if (
+    !source.eligible ||
+    !source.image ||
+    source.consentEventId !== row.consentEventId ||
+    source.fileId !== row.fileId
+  )
+    return missing;
+  try {
+    return {
+      ok: true,
+      body: await ctx.storage.read({
+        bucket: source.image.bucket,
+        key: source.image.key,
+      }),
+      contentType: source.image.contentType,
+      sizeBytes: source.image.sizeBytes,
+    } as const;
+  } catch (error) {
+    if (error instanceof ObjectMissingError) return missing;
+    throw error;
+  }
 }

@@ -276,6 +276,7 @@ export const isJudgeInvitationPage = (path: string) =>
 
 /** Public request-time verification, never signed in or cached. */
 export const CERTIFICATE_VERIFY_PREFIX = "/verify";
+export const GALLERY_REPORT_PREFIX = "/gallery-report";
 export const ADMIN_CERTIFICATES = "/admin/certificates";
 export const MY_CERTIFICATES = "/dashboard/certificates";
 export const ADMIN_ARTWORK = "/admin/artwork";

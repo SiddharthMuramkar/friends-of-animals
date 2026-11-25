@@ -1,5 +1,8 @@
 import type { CdnPurger } from "../ports/cdn-purger";
-import { runGalleryPurge, withdrawGalleryConsent } from "../modules/gallery/purge";
+import {
+  runGalleryPurge,
+  withdrawGalleryConsent,
+} from "../modules/gallery/purge";
 import { renderStamp } from "../modules/stamping";
 import { sendSaleFamilyLetter } from "../modules/auctions/messages";
 import { expireAuctionOffer } from "../modules/auctions/offers";
@@ -184,7 +187,8 @@ export const HANDLERS: Handlers = {
     );
   },
   "gallery.withdraw_consent": withdrawGalleryConsent,
-  "gallery.purge": (deps, {payload}) => runGalleryPurge(deps, payload.purgeId),
+  "gallery.purge": (deps, { payload }) =>
+    runGalleryPurge(deps, payload.purgeId),
   "certificates.build_archive": (deps, delivery) =>
     buildInstitutionCertificateArchive(
       { ...deps, actor: { kind: "system", process: "worker" } },
