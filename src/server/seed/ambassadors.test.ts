@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
+import { seedAmbassadors } from "./ambassadors";
 import { SEED_ACCOUNTS } from "./accounts";
 import { SEED_VOLUNTEERS } from "./volunteers";
 import { staffActor } from "../modules/volunteers/testing";
@@ -21,7 +22,7 @@ it("seeds an eligible adult finalist and a genuine service volunteer's pending a
       reason: "Apply later.",
     })
   ).toEqual({ ok: true });
-  await h.seed.preview();
+  await seedAmbassadors(h.deps);
   expect((await volunteer.getMyAmbassador()).application).toMatchObject({
     id: pending.id,
     status: "declined",
