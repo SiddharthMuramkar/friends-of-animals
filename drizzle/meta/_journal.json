@@ -981,27 +981,6 @@
       "when": 1795593945437,
       "tag": "0139_99_result_releases",
       "breakpoints": true
-    },
-    {
-      "idx": 140,
-      "version": "7",
-      "when": 1795595845768,
-      "tag": "0140_100_pre_certificate_pdf",
-      "breakpoints": true
-    },
-    {
-      "idx": 141,
-      "version": "7",
-      "when": 1795595847987,
-      "tag": "0141_100_certificates",
-      "breakpoints": true
-    },
-    {
-      "idx": 142,
-      "version": "7",
-      "when": 1795595850167,
-      "tag": "0142_100_ready_messages",
-      "breakpoints": true
     }
   ]
 }
