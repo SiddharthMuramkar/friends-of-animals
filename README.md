@@ -1873,10 +1873,11 @@ The CI job "Test integrity" fails if any test file (`tests/`, `src/test/`, `*.te
 | Build without a database         | `pnpm build && pnpm check:build` with empty database URLs: pages must prerender without a database; bundle-size, browser-syntax and CSP checks |
 | Migrations                       | [What CI checks on migrations](#what-ci-checks-on-migrations)                                                                                  |
 | E2E desktop/mobile (shard n/3)   | 6 jobs, only when `full`                                                                                                                       |
+| E2E transparency desktop/mobile  | 2 dedicated jobs on separate databases, only when `full`                                                                                       |
 | Real-Postgres concurrency        | `pnpm db:migrate && pnpm test:pg`, only when `full`                                                                                            |
 | **CI gate**                      | The one required check. Passes only if every job succeeded, or E2E and Postgres were skipped on a non-`full` PR                                |
 
-**Add the `full-ci` label before merging** (`gh pr edit <pr> --add-label full-ci`). A full run is 23 jobs and takes about 5 minutes (up to 8.5); E2E shards are the slowest at 3 to 5 minutes.
+**Add the `full-ci` label before merging** (`gh pr edit <pr> --add-label full-ci`). A full run is 25 jobs and takes about 5 minutes (up to 8.5); E2E shards are the slowest at 3 to 5 minutes.
 
 **Ruleset on `main`** (nobody may bypass): changes arrive only by PR (no approval needed); "CI gate" must pass on a branch that is **up to date** with `main`; merge commits only (squash and rebase are off); no force pushes or deletion. The head branch is deleted on merge; auto-merge and "Update branch" are on. There is no merge queue. The ruleset's pull-request rule also sets `require_extra_approval_for_unattributed_changes: true`.
 
