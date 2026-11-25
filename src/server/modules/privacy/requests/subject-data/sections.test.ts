@@ -45,6 +45,12 @@ describe("the export's coverage of the data inventory", () => {
     expect(uncovered).toEqual([]);
   });
 
+  it("withholds locked but unpublished rankings pending two-person result release", () => {
+    expect(NOT_EXPORTED.round_result).toBe("unpublished_judging_result");
+    expect(sectioned.has("round_result")).toBe(false);
+    expect(referenced.has("round_result")).toBe(false);
+  });
+
   it("names only tables that exist, each in one place", () => {
     for (const table of [...sectioned, ...Object.keys(NOT_EXPORTED)]) {
       expect(TABLES_BY_NAME.has(table), table).toBe(true);
