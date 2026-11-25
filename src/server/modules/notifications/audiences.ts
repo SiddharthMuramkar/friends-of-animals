@@ -3,6 +3,8 @@ import {
   eventNoticeValues,
   eventReminderRecipients,
   EVENT_NOTICE_VARIABLES,
+  EVENT_CHANGE_VARIABLES,
+  EVENT_REGISTRATION_VARIABLES,
 } from "../events/notices";
 import {
   offeredBuyer,
@@ -1128,18 +1130,18 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "event.places_changed": { names: [], load: async () => ({}) },
   "event.published": { names: [], load: async () => ({}) },
   "event.end_due": { names: [], load: async () => ({}) },
-  "event.changed": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.changed": { names: EVENT_CHANGE_VARIABLES, load: eventNoticeValues },
   "event.cancelled": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
   "event.registration_created": {
-    names: EVENT_NOTICE_VARIABLES,
+    names: EVENT_REGISTRATION_VARIABLES,
     load: eventNoticeValues,
   },
   "event.registration_cancelled": {
-    names: EVENT_NOTICE_VARIABLES,
+    names: EVENT_REGISTRATION_VARIABLES,
     load: eventNoticeValues,
   },
   "event.waitlist_promoted": {
-    names: EVENT_NOTICE_VARIABLES,
+    names: EVENT_REGISTRATION_VARIABLES,
     load: eventNoticeValues,
   },
   "volunteer.guardian_approval_requested": {
