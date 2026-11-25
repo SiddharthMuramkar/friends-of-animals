@@ -39,6 +39,7 @@ export const SCOPE_TYPES = [
   "institution",
   "competition",
   "organisation",
+  "round",
 ] as const;
 
 export type ScopeType = (typeof SCOPE_TYPES)[number];
@@ -65,7 +66,7 @@ export const ROLE_SCOPE_TYPES: Readonly<Record<Role, readonly ScopeType[]>> = {
   guardian: ["global"],
   institution_admin: ["institution"],
   institution_coordinator: ["institution"],
-  judge: ["global", "competition"],
+  judge: ["global", "competition", "round"],
   volunteer: ["global", "organisation"],
   organisation_representative: ["organisation"],
   staff_admin: ["global"],
@@ -104,7 +105,7 @@ export function isStaffRole(role: Role): boolean {
 export const scopeSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("global") }),
   z.strictObject({
-    type: z.enum(["institution", "competition", "organisation"]),
+    type: z.enum(["institution", "competition", "organisation", "round"]),
     id: z.uuid(),
   }),
 ]);

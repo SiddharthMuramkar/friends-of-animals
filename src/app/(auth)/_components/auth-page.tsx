@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { judgeInvitationNext } from "@/lib/judge-invitation-next";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
@@ -23,10 +24,12 @@ export async function AuthPage({
   intent,
   consentField,
   art,
+  searchParams,
 }: {
   intent: "sign-up" | "sign-in";
   consentField?: ReactNode;
   art?: ReactNode;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const page = await getTranslations(
     intent === "sign-up" ? "auth.signUp" : "auth.signIn"
@@ -47,7 +50,12 @@ export async function AuthPage({
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
-        <EmailMethod intent={intent} consentField={consentField} art={art} />
+        <EmailMethod
+          intent={intent}
+          consentField={consentField}
+          art={art}
+          searchParams={searchParams}
+        />
       </Suspense>
       {/* Whether SMS is on is read per request; the rest is prerendered. */}
       <Suspense fallback={null}>
@@ -67,10 +75,12 @@ async function EmailMethod({
   intent,
   consentField,
   art,
+  searchParams,
 }: {
   intent: "sign-up" | "sign-in";
   consentField?: ReactNode;
   art?: ReactNode;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const [methods, t, tc] = await Promise.all([
     currentActor().then((actor) => as(actor).signInMethods()),
@@ -78,6 +88,7 @@ async function EmailMethod({
     getTranslations("common.callout"),
   ]);
 
+  const next = judgeInvitationNext((await searchParams)?.next);
   // Out in the free space beside the card, from md: the 576px card, a 24px
   // gap and the 80px drawing fit the 720px prose column.
   const drawing = art ? (
@@ -99,7 +110,12 @@ async function EmailMethod({
         action={emailCodeAction}
         channel="email"
         intent={intent}
-        signUpPath={ROUTES.signUp.path}
+        signUpPath={
+          next
+            ? `${ROUTES.signUp.path}?next=${encodeURIComponent(next)}`
+            : ROUTES.signUp.path
+        }
+        next={next ?? undefined}
         consentField={consentField}
         labels={{
           name: { label: t("name.label"), hint: t("name.hint") },

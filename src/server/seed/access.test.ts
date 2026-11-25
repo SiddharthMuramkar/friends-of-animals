@@ -79,7 +79,7 @@ describe("the access seed", () => {
     // the directory seeder's three representatives (#127), the second
     // finance user, Ledger Approver (#109), and the adoption coordinator
     // (#130).
-    expect(first).toHaveLength(23);
+    expect(first).toHaveLength(25);
   });
 
   it("keeps fixed scope ids that links and journeys can name", () => {

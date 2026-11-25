@@ -1,0 +1,70 @@
+{
+  "judging": {
+    "invitationMessage": {
+      "subject": "Invitation to judge {round}",
+      "text": "FOA invites you to judge {round}. Accept your invitation within 14 days: {link}"
+    },
+    "title": "Your judging rounds",
+    "lead": "Complete your onboarding before judging the entries assigned to you.",
+    "loading": "Loading…",
+    "dashboard": "Back to your dashboard",
+    "back": "Back to your judging rounds",
+    "empty": "You have no judging rounds yet.",
+    "ready": "Ready for judging",
+    "notReady": "Onboarding incomplete",
+    "onboardingFor": "Onboarding for {name}",
+    "onboarding": "Judge onboarding",
+    "invitation": "Judge invitation",
+    "signInFirst": "Sign in with the verified email address FOA invited. You will return to this invitation.",
+    "signIn": "Sign in",
+    "signUp": "Create an account",
+    "invitationLead": "Accept the invitation to join this judging round, or decline it. You must complete onboarding before being assigned entries.",
+    "accept": "Accept invitation",
+    "decline": "Decline invitation",
+    "working": "Working…",
+    "terms": "Code of conduct and confidentiality",
+    "termsDone": "You have accepted the code of conduct and confidentiality terms for this round.",
+    "noDocuments": "FOA has not published the judge terms yet. You cannot complete this step until they are available.",
+    "acceptConduct": "I accept the code of conduct",
+    "acceptConfidentiality": "I accept the confidentiality terms",
+    "saveTerms": "Accept both terms",
+    "conflicts": "Conflicts of interest",
+    "conflictsLead": "Disclose any relationship that could affect your impartiality. FOA staff review the declaration; judges do not see participants’ identities.",
+    "conflictsChoice": "Do you have any conflicts of interest?",
+    "none": "I have no conflicts of interest",
+    "some": "I have conflicts to declare",
+    "institutions": "Institutions you are connected to",
+    "statement": "Conflicts involving people or other circumstances (if applicable)",
+    "saveConflicts": "Save conflict declaration",
+    "statuses": {
+      "draft": "Draft",
+      "open": "Open",
+      "locked": "Locked",
+      "cancelled": "Cancelled"
+    },
+    "invitationStatuses": {
+      "pending": "Pending",
+      "accepted": "This invitation was accepted.",
+      "declined": "This invitation was declined.",
+      "revoked": "This invitation was withdrawn.",
+      "expired": "This invitation expired."
+    },
+    "outcomes": {
+      "accepted": "Invitation accepted.",
+      "declined": "Invitation declined.",
+      "acceptedTerms": "Terms accepted.",
+      "declared": "Conflict declaration saved.",
+      "not_found": "This invitation or round was not found.",
+      "sign_in_required": "Please sign in with the email address FOA invited.",
+      "email_mismatch": "The verified email address of your signed-in account does not match this invitation.",
+      "already_accepted": "This invitation was already accepted.",
+      "expired": "This invitation has expired.",
+      "revoked": "FOA withdrew this invitation.",
+      "round_closed": "This round is closed.",
+      "invalid_input": "Please check the information you entered.",
+      "document_outdated": "FOA has published new terms. Read and accept the current versions.",
+      "forbidden": "You do not have access to this round.",
+      "failed": "We could not complete your request. Please try again."
+    }
+  }
+}

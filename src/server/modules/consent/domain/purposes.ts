@@ -47,6 +47,8 @@ export const CONSENT_PURPOSES = [
   ...GUARDIAN_PURPOSES,
   ...VOLUNTEER_PURPOSES,
   ...ADOPTION_PURPOSES,
+  "judge_conduct",
+  "judge_confidentiality",
 ] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 

@@ -48,6 +48,8 @@ describe("seedPreview", () => {
       "guardian1@example.test",
       "institution-admin@example.test",
       "institution-applicant@example.test",
+      "judging-new@example.test",
+      "judging-ready@example.test",
       "ledger-approver@example.test",
       "ledger-finance@example.test",
       "member1@example.test",

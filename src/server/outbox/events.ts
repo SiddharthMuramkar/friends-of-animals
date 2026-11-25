@@ -258,6 +258,11 @@ export type DomainEvent =
       payload: { reminderJobId: string };
     }
   | {
+      type: "judging.judge_invited";
+      aggregate: { type: "judge_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       /** An authorised person invited a coordinator (#74). */
       type: "institution.coordinator_invited";
       aggregate: { type: "institution_invitation"; id: string };
@@ -806,6 +811,7 @@ export const EVENT_PAYLOADS = {
   "competition.key_dates_changed": z.object({ competitionId: z.uuid() }),
   "competition.cancelled": z.object({ competitionId: z.uuid() }),
   "reminder.due": z.object({ reminderJobId: z.uuid() }),
+  "judging.judge_invited": z.object({ invitationId: z.uuid() }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
   "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
@@ -1028,6 +1034,7 @@ export const SUBSCRIBERS = {
   "reminder.due": ["reminders.run"],
   // An invitee has no account yet, so no route row can name them: the
   // invitation goes to the invited address itself (#74).
+  "judging.judge_invited": ["judging.send_invitation"],
   "institution.coordinator_invited": [
     "institutions.send_coordinator_invitation",
   ],

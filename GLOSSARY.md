@@ -672,6 +672,20 @@ A coordinator's list of every student of one Institution registration, with
 each student's Entry status and what the coordinator can do for them next.
 _Avoid_: Entries dashboard, student list
 
+## FOA judging
+
+**Judging round**:
+A competition’s FOA round, at a city/district, state, national or global level, with its own pinned published rubrics, award scheme, and physical-artwork rule.
+
+**Judge onboarding**:
+A round-scoped judge’s acceptance of the code of conduct and confidentiality terms, followed by a conflict declaration; all are required before an assignment or a blind entry read.
+
+**Round pool**:
+The FOA-verified entries a round admits. A physical round additionally needs a physically ready artwork. Only a pooled entry may be assigned.
+
+**Assignment**:
+One pooled entry allocated to one ready judge, provided their declared and live conflicts do not apply.
+
 ## Files
 
 **File**:

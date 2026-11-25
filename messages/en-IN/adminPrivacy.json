@@ -104,7 +104,8 @@
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
         "adoptionApplications": "2 years after the application closes. One behind a published success story stays while the story is up",
         "privacyRequests": "While the request is open, then 3 years after it is closed",
-        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
+        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored",
+        "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)"
       },
       "purposes": {
         "account": {
@@ -607,6 +608,36 @@
           "subject_id": "Names the account or child's profile that was erased",
           "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
           "profile_ids": "Names every participant profile the erasure covered, for the same reason"
+        },
+        "judging_round": {
+          "created_by_user_id": "Records who created a judging round",
+          "opened_by_user_id": "Records who opened a judging round",
+          "cancelled_by_user_id": "Records who cancelled a judging round"
+        },
+        "round_entry": {
+          "admitted_by_user_id": "Records who admitted an entry to a round"
+        },
+        "round_assignment": {
+          "assigned_by_user_id": "Records who assigned an entry",
+          "judge_user_id": "Identifies the judge assigned to the entry"
+        },
+        "judge_invitation": {
+          "email_ciphertext": "Encrypted address where the invitation is sent",
+          "email_hash": "Matches repeated invitations and verified invitees",
+          "token_ciphertext": "Encrypted link used to deliver the invitation",
+          "invited_by_user_id": "Records who invited the judge",
+          "accepted_user_id": "Identifies the judge who accepted the invitation"
+        },
+        "judge_onboarding": {
+          "judge_user_id": "Identifies the judge who completed onboarding",
+          "conflict_statement": "Records the declared conflicts of interest for staff review",
+          "conduct_consent_event_id": "Links the accepted code of conduct",
+          "confidentiality_consent_event_id": "Links the accepted confidentiality terms"
+        },
+        "judge_conflict": {
+          "judge_user_id": "Identifies the judge with the conflict",
+          "note": "Staff notes on the declared conflict",
+          "created_by_user_id": "Records who flagged the conflict"
         }
       }
     },
@@ -823,6 +854,10 @@
         "erasureRecords": {
           "name": "Erasure records",
           "rule": "Kept as the proof of each erasure. They hold ids only, never a name or a contact."
+        },
+        "judgingRecords": {
+          "name": "Judging records",
+          "rule": "Provisional: 90 days after the round’s results, pending counsel and the results workflow. Invitation links are cleared on response."
         }
       }
     },

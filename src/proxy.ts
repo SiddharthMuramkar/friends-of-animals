@@ -42,6 +42,8 @@ export const config = {
     "/ngos/:slug",
     "/adopt/:slug",
     "/ngos/register/:path*",
+    "/judge",
+    "/judge/:path*",
     "/organisation",
     "/organisation/:path*",
     "/consent/:path*",

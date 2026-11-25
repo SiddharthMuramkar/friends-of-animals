@@ -38,7 +38,7 @@ describe("dashboardLinks", () => {
         section: `institution-${OTHER_SCHOOL}`,
         href: `/dashboard#institution-${OTHER_SCHOOL}`,
       },
-      { area: "judge", section: "judge", href: "/dashboard#judge" },
+      { area: "judge", section: "judge", href: "/judge" },
       {
         area: "organisation",
         id: PARTNER,

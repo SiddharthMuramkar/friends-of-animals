@@ -55,3 +55,5 @@ export * from "./campaigns";
 export * from "./volunteers";
 export * from "./school-round";
 export * from "./verification";
+export * from "./judging-rounds";
+export * from "./judging-judges";

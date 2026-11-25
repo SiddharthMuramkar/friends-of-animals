@@ -239,6 +239,18 @@ export function adoptionApplicationsPath(
  * public stories page, /adopt/stories, is in src/lib/routes.ts.
  */
 export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_JUDGING_ROUNDS = "/admin/judging/rounds";
+export const JUDGE_DASHBOARD = "/judge";
+export const JUDGE_INVITATIONS_PREFIX = "/judge/invitations";
+export const adminJudgingRoundPath = (id: string) =>
+  `${ADMIN_JUDGING_ROUNDS}/${encodeURIComponent(id)}`;
+export const judgeInvitationPath = (token: string) =>
+  `${JUDGE_INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+export const judgeOnboardingPath = (id: string) =>
+  `${JUDGE_DASHBOARD}/rounds/${encodeURIComponent(id)}/onboarding`;
+export const isJudgeInvitationPage = (path: string) =>
+  fitsTemplate(path, `${JUDGE_INVITATIONS_PREFIX}/[token]`);
+
 export const ADMIN_VERIFICATION = "/admin/verification";
 export function adminVerificationEntryPath(entryId: string): string {
   return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
@@ -518,6 +530,15 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_JUDGING_ROUNDS,
+  "/admin/judging/rounds/new",
+  "/admin/judging/rounds/[id]",
+  "/admin/judging/rounds/[id]/judges",
+  "/admin/judging/rounds/[id]/pool",
+  "/admin/judging/rounds/[id]/assignments",
+  "/admin/judging/rounds/[id]/conflicts",
+  JUDGE_DASHBOARD,
+  "/judge/rounds/[id]/onboarding",
   ADMIN_VERIFICATION,
   "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
@@ -653,6 +674,7 @@ export const SIGNED_IN_PREFIXES = [
   "/guardian",
   "/ngos/register",
   "/organisation",
+  JUDGE_DASHBOARD,
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

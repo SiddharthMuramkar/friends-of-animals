@@ -40,13 +40,15 @@
       "volunteers": "Volunteer applications",
       "verification": "FOA verification",
       "adoptions": "Adoption applications",
-      "privacyRequests": "Privacy requests"
+      "privacyRequests": "Privacy requests",
+      "judging": "Judging rounds"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
     },
     "judge": {
-      "body": "The entries you're asked to judge will show here when judging opens."
+      "body": "Complete your judge onboarding for each FOA round.",
+      "rounds": "Your judging rounds"
     },
     "organisation": {
       "body": "Your listing in FOA's NGO directory. Keep it up to date and send FOA proof.",

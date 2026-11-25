@@ -185,6 +185,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       // For whoever owes the deadline (`reminder_registrants`,
       // `reminder_contacts`), planned by the reminders handler (#84).
       return null;
+    case "judging.judge_invited":
     case "institution.coordinator_invited":
       // The invitee may have no account yet: the invitation goes to the
       // invited address by its own handler (#74), not by a route row.
@@ -729,6 +730,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: REMINDER_VARIABLES,
     load: (db, { payload }) => reminderValues(db, payload.reminderJobId),
   },
+  "judging.judge_invited": { names: [], load: async () => ({}) },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
   "directory.listing_submitted": { names: [], load: async () => ({}) },
   "directory.listing_verified": {

@@ -15,6 +15,7 @@ import type { Deps } from "../deps";
 import type { BlindIndex } from "../crypto/blind-index";
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { sendJudgeInvitation } from "../modules/judging/invitation-message";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
 import type { AppEnv } from "../../lib/site";
 import { deliverConsentLink } from "../modules/consent-links/delivery";
@@ -172,6 +173,8 @@ export const HANDLERS: Handlers = {
   "files.process_video": (deps, delivery) => processVideoAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
+  "judging.send_invitation": (deps, { payload }) =>
+    sendJudgeInvitation(deps, payload),
   "institutions.send_coordinator_invitation": (deps, { payload }) =>
     sendCoordinatorInvitation(deps, payload),
   // Emails a contact message's sender their reference (#113).
