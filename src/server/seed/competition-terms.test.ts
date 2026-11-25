@@ -110,6 +110,8 @@ describe("the competition terms seed", () => {
     await h.seed.preview();
 
     expect(await counts(h)).toEqual(once);
-    expect(once).toMatchObject({ fees: 3, awards: 1, pins: 12 });
+    // Three sample fees, and TREES27's free institution fee from the
+    // school-route submissions seed (#87).
+    expect(once).toMatchObject({ fees: 4, awards: 1, pins: 12 });
   });
 });

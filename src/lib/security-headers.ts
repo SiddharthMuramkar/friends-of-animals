@@ -59,6 +59,28 @@ export function checkoutPageHeaders(): HeaderRule[] {
   }));
 }
 
+/** The directory search's path (#128): ROUTES.ngos in ./routes.ts. */
+export const DIRECTORY_SEARCH_PATH = "/ngos";
+
+/**
+ * The directory search's override (#128): its "Use my location" button may
+ * ask the browser for the visitor's position, on this page only and for
+ * this origin only. Listed after securityHeaders in next.config.ts.
+ */
+export function directorySearchHeaders(): HeaderRule[] {
+  return [
+    {
+      source: DIRECTORY_SEARCH_PATH,
+      headers: [
+        {
+          key: "Permissions-Policy",
+          value: "camera=(), microphone=(), geolocation=(self)",
+        },
+      ],
+    },
+  ];
+}
+
 const BEARER_HEADERS: SecurityHeader[] = [
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "Cache-Control", value: "private, no-store" },
@@ -89,7 +111,8 @@ export function securityHeaders(appEnv: string | undefined): SecurityHeader[] {
     },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-    // The pay page also allows payment (checkoutPageHeaders).
+    // The pay page also allows payment (checkoutPageHeaders), and the
+    // directory search geolocation (directorySearchHeaders).
     { key: "Permissions-Policy", value: PERMISSIONS_POLICY },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
     { key: "X-Frame-Options", value: "DENY" },

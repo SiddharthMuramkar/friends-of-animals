@@ -7,9 +7,12 @@ import {
   payFeesPath,
   payMyRegistrationPath,
 } from "./app-routes";
+import { ROUTES } from "./routes";
 import {
   checkoutPageHeaders,
   consentLinkHeaders,
+  DIRECTORY_SEARCH_PATH,
+  directorySearchHeaders,
   securityHeaders,
   strictTransportSecurity,
 } from "./security-headers";
@@ -163,5 +166,30 @@ describe("consentLinkHeaders", () => {
 
   it.each(["/", "/donate", "/contact"])("leaves %s alone", (path) => {
     expect(matching(path)).toEqual([]);
+  });
+});
+
+describe("directorySearchHeaders", () => {
+  const rules = directorySearchHeaders();
+  const matching = (path: string) =>
+    rules.filter((rule) => getPathMatch(rule.source)(path) !== false);
+
+  it("lets the directory search ask for the visitor's location, there only", () => {
+    const [rule, ...others] = matching("/ngos");
+
+    expect(others).toEqual([]);
+    expect(rule!.headers).toEqual([
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(self)",
+      },
+    ]);
+    for (const path of ["/ngos/seed-paws-trust", "/ngos/register", "/"]) {
+      expect(matching(path)).toEqual([]);
+    }
+  });
+
+  it("follows the search page's route", () => {
+    expect(DIRECTORY_SEARCH_PATH).toBe(ROUTES.ngos.path);
   });
 });

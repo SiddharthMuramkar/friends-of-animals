@@ -59,6 +59,7 @@ export async function EntryUpload({ options, ...props }: Props) {
           problem: form("problem"),
         },
         errors: {
+          shortlist_only: errors("shortlist_only"),
           registration_not_confirmed: errors("registration_not_confirmed"),
           participation_consent_required: errors(
             "participation_consent_required"
