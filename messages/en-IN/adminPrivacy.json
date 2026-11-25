@@ -97,7 +97,9 @@
         "announcements": "While the competition's records are kept",
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
-        "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers"
+        "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
+        "privacyRequests": "While the request is open, then 3 years after it is closed",
+        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
       },
       "purposes": {
         "account": {
@@ -503,6 +505,24 @@
           "conduct_consent_id": "The code of conduct acceptance the approval rested on",
           "decline_reason_ciphertext": "Why a community manager declined, as the applicant was told (encrypted)",
           "decided_by_user_id": "The community manager who approved or declined the application"
+        },
+        "privacy_request": {
+          "subject_id": "Names the account or child's profile the request is about",
+          "requested_by_user_id": "Records who filed the request, so they can follow it and are told the outcome",
+          "correction_details_ciphertext": "What the person says is wrong and should be corrected, in their words",
+          "assigned_to_user_id": "Records which grievance officer is answering the request",
+          "rejection_reason_ciphertext": "Why the grievance officer refused the request, as the person is told",
+          "resolution_ciphertext": "What the grievance officer corrected, as the person is told",
+          "erasure_approved_by_user_id": "Records which grievance officer approved the erasure"
+        },
+        "privacy_request_note": {
+          "body_ciphertext": "The grievance officer's internal notes on the request",
+          "author_user_id": "Records which grievance officer wrote the note"
+        },
+        "erasure_record": {
+          "subject_id": "Names the account or child's profile that was erased",
+          "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
+          "profile_ids": "Names every participant profile the erasure covered, for the same reason"
         }
       }
     },
@@ -703,6 +723,14 @@
         "campaigns": {
           "name": "Campaigns",
           "rule": "While the campaign's records are kept. No daily job yet."
+        },
+        "privacyRequests": {
+          "name": "Closed privacy requests",
+          "rule": "Kept while the request is open, then deleted with the grievance officer's notes {days, plural, one {# day} other {# days}} after it closes."
+        },
+        "erasureRecords": {
+          "name": "Erasure records",
+          "rule": "Kept as the proof of each erasure. They hold ids only, never a name or a contact."
         }
       }
     },

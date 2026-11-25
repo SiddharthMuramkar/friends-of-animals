@@ -64,6 +64,17 @@ and the accounts and child profiles a notice couldn't reach. All of it is
 kept while the breach is open and for 5 years after it closes, then deleted
 with the breach (HR-31, pending confirmation).
 
+## Rights requests
+
+A privacy rights request names whose data it is about by id (an account or a
+child's profile) and who filed it. What the requester asks to correct, why a
+request was refused, what was corrected and the grievance officer's notes are
+encrypted. A closed request and its notes are deleted 3 years after it closes
+(`privacyRequests`, HR-31, pending confirmation). An erasure leaves an
+`erasure_record` holding ids only: whose data it erased, what it did with each
+kind of record and what it kept, as proof of the erasure and so it can be done
+again after a backup is restored (HR-30).
+
 ## Volunteer applications
 
 A volunteer application holds the applicant's date of birth (encrypted,

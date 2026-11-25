@@ -26,6 +26,8 @@ import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
 import adminBreaches from "../../messages/en-IN/adminBreaches.json";
+import adminGrievance from "../../messages/en-IN/adminGrievance.json";
+import privacyRequests from "../../messages/en-IN/privacyRequests.json";
 import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
@@ -106,6 +108,8 @@ export const NAMESPACES = [
   "adminAnnouncements",
   "art",
   "adminBreaches",
+  "adminGrievance",
+  "privacyRequests",
   "adminDirectory",
   "adminVolunteers",
   "campaigns",
@@ -190,6 +194,8 @@ export const messages = {
   ...adminAnnouncements,
   ...art,
   ...adminBreaches,
+  ...adminGrievance,
+  ...privacyRequests,
   ...adminDirectory,
   ...adminVolunteers,
   ...campaigns,
