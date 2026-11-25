@@ -35,10 +35,14 @@ async function toPublic(
   currentBidPaise: bigint | null
 ) {
   // Consent checked on every read, not on a cached copy of the creator's
-  // name. Neither an original File nor its private derivatives is joined.
+  // name. Only the live stamped derivative can furnish a public image.
   const consent = await currentLotConsent(ctx, row);
   if (!consent) return null;
-  const copy = await imageOf(ctx, consent.entryId);
+  const [copy, minimumIncrement, award] = await Promise.all([
+    imageOf(ctx, consent.entryId),
+    ctx.settings.get("auctions.minIncrementPaise"),
+    publishedRecognitionForEntry(ctx.db, consent.entryId),
+  ]);
   return {
     lotCode: row.lotCode,
     story: row.story,
@@ -49,14 +53,12 @@ async function toPublic(
     minimumBidPaise: minimumNextBid(
       { ...row, currentBidPaise },
       {
-        minIncrementPaise: BigInt(
-          await ctx.settings.get("auctions.minIncrementPaise")
-        ),
+        minIncrementPaise: BigInt(minimumIncrement),
       }
     ),
     opensAt: row.opensAt,
     closesAt: row.closesAt,
-    award: await publishedRecognitionForEntry(ctx.db, consent.entryId),
+    award,
     image: copy
       ? {
           url: `/media/auctions/${row.lotCode}`,
@@ -129,10 +131,16 @@ export async function browseLots(ctx: UseCaseContext) {
       )
     )
     .orderBy(asc(auctionLot.opensAt), asc(auctionLot.lotCode));
+  // Check independent lots concurrently in bounded batches. A slow
+  // consent/credit read on one lot must not serially delay other cards.
   const result = [];
-  for (const lot of lots) {
-    const publicLot = await toPublic(ctx, lot.row, lot.currentBidPaise);
-    if (publicLot) result.push(publicLot);
+  for (let i = 0; i < lots.length; i += 8) {
+    const visible = await Promise.all(
+      lots
+        .slice(i, i + 8)
+        .map((lot) => toPublic(ctx, lot.row, lot.currentBidPaise))
+    );
+    result.push(...visible.filter((lot) => lot !== null));
   }
   return result;
 }
