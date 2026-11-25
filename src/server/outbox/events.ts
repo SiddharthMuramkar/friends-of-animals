@@ -495,6 +495,26 @@ export type DomainEvent =
       };
     }
   | {
+      type: "gallery.reported";
+      aggregate: {type:"gallery_report";id:string};
+      payload: {reportId:string};
+    }
+  | {
+      type: "gallery.purge_overdue";
+      aggregate: {type:"gallery_purge";id:string};
+      payload: {purgeId:string};
+    }
+  | {
+      type: "gallery.purge_failed";
+      aggregate: {type:"gallery_purge";id:string};
+      payload: {purgeId:string};
+    }
+  | {
+      type: "gallery.purge_requested";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
       type: "stamping.requested";
       aggregate: { type: "file_asset"; id: string };
       payload: { fileId: string; variant: StampVariant };
@@ -1088,6 +1108,10 @@ export const EVENT_PAYLOADS = {
     releaseId: z.uuid(),
     publishedAt: z.iso.datetime(),
   }),
+  "gallery.reported": z.object({reportId:z.uuid()}),
+  "gallery.purge_overdue": z.object({purgeId:z.uuid()}),
+  "gallery.purge_failed": z.object({purgeId:z.uuid()}),
+  "gallery.purge_requested": z.object({ purgeId: z.uuid() }),
   "stamping.requested": z.object({
     fileId: z.uuid(),
     variant: z.enum(STAMP_VARIANTS),
@@ -1242,7 +1266,7 @@ export const SUBSCRIBERS = {
   "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
-  "consent.withdrawn": ["notifications.dispatch", "auctions.withdraw_consent"],
+  "consent.withdrawn": ["notifications.dispatch", "auctions.withdraw_consent", "gallery.withdraw_consent"],
   "consent.link_sent": ["consent_links.deliver"],
   // files.process_image runs in worker-media only: the media queue
   // (./queues.ts). An entry's file follows each step of its own (#85):
@@ -1355,6 +1379,10 @@ export const SUBSCRIBERS = {
     "certificates.issue",
     "community.record_results",
   ],
+  "gallery.reported": ["notifications.dispatch"],
+  "gallery.purge_overdue": ["notifications.dispatch"],
+  "gallery.purge_failed": ["notifications.dispatch"],
+  "gallery.purge_requested": ["gallery.purge"],
   "stamping.requested": ["stamping.render"],
   "certificate.render": ["certificate.render"],
   "certificates.ready": ["notifications.dispatch"],

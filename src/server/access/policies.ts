@@ -43,6 +43,7 @@ import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
 import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
 import { VERIFICATION_POLICY } from "../modules/verification/policy";
+import { GALLERY_POLICY } from "../modules/gallery/policy";
 import { AUCTIONS_POLICY } from "../modules/auctions/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
@@ -89,6 +90,7 @@ export const POLICY = composePolicies(
   SCHOOL_ROUND_POLICY,
   VERIFICATION_POLICY,
   PHYSICAL_ARTWORK_POLICY,
+  GALLERY_POLICY,
   AUCTIONS_POLICY
 );
 

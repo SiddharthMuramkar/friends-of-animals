@@ -13,7 +13,9 @@ import { CertificatePreview } from "@/components/showcase/certificate-preview";
 import { cachedNow } from "@/components/showcase/clock";
 import { fromSample } from "@/components/competitions/model";
 import { CompetitionCard } from "@/components/showcase/competition-card";
-import { GalleryFrames } from "@/components/showcase/gallery-frames";
+import { ArtworkCards } from "./gallery/_artwork";
+import { as } from "@/server/app";
+import { PUBLIC_READER } from "./competitions/_lib/public-reader";
 import { HappyMosaic } from "@/components/showcase/happy-mosaic";
 import { ImpactCounters } from "@/components/showcase/impact-counters";
 import { JudgingPath } from "@/components/showcase/judging-path";
@@ -346,7 +348,10 @@ async function Gallery() {
         title={t("title")}
         lead={t("lead")}
       />
-      <GalleryFrames className="mt-10" />
+      <Live fallback={[]} load={() => as(PUBLIC_READER).featuredGalleryItems()}>
+        {(items) => <ArtworkCards items={items} priority={false} />}
+      </Live>
+      <ButtonLink className="mt-6" href="/gallery" prefetch={false}>{(await getTranslations("gallery"))("viewAll")}</ButtonLink>
       <CertificatePreview headingLevel={3} className="mt-16 sm:mt-20" />
     </Section>
   );

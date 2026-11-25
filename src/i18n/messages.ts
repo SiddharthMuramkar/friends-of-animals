@@ -1,3 +1,4 @@
+import gallery from "../../messages/en-IN/gallery.json";
 import certificatePdf from "../../messages/en-IN/certificatePdf.json";
 import certificates from "../../messages/en-IN/certificates.json";
 import results from "../../messages/en-IN/results.json";
@@ -174,6 +175,7 @@ export const NAMESPACES = [
   "certificatePdf",
   "artworkCustody",
   "auctions",
+  "gallery",
   "error",
   "files",
   "footer",
@@ -280,6 +282,7 @@ export const messages = {
   ...certificatePdf,
   ...artworkCustody,
   ...auctions,
+  ...gallery,
   ...error,
   ...files,
   ...footer,

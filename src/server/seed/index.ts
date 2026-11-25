@@ -52,6 +52,7 @@ import { seedSecondFactor } from "./second-factor";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedResults } from "./results";
+import { seedGallery } from "./gallery";
 import { seedAuctions } from "./auctions";
 import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
@@ -132,6 +133,7 @@ const seeders: readonly Seeder[] = [
   seedPhysicalArtwork,
   seedAuctions,
   seedResults,
+  seedGallery,
   seedCommunity,
   seedCertificates,
   seedScoring,

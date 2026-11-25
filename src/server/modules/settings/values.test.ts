@@ -178,6 +178,8 @@ describe("resolveAllSettings", () => {
       ["reminders.schoolRoundShortlistDueFirstHours", 72, "default"],
       ["reminders.schoolRoundShortlistDueSecondHours", 24, "default"],
       ["artwork.dispatchDays", 14, "default"],
+      ["gallery.withdrawalPurgeMinutes", 15, "default"],
+      ["gallery.reportsPerIpPerHour", 10, "default"],
       ["auctions.enabled", false, "default"],
       ["auctions.minIncrementPaise", 5000, "default"],
       ["auctions.antiSnipingWindowMinutes", 5, "default"],

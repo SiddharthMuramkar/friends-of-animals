@@ -110,6 +110,7 @@ export type RequestProxyDeps = {
   isAdoptableSlug?: SlugLookup;
   /** Fresh auction visibility check; never cache consent across requests. */
   isPublicAuctionLot?: SlugLookup;
+  isPublicGalleryItem?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -120,6 +121,7 @@ export function createProxy({
   isPublicListingSlug = async () => false,
   isAdoptableSlug = async () => false,
   isPublicAuctionLot = async () => false,
+  isPublicGalleryItem = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -268,6 +270,18 @@ export function createProxy({
       return withNonceCsp(request);
     }
 
+    if (pathname === "/gallery" || pathname.startsWith("/gallery/")) {
+      const segments=pathname.split("/");
+      const id=decodedSlug(segments[2]??"");
+      let known=pathname==="/gallery";
+      if (!known && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) && (segments.length===3 || (segments.length===4&&segments[3]==="report"))) {
+        try {known=await isPublicGalleryItem(id);} catch {known=false;}
+      }
+      const result=known?NextResponse.next():NextResponse.rewrite(new URL(MISSING,request.url));
+      result.headers.set("Cache-Control","private, no-store, max-age=0");
+      result.headers.set("CDN-Cache-Control","no-store");
+      return result;
+    }
     const [, section, raw = ""] = pathname.split("/");
     const known =
       section === "blog"

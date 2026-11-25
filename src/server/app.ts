@@ -56,6 +56,7 @@ import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
 import { schoolRoundUseCases } from "./modules/school-round";
+import { galleryUseCases } from "./modules/gallery";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
@@ -106,7 +107,8 @@ const useCases = composeUseCases(
   schoolRoundUseCases,
   verificationUseCases,
   physicalArtworkUseCases,
-  auctionsUseCases
+  auctionsUseCases,
+  galleryUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

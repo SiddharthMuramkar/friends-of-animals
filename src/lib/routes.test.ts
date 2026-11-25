@@ -25,7 +25,6 @@ describe("ROUTES", () => {
 
   it("never links modules that are not built yet", () => {
     const unbuilt = [
-      "/gallery",
       "/transparency",
       "/login",
       "/events",

@@ -46,12 +46,12 @@ export async function emitBatch(
     const eventId = uuidv7(now);
     // Auction cancellation is needed only for auction-purpose withdrawals;
     // unrelated consent changes retain their existing notification delivery.
-    const handlers: readonly string[] =
-      event.type === "consent.withdrawn" && event.payload.purpose !== "auction"
-        ? SUBSCRIBERS[event.type].filter(
-            (handler) => handler !== "auctions.withdraw_consent"
-          )
-        : SUBSCRIBERS[event.type];
+    const handlers: readonly string[] = SUBSCRIBERS[event.type].filter((handler) =>
+      event.type !== "consent.withdrawn" || (
+        (handler !== "auctions.withdraw_consent" || event.payload.purpose === "auction") &&
+        (handler !== "gallery.withdraw_consent" || ["public_display", "display_school", "display_city"].includes(event.payload.purpose))
+      )
+    );
     return handlers.map((handler) => ({
       id: uuidv7(now),
       eventId,
