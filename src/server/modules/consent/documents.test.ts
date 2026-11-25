@@ -5,6 +5,8 @@ import { LEGAL_DOCS } from "@/content/legal";
 import { MESSAGES_CONSENT_DRAFT } from "@/content/legal/messages-consent";
 import { auditLog, consentDocument, user } from "@/server/db/schema";
 import { SEED_ACCOUNTS } from "@/server/seed";
+import { seedFunctions } from "@/server/seed/builders";
+import { seedConsent } from "@/server/seed/consent";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { toConsentDocumentBody } from "./domain/document-body";
@@ -471,8 +473,6 @@ describe("the preview seed", () => {
   it("publishes version 1 of the privacy notice, the terms and the messages consent, once", async () => {
     const h = await createHarness();
     await h.seed.preview();
-    h.clock.advance({ days: 1 });
-    await h.seed.preview();
 
     const admin = await h.signIn(SEED_ACCOUNTS.superAdmin);
     const versions = async (purpose: "privacy_notice" | "terms" | "messages") =>
@@ -489,32 +489,41 @@ describe("the preview seed", () => {
       name: SEED_ACCOUNTS.superAdmin.name,
     };
 
-    expect(await versions("privacy_notice")).toEqual([
-      {
-        version: 1,
-        title: "Privacy policy",
-        body: toConsentDocumentBody(LEGAL_DOCS.privacy),
-        publishedBy: seededAdmin,
-      },
-    ]);
-    expect(await versions("terms")).toEqual([
-      {
-        version: 1,
-        title: "Terms of use",
-        body: toConsentDocumentBody(LEGAL_DOCS.terms),
-        publishedBy: seededAdmin,
-      },
-    ]);
-    expect(await versions("messages")).toEqual([
-      {
-        version: 1,
-        title: MESSAGES_CONSENT_DRAFT.title,
-        body: {
-          short: MESSAGES_CONSENT_DRAFT.short,
-          sections: MESSAGES_CONSENT_DRAFT.sections,
+    async function expectSeededDocuments() {
+      expect(await versions("privacy_notice")).toEqual([
+        {
+          version: 1,
+          title: "Privacy policy",
+          body: toConsentDocumentBody(LEGAL_DOCS.privacy),
+          publishedBy: seededAdmin,
         },
-        publishedBy: seededAdmin,
-      },
-    ]);
+      ]);
+      expect(await versions("terms")).toEqual([
+        {
+          version: 1,
+          title: "Terms of use",
+          body: toConsentDocumentBody(LEGAL_DOCS.terms),
+          publishedBy: seededAdmin,
+        },
+      ]);
+      expect(await versions("messages")).toEqual([
+        {
+          version: 1,
+          title: MESSAGES_CONSENT_DRAFT.title,
+          body: {
+            short: MESSAGES_CONSENT_DRAFT.short,
+            sections: MESSAGES_CONSENT_DRAFT.sections,
+          },
+          publishedBy: seededAdmin,
+        },
+      ]);
+    }
+
+    // Check the full preview wires in the consent seeder before exercising
+    // its idempotency without rerunning unrelated modules.
+    await expectSeededDocuments();
+    h.clock.advance({ days: 1 });
+    await seedFunctions([seedConsent]).seedPreview(h.deps);
+    await expectSeededDocuments();
   });
 });
