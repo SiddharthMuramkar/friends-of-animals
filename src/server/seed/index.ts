@@ -20,7 +20,11 @@ import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
 import { seedRecurringDonations } from "./recurring-donations";
-import { seedDonations, seedTransparencyDonations } from "./donations";
+import {
+  seedDonations,
+  seedTransparencyDonations,
+  seedObjectiveDonation,
+} from "./donations";
 import { seedOfflineDonations } from "./offline-donations";
 import { seedDirectory } from "./directory";
 import { seedAdoption } from "./adoption";
@@ -52,6 +56,7 @@ import { seedSecondFactor } from "./second-factor";
 import { seedEvents } from "./events";
 import { seedClubs } from "./clubs";
 import { seedAmbassadors } from "./ambassadors";
+import { seedObjectives } from "./objectives";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedReports } from "./reports";
@@ -131,6 +136,7 @@ const seeders: readonly Seeder[] = [
   seedOfflineDonations,
   seedRecurringDonations,
   seedTransparencyDonations,
+  seedObjectiveDonation,
   seedLedger,
   // After the ledger seed: its postings are in open months (#109).
   seedLedgerPeriods,
@@ -157,6 +163,7 @@ const seeders: readonly Seeder[] = [
   seedVolunteers,
   seedVolunteerWork,
   seedAmbassadors,
+  seedObjectives,
   // After the adoption and consent seeds: applications on the seeded
   // animals, on version 1 of the adopter's consents (#130).
   seedAdoptionApplications,

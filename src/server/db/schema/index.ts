@@ -83,3 +83,5 @@ export * from "./social-export";
 export * from "./competition-invitations";
 
 export * from "./ambassadors";
+
+export * from "./social-snapshots";

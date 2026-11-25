@@ -6,7 +6,7 @@ import { signInStaff } from "@/server/modules/payments/testing";
 import { createHarness } from "@/test/harness";
 
 import { SEED_CANCELLED } from "./competition-cancelled";
-import { SEED_DONATIONS } from "./donations";
+import { SEED_DONATIONS, SEED_OBJECTIVE_DONATION } from "./donations";
 import { SEED_PAYMENTS } from "./payments";
 import { SEED_REFUNDS } from "./refunds";
 
@@ -46,6 +46,11 @@ describe("the refunds seed", () => {
         id: SEED_DONATIONS.foreign.refundId,
         status: "refunded",
         kind: "foreign_payment",
+      },
+      {
+        id: SEED_OBJECTIVE_DONATION.refundId,
+        status: "refunded",
+        kind: "discretionary",
       },
     ]);
     expect(await rows()).toEqual(once);

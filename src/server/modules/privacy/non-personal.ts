@@ -17,6 +17,18 @@
 import type { NonPersonalColumns } from "./domain/coverage";
 
 export const NON_PERSONAL: NonPersonalColumns = {
+  social_snapshot: [
+    "id",
+    "channel",
+    "recorded_for",
+    "followers",
+    "posts",
+    "reach",
+    "impressions",
+    "engagements",
+    "created_at",
+    "updated_at",
+  ],
   social_export: ["id", "status", "created_at", "updated_at", "posted_at"],
   event: [
     "id",

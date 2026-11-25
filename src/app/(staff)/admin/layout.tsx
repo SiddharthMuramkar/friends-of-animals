@@ -5,6 +5,7 @@ import { Suspense, type ComponentProps } from "react";
 import {
   ADMIN_HOME,
   ADMIN_REPORTS,
+  ADMIN_SOCIAL_METRICS,
   ADMIN_ADOPTIONS,
   ADMIN_AUCTIONS,
   ADMIN_JUDGING_ROUNDS,
@@ -96,6 +97,10 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
     )
   );
   const tNav = await getTranslations("admin.nav");
+  const socialEditor = access?.grants.some(
+    (g) => g.role === "content_manager" && g.scope.type === "global"
+  );
+  const social = await getTranslations("objectiveReports");
   const links = reports
     ? [
         nav.links[0]!,
@@ -103,10 +108,17 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
         ...nav.links.slice(1),
       ]
     : nav.links;
+  const reportLinks = socialEditor
+    ? [
+        ...links.slice(0, 1),
+        { href: ADMIN_SOCIAL_METRICS, label: social("socialTitle") },
+        ...links.slice(1),
+      ]
+    : links;
   const finance =
     access !== null &&
     (await showLedgerNavigation(() => Promise.resolve(access)));
-  if (!finance) return <AdminNav {...nav} links={links} />;
+  if (!finance) return <AdminNav {...nav} links={reportLinks} />;
 
   const [t, donations] = await Promise.all([
     getTranslations("adminLedger.list"),
@@ -116,7 +128,7 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
     <AdminNav
       label={nav.label}
       links={[
-        ...links,
+        ...reportLinks,
         { href: ADMIN_LEDGER, label: t("title") },
         // Finance's donations (#106).
         { href: ADMIN_DONATIONS, label: donations("nav") },

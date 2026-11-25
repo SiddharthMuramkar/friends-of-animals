@@ -17,6 +17,13 @@ export const REPORTS_POLICY = {
       subject.grants.find((g) => isStaffRole(g.role));
     return grant ? { allowed: true, role: grant.role } : { allowed: false };
   },
+  "reports.social.read": role("super_admin", "staff_admin", "content_manager"),
+  "reports.social.export": role(
+    "super_admin",
+    "staff_admin",
+    "content_manager"
+  ),
+  "reports.social.record": role("super_admin", "content_manager"),
   "reports.objectives.read": role("super_admin", "staff_admin"),
   "reports.objectives.export": role("super_admin", "staff_admin"),
   "reports.competition.read": reportReader,

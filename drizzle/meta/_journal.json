@@ -1170,6 +1170,13 @@
       "when": 1795607278861,
       "tag": "0166_120_invitation_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 167,
+      "version": "7",
+      "when": 1795607609341,
+      "tag": "0167_135_social_snapshots",
+      "breakpoints": true
     }
   ]
 }

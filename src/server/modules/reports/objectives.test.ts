@@ -4,6 +4,15 @@ import { confirmedAdult } from "../entries/testing";
 import { schoolWithStudents } from "../payments/testing";
 import { adultForm, openToIndividuals } from "../participants/testing";
 import { signedInWith, managerOf } from "../judging/testing";
+import {
+  capturedDonation,
+  openedOrder,
+  openDonations,
+  paidByWebhook,
+  startedDonation,
+} from "../donations/testing";
+import { SEED_FEEDBACK } from "../../seed/surveys";
+import { SEED_AUCTIONS } from "../../seed/auctions";
 import { parseCsv } from "../registration/domain/csv";
 
 const input = { from: "2027-01-15", to: "2027-01-15" };
@@ -97,12 +106,12 @@ it("reads actual engagement, institution approvals, event attendance and approve
         verifiedOther: 0,
       },
       engagement: {
-        participant: 9,
-        school_winner: 0,
-        foa_finalist: 7,
+        participant: 11,
+        school_winner: 1,
+        foa_finalist: 8,
         community_member: 3,
         volunteer: 1,
-        ambassador: 0,
+        ambassador: 1,
         clubsApproved: 1,
         clubMembersJoined: 1,
         eventsHeld: 1,
@@ -125,7 +134,7 @@ it("reads actual engagement, institution approvals, event attendance and approve
   const report = await leader.getObjectiveReport(period);
   expect(report).toMatchObject({
     ok: true,
-    report: { engagement: { ambassador: 1 } },
+    report: { engagement: { ambassador: 2 } },
   });
   const today = await leader.getObjectiveReport(input);
   expect(today).toMatchObject({
@@ -141,4 +150,127 @@ it("reads actual engagement, institution approvals, event attendance and approve
       volunteers: { volunteers: 1, approvedMinutes: 145 },
     },
   });
+});
+
+it("counts captured domestic donations once and settles refunds on their own date, excluding fees, pending and refused foreign money", async () => {
+  const h = await createHarness();
+  await openDonations(h);
+  const first = await capturedDonation(h, { amountMinor: 50_125n });
+  await capturedDonation(h, {
+    email: "second@example.test",
+    amountMinor: 10_003n,
+  });
+  await startedDonation(h, {
+    email: "pending@example.test",
+    amountMinor: 90_000n,
+  });
+  const foreign = await startedDonation(h, {
+    email: "foreign@example.test",
+    amountMinor: 20_000n,
+  });
+  const order = await openedOrder(h, foreign);
+  await paidByWebhook(h, order, { international: true });
+  await h.drain();
+  const school = await schoolWithStudents(h, { students: 1 });
+  const fees = await school.pay();
+  if (!fees.ok || fees.kind !== "checkout") throw Error("No fee checkout");
+  await paidByWebhook(h, fees.checkout.orderId);
+  const admin = h.as(
+    await signedInWith(h, { role: "staff_admin", scope: global })
+  );
+  const today = await admin.getObjectiveReport(input);
+  expect(today).toMatchObject({
+    ok: true,
+    report: {
+      donations: {
+        captures: 2,
+        capturedMinor: 60_128n,
+        refundedMinor: 0n,
+        netMinor: 60_128n,
+      },
+    },
+  });
+  const request = await admin.requestDonationRefund({
+    donationId: first.donationId,
+    reason: "Returned on donor request",
+  });
+  if (!request.ok) throw Error(request.error);
+  h.clock.advance({ days: 1 });
+  const finance = h.as(
+    await signedInWith(h, { role: "finance", scope: global })
+  );
+  expect(
+    await finance.approveRefund({ refundId: request.refundId })
+  ).toMatchObject({ ok: true });
+  await h.drain();
+  const leader = h.as(
+    await signedInWith(h, { role: "super_admin", scope: global })
+  );
+  const refundDay = { from: "2027-01-16", to: "2027-01-16" };
+  expect(await leader.getObjectiveReport(refundDay)).toMatchObject({
+    ok: true,
+    report: {
+      donations: {
+        captures: 0,
+        capturedMinor: 0n,
+        refundedMinor: 50_125n,
+        netMinor: -50_125n,
+      },
+    },
+  });
+  expect(await leader.getObjectiveReport(input)).toMatchObject({
+    ok: true,
+    report: {
+      donations: {
+        captures: 2,
+        capturedMinor: 60_128n,
+        refundedMinor: 0n,
+        netMinor: 60_128n,
+      },
+    },
+  });
+  const csv = await leader.exportObjectiveReportCsv(refundDay);
+  if (!csv.ok) throw Error(csv.error);
+  expect(csv.csv).toContain("donations,net_inr,-501.25");
+  expect(csv.csv).not.toContain(first.paymentId);
+  expect(csv.csv).not.toContain("asha@example.test");
+});
+
+it("reports retained survey invitations by send date and answers by answer date, without an invalid cross-cohort response rate", async () => {
+  const h = await createHarness();
+  await h.seed.preview();
+  const manager = h.as(
+    await signedInWith(h, managerOf(SEED_FEEDBACK.competitionId))
+  );
+  const leader = h.as(
+    await signedInWith(h, { role: "staff_admin", scope: global })
+  );
+  expect(
+    await manager.sendSurvey({ competitionId: SEED_FEEDBACK.competitionId })
+  ).toMatchObject({ ok: true, invited: 4 });
+  expect(await leader.getObjectiveReport(input)).toMatchObject({
+    ok: true,
+    report: { feedback: { surveysSent: 1, invited: 4, responses: 0 } },
+  });
+  h.clock.advance({ days: 1 });
+  const artist = h.as(await h.signIn(SEED_AUCTIONS.artist));
+  expect(
+    await artist.answerSurvey({
+      competitionId: SEED_FEEDBACK.competitionId,
+      answers: [0, 1],
+    })
+  ).toMatchObject({ ok: true });
+  const nextLeader = h.as(
+    await signedInWith(h, { role: "super_admin", scope: global })
+  );
+  const next = { from: "2027-01-16", to: "2027-01-16" };
+  expect(await nextLeader.getObjectiveReport(next)).toMatchObject({
+    ok: true,
+    report: { feedback: { surveysSent: 0, invited: 0, responses: 1 } },
+  });
+  const csv = await nextLeader.exportObjectiveReportCsv(next);
+  if (!csv.ok) throw Error(csv.error);
+  expect(csv.csv).toContain("feedback,responses,1");
+  expect(csv.csv).not.toContain(SEED_AUCTIONS.artist.email);
+  expect(csv.csv).not.toContain(SEED_FEEDBACK.questions[0]!.text);
 });
