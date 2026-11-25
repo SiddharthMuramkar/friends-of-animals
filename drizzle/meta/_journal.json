@@ -932,6 +932,20 @@
       "when": 1795589609450,
       "tag": "0132_94_custody_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1795591691345,
+      "tag": "0133_131_pre_custody_event",
+      "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1795591699150,
+      "tag": "0134_131_auction_lots",
+      "breakpoints": true
     }
   ]
 }
