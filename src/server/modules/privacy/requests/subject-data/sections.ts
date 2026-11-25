@@ -41,7 +41,6 @@ import {
   entryVerification,
   physicalArtwork,
   roundEntry,
-  roundResult,
   roundAssignment,
   judgeOnboarding,
   artworkPhoto,
@@ -308,13 +307,6 @@ export const SECTIONS: readonly Section[] = [
     withhold: ["admitted_by_user_id"],
   },
   {
-    // Locked rankings contain the entrant's own outcome and score, not
-    // judge identities. Include only the subject's entries in the export.
-    table: roundResult,
-    where: (scope) => sql`${roundResult.entryId} IN ${entryIdsOf(scope)}`,
-    owners: ["entry_id"],
-  },
-  {
     table: roundAssignment,
     // A judge's assignments belong in their rights export, but the private
     // source-entry and other staff identities must never pierce blind judging.
@@ -497,6 +489,9 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // disclosing an unfinished result.
   score_sheet: "confidential_judging_assessment",
   criterion_score: "confidential_judging_assessment",
+  // Locking a round freezes the internal assessment; it does not publish
+  // a result. #99's two-person release can expose approved outcomes only.
+  round_result: "unpublished_judging_result",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };
