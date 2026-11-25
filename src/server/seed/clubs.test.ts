@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
-import { SEED_CLUB } from "./clubs";
+import { SEED_CLUB } from "./club-fixtures";
 import { SEED_INSTITUTIONS } from "./institutions";
 import { SEED_VOLUNTEERS } from "./volunteers";
 it("seeds one approved club and the teacher's timeline without duplicating membership", async () => {

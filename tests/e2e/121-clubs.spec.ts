@@ -11,7 +11,7 @@ import {
   totpCode,
 } from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_INSTITUTIONS } from "../../src/server/seed/institutions";
-import { SEED_CLUB } from "../../src/server/seed/clubs";
+import { SEED_CLUB } from "../../src/server/seed/club-fixtures";
 async function check(page: Page, label: string) {
   await expectAccessible(page, label);
   await expectAccessibleInDark(page, label);
