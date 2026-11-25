@@ -262,12 +262,11 @@ export function createProxy({
     if (isSignedInPath(pathname)) {
       if (!hasSessionCookie(request.headers)) {
         const signIn = new URL(ROUTES.signIn.path, request.url);
-        // A winning offer link must return the authenticated buyer to the
-        // exact private checkout, not the generic account dashboard.
-        if (pathname.startsWith("/account/auctions")) {
-          const next = signInNext(pathname);
-          if (next) signIn.searchParams.set("next", next);
-        }
+        // Winning offer and competition invitation messages return the
+        // recipient to their exact private page after authentication.
+        // signInNext limits the continuation to recognised local paths.
+        const next = signInNext(pathname);
+        if (next) signIn.searchParams.set("next", next);
         return NextResponse.redirect(signIn);
       }
       if (!isSignedInPage(pathname)) return missingSignedInPage(request);
