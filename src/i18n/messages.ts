@@ -192,6 +192,7 @@ export const NAMESPACES = [
   "refunds",
   "safeguardingReport",
   "registration",
+  "results",
   "sample",
   "schools",
   "security",
