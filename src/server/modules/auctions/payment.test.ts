@@ -595,6 +595,25 @@ it("reconciles a timely capture after expiry and never awards the next bidder wh
     ok: true,
     outcome: "captured",
   });
+  const { gatewayWebhookEvent } = await import("@/server/db/schema");
+  const { createHash } = await import("node:crypto");
+  const events = await h.db.select().from(gatewayWebhookEvent);
+  const fingerprint = createHash("sha256").update(paid.paymentId).digest("hex");
+  expect(events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        gateway: "fake",
+        type: "payment.captured",
+        orderId: checkout.checkout.orderId,
+        capturePaymentFingerprint: fingerprint,
+        captureOccurredBy: new Date(+offer.expiresAt - 2000),
+      }),
+    ])
+  );
+  expect(
+    events.find((event) => event.orderId === "another-order")
+  ).toMatchObject({ capturePaymentFingerprint: null, captureOccurredBy: null });
+  expect(JSON.stringify(events)).not.toContain(paid.paymentId);
   expect(await visitor.receiveGatewayWebhook(timely)).toMatchObject({
     ok: true,
     outcome: "duplicate",

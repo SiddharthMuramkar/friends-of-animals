@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
+import { consentCompetition } from "../consent/testing";
 import { signedInWith } from "../judging/testing";
 import { signInAs } from "../ledger/testing";
 import { auctionArtwork } from "./testing";
@@ -10,6 +11,7 @@ const source = (share: string) =>
 it("binds creator share to the exact current document acknowledged by the guardian", async () => {
   const h = await createHarness();
   const w = await auctionArtwork(h, true);
+  const separate = await consentCompetition(h, { fee: 0n });
   const manager = h.as(w.manager),
     auctioneer = h.as(w.auctioneer),
     guardian = h.as(w.artist.actor);
@@ -36,6 +38,20 @@ it("binds creator share to the exact current document acknowledged by the guardi
     source: source("25"),
   });
   if (!v25.ok) throw new Error("25% document refused");
+  expect(
+    await finance.setAuctionProceedsPolicy({
+      competitionId: separate.id,
+      creatorShareBps: 2500,
+    })
+  ).toMatchObject({ ok: false, error: "policy_document_mismatch" });
+  expect(await finance.listAuctionProceedsPolicies()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        competitionId: separate.id,
+        creatorShareBps: 0,
+      }),
+    ])
+  );
   expect(
     await manager.attachConsentDocument({ competitionId, purpose: "auction" })
   ).toMatchObject({ ok: true, document: { id: v25.id } });
@@ -169,4 +185,59 @@ it("lets only the adult creator acknowledge a changed document, while an unsettl
   expect(await creator.myAuctionConsents()).toMatchObject([
     { competitionId, onCurrent: true, document: { id: v25.id } },
   ]);
+});
+
+it("preserves real legacy default grants but cannot launder an unbound nonzero policy back to zero", async () => {
+  const h = await createHarness();
+  const w = await auctionArtwork(h);
+  const { eq } = await import("drizzle-orm");
+  const { competition } = await import("@/server/db/schema");
+  const finance = h.as((await signInAs(h)).actor),
+    auctioneer = h.as(w.auctioneer);
+  const competitionId = w.competition.id;
+  expect(await auctioneer.listEligibleArtwork()).toEqual([
+    expect.objectContaining({ artworkId: w.artworkId }),
+  ]);
+  expect(
+    await finance.setAuctionProceedsPolicy({
+      competitionId,
+      creatorShareBps: 2500,
+    })
+  ).toMatchObject({ ok: false, error: "policy_document_mismatch" });
+  // Simulate an unbound share saved by the old implementation. Neither
+  // using it nor resetting it can imply new terms on the original grant.
+  await h.db
+    .update(competition)
+    .set({ auctionCreatorShareBps: 2500 })
+    .where(eq(competition.id, competitionId));
+  expect(await auctioneer.createLot(w.input())).toMatchObject({
+    ok: false,
+    reasons: ["auction_consent_missing"],
+  });
+  expect(
+    await finance.setAuctionProceedsPolicy({
+      competitionId,
+      creatorShareBps: 0,
+    })
+  ).toMatchObject({ ok: false, error: "policy_document_mismatch" });
+  const admin = h.as(
+    await signedInWith(h, { role: "staff_admin", scope: { type: "global" } })
+  );
+  expect(
+    await admin.previewConsentDocument({
+      purpose: "auction",
+      source: source("125"),
+    })
+  ).toMatchObject({
+    ok: false,
+    error: "invalid_source",
+    errors: [{ code: "auction_proceeds_invalid" }],
+  });
+  expect(
+    await admin.publishConsentDocument({
+      purpose: "auction",
+      title: "Invalid terms",
+      source: source("125"),
+    })
+  ).toMatchObject({ ok: false, error: "invalid_source" });
 });
