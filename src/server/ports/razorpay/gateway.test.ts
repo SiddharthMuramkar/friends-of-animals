@@ -21,6 +21,7 @@ paymentGatewayContract("razorpayGateway over a fetch double", async () => {
   const { api, gateway } = world();
   return {
     gateway,
+    signedCaptureTiming: true,
     capture: async (orderId, amount) =>
       api.capture(orderId, amount.amountMinor),
     webhook: (event, { signature = "valid" } = {}) =>

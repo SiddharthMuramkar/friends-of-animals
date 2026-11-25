@@ -7,8 +7,8 @@ export function cdnPurgerContract(
   name: string,
   setup: () => {
     purger: CdnPurger;
-    purged(): readonly string[];
-    failNext(): void;
+    purged: () => readonly string[];
+    failNext: () => void;
   }
 ) {
   describe(`${name} (CdnPurger contract)`, () => {

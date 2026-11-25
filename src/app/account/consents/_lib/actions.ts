@@ -59,7 +59,7 @@ export async function giveAuctionConsentAction(
   });
   backWith(
     result.ok
-      ? "given"
+      ? "auctionGiven"
       : result.error === "document_outdated"
         ? "outdated"
         : "failed"
@@ -72,7 +72,7 @@ export async function withdrawAuctionConsentAction(
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const result = await as(actor).withdrawMyAuctionConsent({ competitionId });
-  backWith(result.ok ? "withdrawn" : "failed");
+  backWith(result.ok ? "auctionWithdrawn" : "failed");
 }
 
 export async function withdrawPublicUseConsentAction(

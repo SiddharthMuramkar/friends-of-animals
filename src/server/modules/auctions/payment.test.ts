@@ -439,10 +439,10 @@ it("reviews wrong-currency and mismatched captures and extra money without selli
   const order = await buyer.openAuctionCheckout({ offerId: offer.id }),
     secondOrder = await other.openAuctionCheckout({ offerId: secondOffer.id });
   if (!order.ok || !secondOrder.ok) throw new Error("Checkout refused");
-  h.gateway.capture(order.checkout.orderId, {
+  const foreign = h.gateway.capture(order.checkout.orderId, {
     amount: { amountMinor: 500n, currency: "USD" },
   });
-  h.gateway.capture(order.checkout.orderId, {
+  const wrong = h.gateway.capture(order.checkout.orderId, {
     amount: { amountMinor: 100n, currency: "INR" },
   });
   expect(
@@ -496,6 +496,23 @@ it("reviews wrong-currency and mismatched captures and extra money without selli
   ).toEqual([
     expect.objectContaining({ reason: "already_paid", amountMinor: 160101n }),
   ]);
+  const signedWrongAmounts = [foreign, wrong].map((paid) =>
+    h.gateway.webhook({
+      type: "payment.captured",
+      orderId: order.checkout.orderId,
+      capture: { paymentId: paid.paymentId, occurredBy: h.clock.now() },
+    })
+  );
+  h.clock.set(offer.expiresAt);
+  for (const hook of signedWrongAmounts)
+    expect(await visitor.receiveGatewayWebhook(hook)).toMatchObject({
+      ok: true,
+      outcome: "needs_review",
+    });
+  await h
+    .as({ kind: "system", process: "worker" })
+    .expireAuctionOffer({ offerId: offer.id });
+  expect(await buyer.getMyAuctionOffer(code)).toBeNull();
   const ledger = await finance.listPostings({});
   if (!ledger.ok) throw new Error("Ledger denied");
   expect(
@@ -557,6 +574,23 @@ it("reconciles a timely capture after expiry and never awards the next bidder wh
       )?.status
     ).toBe("awaiting_payment");
   }
+  const wrongOrder = h.gateway.webhook({
+    type: "payment.captured",
+    orderId: "another-order",
+    capture: {
+      paymentId: paid.paymentId,
+      occurredBy: new Date(+offer.expiresAt - 2000),
+    },
+  });
+  expect(await visitor.receiveGatewayWebhook(wrongOrder)).toMatchObject({
+    ok: true,
+    outcome: "ignored",
+  });
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("awaiting_payment");
   expect(await visitor.receiveGatewayWebhook(timely)).toMatchObject({
     ok: true,
     outcome: "captured",

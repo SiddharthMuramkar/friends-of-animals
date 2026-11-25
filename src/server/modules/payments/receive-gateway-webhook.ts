@@ -53,7 +53,7 @@ export async function receiveGatewayWebhook(
   const now = ctx.clock.now();
   // Only the signature-verified provider snapshot can supply evidence.
   // A future or malformed stamp is not proof; the event remains a sync hint.
-  const capture =
+  const candidate =
     event.type === "payment.captured" &&
     event.orderId &&
     event.capture &&
@@ -61,6 +61,20 @@ export async function receiveGatewayWebhook(
     +event.capture.occurredBy <= +now
       ? event.capture
       : null;
+  const [auction] =
+    candidate && event.orderId
+      ? await ctx.db
+          .select({ id: paymentBatch.id })
+          .from(paymentBatch)
+          .where(
+            and(
+              eq(paymentBatch.gateway, gateway.name),
+              eq(paymentBatch.gatewayOrderId, event.orderId),
+              eq(paymentBatch.purpose, "auction_sale")
+            )
+          )
+      : [];
+  const capture = auction ? candidate : null;
   const [stored] = await ctx.db
     .insert(gatewayWebhookEvent)
     .values({

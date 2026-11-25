@@ -215,9 +215,9 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
               <li key={item.competitionId}>
                 <p className="font-semibold text-ink">{item.title}</p>
                 <p className="text-ink">{t(`auction.${item.state}`)}</p>
-                {item.document && !item.onCurrent ? (
+                {item.document ? (
                   <div className="mt-2 space-y-2">
-                    <p>{t("auction.renewal")}</p>
+                    {!item.onCurrent ? <p>{t("auction.renewal")}</p> : null}
                     <SiteLink
                       href={documentVersionPath(
                         "auction",
@@ -227,22 +227,26 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
                     >
                       {t("auction.read", { version: item.document.version })}
                     </SiteLink>
-                    <form
-                      action={giveAuctionConsentAction.bind(
-                        null,
-                        item.competitionId
-                      )}
-                    >
-                      <input
-                        type="hidden"
-                        name="documentId"
-                        value={item.document.id}
-                      />
-                      <SubmitButton pendingLabel={t("saving")}>
-                        {t("auction.renew")}
-                      </SubmitButton>
-                    </form>
+                    {!item.onCurrent ? (
+                      <form
+                        action={giveAuctionConsentAction.bind(
+                          null,
+                          item.competitionId
+                        )}
+                      >
+                        <input
+                          type="hidden"
+                          name="documentId"
+                          value={item.document.id}
+                        />
+                        <SubmitButton pendingLabel={t("saving")}>
+                          {t("auction.renew")}
+                        </SubmitButton>
+                      </form>
+                    ) : null}
                   </div>
+                ) : item.state === "given" ? (
+                  <p>{t("auction.currentUnavailable")}</p>
                 ) : null}
                 {item.state === "given" ? (
                   <form

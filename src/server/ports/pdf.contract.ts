@@ -21,7 +21,7 @@ export function pdfRendererContract(
   name: string,
   setup: () => {
     renderer: PdfRenderer;
-    failNext(): void;
+    failNext: () => void;
   }
 ) {
   describe(`${name} (PdfRenderer contract)`, () => {

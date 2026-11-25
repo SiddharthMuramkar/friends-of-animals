@@ -10,6 +10,14 @@ export const noStoreCdnPurger: CdnPurger = {
   },
 };
 
+function hasPathWhitespace(path: string) {
+  for (let i = 0; i < path.length; i++) {
+    const code = path.charCodeAt(i);
+    if (code <= 32 || code === 127) return true;
+  }
+  return false;
+}
+
 /** Check the entire request before any provider call. Return canonical public
  * paths, as the provider receives them, with no fragment or other origin. */
 export function publicPurgePaths(paths: readonly string[]) {
@@ -19,7 +27,7 @@ export function publicPurgePaths(paths: readonly string[]) {
       !path.startsWith("/") ||
       path.startsWith("//") ||
       path.includes("\\") ||
-      /[\x00-\x20\x7f]/.test(path)
+      hasPathWhitespace(path)
     )
       throw new Error("Invalid public route");
     const url = new URL(path, origin);

@@ -5,7 +5,6 @@ import { recordAudit } from "../../audit/record";
 import type { Role } from "../../access/domain/roles";
 import type { AppDb } from "../../db/app-db";
 import {
-  auctionLot,
   auctionBid,
   auctionOffer,
   physicalArtwork,

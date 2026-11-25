@@ -1,3 +1,4 @@
+import { completedReturnWindow } from "./testing";
 import { describe, it, expect } from "vitest";
 import { createHarness } from "@/test/harness";
 import { seedAuctionResults } from "@/test/seed-auction-results";
@@ -184,6 +185,7 @@ describe("auction thank-you letters", () => {
     const visitor = h.as(h.visitor());
     const opensAt = new Date(h.clock.now().getTime() + 60_000),
       closesAt = new Date(opensAt.getTime() + 3600_000);
+    await completedReturnWindow(h, competitionId);
     const lot = await manager.createLot({
       artworkId,
       story: "School artwork",

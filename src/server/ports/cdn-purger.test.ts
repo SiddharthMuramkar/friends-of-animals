@@ -103,7 +103,9 @@ cdnPurgerContract("Cloudflare adapter", () => {
         fail = false;
         return Response.json({ success: false });
       }
-      const body = JSON.parse(String(request?.body)) as { files: string[] };
+      if (typeof request?.body !== "string")
+        throw new Error("Missing JSON body");
+      const body = JSON.parse(request.body) as { files: string[] };
       paths.push(
         ...body.files.map((file) => {
           const url = new URL(file);

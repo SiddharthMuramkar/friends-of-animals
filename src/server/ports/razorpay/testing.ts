@@ -17,6 +17,7 @@ export type SimulatedEvent = {
   type: string;
   orderId: string;
   paymentId?: string;
+  capture?: { paymentId: string; occurredBy: Date };
   amountMinor?: bigint;
   /** For a refund event (#80): the refund and the payment it returns. */
   refund?: { refundId: string; paymentId: string };
@@ -38,7 +39,7 @@ export function razorpayEventBody(event: SimulatedEvent): string {
   const amount = Number(event.amountMinor ?? 50_000n);
   const createdAt = 1_798_000_000 + sequence;
   const payment = {
-    id: event.paymentId ?? nextId("pay"),
+    id: event.capture?.paymentId ?? event.paymentId ?? nextId("pay"),
     entity: "payment",
     amount,
     currency: "INR",
@@ -88,7 +89,9 @@ export function razorpayEventBody(event: SimulatedEvent): string {
     event: event.type,
     contains: Object.keys(payload),
     payload,
-    created_at: createdAt + 5,
+    created_at: event.capture
+      ? Math.floor(+event.capture.occurredBy / 1000)
+      : createdAt + 5,
   });
 }
 
