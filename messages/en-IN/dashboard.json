@@ -34,6 +34,7 @@
     },
     "admin": {
       "gallery": "Gallery curation",
+      "socialExport": "Social media export",
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
       "roles": "Roles",
       "audit": "Audit log",

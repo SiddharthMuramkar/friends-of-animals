@@ -808,6 +808,13 @@
           "source_key": "A stable key that prevents repeated entries for the same activity",
           "milestone_id": "The earned milestone represented by this timeline entry"
         },
+        "social_export": {
+          "gallery_item_id": "Links a private social export to the reviewed gallery item",
+          "gallery_consent_event_id": "Binds the export to the exact public-display grant",
+          "social_consent_event_id": "Binds the export to the distinct social-media grant",
+          "file_id": "Identifies the authorised source for the social stamp",
+          "caption_ciphertext": "Stores editable social caption text securely"
+        },
         "volunteer_task": {
           "title_ciphertext": "Private title of a work item created by the community team",
           "description_ciphertext": "Private work instructions",

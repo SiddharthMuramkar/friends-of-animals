@@ -28,6 +28,7 @@ export const APP_ROUTES = {
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
   adminGallery: "/admin/gallery",
+  adminSocialExport: "/admin/social-export",
   adminGalleryReports: "/admin/gallery/reports",
   adminTemplates: "/admin/templates",
   institutionRegister: "/institutions/register",

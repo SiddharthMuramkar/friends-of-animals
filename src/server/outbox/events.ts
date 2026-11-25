@@ -1373,6 +1373,7 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "auctions.withdraw_consent",
     "gallery.withdraw_consent",
+    "social_export.withdraw_consent",
   ],
   "consent.link_sent": ["consent_links.deliver"],
   // files.process_image runs in worker-media only: the media queue

@@ -791,6 +791,15 @@ computed from current consent. A minor's name defaults to first name plus surnam
 initial. It is derived, never copied into the Gallery item or social export queue.
 _Avoid_: Full profile, artist identity snapshot
 
+**Social export**:
+A content manager's preparation of a published Gallery item for manual posting
+on FOA's social channels. It requires a separate current social-media consent,
+a social Stamped copy, reviewed caption and live Public credit. It is pending
+until the manager records that it was posted. Withdrawing either required
+permission or hiding the Gallery item retires the export; permission given
+again requires a new export.
+_Avoid_: Automatic post, original artwork, gallery image download
+
 **Gallery purge**:
 A durable request to evict the gallery's public routes when a credit is withdrawn
 or an item leaves publication. The item's live eligibility is checked even before

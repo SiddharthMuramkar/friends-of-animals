@@ -27,6 +27,7 @@
     "notice": {
       "given": "Done. We'll email you news and updates.",
       "withdrawn": "Done. We won't email you news and updates any more.",
+      "publicationWithdrawn": "Permission withdrawn. FOA will no longer provide your artwork for this use.",
       "outdated": "We changed the text while you were reading. Read the new version below, then choose again.",
       "failed": "We couldn't save your choice, so nothing changed. Please try again."
     },
@@ -43,6 +44,20 @@
       "staff_recorded": "recorded by our staff"
     },
     "historyWhen": "{date}, {method}",
+    "publicUse": {
+      "title": "Public display and social media consent",
+      "lead": "Withdraw either permission for a competition. Social exports will no longer be available for download; work already posted by hand must be removed by FOA's team.",
+      "given": "Given",
+      "withdrawn": "Withdrawn",
+      "purpose": {
+        "public_display": "Public display",
+        "social_media": "Social media"
+      },
+      "withdraw": {
+        "public_display": "Withdraw public display consent",
+        "social_media": "Withdraw social media consent"
+      }
+    },
     "auction": {
       "title": "Auction consent",
       "lead": "Withdraw your consent for a competition to stop any unsold auction lots of your original artwork.",
