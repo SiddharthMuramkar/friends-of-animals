@@ -89,24 +89,22 @@ export async function renderCertificate(
         purpose: "certificate_pdf",
         fileId,
       });
-      await tx
-        .insert(fileAsset)
-        .values({
-          id: fileId,
-          ownerUserId: null,
-          purpose: "certificate_pdf",
-          status: "clean",
-          contentType: "application/pdf",
-          sizeBytes: bytes.length,
-          bucket: ctx.files.bucket,
-          storageKey: key,
-          sha256: createHash("sha256").update(bytes).digest("hex"),
-          scanResult: "generated",
-          scannedAt: now,
-          uploadedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        });
+      await tx.insert(fileAsset).values({
+        id: fileId,
+        ownerUserId: null,
+        purpose: "certificate_pdf",
+        status: "clean",
+        contentType: "application/pdf",
+        sizeBytes: bytes.length,
+        bucket: ctx.files.bucket,
+        storageKey: key,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        scanResult: "generated",
+        scannedAt: now,
+        uploadedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
       await tx
         .update(certificate)
         .set({

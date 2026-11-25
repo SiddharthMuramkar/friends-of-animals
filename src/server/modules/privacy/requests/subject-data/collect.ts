@@ -135,7 +135,9 @@ export async function collectSubjectData(
       }
     }
     if (name === "certificate") {
-      for (const row of raw) if(typeof row.pdf_file_id === "string") participantFileIds.add(row.pdf_file_id);
+      for (const row of raw)
+        if (typeof row.pdf_file_id === "string")
+          participantFileIds.add(row.pdf_file_id);
     }
     for (const row of raw) {
       if (typeof row.id === "string") allowed.add(row.id);
