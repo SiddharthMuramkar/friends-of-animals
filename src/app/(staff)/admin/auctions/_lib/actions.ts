@@ -2,20 +2,20 @@
 import { redirect } from "next/navigation";
 import { as, currentActor } from "@/server/app";
 import { adminAuctionLotPath, ADMIN_AUCTIONS_NEW } from "@/lib/app-routes";
+import { parseRupeesToPaise } from "@/server/modules/competitions/domain/fees";
+import { istLocalToInstant } from "@/server/modules/competitions/domain/ist";
 import { adminCall } from "../../_lib/boundary";
 
 const text = (value: FormDataEntryValue | null) =>
   typeof value === "string" ? value : "";
 const rupees = (value: FormDataEntryValue | null) => {
-  if (typeof value !== "string" || !/^\d{1,17}(\.\d{1,2})?$/.test(value))
-    return -1n;
-  const [whole, pennies = ""] = value.split(".");
-  return BigInt(whole!) * 100n + BigInt(pennies.padEnd(2, "0"));
+  const parsed = parseRupeesToPaise(text(value));
+  return parsed.ok ? parsed.paise : -1n;
 };
-const ist = (value: FormDataEntryValue | null) =>
-  typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
-    ? new Date(value + ":00+05:30")
-    : new Date(NaN);
+const ist = (value: FormDataEntryValue | null) => {
+  const parsed = istLocalToInstant(text(value));
+  return parsed.ok ? parsed.at : new Date(NaN);
+};
 
 export async function createAuctionLot(form: FormData) {
   const result = await adminCall(
