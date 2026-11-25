@@ -18,7 +18,7 @@ import type { AppDb } from "../../db/app-db";
 import { consentEvent } from "../../db/schema";
 import { monotonicUuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
-import { emit } from "../../outbox";
+import { emit } from "../../outbox/emit";
 import type { ConsentContext, PublishedConsentDocument } from "./documents";
 import {
   currentConsent,

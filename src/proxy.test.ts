@@ -61,6 +61,20 @@ const POLICY_KEYS = [
 ];
 
 describe("proxy: the signed-in nonce policy", () => {
+  it("preserves the exact invitation continuation while discarding incoming query parameters", async () => {
+    const response = await proxy(
+      request("/dashboard/invitations?next=//untrusted.example")
+    );
+    expect(response.headers.get("location")).toBe(
+      "https://foa.example.test/sign-in?next=%2Fdashboard%2Finvitations"
+    );
+    expect(
+      (await proxy(request("/dashboard/invitations/fake"))).headers.get(
+        "location"
+      )
+    ).toBe("https://foa.example.test/sign-in");
+  });
+
   it("sends a signed-in page the nonce policy, and renders it with the same nonce", async () => {
     vi.stubEnv("APP_ENV", "preview");
     const response = await proxy(request("/account/sessions", SESSION));

@@ -11,7 +11,10 @@ import {
 
 export async function acceptAction(invitationId: string, data: FormData) {
   const actor = await currentActor();
-  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  if (actor.kind !== "user")
+    redirect(
+      `${ROUTES.signIn.path}?next=${encodeURIComponent(DASHBOARD_INVITATIONS)}`
+    );
   const action = data.get("action");
   if (
     typeof action !== "string" ||
