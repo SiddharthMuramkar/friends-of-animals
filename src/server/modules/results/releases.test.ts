@@ -9,7 +9,10 @@ import {
 } from "../../db/schema";
 import { scoringWorld } from "../judging/blind-testing";
 import { managerOf, signedInWith } from "../judging/testing";
-import { collectSubjectData } from "../privacy/requests/subject-data/collect";
+import {
+  SECTIONS,
+  sectionName,
+} from "../privacy/requests/subject-data/sections";
 import { entry } from "../../db/schema";
 import { publishedResults } from "./read-published";
 
@@ -109,16 +112,17 @@ describe("results publication", () => {
       .select({ profileId: entry.participantProfileId })
       .from(entry)
       .where(eq(entry.id, w.entryId));
-    const subjectExport = () =>
-      collectSubjectData(h.deps, {
-        scope: { userIds: [], profileIds: [subject!.profileId] },
-        subject: { kind: "participant_profile", id: subject!.profileId },
-        reference: "TEST-RESULTS",
-        generatedAt: h.clock.now(),
-      });
-    expect(
-      (await subjectExport()).document.sections.result_award
-    ).toBeUndefined();
+    const resultSection = SECTIONS.find(
+      (s) => sectionName(s) === "result_award"
+    )!;
+    const subjectAwards = () =>
+      h.db
+        .select()
+        .from(resultSection.table)
+        .where(
+          resultSection.where({ userIds: [], profileIds: [subject!.profileId] })
+        );
+    expect(await subjectAwards()).toEqual([]);
 
     expect(await h.as(worker).publishResultsRelease(input)).toMatchObject({
       ok: true,
@@ -202,11 +206,10 @@ describe("results publication", () => {
         { entryId: w.otherEntryId, outcome: "runner_up", awardBand: "second" },
       ],
     });
-    const exported = (await subjectExport()).document.sections;
-    expect(exported.result_award).toMatchObject([
-      { entry_id: w.entryId, outcome: "winner", award_band: "first" },
+    expect(await subjectAwards()).toMatchObject([
+      { entryId: w.entryId, outcome: "winner", awardBand: "first" },
     ]);
-    expect(exported.round_result).toBeUndefined();
+    expect(resultSection.withhold).toContain("suitable_for_auction");
     expect(await visitor.getPublicResults({ slug: comp.slug })).toMatchObject({
       awards: [],
     });
