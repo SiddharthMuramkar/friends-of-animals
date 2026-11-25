@@ -22,6 +22,7 @@ import {
   getTableColumns,
   inArray,
   is,
+  notInArray,
   or,
   sql,
   type SQL,
@@ -79,6 +80,7 @@ import {
 import { USER_PHONE } from "../../../../identity/stored-phone";
 import { DONOR_PURPOSE } from "../../../donations/donors";
 import { LINK_CONTACT } from "../../../consent-links/repository";
+import { ENTRY_FILE_PURPOSES } from "../../../files/domain/purposes";
 import { GUARDIAN_PURPOSE } from "../../../guardians/guardian-record";
 import {
   REQUESTED_GUARDIAN_NAME,
@@ -146,6 +148,13 @@ const PROFILE_DECRYPT = {
   guardian_email_ciphertext: PROFILE_PURPOSE.guardianEmail,
   address_ciphertext: PROFILE_PURPOSE.address,
 } as const;
+
+/** An uploader can act for another person; these assets belong to the participant. */
+export const PARTICIPANT_FILE_PURPOSES = [
+  ...ENTRY_FILE_PURPOSES,
+  "consent_form",
+  "artwork_condition_photo",
+] as const;
 
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
@@ -396,7 +405,10 @@ export const SECTIONS: readonly Section[] = [
     table: fileAsset,
     where: (scope) =>
       or(
-        within(fileAsset.ownerUserId, users(scope)),
+        and(
+          within(fileAsset.ownerUserId, users(scope)),
+          notInArray(fileAsset.purpose, [...PARTICIPANT_FILE_PURPOSES])
+        ),
         sql`${fileAsset.id} IN (SELECT ${artworkPhoto.fileAssetId} FROM ${artworkPhoto} INNER JOIN ${physicalArtwork} ON ${physicalArtwork.id} = ${artworkPhoto.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${entryFile.fileAssetId} FROM ${entryFile} WHERE ${entryFile.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${consentForm.fileAssetId} FROM ${consentForm} WHERE ${within(consentForm.participantProfileId, profiles(scope))})`
@@ -405,7 +417,13 @@ export const SECTIONS: readonly Section[] = [
     withhold: ["bucket", "storage_key", "owner_user_id"],
   },
   {
-    // A school's payment names many students: only the person's own items.
+    // The payment batch belongs to its payer. A participant whose fee was
+    // paid by someone else gets their own item, not the shared batch total.
+    table: paymentBatch,
+    where: (scope) => within(paymentBatch.payerUserId, users(scope)),
+    owners: ["payer_user_id"],
+  },
+  {
     table: paymentBatchItem,
     where: (scope) =>
       or(
@@ -413,15 +431,6 @@ export const SECTIONS: readonly Section[] = [
         sql`${paymentBatchItem.batchId} IN ${paidBatchesOf(scope)}`
       )!,
     owners: ["registration_id", "batch_id"],
-  },
-  {
-    table: paymentBatch,
-    where: (scope) =>
-      or(
-        within(paymentBatch.payerUserId, users(scope)),
-        sql`${paymentBatch.id} IN (SELECT ${paymentBatchItem.batchId} FROM ${paymentBatchItem} WHERE ${paymentBatchItem.registrationId} IN ${registrationIdsOf(scope)})`
-      )!,
-    owners: ["payer_user_id", "id"],
   },
   {
     table: offlinePayment,
@@ -637,7 +646,9 @@ export const REFERENCE_COLUMNS: readonly { table: string; column: string }[] =
       entry.subject.kind === "user" &&
       entry.subject.via === entry.column &&
       !Object.hasOwn(NOT_EXPORTED, entry.table) &&
-      !SECTION_OWNERS.has(`${entry.table}.${entry.column}`) &&
+      (!SECTION_OWNERS.has(`${entry.table}.${entry.column}`) ||
+        // Uploader-only files may belong to a participant, not the uploader.
+        (entry.table === "file_asset" && entry.column === "owner_user_id")) &&
       TABLES_BY_NAME.has(entry.table) &&
       "id" in getTableColumns(TABLES_BY_NAME.get(entry.table)!)
   ).map(({ table, column }) => ({ table, column }));

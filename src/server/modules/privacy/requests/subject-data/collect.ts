@@ -19,6 +19,7 @@ import type { SubjectScope } from "./scope";
 import {
   columnNamed,
   NOT_EXPORTED,
+  PARTICIPANT_FILE_PURPOSES,
   REFERENCE_COLUMNS,
   SECTIONS,
   sectionName,
@@ -26,9 +27,8 @@ import {
 } from "./sections";
 
 /** The upload purposes whose bytes go in the export: the person's own work and forms. */
-const FILE_PURPOSES_WITH_BYTES = new Set([
-  "entry_image",
-  "consent_form",
+const FILE_PURPOSES_WITH_BYTES = new Set<string>([
+  ...PARTICIPANT_FILE_PURPOSES,
   "test_upload",
 ]);
 
@@ -39,6 +39,10 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
   "image/heic": "heic",
   "image/heif": "heif",
   "application/pdf": "pdf",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/3gpp": "3gp",
+  "video/webm": "webm",
 };
 
 export type ExportFile = {
@@ -96,16 +100,40 @@ export async function collectSubjectData(
 }> {
   const { db, cipher, storage } = deps;
   const { scope } = input;
+  const userIds = new Set<string>(scope.userIds);
   const allowed = new Set<string>([...scope.userIds, ...scope.profileIds]);
   const sections: ExportDocument["sections"] = {};
   const fileRows: Record<string, unknown>[] = [];
+  // File ownership follows a previously validated entry, signed form, or
+  // custody photo, not the school coordinator or guardian who uploaded it.
+  const participantFileIds = new Set<string>();
+  const participantPurposes = new Set<string>(PARTICIPANT_FILE_PURPOSES);
 
   for (const section of SECTIONS) {
     const name = sectionName(section);
     const raw = (
       await db.select().from(section.table).where(section.where(scope))
     ).map((row) => bySqlName(section.table, row));
-    assertRowsBelongToSubject(name, raw, section.owners, allowed);
+    if (name === "file_asset") {
+      for (const row of raw) {
+        const participantFile = participantPurposes.has(String(row.purpose));
+        assertRowsBelongToSubject(
+          name,
+          [row],
+          participantFile ? ["id"] : ["owner_user_id"],
+          participantFile ? participantFileIds : userIds
+        );
+      }
+    } else {
+      assertRowsBelongToSubject(name, raw, section.owners, allowed);
+    }
+    if (["entry_file", "consent_form", "artwork_photo"].includes(name)) {
+      for (const row of raw) {
+        if (typeof row.file_asset_id === "string") {
+          participantFileIds.add(row.file_asset_id);
+        }
+      }
+    }
     for (const row of raw) {
       if (typeof row.id === "string") allowed.add(row.id);
     }
