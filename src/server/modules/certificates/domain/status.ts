@@ -141,7 +141,7 @@ export type RenderFailureOutcome = {
   attempts: number;
   status: "pending" | "failed";
   /** Whether the job should be tried again later. */
-  retry: boolean;
+  shouldRequeue: boolean;
 };
 
 /**
@@ -163,6 +163,6 @@ export function afterRenderFailure({
   }
   const made = attempts + 1;
   return made >= maxAttempts
-    ? { attempts: made, status: "failed", retry: false }
-    : { attempts: made, status: "pending", retry: true };
+    ? { attempts: made, status: "failed", shouldRequeue: false }
+    : { attempts: made, status: "pending", shouldRequeue: true };
 }
