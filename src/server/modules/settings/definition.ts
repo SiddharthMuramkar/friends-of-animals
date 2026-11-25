@@ -18,7 +18,8 @@ export type SettingUnit =
   | "years"
   | "rupees"
   | "paise"
-  | "minutes";
+  | "minutes"
+  | "offers";
 
 /** How the settings screen asks for a value. */
 export type SettingInput =

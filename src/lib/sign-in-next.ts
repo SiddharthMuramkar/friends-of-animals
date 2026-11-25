@@ -6,7 +6,9 @@ export function signInNext(raw: unknown): string | null {
   const next = safeNext(raw);
   return (
     judgeInvitationNext(next) ??
-    (next && /^\/auctions\/LOT-\d{2}-[0-9A-HJKMNP-TV-Z]{5}$/.test(next)
+    (next === "/account/auctions" ? next : null) ??
+    (next &&
+    /^\/(?:account\/)?auctions\/LOT-\d{2}-[0-9A-HJKMNP-TV-Z]{5}$/.test(next)
       ? next
       : null)
   );

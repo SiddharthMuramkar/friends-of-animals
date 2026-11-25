@@ -49,6 +49,7 @@ import {
   directoryListing,
   entry,
   auctionBid,
+  auctionOffer,
   entryFile,
   entryUploadGrant,
   erasureRecord,
@@ -792,6 +793,15 @@ async function eraseRecords(
     .where(within(communityMember.joinedByUserId, users));
   // Preserve accepted amounts and deadlines, even for an account retained
   // only for other financial records. Erasure never lowers the lot's price.
+  await tx
+    .update(auctionOffer)
+    .set({ addressCiphertext: null, courier: null, trackingNumber: null })
+    .where(
+      or(
+        sql`${auctionOffer.bidId} IN (SELECT ${auctionBid.id} FROM ${auctionBid} WHERE ${within(auctionBid.bidderUserId, users)})`,
+        sql`${auctionOffer.batchId} IN (SELECT ${paymentBatch.id} FROM ${paymentBatch} WHERE ${within(paymentBatch.payerUserId, users)})`
+      )
+    );
   await tx
     .update(auctionBid)
     .set({ bidderUserId: null })

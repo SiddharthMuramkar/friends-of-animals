@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 import {
   auctionLot,
   auctionBid,
+  auctionOffer,
+  paymentBatch,
   artworkCustodyEvent,
   artworkVerification,
   competition,
@@ -27,6 +29,11 @@ import { SEED_ACCOUNTS } from "./accounts";
 import { BID_DECLARATION_VERSION } from "../modules/auctions/domain/bid-declaration";
 import { SEED_GUARDIANS } from "./guardians";
 import { SEED_PARTICIPANTS } from "./participants";
+import { postToLedger } from "../modules/ledger/post";
+import { auctionCaptureLines } from "../modules/auctions/domain/proceeds";
+import { PROFILE_PURPOSE } from "../modules/registration/student-profile";
+import { IDENTITY_HASH_PURPOSE } from "../modules/registration/domain/prepare-student";
+import { currentLotConsent } from "../modules/auctions/lifecycle";
 import type { SeedDeps, Seeder } from "./types";
 import { seedEntryDerivatives } from "./entries";
 import { seedFilesLocation } from "./files";
@@ -155,6 +162,34 @@ export const SEED_AUCTIONS = {
   scheduled: lotCode(2),
   unsold: lotCode(3),
   cancelled: lotCode(4),
+  paymentOffer: lotCode(5),
+  paid: lotCode(6),
+  paymentOfferMobile: lotCode(7),
+  buyerMobile: {
+    id: id(106),
+    email: "auction-buyer-mobile@example.test",
+    name: "Sample Mobile Auction Buyer",
+  },
+  mobileArtist: {
+    id: id(107),
+    email: "auction-mobile-artist@example.test",
+    name: "Sample Mobile Auction Artist",
+  },
+  buyer: {
+    id: id(101),
+    email: "auction-buyer@example.test",
+    name: "Sample Auction Buyer",
+  },
+  artist: {
+    id: id(102),
+    email: "auction-artist@example.test",
+    name: "Sample Auction Artist",
+  },
+  otherArtist: {
+    id: id(104),
+    email: "auction-other-artist@example.test",
+    name: "Another Auction Artist",
+  },
   eligibleArtworkCode: "AUCT27-A-5EED03",
 } as const;
 
@@ -192,6 +227,74 @@ export const seedAuctions: Seeder = async (deps) => {
       attachedAt: now,
     })
     .onConflictDoNothing();
+  const buyer = await ensureVerifiedAccount(deps, SEED_AUCTIONS.buyer);
+  const artist = await ensureVerifiedAccount(deps, SEED_AUCTIONS.artist);
+  await db
+    .insert(participantProfile)
+    .values({
+      id: id(103),
+      ownerKind: "self",
+      ownerUserId: artist.id,
+      participantCode: "FOA-P-265EED05",
+      fullName: artist.name,
+      dobCiphertext: deps.cipher.encrypt(PROFILE_PURPOSE.dob, "1990-02-01"),
+      identityHash: deps.blindIndex.of(
+        IDENTITY_HASH_PURPOSE,
+        "sample auction artist 1990-02-01"
+      ),
+      createdAt: now,
+      updatedAt: now,
+      createdBy: artist.id,
+    })
+    .onConflictDoNothing();
+  const secondArtist = await ensureVerifiedAccount(
+    deps,
+    SEED_AUCTIONS.otherArtist
+  );
+  await db
+    .insert(participantProfile)
+    .values({
+      id: id(105),
+      ownerKind: "self",
+      ownerUserId: secondArtist.id,
+      participantCode: "FOA-P-265EED06",
+      fullName: secondArtist.name,
+      dobCiphertext: deps.cipher.encrypt(PROFILE_PURPOSE.dob, "1990-02-02"),
+      identityHash: deps.blindIndex.of(
+        IDENTITY_HASH_PURPOSE,
+        "another auction artist 1990-02-02"
+      ),
+      createdAt: now,
+      updatedAt: now,
+      createdBy: secondArtist.id,
+    })
+    .onConflictDoNothing();
+  const mobileBuyer = await ensureVerifiedAccount(
+    deps,
+    SEED_AUCTIONS.buyerMobile
+  );
+  const mobileArtist = await ensureVerifiedAccount(
+    deps,
+    SEED_AUCTIONS.mobileArtist
+  );
+  await db
+    .insert(participantProfile)
+    .values({
+      id: id(108),
+      ownerKind: "self",
+      ownerUserId: mobileArtist.id,
+      participantCode: "FOA-P-265EED07",
+      fullName: mobileArtist.name,
+      dobCiphertext: deps.cipher.encrypt(PROFILE_PURPOSE.dob, "1990-02-03"),
+      identityHash: deps.blindIndex.of(
+        IDENTITY_HASH_PURPOSE,
+        "sample mobile auction artist 1990-02-03"
+      ),
+      createdAt: now,
+      updatedAt: now,
+      createdBy: mobileArtist.id,
+    })
+    .onConflictDoNothing();
   const groups = await db
     .select()
     .from(competitionAgeGroup)
@@ -225,6 +328,27 @@ export const seedAuctions: Seeder = async (deps) => {
       age: 8,
       title: "Our friends",
       story: "A little painting of friends and animals.",
+      status: "verified" as const,
+    },
+    {
+      profileId: id(105),
+      age: 36,
+      title: "A meadow of kindness",
+      story: "A painting of a peaceful animal sanctuary.",
+      status: "verified" as const,
+    },
+    {
+      profileId: id(103),
+      age: 36,
+      title: "A woodland refuge",
+      story: "A drawing celebrating the wild animals around us.",
+      status: "retained" as const,
+    },
+    {
+      profileId: id(108),
+      age: 36,
+      title: "Our forest friends",
+      story: "A drawing of the animals and birds who share our world.",
       status: "verified" as const,
     },
   ];
@@ -335,7 +459,11 @@ export const seedAuctions: Seeder = async (deps) => {
           ? ["scheduled"]
           : n === 3
             ? ["unsold", "cancelled"]
-            : [];
+            : n === 4
+              ? []
+              : n === 5 || n === 7
+                ? ["awaiting_payment"]
+                : ["sold"];
     for (const status of statuses) {
       const k =
         status === "open"
@@ -344,7 +472,13 @@ export const seedAuctions: Seeder = async (deps) => {
             ? 2
             : status === "unsold"
               ? 3
-              : 4;
+              : status === "cancelled"
+                ? 4
+                : status === "awaiting_payment"
+                  ? n === 7
+                    ? 7
+                    : 5
+                  : 6;
       const starts = status === "open" ? -1 : status === "scheduled" ? 2 : -30;
       const ends = status === "open" ? 7 : status === "scheduled" ? 9 : -20;
       const [inserted] = await db
@@ -355,7 +489,13 @@ export const seedAuctions: Seeder = async (deps) => {
           artworkId,
           consentEventId: consentId,
           artworkStatusBeforeListing: work.status,
-          status: status as "open" | "scheduled" | "unsold" | "cancelled",
+          status: status as
+            | "open"
+            | "scheduled"
+            | "unsold"
+            | "cancelled"
+            | "awaiting_payment"
+            | "sold",
           story:
             work.story +
             (n <= 2
@@ -375,7 +515,7 @@ export const seedAuctions: Seeder = async (deps) => {
         .returning({ id: auctionLot.id });
       if (n <= 2) {
         const [sample] = await db
-          .select({ id: auctionLot.id })
+          .select()
           .from(auctionLot)
           .where(
             and(
@@ -384,7 +524,7 @@ export const seedAuctions: Seeder = async (deps) => {
               eq(auctionLot.status, status as "open" | "scheduled")
             )
           );
-        if (sample)
+        if (sample && (await currentLotConsent(deps, sample)))
           await seedLocalAuctionImage(deps, {
             entryId,
             assetId: id(70 + n),
@@ -404,6 +544,96 @@ export const seedAuctions: Seeder = async (deps) => {
             placedAt: new Date(days(starts).getTime() + 3600_000),
           })
           .onConflictDoNothing();
+      }
+      if (inserted && (status === "awaiting_payment" || status === "sold")) {
+        const bidId = id(60 + k),
+          offerId = id(70 + k),
+          paid = status === "sold";
+        const offeredAt = days(-1),
+          expiresAt = days(13);
+        await db.transaction(async (tx) => {
+          await tx.insert(auctionBid).values({
+            id: bidId,
+            lotId: inserted.id,
+            bidderUserId: k === 7 ? mobileBuyer.id : buyer.id,
+            amountPaise: 160101n,
+            placedAt: days(-21),
+            declarationVersion: BID_DECLARATION_VERSION,
+          });
+          if (paid)
+            await tx.insert(paymentBatch).values({
+              id: id(80 + k),
+              purpose: "auction_sale",
+              payerUserId: buyer.id,
+              status: "captured",
+              amountMinor: 160101n,
+              gateway: "fallback",
+              gatewayOrderId: `seed_auction_order_${k}`,
+              gatewayPaymentId: `seed_auction_payment_${k}`,
+              captureMethod: "gateway",
+              capturedAt: now,
+              createdAt: offeredAt,
+              updatedAt: now,
+            });
+          await tx.insert(auctionOffer).values({
+            id: offerId,
+            lotId: inserted.id,
+            bidId,
+            lotCode: lotCode(k),
+            competitionId: comp.id,
+            status: paid ? "paid" : "open",
+            amountPaise: 160101n,
+            creatorShareBps: paid ? 2500 : 0,
+            offeredAt,
+            expiresAt,
+            ...(paid
+              ? {
+                  batchId: id(80 + k),
+                  paidAt: now,
+                  deliveryStatus: "receipt_confirmed" as const,
+                  deliveryUpdatedAt: now,
+                }
+              : {}),
+          });
+          await tx.insert(artworkCustodyEvent).values({
+            id: id(50 + k),
+            artworkId,
+            kind: "auction_reserved",
+            location: "Sample archive shelf",
+            actorUserId: manager.id,
+            at: days(-31),
+          });
+          if (paid)
+            await postToLedger(
+              tx,
+              { actor: { kind: "system", process: "seed" }, clock },
+              {
+                source: { type: "auction_sale", id: offerId },
+                competitionId: comp.id,
+                occurredAt: now,
+                description: "Sample auction sale",
+                lines: auctionCaptureLines({
+                  amountPaise: 160101n,
+                  creatorShareBps: 2500,
+                }),
+              }
+            );
+          else {
+            const aggregate = { type: "auction_offer" as const, id: offerId },
+              payload = { offerId };
+            await emit(tx, clock, {
+              type: "auction.offer_opened",
+              aggregate,
+              payload,
+            });
+            await emit(
+              tx,
+              clock,
+              { type: "auction.offer.expire", aggregate, payload },
+              { availableAt: expiresAt }
+            );
+          }
+        });
       }
       if (inserted && (status === "open" || status === "scheduled")) {
         await db

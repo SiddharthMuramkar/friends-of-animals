@@ -1023,6 +1023,27 @@
       "when": 1795596932308,
       "tag": "0145_119_community",
       "breakpoints": true
+    },
+    {
+      "idx": 146,
+      "version": "7",
+      "when": 1795597886691,
+      "tag": "0146_133_auction_payment_purpose",
+      "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1795597889504,
+      "tag": "0147_133_auction_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1795597891896,
+      "tag": "0148_133_auction_messages_and_accounts",
+      "breakpoints": true
     }
   ]
 }

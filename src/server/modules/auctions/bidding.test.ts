@@ -188,11 +188,11 @@ describe("auction bidding", () => {
     ).toMatchObject({ ok: false, error: "lot_closed" });
     await h.drain();
     expect(await manager.getLotForAdmin(ref)).toMatchObject({
-      status: "closed",
+      status: "awaiting_payment",
     });
     expect(await worker.settleClosedLot(ref)).toMatchObject({
-      ok: true,
-      status: "closed",
+      ok: false,
+      error: "transition_not_allowed",
     });
     expect(await visitor.getLot(code)).toBeNull();
     expect(

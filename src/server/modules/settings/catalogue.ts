@@ -247,6 +247,18 @@ export const SETTINGS = {
     max: 60,
     unit: "minutes",
   }),
+  "auctions.paymentWindowHours": integerSetting({
+    default: 72,
+    min: 1,
+    max: 336,
+    unit: "hours",
+  }),
+  "auctions.maxPaymentOffers": integerSetting({
+    default: 3,
+    min: 1,
+    max: 10,
+    unit: "offers",
+  }),
   "artwork.returnWindowDays": integerSetting({
     default: 30,
     min: 1,

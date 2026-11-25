@@ -125,6 +125,12 @@ const PLATFORM_CONTEXTS: ReadonlySet<string> = new Set([
 /** A user id as `hashUserId` returns it, left alone on a second pass. */
 const HASHED_USER_ID = /^u_[0-9a-f]{16,64}$/;
 
+// Opaque generated identifiers in structured metadata are not phone numbers.
+// The exemption is a complete UUIDv7, never a substring of free text; personal
+// keys are still removed before their values get here.
+const OPAQUE_UUID_V7 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // Every pattern below runs in linear time: /monitoring passes 1 MiB from
 // anyone through here. Either its runs are bounded, or it can't fail once
 // it has started (a callback decides what to keep), so a global replace
@@ -263,7 +269,9 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  */
 function scrubValue(value: unknown, depth = 0): unknown {
   if (depth > MAX_DEPTH) return TRUNCATED;
-  if (typeof value === "string") return redactText(value);
+  if (typeof value === "string") {
+    return OPAQUE_UUID_V7.test(value) ? value : redactText(value);
+  }
   if (Array.isArray(value)) {
     return value.map((item) => scrubValue(item, depth + 1));
   }

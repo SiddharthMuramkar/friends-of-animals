@@ -5,6 +5,7 @@ import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import {
   auctionLot,
+  auctionOffer,
   physicalArtwork,
   consentEvent,
   outbox,
@@ -23,13 +24,13 @@ import {
   type LotCommand,
 } from "./domain/lot-status";
 import { readSetting } from "../settings/read";
-import { closedWinningBid } from "./bid-history";
+import { awardLockedLot, changeOffer } from "./offers";
 import { validateLotTerms } from "./domain/lot-terms";
 import type { Role } from "../../access/domain/roles";
 
 export type LotContext = Pick<
   UseCaseContext,
-  "db" | "clock" | "actor" | "settings" | "cipher" | "appEnv"
+  "db" | "clock" | "actor" | "settings" | "cipher"
 >;
 const lotInput = z.object({ lotId: z.uuid() });
 const cancelInput = lotInput.extend({
@@ -154,22 +155,27 @@ async function move(
       }
     }
     if (
-      command === "open" &&
+      (command === "open" || command === "settle_unsold") &&
       !(await readSetting(tx, "auctions.enabled", { lock: "share" }))
     ) {
-      await applyMove(tx, ctx, lot, "cancel", role, "auctions_disabled");
+      await applyMove(
+        tx,
+        ctx,
+        lot,
+        command === "open" ? "cancel" : "withdraw_consent",
+        role,
+        "auctions_disabled"
+      );
       return { ok: false, error: "auctions_disabled" } as const;
     }
-    if (command === "settle_unsold" && (await closedWinningBid(tx, lot))) {
-      // Leave a reserve-met winner and its original reserved in `closed`.
-      // #133 will atomically take this handoff to awaiting_payment.
-      return { ok: true, status: "closed" } as const;
+    if (command === "settle_unsold") {
+      return awardLockedLot(tx, ctx, lot, role);
     }
     return applyMove(tx, ctx, lot, command, role, reason);
   });
 }
 
-async function applyMove(
+export async function applyMove(
   tx: AppDb,
   ctx: LotContext,
   lot: AuctionLotRow,
@@ -187,6 +193,15 @@ async function applyMove(
     .where(eq(physicalArtwork.id, lot.artworkId))
     .for("update");
   const now = ctx.clock.now();
+  if (decision.to === "cancelled" && lot.status === "awaiting_payment") {
+    const [offer] = await tx
+      .select()
+      .from(auctionOffer)
+      .where(
+        and(eq(auctionOffer.lotId, lot.id), eq(auctionOffer.status, "open"))
+      );
+    if (offer) await changeOffer(tx, ctx, offer, "lot_withdrawn", role);
+  }
   await tx
     .update(auctionLot)
     .set({
@@ -297,7 +312,10 @@ export async function withdrawAuctionConsent(
     .innerJoin(consentEvent, eq(consentEvent.id, auctionLot.consentEventId))
     .where(
       and(
-        inArray(auctionLot.status, ACTIVE_LOT_STATUSES),
+        inArray(
+          auctionLot.status,
+          ACTIVE_LOT_STATUSES.filter((s) => s !== "sold")
+        ),
         eq(consentEvent.subjectType, payload.subjectType),
         eq(consentEvent.subjectId, payload.subjectId),
         eq(consentEvent.competitionId, payload.competitionId),

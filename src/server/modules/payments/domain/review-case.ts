@@ -149,8 +149,9 @@ export function allowedOutcomes(reviewCase: {
   currency: string;
   amountMinor: bigint;
   /** What the batch pays for; registration fees unless said. */
-  purpose?: "registration_fee" | "donation";
+  purpose?: "registration_fee" | "donation" | "auction_sale";
 }): readonly PaymentReviewOutcome[] {
+  if (reviewCase.purpose === "auction_sale") return ["refund", "keep"];
   const reasons =
     reviewCase.purpose === "donation" ? DONATION_CONFIRMABLE : CONFIRMABLE;
   const confirmable =
@@ -210,7 +211,7 @@ export function planResolution(input: {
     currency: string;
     amountMinor: bigint;
     resolvedAt: Date | null;
-    purpose?: "registration_fee" | "donation";
+    purpose?: "registration_fee" | "donation" | "auction_sale";
   };
   outcome: PaymentReviewOutcome;
   resolutionReason: string;

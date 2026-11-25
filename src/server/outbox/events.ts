@@ -544,6 +544,21 @@ export type DomainEvent =
       payload: { previousBidId: string };
     }
   | {
+      type: "auction.offer_opened";
+      aggregate: { type: "auction_offer"; id: string };
+      payload: { offerId: string };
+    }
+  | {
+      type: "auction.offer.expire";
+      aggregate: { type: "auction_offer"; id: string };
+      payload: { offerId: string };
+    }
+  | {
+      type: "auction.sale_captured";
+      aggregate: { type: "auction_offer"; id: string };
+      payload: { offerId: string };
+    }
+  | {
       type: "auction.lot_cancelled";
       aggregate: { type: "auction_lot"; id: string };
       payload: { lotId: string };
@@ -1091,6 +1106,9 @@ export const EVENT_PAYLOADS = {
   "auction.bid_outbid": z.object({
     previousBidId: z.uuid(),
   }),
+  "auction.offer_opened": z.object({ offerId: z.uuid() }),
+  "auction.offer.expire": z.object({ offerId: z.uuid() }),
+  "auction.sale_captured": z.object({ offerId: z.uuid() }),
   "auction.lot_cancelled": z.object({ lotId: z.uuid() }),
   "artwork.retain_unrequested": z.object({ competitionId: z.uuid() }),
   "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
@@ -1347,6 +1365,12 @@ export const SUBSCRIBERS = {
   "auction.lot_opened": ["notifications.dispatch"],
   "auction.lot_closed": ["auctions.settle_closed"],
   "auction.bid_outbid": ["notifications.dispatch"],
+  "auction.offer_opened": ["notifications.dispatch"],
+  "auction.offer.expire": ["auctions.expire_offer"],
+  "auction.sale_captured": [
+    "notifications.dispatch",
+    "auctions.send_family_letter",
+  ],
   "auction.lot_cancelled": ["notifications.dispatch"],
 
   "entry.foa_verified": ["notifications.dispatch"],

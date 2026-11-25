@@ -14,6 +14,7 @@ import { TableScroller } from "@/components/site/table-scroller";
 import {
   ADMIN_REFUNDS,
   adminPaymentBatchPath,
+  adminPaymentReviewCasePath,
   adminRefundPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
@@ -230,9 +231,23 @@ async function Details({ refund }: { refund: RefundView }) {
         ) : null}
       </dl>
       <p className="mt-4">
-        <SiteLink href={adminPaymentBatchPath(refund.batchId)} className={LINK}>
-          {t("detail.details.batchLink")}
-        </SiteLink>
+        {refund.auctionLotCode ? (
+          refund.reviewCaseId ? (
+            <SiteLink
+              href={adminPaymentReviewCasePath(refund.reviewCaseId)}
+              className={LINK}
+            >
+              {t("detail.details.auctionReviewLink")}
+            </SiteLink>
+          ) : null
+        ) : (
+          <SiteLink
+            href={adminPaymentBatchPath(refund.batchId)}
+            className={LINK}
+          >
+            {t("detail.details.batchLink")}
+          </SiteLink>
+        )}
       </p>
     </section>
   );

@@ -44,6 +44,9 @@ export const LOT_COMMANDS = [
   "open",
   "close",
   "settle_unsold",
+  "offer_payment",
+  "capture_payment",
+  "relist",
   "cancel",
   "withdraw_consent",
 ] as const;
@@ -79,9 +82,15 @@ const TRANSITIONS: Record<LotStatus, Partial<Record<LotCommand, Move>>> = {
   },
   closed: {
     settle_unsold: { to: "unsold", event: null },
+    offer_payment: { to: "awaiting_payment", event: null },
     withdraw_consent: CANCEL,
   },
-  awaiting_payment: {},
+  awaiting_payment: {
+    offer_payment: { to: "awaiting_payment", event: null },
+    capture_payment: { to: "sold", event: null },
+    relist: { to: "relisted", event: null },
+    withdraw_consent: CANCEL,
+  },
   sold: {},
   unsold: {},
   relisted: {},
@@ -89,7 +98,11 @@ const TRANSITIONS: Record<LotStatus, Partial<Record<LotCommand, Move>>> = {
 };
 
 /** Where the artwork goes back to the status it had before listing. */
-const RESTORING: ReadonlySet<LotStatus> = new Set(["unsold", "cancelled"]);
+const RESTORING: ReadonlySet<LotStatus> = new Set([
+  "unsold",
+  "cancelled",
+  "relisted",
+]);
 
 export type LotTransition =
   | {
@@ -123,7 +136,7 @@ export const PUBLIC_LOT_STATUSES = [
  * one migration, so the predicate may name them).
  */
 export const ACTIVE_LOT_STATUSES = LOT_STATUSES.filter(
-  (status) => !["sold", "unsold", "cancelled"].includes(status)
+  (status) => !["unsold", "cancelled", "relisted"].includes(status)
 );
 
 /** Whether withdrawing auction consent cancels a lot in `status`. */

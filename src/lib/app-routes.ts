@@ -9,6 +9,7 @@ import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountAuctions: "/account/auctions",
   accountInbox: "/account/inbox",
   accountNotifications: "/account/notifications",
   accountSecurity: "/account/security",
@@ -103,6 +104,7 @@ export function adminPaymentReviewCasePath(caseId: string): string {
 export const ADMIN_REFUNDS = "/admin/refunds";
 
 export const ADMIN_LEDGER = "/admin/ledger";
+export const ADMIN_AUCTION_PROCEEDS = `${ADMIN_LEDGER}/auction-proceeds`;
 export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
 export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
 /** Period lock, two-approver requests, budgets and the accountant's export (#109). */
@@ -526,7 +528,9 @@ export function receiptPath(token: string): string {
  * and its headers come with these documents only (./csp-sources.ts,
  * ./security-headers.ts).
  */
+export const AUCTION_CHECKOUT_ROUTE = "/account/auctions/[lotCode]";
 export const CHECKOUT_ROUTES = [
+  AUCTION_CHECKOUT_ROUTE,
   PAY_FEES_ROUTE,
   PAY_MY_REGISTRATION_ROUTE,
   DONATION_CHECKOUT_ROUTE,
@@ -646,6 +650,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/campaigns/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
+  ADMIN_AUCTION_PROCEEDS,
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_NEW_LEDGER_ENTRY,
   ADMIN_LEDGER_PERIODS,
@@ -685,6 +690,7 @@ export const APP_ROUTE_TEMPLATES = [
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
+  AUCTION_CHECKOUT_ROUTE,
   NGO_REGISTER,
   MY_LISTINGS,
   "/organisation/[id]",

@@ -749,6 +749,17 @@
           "award_band": "Award band in the results release.",
           "prize": "Prize attached to the awarded recognition."
         },
+        "auction_offer": {
+          "lot_id": "Links the offer to the original auction lot while it exists.",
+          "bid_id": "Links the offer to the accepted bid while that record exists.",
+          "batch_id": "Links payment evidence to the offer.",
+          "lot_code": "Identifies the sale for accounting and dispute resolution.",
+          "amount_paise": "Exact INR paise offered and captured.",
+          "creator_share_bps": "Snapshot of the competition creator proceeds policy in basis points.",
+          "address_ciphertext": "Encrypted buyer delivery address, removed when receipt is confirmed.",
+          "courier": "Courier used to send the original artwork.",
+          "tracking_number": "Courier tracking number for fulfilment and delivery confirmation."
+        },
         "community_member": {
           "subject_user_id": "The account whose private FOA journey this belongs to",
           "subject_profile_id": "The participant whose private FOA journey this belongs to",

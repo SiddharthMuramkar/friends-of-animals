@@ -110,7 +110,8 @@
         "failedOn": "Failed on",
         "manual": "Paid back by",
         "manualValue": "{method}, reference {reference}",
-        "batchLink": "See the whole payment"
+        "batchLink": "See the whole payment",
+        "auctionReviewLink": "See the auction payment review"
       },
       "studentsTitle": "Students",
       "studentsNone": "This refund returns a whole payment that confirmed no one, so it lists no students.",

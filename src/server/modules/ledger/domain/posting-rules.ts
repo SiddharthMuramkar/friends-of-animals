@@ -28,6 +28,8 @@ export const LEDGER_SOURCE_TYPES = [
    * back; id = gateway payment id. */
   "foreign_donation",
   "recurring_after_cancel",
+  "auction_sale",
+  "auction_review",
   /** Finance's manual entry; id = the posting's own id. */
   "manual",
   /** Finance reversing a manual entry; id = the reversed posting's id. */

@@ -61,3 +61,27 @@ export async function cancelAuctionLot(lotId: string, form: FormData) {
   );
   redirect(path + "?result=" + (result.ok && result.value.ok ? "ok" : "error"));
 }
+
+export async function moveAuctionDelivery(
+  lotId: string,
+  offerId: string,
+  command: "dispatch" | "update_tracking" | "mark_delivered" | "record_receipt",
+  form: FormData
+) {
+  const path = adminAuctionLotPath(lotId);
+  const result = await adminCall(
+    async () =>
+      as(await currentActor()).moveAuctionDelivery({
+        offerId,
+        command,
+        ...(["dispatch", "update_tracking"].includes(command)
+          ? {
+              courier: text(form.get("courier")),
+              trackingNumber: text(form.get("trackingNumber")),
+            }
+          : {}),
+      }),
+    path
+  );
+  redirect(path + "?result=" + (result.ok && result.value.ok ? "ok" : "error"));
+}

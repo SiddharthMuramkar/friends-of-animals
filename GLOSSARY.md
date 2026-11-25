@@ -809,9 +809,10 @@ A public code identifying one Auction lot, such as `LOT-27-8H3TZ`. It is
 independent of the private Artwork ID.
 
 **Auction reservation**:
-An active Auction lot's exclusive hold on its original. It prevents another
+An unfinished Auction lot’s exclusive hold on its original. It prevents another
 lot and conflicting custody moves without changing the physical status.
-Cancelling or settling an unsold lot releases the original.
+Cancelling, settling unsold or relisting releases the original; selling it
+keeps that hold permanently.
 
 **Bid**:
 A signed-in adult Buyer's binding offer of an exact INR amount on an open
@@ -829,6 +830,21 @@ The final interval of an open Auction lot in which an accepted Bid extends
 its closing time by the interval's full duration, giving other Buyers a
 chance to respond.
 _Avoid_: Grace period, overtime
+
+**Payment offer**:
+A winning Buyer’s exclusive opportunity to pay their accepted Bid before an
+exact deadline. On expiry the next qualifying distinct Buyer receives an offer;
+when candidates run out, the original can be relisted as a new Auction lot.
+Neither a Bid nor an expired offer transfers the artwork.
+
+**Auction sale**:
+The accepted full captured INR payment for one live Payment offer. The sale’s
+pinned proceeds policy splits exact paise into FOA income and creator shares
+payable. The original remains exclusively committed to the Buyer.
+
+**Auction delivery**:
+The fulfilment of an Auction sale, from the Buyer’s private delivery address
+through dispatch and delivery, to confirmed receipt.
 
 ## Files
 
