@@ -105,6 +105,13 @@ export const ADMIN_REFUNDS = "/admin/refunds";
 export const ADMIN_LEDGER = "/admin/ledger";
 export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
 export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
+/** Period lock, two-approver requests, budgets and the accountant's export (#109). */
+export const ADMIN_LEDGER_PERIODS = `${ADMIN_LEDGER}/periods`;
+export const ADMIN_LEDGER_APPROVALS = `${ADMIN_LEDGER}/approvals`;
+export const ADMIN_LEDGER_BUDGETS = `${ADMIN_LEDGER}/budgets`;
+export const ADMIN_LEDGER_BUDGET_REPORT = `${ADMIN_LEDGER_BUDGETS}/report`;
+export const ADMIN_LEDGER_EXPORT = `${ADMIN_LEDGER}/export`;
+export const ADMIN_LEDGER_EXPORT_CSV = `${ADMIN_LEDGER}/export.csv`;
 
 export function adminLedgerPostingPath(seq: bigint | string): string {
   return `${ADMIN_LEDGER}/${encodeURIComponent(String(seq))}`;
@@ -503,6 +510,12 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_NEW_LEDGER_ENTRY,
+  ADMIN_LEDGER_PERIODS,
+  ADMIN_LEDGER_APPROVALS,
+  ADMIN_LEDGER_BUDGETS,
+  ADMIN_LEDGER_BUDGET_REPORT,
+  ADMIN_LEDGER_EXPORT,
+  ADMIN_LEDGER_EXPORT_CSV,
   "/admin/ledger/[seq]",
   "/admin/competitions/[id]/cancel",
   "/institution/competitions/[code]/judging-guide",

@@ -217,9 +217,11 @@ describe("the preview ledger seed", () => {
         }),
       ])
     );
+    // Two from the ledger seed, and the year-end entry in the locked
+    // March 2026 from the periods seed (#109).
     expect(
       seeded.postings.filter((row) => row.sourceType === "manual")
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(
       seeded.postings.some((row) => row.sourceId === "pay_seed_review")
     ).toBe(false);

@@ -6,7 +6,7 @@ import { readSetting } from "@/server/modules/settings";
 import { createHarness } from "@/test/harness";
 
 describe("the settings seed", () => {
-  it("stores every setting once, however often it runs: the defaults, with SMS and volunteer applications on", async () => {
+  it("stores every setting once, however often it runs: the defaults, with SMS, the ledger export and volunteer applications on", async () => {
     const h = await createHarness();
     const rows = () => h.db.select().from(setting).orderBy(asc(setting.key));
 
@@ -25,6 +25,10 @@ describe("the settings seed", () => {
       { key: "donations.maxAmountRupees", value: 100_000 },
       { key: "donations.minAmountRupees", value: 100 },
       { key: "donations.pendingExpiryHours", value: 24 },
+      // The accountant's export waits for HR-47 only in production (#109).
+      { key: "ledger.accountantExport", value: true },
+      { key: "ledger.approvalExpiryDays", value: 7 },
+      { key: "ledger.manualEntryApprovalThresholdRupees", value: 50_000 },
       { key: "org.fcraEnabled", value: false },
       { key: "org.has80G", value: false },
       // FOA's tax facts stay empty: previews show "To be confirmed" (#111).

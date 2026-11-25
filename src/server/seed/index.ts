@@ -29,6 +29,8 @@ import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
 import { seedBreaches } from "./breaches";
 import { seedLedger } from "./ledger";
+import { seedLedgerPeriods } from "./ledger-periods";
+import { seedBudgets } from "./ledger-budgets";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
@@ -107,6 +109,9 @@ const seeders: readonly Seeder[] = [
   // Before the ledger seed, whose reconcile posts its donations (#106).
   seedDonations,
   seedLedger,
+  // After the ledger seed: its postings are in open months (#109).
+  seedLedgerPeriods,
+  seedBudgets,
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,

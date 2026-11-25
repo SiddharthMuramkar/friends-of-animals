@@ -1148,12 +1148,39 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("refund", "manual_recorded_by", PAYMENT_RECORD),
   // The ledger keeps finance authorship and text that may name people (#105).
   actorColumn("ledger_posting", "created_by_user_id", LEDGER_RECORD, "retain"),
+  // Period locks and two-approver requests (#109): who asked, who decided,
+  // and finance's own words (an unlock reason, a manual entry's narration).
+  actorColumn("ledger_period", "locked_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn(
+    "ledger_period",
+    "last_unlocked_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "finance_approval",
+    "requested_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "finance_approval",
+    "decided_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  // Budgets (#109): who set each one.
+  actorColumn("ledger_budget", "created_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn("ledger_budget", "updated_by_user_id", LEDGER_RECORD, "retain"),
   ...(
     [
       ["ledger_account", "name", LEDGER_CATEGORY],
       ["ledger_account", "public_label", LEDGER_CATEGORY],
       ["ledger_posting", "description", LEDGER_RECORD],
       ["ledger_line", "memo", LEDGER_RECORD],
+      ["ledger_period", "last_unlock_reason", LEDGER_RECORD],
+      ["finance_approval", "payload", LEDGER_RECORD],
+      ["finance_approval", "decision_reason", LEDGER_RECORD],
     ] as const
   ).map(([table, column, retention]): InventoryField => ({
     table,

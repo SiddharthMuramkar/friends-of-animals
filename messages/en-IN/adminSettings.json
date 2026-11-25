@@ -140,6 +140,20 @@
           "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
         }
       },
+      "ledger": {
+        "manualEntryApprovalThresholdRupees": {
+          "label": "Manual entries that need a second approver",
+          "description": "A manual ledger entry moving more than this many rupees waits until a second finance user approves it. Entries at or below it post at once. Set 0 to send every manual entry for approval."
+        },
+        "approvalExpiryDays": {
+          "label": "Days a finance request waits for approval",
+          "description": "A period lock, a reopening or a large manual entry that nobody approves or rejects in this many days expires, and finance has to ask again."
+        },
+        "accountantExport": {
+          "label": "Accountant's ledger export",
+          "description": "Lets finance download the ledger as a CSV journal for FOA's accountant. Keep it off until the accountant has confirmed the columns and the date rules."
+        }
+      },
       "privacy": {
         "requestDueDays": {
           "label": "Days to answer an access or correction request",

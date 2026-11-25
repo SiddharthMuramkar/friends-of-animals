@@ -127,6 +127,7 @@ describe("manual entries", () => {
 
       expect(await app.createManualEntry(entryWith(` ${atLimit} `))).toEqual({
         ok: true,
+        status: "posted",
         postingId: expect.any(String),
         seq: 1n,
       });

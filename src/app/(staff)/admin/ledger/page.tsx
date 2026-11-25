@@ -10,6 +10,10 @@ import { TableScroller } from "@/components/site/table-scroller";
 import {
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,
+  ADMIN_LEDGER_APPROVALS,
+  ADMIN_LEDGER_BUDGETS,
+  ADMIN_LEDGER_EXPORT,
+  ADMIN_LEDGER_PERIODS,
   ADMIN_NEW_LEDGER_ENTRY,
   adminLedgerPostingPath,
 } from "@/lib/app-routes";
@@ -80,6 +84,18 @@ export default async function Page({
         </ButtonLink>
         <ButtonLink href={ADMIN_LEDGER_ACCOUNTS} variant="secondary">
           {t("list.accounts")}
+        </ButtonLink>
+        <ButtonLink href={ADMIN_LEDGER_PERIODS} variant="secondary">
+          {t("list.periods")}
+        </ButtonLink>
+        <ButtonLink href={ADMIN_LEDGER_APPROVALS} variant="secondary">
+          {t("list.approvals")}
+        </ButtonLink>
+        <ButtonLink href={ADMIN_LEDGER_BUDGETS} variant="secondary">
+          {t("list.budgets")}
+        </ButtonLink>
+        <ButtonLink href={ADMIN_LEDGER_EXPORT} variant="secondary">
+          {t("list.export")}
         </ButtonLink>
       </div>
       <search>
@@ -209,7 +225,14 @@ async function PostingTable({
                 <td className={cn(cell, "min-w-36 wrap-anywhere")}>
                   {posting.description}
                 </td>
-                <td className={cell}>{t(`sources.${source}`)}</td>
+                <td className={cell}>
+                  {t(`sources.${source}`)}
+                  {posting.lateAdjustment ? (
+                    <span className="block text-sm text-ink-muted">
+                      {t("list.lateAdjustment")}
+                    </span>
+                  ) : null}
+                </td>
                 <td className={number}>{formatPaise(posting.debitMinor)}</td>
                 <td className={number}>{formatPaise(posting.creditMinor)}</td>
               </tr>

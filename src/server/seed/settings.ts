@@ -21,6 +21,8 @@ import type { SeedDeps } from "./types";
  */
 const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "sms.enabled": true,
+  // The accountant's export waits for HR-47 in production (#109).
+  "ledger.accountantExport": true,
   // Local runs and previews pay through the test checkout (#106).
   "donations.enabled": true,
   // Erasure (#115b) waits for counsel in production (HR-30); seeded data

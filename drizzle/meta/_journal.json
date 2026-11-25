@@ -750,6 +750,27 @@
       "when": 1795582680834,
       "tag": "0106_106_donation_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1795582738453,
+      "tag": "0107_109_ledger_periods",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1795582744570,
+      "tag": "0108_109_ledger_period_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1795582746088,
+      "tag": "0109_109_budgets",
+      "breakpoints": true
     }
   ]
 }

@@ -92,7 +92,8 @@ describe("getInventory", () => {
         { accountCode: "1000", side: "credit", amountMinor: 5_000n },
       ],
     });
-    if (!posted.ok) throw new Error("Expected a ledger posting");
+    if (!posted.ok || posted.status !== "posted")
+      throw new Error("Expected a ledger posting");
     expect(
       await finance.deactivateLedgerAccount({ code: category.code })
     ).toMatchObject({ ok: true });

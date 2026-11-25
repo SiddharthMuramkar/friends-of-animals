@@ -10,6 +10,11 @@
       "title": "Ledger",
       "newEntry": "New manual entry",
       "accounts": "Manage categories",
+      "periods": "Periods",
+      "approvals": "Approvals",
+      "budgets": "Budgets",
+      "export": "Accountant export",
+      "lateAdjustment": "Late adjustment",
       "category": "Category",
       "allCategories": "All categories",
       "from": "From date (IST)",
@@ -32,7 +37,8 @@
       "memo": "Memo",
       "reversalOf": "Reversal of",
       "reversedBy": "Reversed by",
-      "reverse": "Reverse posting"
+      "reverse": "Reverse posting",
+      "lateAdjustment": "Late adjustment: this happened in {occurred}, after that month was locked, so it counts in {period}."
     },
     "manual": {
       "title": "New manual entry",
@@ -127,7 +133,8 @@
       "invalid_public_label": "Use up to 80 characters for the public label.",
       "invalid_public_group": "Choose a public group.",
       "system_account": "This system category is managed by the ledger.",
-      "no_change": "Change at least one field before saving."
+      "no_change": "Change at least one field before saving.",
+      "period_locked": "That month is locked, so nothing can be posted into it. Date the entry in an open month, or ask for the month to be unlocked."
     }
   }
 }

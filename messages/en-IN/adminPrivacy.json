@@ -376,6 +376,21 @@
           "created_by_user_id": "Identifies the finance user who entered or reversed a posting",
           "description": "Describes the entry and may name a counterparty"
         },
+        "ledger_period": {
+          "locked_by_user_id": "Identifies the finance user who approved locking the month",
+          "last_unlocked_by_user_id": "Identifies the finance user who approved the latest reopening of the month",
+          "last_unlock_reason": "Finance's reason for reopening a locked month, which may name a person"
+        },
+        "ledger_budget": {
+          "created_by_user_id": "Identifies the finance user who first set the budget",
+          "updated_by_user_id": "Identifies the finance user who last changed the budget"
+        },
+        "finance_approval": {
+          "requested_by_user_id": "Identifies the finance user who asked for an operation that needs a second approver",
+          "decided_by_user_id": "Identifies the finance user who approved, rejected or cancelled the request",
+          "payload": "What the operation will do once approved, such as a manual entry's narration, which may name a counterparty",
+          "decision_reason": "Finance's reason for rejecting the request, which may name a person"
+        },
         "message_delivery": {
           "user_id": "Says who a message was sent to",
           "contact_hash": "A keyed hash of the email or phone that deduplicates external deliveries across retries",
