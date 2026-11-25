@@ -41,6 +41,7 @@ import {
   entryVerification,
   physicalArtwork,
   roundEntry,
+  roundResult,
   roundAssignment,
   judgeOnboarding,
   artworkPhoto,
@@ -305,6 +306,13 @@ export const SECTIONS: readonly Section[] = [
       )!,
     owners: ["entry_id", "admitted_by_user_id"],
     withhold: ["admitted_by_user_id"],
+  },
+  {
+    // Locked rankings contain the entrant's own outcome and score, not
+    // judge identities. Include only the subject's entries in the export.
+    table: roundResult,
+    where: (scope) => sql`${roundResult.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
   },
   {
     table: roundAssignment,
