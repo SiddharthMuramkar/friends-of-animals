@@ -9,6 +9,7 @@ import {
   gatewayTestSubscription,
   paymentBatch,
   recurringDonation,
+  user,
 } from "../db/schema";
 import { DONOR_PURPOSE, donorEmailHash } from "../modules/donations/donors";
 import { issueReceipt } from "../modules/donations/receipts/issue";
@@ -46,7 +47,14 @@ export async function seedRecurringDonations(deps: SeedDeps) {
     for (const [index, status] of (
       ["active", "past_due", "cancelled"] as const
     ).entries()) {
-      const account = SEED_ACCOUNTS.members[index]!;
+      const { email } = SEED_ACCOUNTS.members[index]!;
+      // Identity seeding preserves an existing account with this address,
+      // which may have an id different from the fixed seed id.
+      const [account] = await tx
+        .select({ id: user.id, name: user.name })
+        .from(user)
+        .where(eq(user.email, email));
+      if (!account) throw new Error("Seed recurring donor account is missing");
       const donorId = id(11 + index);
       const recurringId = SEED_RECURRING_DONATIONS[index]!;
       const subId = `sub_fallback_seed_${index}`;
@@ -58,8 +66,8 @@ export async function seedRecurringDonations(deps: SeedDeps) {
         userId: account.id,
         type: "individual",
         name: deps.cipher.encrypt(DONOR_PURPOSE.name, account.name),
-        email: deps.cipher.encrypt(DONOR_PURPOSE.email, account.email),
-        emailHash: donorEmailHash(deps.blindIndex, account.email),
+        email: deps.cipher.encrypt(DONOR_PURPOSE.email, email),
+        emailHash: donorEmailHash(deps.blindIndex, email),
         createdAt,
       });
       await tx.insert(gatewayTestOrder).values({
