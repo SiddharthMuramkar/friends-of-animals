@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./support/seed-guardian";
+import { readCode } from "./support/mailbox";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import {
   expectNoSidewaysScrollAt320,
@@ -34,6 +35,15 @@ test("public events and campaign pages are current and accessible", async ({
     page.getByRole("heading", { name: fixture.title })
   ).toBeVisible();
   await check(page, "public events list");
+  await expect
+    .poll(async () => {
+      const sitemap = await request.get("/sitemap.xml");
+      return sitemap.ok() && (await sitemap.text()).includes(detail);
+    })
+    .toBe(true);
+  expect(await (await request.get("/sitemap.xml")).text()).not.toContain(
+    SEED_EVENTS.draft.slug
+  );
   expect((await request.get("/events/not-a-real-event")).status()).toBe(404);
   expect(
     (await request.get(`/events/${SEED_EVENTS.draft.slug}`)).status()
@@ -59,8 +69,16 @@ test("published events, waitlist promotion, check-in and attendee timeline", asy
   const detail = `/events/${fixture.slug}`;
   const name = `Event attendee ${info.project.name}`;
   const email = await seedAccount({ name, grants: [] });
-  await signInByCode(page, request, email);
   await page.goto(detail);
+  await page.getByRole("link", { name: "Sign in to register" }).click();
+  await page.getByRole("textbox", { name: "Email address" }).fill(email);
+  await page.getByRole("button", { name: "Email me a code" }).click();
+  await expect(page.getByRole("status")).toContainText(email);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(await readCode(request, email));
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(detail + "$"));
   await page.getByRole("button", { name: "Register", exact: true }).click();
   await expect(page.getByText("Your place is confirmed.")).toHaveCount(0);
   await expect(

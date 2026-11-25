@@ -31,7 +31,7 @@ export async function eventSitemapRows() {
   // read live state; the admin action invalidates this tag on mutation.
   try {
     const result = await as(PUBLIC_READER).listPublishedEvents();
-    cacheLife({ stale: 0, revalidate: 60, expire: 300 });
+    cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
     return result.items.map((row) => ({ slug: row.slug }));
   } catch (error) {
     unstable_rethrow(error);
