@@ -22,7 +22,13 @@ export type AdoptionWorld = {
   draft: { id: string; slug: string; name: string };
 };
 
-export type SeedAdoptionWorld = () => Promise<AdoptionWorld>;
+/**
+ * `{ published: true }` (#130) publishes the animal instead of leaving it a
+ * draft, so a journey can apply for it straight away.
+ */
+export type SeedAdoptionWorld = (options?: {
+  published?: boolean;
+}) => Promise<AdoptionWorld>;
 
 /**
  * `seedAdoptionWorld`: a fresh representative (through `seedAccount`) of a
@@ -49,7 +55,7 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
     const listingIds: string[] = [];
 
     try {
-      await use(async () => {
+      await use(async ({ published = false } = {}) => {
         const now = systemClock.now();
         const listingId = uuidv7(now);
         const tag = listingId.slice(-12);
@@ -129,7 +135,8 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
                 },
                 now
               ),
-              status: "draft",
+              status: published ? "published" : "draft",
+              publishedAt: published ? now : null,
               createdByUserId: owner.id,
               createdAt: now,
               updatedAt: now,
@@ -224,6 +231,13 @@ export const test = base.extend<{ seedAdoptionWorld: SeedAdoptionWorld }>({
               .where(inArray(schema.fileAsset.id, fileIds));
           }
           if (animalIds.length > 0) {
+            // Applications (#130) hold their animal; their stories go with
+            // them.
+            await db
+              .delete(schema.adoptionApplication)
+              .where(
+                inArray(schema.adoptionApplication.adoptionListingId, animalIds)
+              );
             await db
               .delete(schema.adoptionListing)
               .where(inArray(schema.adoptionListing.id, animalIds));
