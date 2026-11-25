@@ -135,6 +135,13 @@ test("blind physical scoring, guarded lock and recognition", async ({
       "special_mention"
     );
     await expectAccessible(page, "tagged recognition");
+    // The judge has not reloaded yet: an already-open editor must also
+    // fail closed when its next autosave reaches the newly locked round.
+    await judge.getByLabel("Comments (optional)").fill("Late edit");
+    await expect(
+      judge.getByText("This round is now locked. Your changes were not saved.")
+    ).toBeVisible();
+    judge.once("dialog", (dialog) => dialog.accept());
     await judge.reload();
     await expect(
       judge.getByText(
