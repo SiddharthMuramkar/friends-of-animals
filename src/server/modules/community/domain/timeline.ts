@@ -28,8 +28,10 @@ export const TIMELINE_ENTRY_KINDS = {
   "milestone.school_winner": "recognition",
   "milestone.foa_finalist": "recognition",
   "milestone.community_member": "community",
+  "volunteer.hours_approved": "volunteering",
   "milestone.volunteer": "volunteering",
   "milestone.ambassador": "recognition",
+  "event.attended": "event",
 } as const satisfies Record<`${string}.${string}`, TimelineCategory>;
 
 export type TimelineEntryKind = keyof typeof TIMELINE_ENTRY_KINDS;

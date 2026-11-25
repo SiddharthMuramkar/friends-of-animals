@@ -9,6 +9,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { HoursHistory } from "@/components/volunteers/work-ui";
 import { ApplicationSummary } from "@/components/volunteers/application-summary";
 import { guardianChildPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
@@ -87,6 +88,10 @@ async function ChildApplication({ params, searchParams }: Props) {
   if (!loaded) notFound();
   const { child, application } = loaded;
   const name = child.fullName;
+  const service =
+    application?.status === "approved"
+      ? await as(actor).getChildVolunteerRecord({ childId: id })
+      : null;
   const done = OUTCOMES.find((outcome) => outcome === query.done);
   const open =
     application?.status === "awaiting_guardian" ||
@@ -168,6 +173,7 @@ async function ChildApplication({ params, searchParams }: Props) {
         ) : (
           <p className="text-ink">{t("none", { name })}</p>
         )}
+        {service && <HoursHistory record={service} />}
         <p>
           <SiteLink href={guardianChildPath(child.id)} className={inlineLink}>
             {t("back", { name })}

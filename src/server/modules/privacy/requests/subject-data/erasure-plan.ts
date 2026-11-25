@@ -53,6 +53,7 @@ export const ERASURE_CATEGORIES = [
   "uploads",
   "entries",
   "community_history",
+  "volunteer_service",
   "auction_bids",
   "registrations",
   "guardian_links",
@@ -107,6 +108,7 @@ export type ErasureFacts = {
   uploads: number;
   entries: number;
   communityHistory: number;
+  volunteerService: number;
   auctionBids: number;
   freeRegistrations: number;
   keptRegistrations: number;
@@ -154,6 +156,7 @@ export function planErasure(facts: ErasureFacts): ErasurePlan {
     category("uploads", "delete", facts.uploads),
     category("entries", "delete", facts.entries),
     category("community_history", "delete", facts.communityHistory),
+    category("volunteer_service", "delete", facts.volunteerService),
     category("auction_bids", "anonymise", facts.auctionBids),
     category("registrations", "delete", facts.freeRegistrations),
     category("guardian_links", "delete", facts.guardianLinks),

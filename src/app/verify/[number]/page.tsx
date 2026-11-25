@@ -42,6 +42,17 @@ async function Result({ params }: PageProps<"/verify/[number]">) {
               <dd>{t("competitionWithCode", outcome.competition)}</dd>
             </div>
           )}
+          {outcome.approvedMinutes != null && (
+            <div>
+              <dt className="font-semibold">{t("type.volunteer_service")}</dt>
+              <dd>
+                {t("approvedService", {
+                  hours: Math.floor(outcome.approvedMinutes / 60),
+                  minutes: outcome.approvedMinutes % 60,
+                })}
+              </dd>
+            </div>
+          )}
           <div>
             <dt className="font-semibold">{t("recipient")}</dt>
             <dd>{outcome.credit?.name ?? t("withheld")}</dd>

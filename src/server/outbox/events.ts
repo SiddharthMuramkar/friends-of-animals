@@ -918,6 +918,50 @@ export type DomainEvent =
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string; competitionId: string };
     }
+  | {
+      type: "event.places_changed";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.published";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.cancelled";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.changed";
+      aggregate: { type: "event"; id: string };
+      payload: {
+        eventId: string;
+        changes: "time" | "place" | "time_and_place";
+        startMoved: boolean;
+      };
+    }
+  | {
+      type: "event.end_due";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string; endsAt: string };
+    }
+  | {
+      type: "event.registration_created";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string; status: "registered" | "waitlisted" };
+    }
+  | {
+      type: "event.waitlist_promoted";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string };
+    }
+  | {
+      type: "event.registration_cancelled";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string };
+    }
   // Volunteer applications (#123): a 14- to 17-year-old applied and their
   // guardians are asked; an application reached the community team; a
   // community manager approved it (the volunteer role is granted) or
@@ -926,6 +970,21 @@ export type DomainEvent =
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
   | VolunteerApplicationEvent<"volunteer.application_declined">
+  | {
+      type: "volunteer.task_assigned";
+      aggregate: { type: "volunteer_task_assignment"; id: string };
+      payload: { assignmentId: string };
+    }
+  | {
+      type: "volunteer.hours_approved";
+      aggregate: { type: "volunteer_hours_entry"; id: string };
+      payload: { entryId: string };
+    }
+  | {
+      type: "volunteer.hours_rejected";
+      aggregate: { type: "volunteer_hours_entry"; id: string };
+      payload: { entryId: string };
+    }
   // Adoption applications (#130): one was made, the coordinator moved it,
   // the applicant withdrew it, or the animal's listing closed. The
   // applicant, the listing organisation and the coordinators are told.
@@ -988,6 +1047,21 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "event.places_changed": z.object({ eventId: z.uuid() }),
+  "event.published": z.object({ eventId: z.uuid() }),
+  "event.cancelled": z.object({ eventId: z.uuid() }),
+  "event.changed": z.object({
+    eventId: z.uuid(),
+    changes: z.enum(["time", "place", "time_and_place"]),
+    startMoved: z.boolean(),
+  }),
+  "event.end_due": z.object({ eventId: z.uuid(), endsAt: z.iso.datetime() }),
+  "event.registration_created": z.object({
+    registrationId: z.uuid(),
+    status: z.enum(["registered", "waitlisted"]),
+  }),
+  "event.waitlist_promoted": z.object({ registrationId: z.uuid() }),
+  "event.registration_cancelled": z.object({ registrationId: z.uuid() }),
   "community.member_joined": z.object({ memberId: z.uuid() }),
   "engagement.milestone_recorded": z.object({ milestoneId: z.uuid() }),
   "consent.form_reviewed": z.object({
@@ -1244,6 +1318,9 @@ export const EVENT_PAYLOADS = {
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
   "volunteer.application_declined": VOLUNTEER_APPLICATION,
+  "volunteer.task_assigned": z.object({ assignmentId: z.uuid() }),
+  "volunteer.hours_approved": z.object({ entryId: z.uuid() }),
+  "volunteer.hours_rejected": z.object({ entryId: z.uuid() }),
   "adoption.application_submitted": ADOPTION_APPLICATION,
   "adoption.application_under_review": ADOPTION_APPLICATION,
   "adoption.application_in_contact": ADOPTION_APPLICATION,
@@ -1276,6 +1353,14 @@ export function parseStoredEventPayload(
  * none.
  */
 export const SUBSCRIBERS = {
+  "event.places_changed": ["events.refill_places"],
+  "event.published": ["reminders.schedule_event"],
+  "event.cancelled": ["reminders.schedule_event", "notifications.dispatch"],
+  "event.changed": ["reminders.schedule_event", "notifications.dispatch"],
+  "event.end_due": ["events.settle"],
+  "event.registration_created": ["notifications.dispatch"],
+  "event.waitlist_promoted": ["notifications.dispatch"],
+  "event.registration_cancelled": ["notifications.dispatch"],
   // No route sends a message for these yet; the domain facts are durable.
   "community.member_joined": ["notifications.dispatch"],
   "engagement.milestone_recorded": ["notifications.dispatch"],
@@ -1526,6 +1611,9 @@ export const SUBSCRIBERS = {
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
   "volunteer.application_declined": ["notifications.dispatch"],
+  "volunteer.task_assigned": ["notifications.dispatch"],
+  "volunteer.hours_approved": ["notifications.dispatch"],
+  "volunteer.hours_rejected": ["notifications.dispatch"],
   // The applicant, the listing organisation's representatives and the
   // coordinators are told by route row (#130).
   "adoption.application_submitted": ["notifications.dispatch"],

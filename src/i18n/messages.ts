@@ -63,6 +63,7 @@ import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
+import events from "../../messages/en-IN/events.json";
 import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -79,6 +80,7 @@ import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import guardian from "../../messages/en-IN/guardian.json";
+import volunteerWork from "../../messages/en-IN/volunteerWork.json";
 import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
@@ -168,6 +170,7 @@ export const NAMESPACES = [
   "adoption",
   "adoptionApplications",
   "community",
+  "events",
   "donate",
   "donationCheckout",
   "donorDashboard",
@@ -187,6 +190,7 @@ export const NAMESPACES = [
   "footer",
   "guardian",
   "volunteer",
+  "volunteerWork",
   "home",
   "impact",
   "transparency",
@@ -278,6 +282,7 @@ export const messages = {
   ...adoption,
   ...adoptionApplications,
   ...community,
+  ...events,
   ...donate,
   ...donationCheckout,
   ...donorDashboard,
@@ -297,6 +302,7 @@ export const messages = {
   ...footer,
   ...guardian,
   ...volunteer,
+  ...volunteerWork,
   ...home,
   ...impact,
   ...transparency,

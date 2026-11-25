@@ -62,8 +62,10 @@ export async function Timeline({
                     <p className="mt-1 font-bold text-ink">
                       {t(`kinds.${row.kind}`)}
                     </p>
-                    {row.competitionName ? (
-                      <p className="mt-1 text-ink">{row.competitionName}</p>
+                    {row.competitionName || row.eventTitle ? (
+                      <p className="mt-1 text-ink">
+                        {row.competitionName ?? row.eventTitle}
+                      </p>
                     ) : null}
                     <p className="mt-1 text-sm text-ink-muted">
                       {t(`categories.${row.category}`)}

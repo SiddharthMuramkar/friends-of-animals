@@ -33,6 +33,7 @@ import * as schema from "../../../../db/schema";
 import {
   account,
   communityMember,
+  eventRegistration,
   engagementMilestone,
   timelineEntry,
   auditLog,
@@ -82,6 +83,11 @@ import {
   user,
   userRole,
 } from "../../../../db/schema";
+import { WORK_PURPOSES } from "../../../volunteers/work-fields";
+import {
+  DATE_OF_BIRTH_PURPOSE,
+  DECLINE_REASON_PURPOSE,
+} from "../../../volunteers/application-record";
 import { COMMUNITY_MEMBER_PURPOSE } from "../../../community/profile-fields";
 import { USER_PHONE } from "../../../../identity/stored-phone";
 import { DONOR_PURPOSE } from "../../../donations/donors";
@@ -165,6 +171,20 @@ export const PARTICIPANT_FILE_PURPOSES = [
 
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
+  {
+    table: eventRegistration,
+    where: (scope) =>
+      or(
+        within(eventRegistration.subjectUserId, users(scope)),
+        within(eventRegistration.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    withhold: [
+      "registered_by_user_id",
+      "checked_in_by_user_id",
+      "waitlist_order",
+    ],
+  },
   {
     table: communityMember,
     where: (scope) =>
@@ -345,6 +365,45 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: schema.volunteerApplication,
+    where: (scope) =>
+      within(schema.volunteerApplication.applicantUserId, users(scope)),
+    owners: ["applicant_user_id"],
+    decrypt: {
+      date_of_birth_ciphertext: DATE_OF_BIRTH_PURPOSE,
+      decline_reason_ciphertext: DECLINE_REASON_PURPOSE,
+    },
+    withhold: ["guardian_user_id", "decided_by_user_id"],
+  },
+  {
+    table: schema.volunteerTask,
+    where: (scope) =>
+      within(schema.volunteerTask.createdByUserId, users(scope)),
+    owners: ["created_by_user_id"],
+    decrypt: {
+      title_ciphertext: WORK_PURPOSES.title,
+      description_ciphertext: WORK_PURPOSES.description,
+    },
+  },
+  {
+    table: schema.volunteerTaskAssignment,
+    where: (scope) =>
+      within(schema.volunteerTaskAssignment.volunteerUserId, users(scope)),
+    owners: ["volunteer_user_id"],
+    withhold: ["assigned_by_user_id"],
+  },
+  {
+    table: schema.volunteerHoursEntry,
+    where: (scope) =>
+      sql`${schema.volunteerHoursEntry.assignmentId} IN (SELECT ${schema.volunteerTaskAssignment.id} FROM ${schema.volunteerTaskAssignment} WHERE ${within(schema.volunteerTaskAssignment.volunteerUserId, users(scope))})`,
+    owners: ["assignment_id"],
+    decrypt: {
+      note_ciphertext: WORK_PURPOSES.note,
+      reject_reason_ciphertext: WORK_PURPOSES.reason,
+    },
+    withhold: ["decided_by_user_id"],
+  },
+  {
     table: schema.galleryItem,
     where: (scope) =>
       sql`${schema.galleryItem.entryId} IN ${entryIdsOf(scope)}`,
@@ -366,8 +425,11 @@ export const SECTIONS: readonly Section[] = [
   {
     table: schema.certificate,
     where: (scope) =>
-      within(schema.certificate.participantProfileId, profiles(scope)),
-    owners: ["participant_profile_id"],
+      or(
+        within(schema.certificate.participantProfileId, profiles(scope)),
+        within(schema.certificate.recipientUserId, users(scope))
+      )!,
+    owners: ["participant_profile_id", "recipient_user_id"],
     withhold: ["revoked_by_user_id", "revoked_reason"],
   },
   {
@@ -480,7 +542,7 @@ export const SECTIONS: readonly Section[] = [
           within(fileAsset.ownerUserId, users(scope)),
           notInArray(fileAsset.purpose, [...PARTICIPANT_FILE_PURPOSES])
         ),
-        sql`${fileAsset.id} IN (SELECT ${schema.certificate.pdfFileId} FROM ${schema.certificate} WHERE ${within(schema.certificate.participantProfileId, profiles(scope))})`,
+        sql`${fileAsset.id} IN (SELECT ${schema.certificate.pdfFileId} FROM ${schema.certificate} WHERE ${or(within(schema.certificate.participantProfileId, profiles(scope)), within(schema.certificate.recipientUserId, users(scope)))})`,
         sql`${fileAsset.id} IN (SELECT ${artworkPhoto.fileAssetId} FROM ${artworkPhoto} INNER JOIN ${physicalArtwork} ON ${physicalArtwork.id} = ${artworkPhoto.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${entryFile.fileAssetId} FROM ${entryFile} WHERE ${entryFile.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${consentForm.fileAssetId} FROM ${consentForm} WHERE ${within(consentForm.participantProfileId, profiles(scope))})`

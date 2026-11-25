@@ -1,4 +1,12 @@
 import {
+  eventNoticeRecipients,
+  eventNoticeValues,
+  eventReminderRecipients,
+  EVENT_NOTICE_VARIABLES,
+  EVENT_CHANGE_VARIABLES,
+  EVENT_REGISTRATION_VARIABLES,
+} from "../events/notices";
+import {
   offeredBuyer,
   offerValues,
   creatorRecipients,
@@ -128,6 +136,7 @@ import {
   communityManagers,
   DECLINED_VARIABLES,
   volunteerApplicant,
+  volunteerWorkAudience,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
 import {
@@ -320,7 +329,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "volunteer.application_submitted":
     case "volunteer.application_approved":
     case "volunteer.application_declined":
-      // About an application (#123): `volunteer_applicant`,
+    case "volunteer.task_assigned":
+    case "volunteer.hours_approved":
+    case "volunteer.hours_rejected":
+      // About an application or service (#123/#124): `volunteer_applicant`,
       // `volunteer_guardians` and `community_managers` find who hears.
       return null;
     case "campaign.message_due":
@@ -337,6 +349,14 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "results.release_due":
     case "results.prize_awarded":
     case "stamping.requested":
+    case "event.places_changed":
+    case "event.published":
+    case "event.cancelled":
+    case "event.changed":
+    case "event.end_due":
+    case "event.registration_created":
+    case "event.registration_cancelled":
+    case "event.waitlist_promoted":
     case "community.member_joined":
     case "engagement.milestone_recorded":
     case "certificate.archive_requested":
@@ -408,6 +428,29 @@ function adoptionApplicationOf(delivery: Delivery): string | null {
   }
 }
 
+function volunteerWorkOf(delivery: Delivery) {
+  switch (delivery.eventType) {
+    case "volunteer.task_assigned":
+      return {
+        type: "assignment",
+        assignmentId: delivery.payload.assignmentId,
+      } as const;
+    case "volunteer.hours_approved":
+      return {
+        type: "hours",
+        entryId: delivery.payload.entryId,
+        status: "approved",
+      } as const;
+    case "volunteer.hours_rejected":
+      return {
+        type: "hours",
+        entryId: delivery.payload.entryId,
+        status: "rejected",
+      } as const;
+    default:
+      return null;
+  }
+}
 /** The volunteer application an event is about (#123). */
 function volunteerApplicationOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
@@ -456,6 +499,8 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  event_registrants: eventNoticeRecipients,
+  event_reminder_recipients: eventReminderRecipients,
   content_managers: async (db) =>
     (
       await db
@@ -672,11 +717,15 @@ export const AUDIENCES = {
    * route names, a teen in the inbox only.
    */
   volunteer_applicant: async (db, delivery) => {
+    const work = volunteerWorkOf(delivery);
+    if (work) return volunteerWorkAudience(db, work, false);
     const applicationId = volunteerApplicationOf(delivery);
     return applicationId ? volunteerApplicant(db, applicationId) : [];
   },
   /** A teen applicant's verified guardians (#123); nobody for an adult's. */
   volunteer_guardians: async (db, delivery) => {
+    const work = volunteerWorkOf(delivery);
+    if (work) return volunteerWorkAudience(db, work, true);
     const applicationId = volunteerApplicationOf(delivery);
     return applicationId ? volunteerGuardians(db, applicationId) : [];
   },
@@ -1109,6 +1158,23 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
   },
+  "event.places_changed": { names: [], load: async () => ({}) },
+  "event.published": { names: [], load: async () => ({}) },
+  "event.end_due": { names: [], load: async () => ({}) },
+  "event.changed": { names: EVENT_CHANGE_VARIABLES, load: eventNoticeValues },
+  "event.cancelled": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.registration_created": {
+    names: EVENT_REGISTRATION_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.registration_cancelled": {
+    names: EVENT_REGISTRATION_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.waitlist_promoted": {
+    names: EVENT_REGISTRATION_VARIABLES,
+    load: eventNoticeValues,
+  },
   "volunteer.guardian_approval_requested": {
     names: APPLICATION_VARIABLES,
     load: (db, { payload }, cipher) =>
@@ -1119,6 +1185,9 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
   },
+  "volunteer.task_assigned": { names: [], load: async () => ({}) },
+  "volunteer.hours_approved": { names: [], load: async () => ({}) },
+  "volunteer.hours_rejected": { names: [], load: async () => ({}) },
   "volunteer.application_approved": {
     names: APPLICATION_VARIABLES,
     load: (db, { payload }, cipher) =>

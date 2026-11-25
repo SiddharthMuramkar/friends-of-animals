@@ -133,6 +133,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   /** Campaigns (#126): kept with the campaign's record. */
   "campaigns",
   "communityHistory",
+  "volunteerService",
+  "certificateRecords",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

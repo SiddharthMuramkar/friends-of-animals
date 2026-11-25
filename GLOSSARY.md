@@ -1044,6 +1044,26 @@ A person's private dated history of their competitions, recognitions,
 community life, events and volunteering. A Guardian sees the journey of
 each linked child separately from their own.
 
+## Events and campaigns
+
+**Event**:
+A scheduled FOA activity people attend. An Event of kind campaign is a
+community activity, not a Campaign message sent to a Segment.
+
+**Organiser**:
+A content or community manager who publishes Events, manages registrations
+and checks attendees in.
+
+**Event registration**:
+A private place on an Event, for the attendee (their own account or a
+distinct linked participant profile). Registered and Checked in hold a
+place. Waitlisted waits in booking order; a freed place promotes the next
+person automatically. Cancelled and No-show are terminal.
+
+**Check-in**:
+An Organiser's confirmation of actual attendance at an Event, which
+appears on the attendee's Engagement timeline.
+
 ## Volunteering
 
 **Volunteer**:
@@ -1057,6 +1077,20 @@ free, and their acceptance of the safeguarding declaration and the code of
 conduct. A 14- to 17-year-old's waits for their verified guardian's
 approval before a community manager approves or declines it.
 _Avoid_: Signup, volunteer form, registration
+
+**Volunteer task**:
+A work item the community team drafts, publishes, assigns and follows
+through to completion. Its assignment history identifies individual
+volunteers, separately from the task's shared status.
+
+**Volunteer hours entry**:
+A volunteer's integer minutes of service performed on one Indian calendar
+date against an actual assignment. Only approved entries count toward
+service totals and engagement.
+
+**Volunteer service certificate**:
+A numbered, verifiable Certificate snapshot of the volunteer's approved
+service minutes at the time of issue. Not a competition award.
 
 ## Taking part
 

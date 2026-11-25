@@ -69,7 +69,7 @@ it("renders private share images of issued certificates, allows the recipient an
   await h.db
     .update(guardianLink)
     .set({ revokedAt: h.clock.now() })
-    .where(eq(guardianLink.participantProfileId, child!.participantProfileId));
+    .where(eq(guardianLink.participantProfileId, child!.participantProfileId!));
   await expect(
     h.as(guardian).getCertificateShareUrl({ certificateId: child!.id })
   ).rejects.toMatchObject({ code: "forbidden" });

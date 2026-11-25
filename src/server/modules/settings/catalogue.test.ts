@@ -57,6 +57,8 @@ describe("the settings catalogue", () => {
       "reminders.entrySubmissionDueSecondHours": 24,
       "reminders.schoolRoundShortlistDueFirstHours": 72,
       "reminders.schoolRoundShortlistDueSecondHours": 24,
+      "reminders.eventStartsFirstHours": 24,
+      "reminders.eventStartsSecondHours": 2,
       "artwork.dispatchDays": 14,
       "gallery.withdrawalPurgeMinutes": 15,
       "gallery.reportsPerIpPerHour": 10,

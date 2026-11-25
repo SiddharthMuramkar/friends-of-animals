@@ -31,6 +31,7 @@ import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
+import { eventsUseCases } from "./modules/events";
 import { communityUseCases } from "./modules/community";
 import { certificateUseCases } from "./modules/certificates";
 import { resultsUseCases } from "./modules/results";
@@ -87,6 +88,7 @@ const coreUseCases = composeUseCases(
   judgingUseCases,
   resultsUseCases,
   communityUseCases,
+  eventsUseCases,
   certificateUseCases,
   competitionTermsUseCases,
   registrationUseCases,

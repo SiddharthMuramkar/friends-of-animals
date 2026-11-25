@@ -122,7 +122,7 @@ async function currentPdfs(db: AppDb, school: School) {
   return db
     .select({
       id: certificate.id,
-      profileId: certificate.participantProfileId,
+      profileId: registration.participantProfileId,
       number: certificate.number,
       renderStatus: certificate.renderStatus,
       fileId: fileAsset.id,

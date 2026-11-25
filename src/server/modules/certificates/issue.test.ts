@@ -130,6 +130,7 @@ it("retries a forced number collision against the real unique constraint at the 
     clock,
     {
       type: "volunteer_service",
+      approvedMinutesSnapshot: 60,
       participantProfileId: row.participantProfileId,
       nameSnapshot: "Participant",
     },

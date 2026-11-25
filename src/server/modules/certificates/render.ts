@@ -30,10 +30,12 @@ export async function renderCertificate(
       .select({
         competitionId: certificate.competitionId,
         participantProfileId: certificate.participantProfileId,
+        recipientUserId: certificate.recipientUserId,
       })
       .from(certificate)
       .where(eq(certificate.id, certificateId));
     // Serialize with subject erasure before taking the competition lock.
+    if (hint?.recipientUserId) await lockSubject(tx, hint.recipientUserId);
     if (hint?.participantProfileId)
       await lockSubject(tx, hint.participantProfileId);
     // Serialize readiness decisions across the release, not merely one PDF.

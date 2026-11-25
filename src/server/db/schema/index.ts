@@ -73,6 +73,8 @@ export * from "./results";
 export * from "./community";
 export * from "./certificates";
 
+export * from "./volunteer-work";
+export * from "./events";
 export * from "./gallery";
 
 export * from "./social-export";

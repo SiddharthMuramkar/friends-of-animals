@@ -75,12 +75,13 @@ async function correct(
       .select({
         competitionId: certificate.competitionId,
         participantProfileId: certificate.participantProfileId,
+        recipientUserId: certificate.recipientUserId,
+        type: certificate.type,
       })
       .from(certificate)
       .where(eq(certificate.id, input.certificateId));
-    // Competition certificates only. Volunteer-service correction belongs
-    // to its own authorised role, not a globally scoped competition manager.
-    if (!hint?.competitionId || ctx.actor.kind !== "user") throw denied();
+    if (!hint || ctx.actor.kind !== "user") throw denied();
+    if (hint.recipientUserId) await lockSubject(tx, hint.recipientUserId);
     if (hint.participantProfileId)
       await lockSubject(tx, hint.participantProfileId);
     await tx
@@ -89,17 +90,20 @@ async function correct(
       .where(eq(user.id, ctx.actor.userId))
       .for("share");
     await lockLiveSession(tx, ctx.actor, ctx.clock);
-    await tx
-      .select({ id: competition.id })
-      .from(competition)
-      .where(eq(competition.id, hint.competitionId))
-      .for("update");
+    if (hint.competitionId)
+      await tx
+        .select({ id: competition.id })
+        .from(competition)
+        .where(eq(competition.id, hint.competitionId))
+        .for("update");
     const { role } = await authorize(
       { ...ctx, db: tx },
-      "certificates.correct",
-      {
-        scopes: [{ type: "competition", id: hint.competitionId }],
-      }
+      hint.type === "volunteer_service"
+        ? "certificates.correct_volunteer"
+        : "certificates.correct",
+      hint.competitionId
+        ? { scopes: [{ type: "competition", id: hint.competitionId }] }
+        : {}
     );
     const [row] = await tx
       .select()
@@ -129,6 +133,8 @@ async function correct(
             competitionId: row.competitionId,
             registrationId: row.registrationId,
             participantProfileId: row.participantProfileId,
+            recipientUserId: row.recipientUserId,
+            approvedMinutesSnapshot: row.approvedMinutesSnapshot,
             entryId: row.entryId,
             schoolRoundId: row.schoolRoundId,
             roundId: row.roundId,
@@ -143,11 +149,12 @@ async function correct(
         .update(certificate)
         .set({ supersededById: replacement.id })
         .where(eq(certificate.id, row.id));
-      await emit(tx, ctx.clock, {
-        type: "certificate.reissued",
-        aggregate: { type: "certificate", id: replacement.id },
-        payload: { certificateId: replacement.id },
-      });
+      if (row.competitionId)
+        await emit(tx, ctx.clock, {
+          type: "certificate.reissued",
+          aggregate: { type: "certificate", id: replacement.id },
+          payload: { certificateId: replacement.id },
+        });
     }
     await invalidateCertificateArchives({ ...ctx, db: tx }, row.id, role);
     await recordAudit(tx, ctx, {

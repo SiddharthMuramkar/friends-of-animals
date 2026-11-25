@@ -21,13 +21,14 @@
 import type { AppDb } from "../../db/app-db";
 import type { Recipient } from "../announcements/domain/audience";
 import type { SettingKey } from "../settings/catalogue";
+import { eventStarts } from "./definitions/event-starts";
 import { artworkDispatchDue } from "./definitions/artwork-dispatch-due";
 import { schoolRoundShortlistDue } from "./definitions/school-round-shortlist-due";
 import { entrySubmissionDue } from "./definitions/entry-submission-due";
 import type { Deadline } from "./domain/schedule";
 
 /** What a reminder's deadline belongs to. */
-export type ReminderSubjectType = "competition" | "physical_artwork";
+export type ReminderSubjectType = "competition" | "physical_artwork" | "event";
 
 /** A setting holding the hours before the deadline one reminder goes at. */
 export type ReminderOffsetSetting = Extract<
@@ -44,14 +45,16 @@ export type RosterRole = Recipient["roles"][number];
  * roles among the people those registrations reach (a minor's guardian,
  * never the minor). A person in several groups gets one copy.
  */
-export type ReminderAudience = {
-  kind: "competition_roster";
-  competitionId: string;
-  groups: readonly {
-    registrationIds: ReadonlySet<string>;
-    roles: readonly RosterRole[];
-  }[];
-};
+export type ReminderAudience =
+  | { kind: "event_registrants"; eventId: string }
+  | {
+      kind: "competition_roster";
+      competitionId: string;
+      groups: readonly {
+        registrationIds: ReadonlySet<string>;
+        roles: readonly RosterRole[];
+      }[];
+    };
 
 export type ReminderDefinition = {
   /** Unique, lower snake case; stored as reminder_job.reminder_name. */
@@ -80,6 +83,7 @@ export const REMINDERS: readonly ReminderDefinition[] = [
   entrySubmissionDue,
   schoolRoundShortlistDue,
   artworkDispatchDue,
+  eventStarts,
 ];
 
 /** The reminder stored under `name`, if this code still has it. */

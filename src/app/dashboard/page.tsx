@@ -24,6 +24,8 @@ import {
   ADMIN_REFUNDS,
   ADMIN_VOLUNTEERS,
   ADMIN_COMMUNITY_MEMBERS,
+  ADMIN_EVENTS,
+  DASHBOARD_EVENTS,
   DASHBOARD_COMMUNITY,
   DASHBOARD_TIMELINE,
   APP_ROUTES,
@@ -120,6 +122,9 @@ async function Areas() {
       grant.role === "competition_manager" ||
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
+  const managesEvents = grants.some(
+    (g) => g.role === "content_manager" || g.role === "community_manager"
+  );
   const artwork = await getTranslations("artwork");
   const certificates = await getTranslations("certificates");
   const links = dashboardLinks(dashboards);
@@ -181,6 +186,7 @@ async function Areas() {
             directory={directory}
             competitions={competitions}
             community={community}
+            managesEvents={managesEvents}
             adoption={adoption}
             gallery={gallery}
             auction={auction}
@@ -203,6 +209,7 @@ async function AreaBody({
   directory,
   competitions,
   community,
+  managesEvents,
   adoption,
   auction,
   gallery,
@@ -217,6 +224,7 @@ async function AreaBody({
   directory: boolean;
   competitions: boolean;
   community: boolean;
+  managesEvents: boolean;
   adoption: boolean;
   auction: boolean;
   gallery: boolean;
@@ -253,6 +261,7 @@ async function AreaBody({
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_COMMUNITY, label: t("member.community") },
             { href: DASHBOARD_TIMELINE, label: t("member.timeline") },
+            { href: DASHBOARD_EVENTS, label: t("member.events") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
             { href: DASHBOARD_DONATIONS, label: t("member.donations") },
@@ -318,6 +327,9 @@ async function AreaBody({
               : []),
             ...(finance
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
+              : []),
+            ...(managesEvents
+              ? [{ href: ADMIN_EVENTS, label: t("admin.events") }]
               : []),
             ...(community
               ? [

@@ -34,6 +34,8 @@ import {
   account,
   certificate,
   communityMember,
+  event,
+  eventRegistration,
   engagementMilestone,
   timelineEntry,
   certificateReadyNotice,
@@ -77,6 +79,10 @@ import {
   session,
   user,
   userRole,
+  volunteerApplication,
+  volunteerTask,
+  volunteerTaskAssignment,
+  volunteerHoursEntry,
   type PrivacyRequestRow,
 } from "../../../../db/schema";
 import { uuidv7 } from "../../../../ids";
@@ -397,7 +403,10 @@ export async function gatherErasure(
       .from(certificate)
       .where(
         and(
-          within(certificate.participantProfileId, profileIds),
+          or(
+            within(certificate.participantProfileId, profileIds),
+            within(certificate.recipientUserId, users)
+          ),
           isNotNull(certificate.pdfFileId)
         )
       )
@@ -557,6 +566,17 @@ export async function gatherErasure(
       (await n(
         db
           .select({ n: count() })
+          .from(eventRegistration)
+          .where(
+            or(
+              within(eventRegistration.subjectUserId, users),
+              within(eventRegistration.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
           .from(communityMember)
           .where(
             or(
@@ -584,6 +604,41 @@ export async function gatherErasure(
             or(
               within(timelineEntry.subjectUserId, users),
               within(timelineEntry.subjectProfileId, profileIds)
+            )
+          )
+      )),
+    volunteerService:
+      (await n(
+        db
+          .select({ n: count() })
+          .from(volunteerTaskAssignment)
+          .where(within(volunteerTaskAssignment.volunteerUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(volunteerHoursEntry)
+          .where(
+            sql`${volunteerHoursEntry.assignmentId} IN (SELECT ${volunteerTaskAssignment.id} FROM ${volunteerTaskAssignment} WHERE ${within(volunteerTaskAssignment.volunteerUserId, users)})`
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(volunteerApplication)
+          .where(within(volunteerApplication.applicantUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(certificate)
+          .where(
+            and(
+              eq(certificate.type, "volunteer_service"),
+              or(
+                within(certificate.recipientUserId, users),
+                within(certificate.participantProfileId, profileIds)
+              )
             )
           )
       )),
@@ -797,11 +852,82 @@ async function eraseRecords(
         within(communityMember.subjectProfileId, scope.profileIds)
       )
     );
+  const erasedEventPlaces = await tx
+    .delete(eventRegistration)
+    .where(
+      or(
+        within(eventRegistration.subjectUserId, users),
+        within(eventRegistration.subjectProfileId, scope.profileIds)
+      )
+    )
+    .returning({ eventId: eventRegistration.eventId });
+  await tx
+    .update(eventRegistration)
+    .set({ registeredByUserId: null })
+    .where(within(eventRegistration.registeredByUserId, users));
+  await tx
+    .update(eventRegistration)
+    .set({ checkedInByUserId: null })
+    .where(within(eventRegistration.checkedInByUserId, users));
+  await tx
+    .update(event)
+    .set({ createdByUserId: null })
+    .where(within(event.createdByUserId, users));
+  // Refill freed places via a trusted, ID-only job; erasure holds subject
+  // locks, while all place decisions serialize on their event lock.
+  for (const eventId of new Set(erasedEventPlaces.map((row) => row.eventId))) {
+    await emit(tx, deps.clock, {
+      type: "event.places_changed",
+      aggregate: { type: "event", id: eventId },
+      payload: { eventId },
+    });
+  }
   // A retained guardian account is not the member's identity.
   await tx
     .update(communityMember)
     .set({ joinedByUserId: null })
     .where(within(communityMember.joinedByUserId, users));
+  // Private service histories are not financial records; remove them even
+  // when an account has to remain for a legitimate financial floor.
+  const assignments = await tx
+    .select({ taskId: volunteerTaskAssignment.taskId })
+    .from(volunteerTaskAssignment)
+    .where(within(volunteerTaskAssignment.volunteerUserId, users));
+  const taskIds = [...new Set(assignments.map((a) => a.taskId))].sort();
+  for (const taskId of taskIds)
+    await tx
+      .select({ id: volunteerTask.id })
+      .from(volunteerTask)
+      .where(eq(volunteerTask.id, taskId))
+      .for("update");
+  await tx
+    .delete(volunteerTaskAssignment)
+    .where(within(volunteerTaskAssignment.volunteerUserId, users));
+  await tx
+    .update(volunteerTask)
+    .set({ status: "open", updatedAt: deps.clock.now() })
+    .where(
+      and(
+        within(volunteerTask.id, taskIds),
+        inArray(volunteerTask.status, ["assigned", "in_progress"]),
+        sql`NOT EXISTS (SELECT 1 FROM ${volunteerTaskAssignment} WHERE ${volunteerTaskAssignment.taskId}=${volunteerTask.id} AND ${volunteerTaskAssignment.unassignedAt} IS NULL)`
+      )
+    );
+  await tx
+    .delete(volunteerApplication)
+    .where(within(volunteerApplication.applicantUserId, users));
+  await tx
+    .update(volunteerTask)
+    .set({ createdByUserId: null })
+    .where(within(volunteerTask.createdByUserId, users));
+  await tx
+    .update(volunteerTaskAssignment)
+    .set({ assignedByUserId: null })
+    .where(within(volunteerTaskAssignment.assignedByUserId, users));
+  await tx
+    .update(volunteerHoursEntry)
+    .set({ decidedByUserId: null })
+    .where(within(volunteerHoursEntry.decidedByUserId, users));
   // Preserve accepted amounts and deadlines, even for an account retained
   // only for other financial records. Erasure never lowers the lot's price.
   await tx
@@ -833,7 +959,12 @@ async function eraseRecords(
     .where(within(certificateReadyNotice.recipientUserId, users));
   await tx
     .delete(certificate)
-    .where(within(certificate.participantProfileId, scope.profileIds));
+    .where(
+      or(
+        within(certificate.participantProfileId, scope.profileIds),
+        within(certificate.recipientUserId, users)
+      )
+    );
   // The entry cascade deletes the item and its reports. Queue the public
   // route purge first in the same transaction so it survives erasure.
   for (const row of await tx

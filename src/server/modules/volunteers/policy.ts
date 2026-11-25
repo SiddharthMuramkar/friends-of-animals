@@ -14,6 +14,7 @@
 
 import {
   owner,
+  anyOf,
   role,
   signedIn,
   stepUp,
@@ -36,6 +37,12 @@ const linkedGuardian: Rule = (subject, resource) => {
 const reviewers = role("community_manager", "super_admin");
 
 export const VOLUNTEERS_POLICY = {
+  "volunteer.work.manage": reviewers,
+  "volunteer.work.own": role("volunteer"),
+  "volunteer.work.transition": anyOf(reviewers, (subject, resource) => {
+    const held = role("volunteer")(subject, resource);
+    return held.allowed && owner(subject, resource).allowed ? held : REFUSED;
+  }),
   // Applying, reading one's own and accepting a newer declaration.
   "volunteer.apply": signedIn,
   "volunteer.view_own": signedIn,

@@ -64,3 +64,18 @@ it("posts self-contained HTML with A4 landscape and refuses provider failures", 
     error.render({ template: "certificate", version: 1, data: document })
   ).rejects.toMatchObject({ name: "PdfRenderError", status: 502 });
 });
+
+it("prints exact approved service minutes on a volunteer certificate with the shared QR", () => {
+  const service: CertificateDocument = {
+    ...document,
+    type: "volunteer_service",
+    competition: null,
+    awardPosition: null,
+    awardLabel: null,
+    approvedMinutes: 95,
+  };
+  const html = certificateHtml(service);
+  expect(html).toContain("Approved volunteer service: 1 h 35 min");
+  expect(html).not.toContain("Friends &amp; Nature");
+  expect(html).toContain("Certificate of volunteer service");
+});

@@ -173,6 +173,17 @@ export function adminDonationPath(donationId: string): string {
  * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
  * rather than in APP_ROUTES, like the payments pages.
  */
+export const DASHBOARD_EVENTS = "/dashboard/events";
+export const ADMIN_EVENTS = "/admin/events";
+export const ADMIN_NEW_EVENT = "/admin/events/new";
+export const adminEventPath = (id: string) =>
+  `${ADMIN_EVENTS}/${encodeURIComponent(id)}`;
+export const eventRegistrationsPath = (id: string) =>
+  `${adminEventPath(id)}/registrations`;
+export const eventCheckInPath = (id: string) =>
+  `${adminEventPath(id)}/check-in`;
+export const guardianChildEventsPath = (id: string) =>
+  `${guardianChildPath(id)}/events`;
 export const DASHBOARD_COMMUNITY = "/dashboard/community";
 export const DASHBOARD_TIMELINE = "/dashboard/timeline";
 export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
@@ -182,6 +193,11 @@ export function guardianChildTimelinePath(childId: string): string {
 
 export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
 export const ADMIN_VOLUNTEERS = "/admin/volunteers";
+export const ADMIN_VOLUNTEER_TASKS = `${ADMIN_VOLUNTEERS}/tasks`;
+export const ADMIN_VOLUNTEER_HOURS = `${ADMIN_VOLUNTEERS}/hours`;
+export const DASHBOARD_VOLUNTEER_TASKS = `${DASHBOARD_VOLUNTEER}/tasks`;
+export const DASHBOARD_VOLUNTEER_HOURS = `${DASHBOARD_VOLUNTEER}/hours`;
+export const DASHBOARD_VOLUNTEER_CERTIFICATE = `${DASHBOARD_VOLUNTEER}/certificate`;
 
 export function adminVolunteerApplicationPath(applicationId: string): string {
   return `${ADMIN_VOLUNTEERS}/${encodeURIComponent(applicationId)}`;
@@ -699,12 +715,26 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
   "/guardian/children/[id]/volunteer",
+  DASHBOARD_EVENTS,
+  ADMIN_EVENTS,
+  ADMIN_NEW_EVENT,
+  "/admin/events/[id]",
+  "/admin/events/[id]/registrations",
+  "/admin/events/[id]/check-in",
+  "/guardian/children/[id]/events",
   DASHBOARD_COMMUNITY,
   DASHBOARD_TIMELINE,
   ADMIN_COMMUNITY_MEMBERS,
   "/guardian/children/[id]/timeline",
   DASHBOARD_VOLUNTEER,
   ADMIN_VOLUNTEERS,
+  ADMIN_VOLUNTEER_TASKS,
+  `${ADMIN_VOLUNTEER_TASKS}/new`,
+  `${ADMIN_VOLUNTEER_TASKS}/[taskId]`,
+  ADMIN_VOLUNTEER_HOURS,
+  DASHBOARD_VOLUNTEER_TASKS,
+  DASHBOARD_VOLUNTEER_HOURS,
+  DASHBOARD_VOLUNTEER_CERTIFICATE,
   "/admin/volunteers/[id]",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,

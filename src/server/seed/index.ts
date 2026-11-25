@@ -49,6 +49,7 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedEvents } from "./events";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedReports } from "./reports";
@@ -60,6 +61,7 @@ import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
 import { seedScoring } from "./scoring";
 import { seedSettings } from "./settings";
+import { seedVolunteerWork } from "./volunteer-work";
 import { seedVolunteers } from "./volunteers";
 import type { Seeder } from "./types";
 
@@ -139,12 +141,14 @@ const seeders: readonly Seeder[] = [
   seedSocialExport,
   seedReports,
   seedCommunity,
+  seedEvents,
   seedCertificates,
   seedScoring,
   seedJudgingRounds,
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).
   seedVolunteers,
+  seedVolunteerWork,
   // After the adoption and consent seeds: applications on the seeded
   // animals, on version 1 of the adopter's consents (#130).
   seedAdoptionApplications,

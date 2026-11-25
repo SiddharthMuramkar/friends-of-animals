@@ -31,6 +31,7 @@ import {
   WEEKDAYS,
 } from "@/server/modules/volunteers/domain/application-input";
 
+import { WorkLinks } from "@/components/volunteers/work-ui";
 import { ApplicationSummary } from "@/components/volunteers/application-summary";
 import { ApplyForm, type ApplyFormLabels } from "./_components/apply-form";
 import { acceptDeclarationsAction, withdrawAction } from "./_lib/actions";
@@ -178,6 +179,7 @@ async function Volunteering({
             <Chip tone="green">{t("role.chip")}</Chip>
           </div>
           <p className="text-ink">{t("role.body")}</p>
+          <WorkLinks />
         </section>
       ) : null}
 

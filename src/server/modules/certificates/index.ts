@@ -13,6 +13,7 @@ import { requestCertificateShare, getCertificateShareUrl } from "./share";
 import {
   getCertificateDownloadUrl,
   listCertificates,
+  listVolunteerCertificates,
   listCertificateCompetitions,
   listMyCertificates,
   retryCertificateRender,
@@ -39,6 +40,7 @@ export const certificateUseCases = (ctx: UseCaseContext) => ({
   issueCertificates: (input: IssueInput) => issueCertificates(ctx, input),
   renderCertificate: (input: { certificateId: string }) =>
     renderCertificate(ctx, input),
+  listVolunteerCertificates: () => listVolunteerCertificates(ctx),
   listCertificateCompetitions: () => listCertificateCompetitions(ctx),
   listCertificates: (input: Parameters<typeof listCertificates>[1]) =>
     listCertificates(ctx, input),
