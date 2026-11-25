@@ -114,14 +114,12 @@ describe("round rankings and lock", () => {
     // Clearing a criterion after completion invalidates the lock guard even
     // though the first-completion timestamp has already been recorded.
     expect(
-      await h
-        .as(w.judge)
-        .saveScoreSheet({
-          ...input,
-          entryCode: w.code,
-          baseVersion: original.sheet.version,
-          scores: { [criterionId]: null },
-        })
+      await h.as(w.judge).saveScoreSheet({
+        ...input,
+        entryCode: w.code,
+        baseVersion: original.sheet.version,
+        scores: { [criterionId]: null },
+      })
     ).toMatchObject({ ok: true, progress: "in_progress" });
     expect(await staff.lockJudgingRound(input)).toMatchObject({
       ok: false,
