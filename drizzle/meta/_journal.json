@@ -694,6 +694,27 @@
       "when": 1795574057623,
       "tag": "0098_129_adoption_listings",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1795576202880,
+      "tag": "0099_130_pre_adoption_consent_purposes",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795576208875,
+      "tag": "0100_130_adoption_applications",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795576798169,
+      "tag": "0101_130_adoption_application_messages",
+      "breakpoints": true
     }
   ]
 }

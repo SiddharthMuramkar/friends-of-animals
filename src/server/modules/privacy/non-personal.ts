@@ -411,6 +411,24 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "vaccination_notes",
   ],
   // A photo's place and text alternative; its file's row names the uploader.
+  adoption_application: [
+    "adoption_listing_id",
+    "closed_at",
+    "contact_shared_at",
+    "created_at",
+    "id",
+    "status",
+    "updated_at",
+  ],
+  adoption_story: [
+    "application_id",
+    "created_at",
+    "id",
+    "published_at",
+    "status",
+    "updated_at",
+    "withdrawn_at",
+  ],
   adoption_listing_photo: [
     "alt_text",
     "created_at",

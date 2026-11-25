@@ -98,6 +98,7 @@
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
+        "adoptionApplications": "2 years after the application closes. One behind a published success story stays while the story is up",
         "privacyRequests": "While the request is open, then 3 years after it is closed",
         "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
       },
@@ -501,6 +502,22 @@
           "placed_by_user_id": "Records which super admin placed the hold",
           "released_by_user_id": "Records which super admin released the hold"
         },
+        "adoption_application": {
+          "applicant_user_id": "Links the application to the person who applied, so they can follow it and hear what happens",
+          "participant_profile_id": "The participant profile the date of birth came from, when the person had one",
+          "date_of_birth_ciphertext": "The date of birth the adult-only rule was checked against when the person applied (encrypted)",
+          "phone_ciphertext": "The applicant's mobile, shared with the listing organisation once the coordinator puts them in touch (encrypted)",
+          "address_ciphertext": "The applicant's postal address, shared with the listing organisation once the coordinator puts them in touch (encrypted)",
+          "answers_ciphertext": "What the applicant said about their home, other animals and experience, to judge the match (encrypted)",
+          "contact_sharing_consent_id": "The applicant's consent to share their contact details with the listing organisation",
+          "outcome_reason_ciphertext": "Why the coordinator recorded the application as not matched or declined, for staff only (encrypted)",
+          "decided_by_user_id": "The adoption coordinator who last moved the application"
+        },
+        "adoption_story": {
+          "body": "The adopter's success story, shown on the public stories page only while they consent",
+          "consent_event_id": "The adopter's consent to share the story",
+          "published_by_user_id": "The adoption coordinator who published the story"
+        },
         "volunteer_application": {
           "applicant_user_id": "Links the application to the person who applied, so they can follow it and FOA can grant them the volunteer role",
           "participant_profile_id": "The participant profile the date of birth came from: a teen's, kept by their guardian, or an adult's own",
@@ -614,6 +631,10 @@
         "volunteerApplications": {
           "name": "Closed volunteer applications",
           "rule": "A declined or withdrawn application is deleted {days, plural, one {# day} other {# days}} after it closes. An approved one stays while the person volunteers."
+        },
+        "adoptionApplications": {
+          "name": "Closed adoption applications",
+          "rule": "A closed adoption application is deleted, with its success story, {days, plural, one {# day} other {# days}} after it closes. One whose story is published stays while the story is up."
         },
         "financialRecords": {
           "name": "Payment records",

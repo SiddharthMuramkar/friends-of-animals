@@ -154,6 +154,12 @@
           "description": "An applicant younger than this needs a verified guardian on the platform, who approves before a community manager sees the application. Between 18 and 21."
         }
       },
+      "adoption": {
+        "minAdopterAgeYears": {
+          "label": "Youngest age to adopt",
+          "description": "Anyone younger is refused when they apply to adopt an animal. Between 18 and 25."
+        }
+      },
       "reminders": {
         "entrySubmissionDueFirstHours": {
           "label": "First reminder before submissions close",
@@ -220,6 +226,10 @@
         "volunteerApplicationsDays": {
           "label": "Keep closed volunteer applications",
           "description": "Days a volunteer application that was declined or withdrawn is kept after it closes, then the daily run deletes it. An approved application stays while the person volunteers."
+        },
+        "adoptionApplicationsDays": {
+          "label": "Keep closed adoption applications",
+          "description": "Days a closed adoption application, with its success story, is kept after it closes, then the daily run deletes it. One whose story is published stays while the story is up."
         },
         "releasedLegalHoldsDays": {
           "label": "Keep released legal holds",

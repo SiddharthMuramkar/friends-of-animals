@@ -47,5 +47,6 @@ export * from "./privacy-requests";
 export * from "./conduct-certification";
 export * from "./directory";
 export * from "./adoption";
+export * from "./adoption-applications";
 export * from "./campaigns";
 export * from "./volunteers";

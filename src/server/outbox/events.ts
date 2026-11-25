@@ -512,12 +512,30 @@ export type DomainEvent =
   | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
-  | VolunteerApplicationEvent<"volunteer.application_declined">;
+  | VolunteerApplicationEvent<"volunteer.application_declined">
+  // Adoption applications (#130): one was made, the coordinator moved it,
+  // the applicant withdrew it, or the animal's listing closed. The
+  // applicant, the listing organisation and the coordinators are told.
+  | AdoptionApplicationEvent<"adoption.application_submitted">
+  | AdoptionApplicationEvent<"adoption.application_under_review">
+  | AdoptionApplicationEvent<"adoption.application_in_contact">
+  | AdoptionApplicationEvent<"adoption.application_adopted">
+  | AdoptionApplicationEvent<"adoption.application_not_matched">
+  | AdoptionApplicationEvent<"adoption.application_declined">
+  | AdoptionApplicationEvent<"adoption.application_withdrawn">
+  | AdoptionApplicationEvent<"adoption.application_listing_closed">;
 
 /** Something happened to a volunteer application (#123). Ids only. */
 type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
   type: T;
   aggregate: { type: "volunteer_application"; id: string };
+  payload: { applicationId: string };
+};
+
+/** Something happened to an adoption application (#130). Ids only. */
+type AdoptionApplicationEvent<T extends `adoption.${string}`> = {
+  type: T;
+  aggregate: { type: "adoption_application"; id: string };
   payload: { applicationId: string };
 };
 
@@ -530,6 +548,8 @@ const DIRECTORY_LISTING_EVENT = z.object({
   userId: z.uuid(),
 });
 const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
+
+const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -686,6 +706,14 @@ export const EVENT_PAYLOADS = {
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
   "volunteer.application_declined": VOLUNTEER_APPLICATION,
+  "adoption.application_submitted": ADOPTION_APPLICATION,
+  "adoption.application_under_review": ADOPTION_APPLICATION,
+  "adoption.application_in_contact": ADOPTION_APPLICATION,
+  "adoption.application_adopted": ADOPTION_APPLICATION,
+  "adoption.application_not_matched": ADOPTION_APPLICATION,
+  "adoption.application_declined": ADOPTION_APPLICATION,
+  "adoption.application_withdrawn": ADOPTION_APPLICATION,
+  "adoption.application_listing_closed": ADOPTION_APPLICATION,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** Validate a stored event, including withdrawals written before #82. */
@@ -841,6 +869,16 @@ export const SUBSCRIBERS = {
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
   "volunteer.application_declined": ["notifications.dispatch"],
+  // The applicant, the listing organisation's representatives and the
+  // coordinators are told by route row (#130).
+  "adoption.application_submitted": ["notifications.dispatch"],
+  "adoption.application_under_review": ["notifications.dispatch"],
+  "adoption.application_in_contact": ["notifications.dispatch"],
+  "adoption.application_adopted": ["notifications.dispatch"],
+  "adoption.application_not_matched": ["notifications.dispatch"],
+  "adoption.application_declined": ["notifications.dispatch"],
+  "adoption.application_withdrawn": ["notifications.dispatch"],
+  "adoption.application_listing_closed": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

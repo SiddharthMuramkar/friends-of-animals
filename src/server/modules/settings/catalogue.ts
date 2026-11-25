@@ -19,6 +19,10 @@ import {
 } from "../privacy/domain/periods";
 import { MAX_REMINDER_OFFSET_HOURS } from "../reminders/domain/offsets";
 import {
+  MIN_ADOPTER_AGE_BOUNDS,
+  MIN_ADOPTER_AGE_DEFAULT,
+} from "../adoption/domain/application-eligibility";
+import {
   VOLUNTEER_AGE_RULE_BOUNDS,
   VOLUNTEER_AGE_RULE_DEFAULTS,
 } from "../volunteers/domain/eligibility";
@@ -155,6 +159,13 @@ export const SETTINGS = {
     ...VOLUNTEER_AGE_RULE_BOUNDS.guardianApprovalBelowAgeYears,
     unit: "years",
   }),
+  // Adoption (#130): only adults adopt. FOA's default until leadership
+  // confirms it (HR-62); never below 18.
+  "adoption.minAdopterAgeYears": integerSetting({
+    default: MIN_ADOPTER_AGE_DEFAULT,
+    ...MIN_ADOPTER_AGE_BOUNDS,
+    unit: "years",
+  }),
   // Reminders (#84): two reminders before submissions close, to whoever
   // still owes an entry. A change applies to each reminder when it runs,
   // and the hourly reminder sync plans any new time.
@@ -206,6 +217,9 @@ export const SETTINGS = {
   }),
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.adoptionApplicationsDays": retentionDays(
+    RETENTION_PERIODS.adoptionApplications
   ),
   "retention.releasedLegalHoldsDays": retentionDays(
     RETENTION_PERIODS.releasedLegalHolds
