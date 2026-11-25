@@ -70,6 +70,7 @@ async function Content({ searchParams }: PageProps<"/admin/surveys">) {
               <>
                 <form
                   action={saveSurveyAction.bind(null, selected.id)}
+                  aria-labelledby="survey-builder-heading"
                   className="mt-5 flex flex-col gap-4"
                 >
                   <label htmlFor="survey-title" className="flex flex-col gap-2">
@@ -83,7 +84,9 @@ async function Content({ searchParams }: PageProps<"/admin/surveys">) {
                       defaultValue={view.survey?.title}
                     />
                   </label>
-                  <h3 className="text-h4">{t("builder")}</h3>
+                  <h3 className="text-h4" id="survey-builder-heading">
+                    {t("builder")}
+                  </h3>
                   <p>{t("builderHelp")}</p>
                   {Array.from({ length: 10 }, (_, i) => {
                     const q = view.survey?.questions[i];
@@ -134,6 +137,7 @@ async function Content({ searchParams }: PageProps<"/admin/surveys">) {
                   view.survey && (
                     <form
                       action={sendSurveyAction.bind(null, selected.id)}
+                      aria-label={t("send")}
                       className="mt-6 flex flex-col gap-3"
                     >
                       <p>{t("sendHelp")}</p>
@@ -182,7 +186,10 @@ async function Content({ searchParams }: PageProps<"/admin/surveys">) {
                   </>
                 )}
                 {view.open && (
-                  <form action={closeSurveyAction.bind(null, selected.id)}>
+                  <form
+                    action={closeSurveyAction.bind(null, selected.id)}
+                    aria-label={t("close")}
+                  >
                     <SubmitButton pendingLabel={t("loading")}>
                       {t("close")}
                     </SubmitButton>

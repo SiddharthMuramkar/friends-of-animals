@@ -11,16 +11,22 @@ export async function AnswerForm({
   const t = await getTranslations("surveys");
   return (
     <div className="mt-6 rounded-2xl border border-border bg-surface p-5 text-ink">
-      <h2 className="text-h3">{survey.title}</h2>
+      <h2 className="text-h3" id="survey-answer-heading">
+        {survey.title}
+      </h2>
       <p className="mt-3 text-ink-muted">{t("answerHelp")}</p>
-      <form action={action} className="mt-6 flex flex-col gap-6">
+      <form
+        action={action}
+        aria-labelledby="survey-answer-heading"
+        className="mt-6 flex flex-col gap-6"
+      >
         {survey.questions.map((q, i) => (
           <fieldset className="flex flex-col gap-2" key={i}>
             <legend className="mb-2 font-semibold">{q.text}</legend>
             {q.choices.map((choice, j) => (
               <div
                 key={j}
-                className="flex min-h-11 items-center gap-3 rounded-lg border border-border p-3"
+                className="flex min-h-12 items-center gap-3 rounded-lg border border-border p-3"
               >
                 <input
                   type="radio"
