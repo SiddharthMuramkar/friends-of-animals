@@ -1156,6 +1156,20 @@
       "when": 1795606218650,
       "tag": "0164_122_ambassador_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 165,
+      "version": "7",
+      "when": 1795607276198,
+      "tag": "0165_120_competition_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 166,
+      "version": "7",
+      "when": 1795607278861,
+      "tag": "0166_120_invitation_messages",
+      "breakpoints": true
     }
   ]
 }
