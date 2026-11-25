@@ -1089,6 +1089,11 @@ site's `APP_URL`, and staging its keys, if one comes back.
 | `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.                 | 1 GiB  |
 | `worker-media`  | Runs the media entry point with a read-only root and a 1 GiB `/tmp` tmpfs. Health requires a heartbeat under 120 s old. | 2 GiB  |
 
+The media image also copies the approved `public/brand/foa-logo-watermark*.png`
+assets. The stamping job uses these exact files, sharp for safe artwork copies,
+and Poppler for the first-page certificate raster; it never renders in the web
+app or the default worker.
+
 All three log to journald and use private networks. Clamd listens on the
 internal `scan` bridge and loopback. FreshClam uses a separate bridge to
 reach the signature mirror and keeps its databases in `foa-clamav-db`.

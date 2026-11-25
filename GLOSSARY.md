@@ -760,6 +760,13 @@ A unique random `FOA-C-{YY}-{10}` code, dated by India's calendar at issue time.
 Anyone may check its validity; a PDF download needs the participant's or a
 verified linked guardian's own session.
 
+**Stamped copy**:
+A metadata-free private File derivative carrying the approved Friends of Animals
+mark, made from the safe resized copy of an entry image or a rasterized issued
+Certificate PDF. Gallery and social variants require their own live consent to
+be delivered. A Certificate share image is downloadable by its own holder or
+verified linked guardian; it is not a public gallery asset.
+
 ## Physical artwork
 
 **Physical artwork**:
