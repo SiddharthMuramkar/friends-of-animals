@@ -118,16 +118,14 @@ async function recordHoldEvent(
   kind: "auction_reserved" | "auction_released"
 ) {
   const now = ctx.clock.now();
-  await db
-    .insert(artworkCustodyEvent)
-    .values({
-      id: nextId(now),
-      artworkId: work.id,
-      kind,
-      location: work.storageLocation,
-      actorUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,
-      at: now,
-    });
+  await db.insert(artworkCustodyEvent).values({
+    id: nextId(now),
+    artworkId: work.id,
+    kind,
+    location: work.storageLocation,
+    actorUserId: ctx.actor.kind === "user" ? ctx.actor.userId : null,
+    at: now,
+  });
   await recordAudit(db, ctx, {
     action: "physical_artwork." + kind,
     entity: { type: "physical_artwork", id: work.id },
