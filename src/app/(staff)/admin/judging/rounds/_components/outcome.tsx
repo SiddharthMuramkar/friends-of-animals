@@ -10,6 +10,13 @@ const outcomes = [
   "unscored_assignments",
   "override_reason_invalid",
   "invalid_outcomes",
+  "source_is_self",
+  "source_not_found",
+  "source_cancelled",
+  "source_not_locked",
+  "chain_cycle",
+  "outcome_already_advanced",
+  "results_published",
   "created",
   "saved",
   "opened",
@@ -53,6 +60,11 @@ export async function Outcome({
           <li>
             {t("refusedVerification", { count: count(query, "verification") })}
           </li>
+          {count(query, "finalists") > 0 ? (
+            <li>
+              {t("refusedFinalists", { count: count(query, "finalists") })}
+            </li>
+          ) : null}
         </ul>
       </output>
     );

@@ -12,7 +12,10 @@ export type PoolAdmissionFacts = {
   physicallyReady: boolean;
 };
 
-export type PoolRefusal = "not_foa_verified" | "not_physically_ready";
+export type PoolRefusal =
+  | "not_foa_verified"
+  | "not_physically_ready"
+  | "not_source_finalist";
 
 export type PoolAdmission =
   | { admitted: true }

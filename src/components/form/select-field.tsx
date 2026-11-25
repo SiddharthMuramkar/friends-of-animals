@@ -31,6 +31,7 @@ export function SelectField({
   placeholder,
   error,
   className,
+  "aria-describedby": describedBy,
   ...select
 }: SelectFieldProps) {
   const errorId = error ? `${id}-error` : undefined;
@@ -52,7 +53,9 @@ export function SelectField({
         <select
           {...select}
           id={id}
-          aria-describedby={errorId}
+          aria-describedby={
+            [describedBy, errorId].filter(Boolean).join(" ") || undefined
+          }
           aria-invalid={error ? true : undefined}
           className={cn(inputStyles, "appearance-none pe-11")}
         >
