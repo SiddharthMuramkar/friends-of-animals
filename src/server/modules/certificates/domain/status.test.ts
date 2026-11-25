@@ -162,12 +162,12 @@ describe("afterRenderFailure", () => {
     expect(afterRenderFailure({ attempts: 0, maxAttempts: 3 })).toEqual({
       attempts: 1,
       status: "pending",
-      retry: true,
+      shouldRequeue: true,
     });
     expect(afterRenderFailure({ attempts: 1, maxAttempts: 3 })).toEqual({
       attempts: 2,
       status: "pending",
-      retry: true,
+      shouldRequeue: true,
     });
   });
 
@@ -175,7 +175,7 @@ describe("afterRenderFailure", () => {
     expect(afterRenderFailure({ attempts: 2, maxAttempts: 3 })).toEqual({
       attempts: 3,
       status: "failed",
-      retry: false,
+      shouldRequeue: false,
     });
   });
 
@@ -183,7 +183,7 @@ describe("afterRenderFailure", () => {
     expect(afterRenderFailure({ attempts: 0, maxAttempts: 1 })).toEqual({
       attempts: 1,
       status: "failed",
-      retry: false,
+      shouldRequeue: false,
     });
   });
 

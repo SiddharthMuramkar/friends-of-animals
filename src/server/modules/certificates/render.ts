@@ -81,7 +81,7 @@ export async function renderCertificate(
         .update(certificate)
         .set({ renderAttempts: next.attempts, renderStatus: next.status })
         .where(eq(certificate.id, row.id));
-      return next.retry;
+      return next.shouldRequeue;
     }
     {
       const key = storageKeyFor({
