@@ -691,6 +691,17 @@ A coordinator's list of every student of one Institution registration, with
 each student's Entry status and what the coordinator can do for them next.
 _Avoid_: Entries dashboard, student list
 
+## Physical artwork
+
+**Physical artwork**:
+The original work that FOA asks a verified Entry's sender to courier after digital verification. Each has one Artwork ID (for example `ORIG27-A-4P5X9R`), dispatch deadline, and a custody status independent of the Entry's digital status.
+
+**Sender**:
+The school coordinators for an institution registration or the participant or verified guardian for an individual registration. The sender records the courier name and tracking number; FOA records receipt.
+
+**Dispatch**:
+The sender's manual record that the parcel has been sent. FOA may receive a parcel even without recorded dispatch.
+
 ## Files
 
 **File**:

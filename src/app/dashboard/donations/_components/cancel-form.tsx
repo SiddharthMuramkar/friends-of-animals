@@ -34,9 +34,9 @@ export function CancelForm({
         aria-labelledby={title}
         className="m-auto max-w-lg w-[calc(100%-2rem)] rounded-3xl border-2 border-border bg-surface p-6 text-ink modal:overscroll-contain backdrop:bg-black/60 backdrop:overflow-hidden backdrop:overscroll-contain"
       >
-        <h1 id={title} className="text-h3">
+        <h2 id={title} className="text-h3">
           {labels.title}
-        </h1>
+        </h2>
         <p className="mt-3">{labels.body}</p>
         <div className="mt-5 flex flex-wrap gap-3">
           <button

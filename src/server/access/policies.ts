@@ -38,6 +38,7 @@ import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
+import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
 import { VERIFICATION_POLICY } from "../modules/verification/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
@@ -79,7 +80,8 @@ export const POLICY = composePolicies(
   CAMPAIGNS_POLICY,
   INSTITUTION_SUBMISSIONS_POLICY,
   SCHOOL_ROUND_POLICY,
-  VERIFICATION_POLICY
+  VERIFICATION_POLICY,
+  PHYSICAL_ARTWORK_POLICY
 );
 
 export type Action = keyof typeof POLICY;

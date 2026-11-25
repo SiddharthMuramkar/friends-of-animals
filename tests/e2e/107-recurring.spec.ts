@@ -28,8 +28,15 @@ test("a member authorises, receives a receipt and cancels a monthly donation", a
   await both(page, "/dashboard/donations");
   await expect(page.getByLabel("Donor PAN")).toHaveCount(0);
   await page.getByLabel("Monthly amount (₹)").fill("1200");
-  await page.getByLabel("I am 18 or over.").check();
-  await page.getByLabel("This is my own money, paid from India.").check();
+  await page
+    .getByRole("checkbox", { name: "I am 18 or over.", exact: true })
+    .check();
+  await page
+    .getByRole("checkbox", {
+      name: "This is my own money, paid from India.",
+      exact: true,
+    })
+    .check();
   await page
     .getByRole("button", { name: "Continue to mandate authorisation" })
     .click();

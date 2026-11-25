@@ -1,4 +1,9 @@
 import {
+  ARTWORK_VARIABLES,
+  artworkRecipients,
+  artworkValues,
+} from "../physical-artwork/messages";
+import {
   VERIFICATION_VARIABLES,
   verificationValues,
 } from "../verification/message-values";
@@ -295,6 +300,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
       return null;
+    case "artwork.requested":
+    case "artwork.dispatched":
+    case "artwork.received":
     case "entry.replacement_live":
     case "competition.submissions_closed":
     case "competition.school_judging_started":
@@ -388,6 +396,16 @@ type Audience = (db: AppDb, delivery: Delivery) => Promise<AudienceMember[]>;
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  artwork_sender: async (db, delivery) =>
+    delivery.eventType === "artwork.requested" ||
+    delivery.eventType === "artwork.received"
+      ? artworkRecipients(
+          db,
+          delivery.payload.artworkId,
+          delivery.eventType === "artwork.received"
+        )
+      : [],
+
   /** The user the event is about: the new account, the one who withdrew. */
   subject_user: async (db, delivery) => {
     // The institution's receipt; an adult's own goes as individual_payer.
@@ -854,6 +872,15 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   "competition.submissions_closed": { names: [], load: async () => ({}) },
   "entry.replacement_live": { names: [], load: async () => ({}) },
+  "artwork.requested": {
+    names: ARTWORK_VARIABLES,
+    load: (db, { payload }) => artworkValues(db, payload.artworkId),
+  },
+  "artwork.dispatched": { names: [], load: async () => ({}) },
+  "artwork.received": {
+    names: ARTWORK_VARIABLES,
+    load: (db, { payload }) => artworkValues(db, payload.artworkId),
+  },
   "entry.foa_verified": {
     names: VERIFICATION_VARIABLES,
     load: (db, { payload }) => verificationValues(db, payload.verificationId),

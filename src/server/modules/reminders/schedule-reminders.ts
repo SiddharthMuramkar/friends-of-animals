@@ -156,7 +156,7 @@ async function planReminder(
 }
 
 const subjectSchema = z.object({
-  subjectType: z.enum(["competition"]),
+  subjectType: z.enum(["competition", "physical_artwork"]),
   subjectId: z.uuid(),
 });
 

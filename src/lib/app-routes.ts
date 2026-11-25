@@ -247,6 +247,12 @@ export function adoptionApplicationsPath(
  * public stories page, /adopt/stories, is in src/lib/routes.ts.
  */
 export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_ARTWORK = "/admin/artwork";
+export const INSTITUTION_ARTWORK = "/institution/artwork";
+export const MY_ARTWORK = "/dashboard/artwork";
+export const adminArtworkPath = (artworkCode: string) =>
+  `${ADMIN_ARTWORK}/${encodeURIComponent(artworkCode)}`;
+
 export const ADMIN_VERIFICATION = "/admin/verification";
 export function adminVerificationEntryPath(entryId: string): string {
   return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
@@ -536,6 +542,10 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_ARTWORK,
+  "/admin/artwork/[artworkCode]",
+  INSTITUTION_ARTWORK,
+  MY_ARTWORK,
   ADMIN_VERIFICATION,
   "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
@@ -567,7 +577,11 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
   ADMIN_DONATIONS,
+  ADMIN_OFFLINE_DONATION,
+  ADMIN_RECURRING_DONATIONS,
   "/admin/donations/[id]",
+  DASHBOARD_DONATIONS,
+  "/dashboard/donations/recurring/[id]",
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",

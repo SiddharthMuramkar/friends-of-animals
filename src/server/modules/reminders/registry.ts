@@ -21,15 +21,19 @@
 import type { AppDb } from "../../db/app-db";
 import type { Recipient } from "../announcements/domain/audience";
 import type { SettingKey } from "../settings/catalogue";
+import { artworkDispatchDue } from "./definitions/artwork-dispatch-due";
 import { schoolRoundShortlistDue } from "./definitions/school-round-shortlist-due";
 import { entrySubmissionDue } from "./definitions/entry-submission-due";
 import type { Deadline } from "./domain/schedule";
 
 /** What a reminder's deadline belongs to. */
-export type ReminderSubjectType = "competition";
+export type ReminderSubjectType = "competition" | "physical_artwork";
 
 /** A setting holding the hours before the deadline one reminder goes at. */
-export type ReminderOffsetSetting = Extract<SettingKey, `reminders.${string}`>;
+export type ReminderOffsetSetting = Extract<
+  SettingKey,
+  `reminders.${string}` | "artwork.dispatchReminderLeadHours"
+>;
 
 /** A role in a competition's roster (announcements/domain/audience.ts). */
 export type RosterRole = Recipient["roles"][number];
@@ -75,6 +79,7 @@ export type ReminderDefinition = {
 export const REMINDERS: readonly ReminderDefinition[] = [
   entrySubmissionDue,
   schoolRoundShortlistDue,
+  artworkDispatchDue,
 ];
 
 /** The reminder stored under `name`, if this code still has it. */

@@ -17,7 +17,6 @@
 // "server-only".
 
 import { eq } from "drizzle-orm";
-import { readFile } from "node:fs/promises";
 
 import type { AppDb } from "../db/app-db";
 import {
@@ -38,10 +37,10 @@ import {
 } from "../modules/files/domain/media-work";
 import type { DerivativeKind } from "../modules/files/domain/derivatives";
 import { storageKeyFor } from "../modules/files/domain/storage-key";
-import { sharpMediaProcessor } from "../ports/media-sharp";
 import type { ObjectStorage } from "../ports/storage";
 import { SEED_DIRECTORY } from "./directory";
 import { seedFilesLocation } from "./files";
+import { resizedArt } from "./resized-art";
 import type { SeedDeps, Seeder } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -331,26 +330,11 @@ type Made = {
   bytes: Uint8Array;
 };
 
-/** Each illustration resized once per process, whatever reseeds. */
-const resized = new Map<Art, Promise<Made[]>>();
-
 function copiesOf(art: Art): Promise<Made[]> {
-  let made = resized.get(art);
-  if (!made) {
-    made = (async () => {
-      const source = new URL(
-        `../../assets/site-art/${art}.webp`,
-        import.meta.url
-      );
-      const { derivatives } = await sharpMediaProcessor().processImage({
-        bytes: await readFile(source),
-        kinds: KINDS,
-      });
-      return derivatives;
-    })();
-    resized.set(art, made);
-  }
-  return made;
+  return resizedArt(
+    new URL(`../../assets/site-art/${art}.webp`, import.meta.url),
+    KINDS
+  );
 }
 
 /** Writes the photo's copies and their rows, unless all are there. */
