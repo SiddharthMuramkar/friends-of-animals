@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -80,6 +80,28 @@
           "description": "The most sign-in codes sent by SMS in one day (midnight to midnight UTC), to everyone together. It caps FOA's SMS bill; once it is reached, people sign in by email until the day ends."
         }
       },
+      "donations": {
+        "enabled": {
+          "label": "Online donations",
+          "description": "Lets people give on the donate page. Keep it off until Razorpay's live keys are set and the accountant has confirmed receipts and the chart of accounts; until then the page says donations open soon."
+        },
+        "allowGuest": {
+          "label": "Donations without an account",
+          "description": "Lets someone give without signing in. Their receipt link goes to the email address they type."
+        },
+        "minAmountRupees": {
+          "label": "Smallest donation",
+          "description": "The least one online donation may be, in whole rupees."
+        },
+        "maxAmountRupees": {
+          "label": "Largest donation",
+          "description": "The most one online donation may be, in whole rupees. Larger gifts come by bank transfer, arranged with FOA."
+        },
+        "pendingExpiryHours": {
+          "label": "Time to finish paying",
+          "description": "How long a donation waits for its payment before it expires. Money that arrives later goes to payment review."
+        }
+      },
       "org": {
         "has80G": {
           "label": "80G registration held",
@@ -116,6 +138,72 @@
         "authorityEmail": {
           "label": "Authority's address for breach notices",
           "description": "Where the breach log emails a notice to the authority, such as the Data Protection Board. Leave it empty until FOA's lawyer confirms the address: staff then file the notice by hand and record the reference they get."
+        }
+      },
+      "ledger": {
+        "manualEntryApprovalThresholdRupees": {
+          "label": "Manual entries that need a second approver",
+          "description": "A manual ledger entry moving more than this many rupees waits until a second finance user approves it. Entries at or below it post at once. Set 0 to send every manual entry for approval."
+        },
+        "approvalExpiryDays": {
+          "label": "Days a finance request waits for approval",
+          "description": "A period lock, a reopening or a large manual entry that nobody approves or rejects in this many days expires, and finance has to ask again."
+        },
+        "accountantExport": {
+          "label": "Accountant's ledger export",
+          "description": "Lets finance download the ledger as a CSV journal for FOA's accountant. Keep it off until the accountant has confirmed the columns and the date rules."
+        }
+      },
+      "privacy": {
+        "requestDueDays": {
+          "label": "Days to answer an access or correction request",
+          "description": "Days the grievance officer has to answer a request to see or correct someone's data. The queue flags a request once its due date passes. FOA's lawyer still needs to confirm the period (HR-30)."
+        },
+        "erasureDueDays": {
+          "label": "Days to answer an erasure request",
+          "description": "Days the grievance officer has to act on a request to erase someone's data, which also withdraws their consents. FOA's lawyer still needs to confirm the period (HR-30)."
+        },
+        "exportLinkHours": {
+          "label": "Hours a data export can be downloaded",
+          "description": "How long the person's download link to a copy of their data works. The copy is deleted when the link stops working."
+        },
+        "erasureEnabled": {
+          "label": "Erase data on request",
+          "description": "Lets the grievance officer carry out an erasure they have previewed. Erasing can't be undone. Leave it off until FOA's lawyer confirms what an erasure must keep (HR-30)."
+        },
+        "erasureKeepsPayerAccount": {
+          "label": "Keep a payer's account while their payment records are kept",
+          "description": "When on, erasing a person who paid FOA keeps their name and contact on their account until 8 years after the payment's financial year ends, so the payment still names who paid. Everything else is erased. When off, the account is deleted and the payment records stay without the payer's name."
+        }
+      },
+      "volunteers": {
+        "applicationsOpen": {
+          "label": "Volunteer applications open",
+          "description": "Lets members apply to volunteer from their dashboard. Keep it off until FOA's safeguarding lead and lawyer have approved the volunteer declarations and police checks are in place for anyone who will work near children."
+        },
+        "minAgeYears": {
+          "label": "Youngest age to volunteer",
+          "description": "Anyone younger is refused when they apply. Between 13 and 18."
+        },
+        "guardianApprovalBelowAgeYears": {
+          "label": "Guardian approval needed below this age",
+          "description": "An applicant younger than this needs a verified guardian on the platform, who approves before a community manager sees the application. Between 18 and 21."
+        }
+      },
+      "adoption": {
+        "minAdopterAgeYears": {
+          "label": "Youngest age to adopt",
+          "description": "Anyone younger is refused when they apply to adopt an animal. Between 18 and 25."
+        }
+      },
+      "reminders": {
+        "entrySubmissionDueFirstHours": {
+          "label": "First reminder before submissions close",
+          "description": "How many hours before a competition's submission deadline the first reminder goes to everyone who still owes an entry: an adult who entered, a child's guardian, or a school's coordinators. Use 0 for no first reminder. A change applies to reminders not yet sent."
+        },
+        "entrySubmissionDueSecondHours": {
+          "label": "Second reminder before submissions close",
+          "description": "How many hours before the submission deadline the second reminder goes, to whoever still owes an entry then. Use 0 for no second reminder."
         }
       },
       "retention": {
@@ -171,6 +259,14 @@
           "label": "Keep closed contact messages",
           "description": "Calendar months a closed contact message and its staff notes are kept."
         },
+        "volunteerApplicationsDays": {
+          "label": "Keep closed volunteer applications",
+          "description": "Days a volunteer application that was declined or withdrawn is kept after it closes, then the daily run deletes it. An approved application stays while the person volunteers."
+        },
+        "adoptionApplicationsDays": {
+          "label": "Keep closed adoption applications",
+          "description": "Days a closed adoption application, with its success story, is kept after it closes, then the daily run deletes it. One whose story is published stays while the story is up."
+        },
         "releasedLegalHoldsDays": {
           "label": "Keep released legal holds",
           "description": "Days a legal hold is kept, as the record of what was held and why, after it is released."
@@ -178,6 +274,10 @@
         "financialRecordsDays": {
           "label": "Keep payment records",
           "description": "Days a payment, its refunds and its reviews are kept whole before the payer's details are removed. Payment records always stay at least until 8 years after the end of their financial year, whatever this says."
+        },
+        "privacyRequestsDays": {
+          "label": "Keep closed privacy requests",
+          "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
         }
       }
     }

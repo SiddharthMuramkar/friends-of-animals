@@ -5,7 +5,10 @@
 // member may be limited to the inbox, or recorded as told nothing (#81: a
 // minor with no verified guardian). Later tickets add an audience here and
 // route rows that use it, in a migration; #88 added `competition_managers`,
-// #81 `guardian_of_participant`, #80 `institution_coordinators`.
+// #81 `guardian_of_participant`, #80 `institution_coordinators`, #123
+// `volunteer_applicant`, `volunteer_guardians` and `community_managers`,
+// #130 `adoption_applicant`, `adoption_listing_representatives` and
+// `adoption_coordinators`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -40,17 +43,34 @@ import {
   announcementMessageFor,
 } from "../announcements/render";
 import {
+  LISTING_DECISION_VARIABLES,
+  listingDecisionValues,
+} from "../directory/decision-message";
+import {
   ENTRY_ATTEMPT_VARIABLES,
   ENTRY_RECEIPT_VARIABLES,
   entryValues,
 } from "../entries/message-values";
+import { CAMPAIGN_VARIABLES, campaignEventValues } from "../campaigns/render";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
+import { grievanceOfficers } from "../privacy/requests/people";
+import {
+  DIGEST_VARIABLES,
+  digestValues,
+  REQUEST_VARIABLES,
+  requesterOf,
+  requestValues,
+} from "../privacy/requests/messages";
 import {
   AUTHORITY_NOTICE_VARIABLES,
   PRINCIPAL_NOTICE_VARIABLES,
 } from "../breaches/notice-message";
 import { ownerOfRegistration } from "../participants/owner";
+import {
+  REMINDER_VARIABLES,
+  reminderValues,
+} from "../reminders/message-values";
 import { payerOn, RECEIPT_VARIABLES, receiptValues } from "../payments/receipt";
 import {
   dashboardRefundValues,
@@ -73,6 +93,25 @@ import {
   TRANSITION_BLOCK,
   type TransitionBlock,
 } from "../competitions/domain/transition-block";
+import {
+  APPLICATION_VARIABLES,
+  applicationValues,
+  communityManagers,
+  DECLINED_VARIABLES,
+  volunteerApplicant,
+  volunteerGuardians,
+} from "../volunteers/message-audiences";
+import {
+  ADOPTION_APPLICATION_VARIABLES,
+  adoptionApplicant,
+  adoptionApplicationValues,
+  adoptionCoordinators,
+  adoptionListingRepresentatives,
+} from "../adoption/applications/messages";
+import {
+  outcomeValues,
+  SCHOOL_ROUND_OUTCOME_VARIABLES,
+} from "../school-round/family-outcomes";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -99,6 +138,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "files.file_uploaded":
     case "files.processing_requested":
+    case "files.video_processing_requested":
+    case "files.file_ready":
     case "files.file_processed":
     case "files.file_processing_failed":
     case "files.file_quarantined":
@@ -114,9 +155,27 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution.reinstated":
       // The authorised person, who registered the institution (#73).
       return delivery.payload.userId;
+    case "directory.listing_verified":
+    case "directory.listing_rejected":
+    case "directory.listing_suspended":
+    case "directory.listing_reinstated":
+      // The person who registered the listing hears FOA's decision (#127).
+      return delivery.payload.userId;
+    case "directory.listing_submitted":
+      // For staff, who find it in the review queue; no route row names it.
+      return null;
     case "competitions.key_date_scheduled":
       // A status job (#71): it's about a competition, not a user, and no
       // route row names it.
+      return null;
+    case "competition.published":
+    case "competition.key_dates_changed":
+    case "competition.cancelled":
+      // Keep a competition's reminders in step (#84); no route row names them.
+      return null;
+    case "reminder.due":
+      // For whoever owes the deadline (`reminder_registrants`,
+      // `reminder_contacts`), planned by the reminders handler (#84).
       return null;
     case "institution.coordinator_invited":
       // The invitee may have no account yet: the invitation goes to the
@@ -147,6 +206,13 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "donation.captured":
+    case "donation.foreign_payment_received":
+    case "donation.refunded":
+    case "receipt.link_requested":
+      // A guest donor has no account: the donations module emails the
+      // address they gave, and tells a signed-in donor in-app (#106).
+      return null;
     case "guardian.teen_invited":
       // The teen may have no account yet: the invitation goes to the
       // invited address by its own handler (#81), not by a route row.
@@ -190,6 +256,80 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "institution_registration.competition_cancelled":
       // For its coordinators (`institution_coordinators`, #80).
+      return null;
+    case "privacy_request.submitted":
+    case "privacy_request.rejected":
+    case "privacy_request.completed":
+    case "privacy_request.overdue_digest":
+      // A request's requester (`privacy_requester`), the grievance
+      // officers (`grievance_officers`, `grievance_digest`), #115.
+      return null;
+    case "privacy_request.export_requested":
+    case "privacy_request.export_expired":
+    case "privacy_request.erasure_approved":
+      // The export and erasure jobs (#115b); no route row names them.
+      return null;
+    case "volunteer.guardian_approval_requested":
+    case "volunteer.application_submitted":
+    case "volunteer.application_approved":
+    case "volunteer.application_declined":
+      // About an application (#123): `volunteer_applicant`,
+      // `volunteer_guardians` and `community_managers` find who hears.
+      return null;
+    case "campaign.message_due":
+      // The campaigns module sends it to its planned recipient (#126).
+      return null;
+    case "competition.school_judging_started":
+    case "school_round.shortlist_finalised":
+      // Open the rounds and queue the families' messages (#89); no route
+      // row names them.
+      return null;
+    case "entry.school_shortlisted":
+    case "entry.not_shortlisted":
+      // The family contact isn't a user: their message goes by the school
+      // round's own handler (#89), not by a route row.
+      return null;
+    case "adoption.application_submitted":
+    case "adoption.application_under_review":
+    case "adoption.application_in_contact":
+    case "adoption.application_adopted":
+    case "adoption.application_not_matched":
+    case "adoption.application_declined":
+    case "adoption.application_withdrawn":
+    case "adoption.application_listing_closed":
+      // About an adoption application (#130): `adoption_applicant`,
+      // `adoption_listing_representatives` and `adoption_coordinators`
+      // find who hears.
+      return null;
+  }
+}
+
+/** The adoption application an event is about (#130). */
+function adoptionApplicationOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "adoption.application_submitted":
+    case "adoption.application_under_review":
+    case "adoption.application_in_contact":
+    case "adoption.application_adopted":
+    case "adoption.application_not_matched":
+    case "adoption.application_declined":
+    case "adoption.application_withdrawn":
+    case "adoption.application_listing_closed":
+      return delivery.payload.applicationId;
+    default:
+      return null;
+  }
+}
+
+/** The volunteer application an event is about (#123). */
+function volunteerApplicationOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "volunteer.guardian_approval_requested":
+    case "volunteer.application_submitted":
+    case "volunteer.application_approved":
+    case "volunteer.application_declined":
+      return delivery.payload.applicationId;
+    default:
       return null;
   }
 }
@@ -294,6 +434,12 @@ export const AUDIENCES = {
    * route's template while the route is enabled.
    */
   family_contact: async () => [],
+  /**
+   * Whoever gave a donation (#106), who may have no account. No user
+   * receives it here: the donations module sends the route's template to
+   * the donor's address, and in-app to a signed-in donor.
+   */
+  donor: async () => [],
   /** The staff team a contact message was routed to (#113). */
   contact_team: async (db, delivery) =>
     delivery.eventType === "contact_message.received"
@@ -332,6 +478,31 @@ export const AUDIENCES = {
   /** The announcements handler resolves both audiences from one roster. */
   announcement_registrants: async () => [],
   announcement_contacts: async () => [],
+  /** Whoever filed a privacy request (#115): its receipt and outcome. */
+  privacy_requester: async (db, delivery) => {
+    switch (delivery.eventType) {
+      case "privacy_request.submitted":
+      case "privacy_request.rejected":
+      case "privacy_request.completed":
+        return requesterOf(db, delivery.payload.requestId);
+      default:
+        return [];
+    }
+  },
+  /** Every grievance officer (#115), whatever the event. */
+  grievance_officers: async (db) =>
+    (await grievanceOfficers(db)).map((officer) => officer.id),
+  /** The grievance officer one overdue digest is for (#115). */
+  grievance_digest: async (_db, delivery) =>
+    delivery.eventType === "privacy_request.overdue_digest"
+      ? [delivery.payload.officerUserId]
+      : [],
+  /**
+   * The reminders handler resolves both from who owes the deadline when it
+   * runs (#84): accounts, and roster contacts without one.
+   */
+  reminder_registrants: async () => [],
+  reminder_contacts: async () => [],
   /**
    * The breach dispatcher checks the saved recipient and live guardian links
    * for this route. The generic audience resolver grants no recipients.
@@ -343,6 +514,44 @@ export const AUDIENCES = {
    * configured address with this route's template while it is enabled.
    */
   breach_authority: async () => [],
+  /**
+   * Whoever applied to volunteer (#123): an adult on every channel the
+   * route names, a teen in the inbox only.
+   */
+  volunteer_applicant: async (db, delivery) => {
+    const applicationId = volunteerApplicationOf(delivery);
+    return applicationId ? volunteerApplicant(db, applicationId) : [];
+  },
+  /** A teen applicant's verified guardians (#123); nobody for an adult's. */
+  volunteer_guardians: async (db, delivery) => {
+    const applicationId = volunteerApplicationOf(delivery);
+    return applicationId ? volunteerGuardians(db, applicationId) : [];
+  },
+  /** Everyone holding the community manager role everywhere (#123). */
+  community_managers: async (db) => communityManagers(db),
+  /** Whoever applied to adopt an animal (#130). */
+  adoption_applicant: async (db, delivery) => {
+    const applicationId = adoptionApplicationOf(delivery);
+    return applicationId ? adoptionApplicant(db, applicationId) : [];
+  },
+  /** The animal's organisation's representatives (#130). */
+  adoption_listing_representatives: async (db, delivery) => {
+    const applicationId = adoptionApplicationOf(delivery);
+    return applicationId
+      ? adoptionListingRepresentatives(db, applicationId)
+      : [];
+  },
+  /** Adoption coordinators, global or for the organisation (#130). */
+  adoption_coordinators: async (db, delivery) => {
+    const applicationId = adoptionApplicationOf(delivery);
+    return applicationId ? adoptionCoordinators(db, applicationId) : [];
+  },
+  /**
+   * A campaign's recipient (#126): the campaigns handler sends to the
+   * person it planned, on the consent the message rests on, so the generic
+   * resolver grants no recipients.
+   */
+  campaign_recipient: async () => [],
 } satisfies Record<string, Audience>;
 
 export type AudienceKey = keyof typeof AUDIENCES;
@@ -458,6 +667,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "consent.link_sent": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
+  "files.video_processing_requested": { names: [], load: async () => ({}) },
+  "files.file_ready": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
   "files.file_quarantined": { names: [], load: async () => ({}) },
@@ -481,7 +692,31 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) => institutionValues(db, payload.institutionId),
   },
   "competitions.key_date_scheduled": { names: [], load: async () => ({}) },
+  "competition.published": { names: [], load: async () => ({}) },
+  "competition.key_dates_changed": { names: [], load: async () => ({}) },
+  "competition.cancelled": { names: [], load: async () => ({}) },
+  "reminder.due": {
+    names: REMINDER_VARIABLES,
+    load: (db, { payload }) => reminderValues(db, payload.reminderJobId),
+  },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
+  "directory.listing_submitted": { names: [], load: async () => ({}) },
+  "directory.listing_verified": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_rejected": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_suspended": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
+  "directory.listing_reinstated": {
+    names: LISTING_DECISION_VARIABLES,
+    load: (db, { payload }) => listingDecisionValues(db, payload.listingId),
+  },
   "contact_message.received": {
     names: CONTACT_MESSAGE_VARIABLES,
     load: async (db, delivery) =>
@@ -513,6 +748,31 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "payment.batch_captured": {
     names: RECEIPT_VARIABLES,
     load: (db, { payload }) => receiptValues(db, payload.batchId),
+  },
+  // The donations module renders these itself (#106): only it can mint a
+  // receipt link as the email goes. Declared so templates check out.
+  "donation.captured": {
+    names: [
+      "donation.amount",
+      "receipt.number",
+      "receipt.link",
+      "receipt.expiresOn",
+    ],
+    load: async () => ({}),
+  },
+  "donation.foreign_payment_received": { names: [], load: async () => ({}) },
+  "donation.refunded": {
+    names: ["donation.amount", "refund.amount", "refund.reference"],
+    load: async () => ({}),
+  },
+  "receipt.link_requested": {
+    names: [
+      "donation.amount",
+      "receipt.number",
+      "receipt.link",
+      "receipt.expiresOn",
+    ],
+    load: async () => ({}),
   },
   "guardian.teen_invited": { names: [], load: async () => ({}) },
   "refund.approved": { names: [], load: async () => ({}) },
@@ -562,10 +822,103 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ENTRY_ATTEMPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload),
   },
+  "competition.school_judging_started": { names: [], load: async () => ({}) },
+  "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "entry.school_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "entry.not_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "privacy_request.submitted": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.rejected": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.completed": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.overdue_digest": {
+    names: DIGEST_VARIABLES,
+    load: async (_db, { payload }) => digestValues(payload),
+  },
+  "privacy_request.export_requested": { names: [], load: async () => ({}) },
+  "privacy_request.export_expired": { names: [], load: async () => ({}) },
+  "privacy_request.erasure_approved": { names: [], load: async () => ({}) },
   "competition.announcement_sent": {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
+  },
+  "volunteer.guardian_approval_requested": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_submitted": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_approved": {
+    names: APPLICATION_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "volunteer.application_declined": {
+    names: DECLINED_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      applicationValues(db, payload.applicationId, cipher),
+  },
+  "campaign.message_due": {
+    names: CAMPAIGN_VARIABLES,
+    load: (db, { payload }) => campaignEventValues(db, payload.campaignId),
+  },
+  "adoption.application_submitted": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_under_review": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_in_contact": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_adopted": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_not_matched": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_declined": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_withdrawn": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_listing_closed": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
   },
 };
 

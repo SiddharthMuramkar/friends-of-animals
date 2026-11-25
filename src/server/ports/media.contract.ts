@@ -13,9 +13,23 @@ import {
 import { readMediaFixture } from "@/test/media-fixtures";
 import { webpMetadata, webpSize } from "@/test/webp";
 
-import { MediaError, type MediaErrorCode, type MediaProcessor } from "./media";
+import { planVideoTranscode } from "@/server/modules/files/domain/video-transcode";
 
-export type MediaContractSetup = () => Promise<{ processor: MediaProcessor }>;
+import {
+  MediaError,
+  type ImageProcessor,
+  type MediaErrorCode,
+  type VideoProcessor,
+} from "./media";
+
+export type MediaContractSetup = () => Promise<{ processor: ImageProcessor }>;
+
+export type VideoContractSetup = () => Promise<{ processor: VideoProcessor }>;
+
+/** `bytes` as the stream storage hands the media job. */
+export function streamOf(bytes: Uint8Array): ReadableStream<Uint8Array> {
+  return new Blob([new Uint8Array(bytes)]).stream();
+}
 
 const BOTH: DerivativeKind[] = ["thumb_320", "display_1600"];
 
@@ -39,7 +53,7 @@ function made(format: "png" | "webp" | "avif"): Promise<Uint8Array> {
     .then((buffer) => new Uint8Array(buffer));
 }
 
-async function expectMediaError(
+export async function expectMediaError(
   promise: Promise<unknown>,
   code: MediaErrorCode
 ) {
@@ -245,6 +259,94 @@ export function mediaProcessorContract(
           kinds: BOTH,
         }),
         "media_decode_failed"
+      );
+    });
+  });
+}
+
+const THREE_MINUTES = 3 * 60 * 1000;
+
+/**
+ * The video half (#86). The ffmpeg adapter runs it where ffmpeg is
+ * (./media-ffmpeg.media.test.ts); the fake runs it in `pnpm test`.
+ */
+export function videoProcessorContract(
+  name: string,
+  setup: VideoContractSetup
+) {
+  describe(`${name} (VideoProcessor contract)`, () => {
+    it.each([
+      ["a QuickTime clip", "gpsMov", "video/quicktime"],
+      ["a WebM clip", "clipWebm", "video/webm"],
+    ] as const)(
+      "makes an MP4 copy and a JPEG poster of %s at the planned sizes",
+      async (_, fixture, sniffedType) => {
+        const { processor } = await setup();
+        const result = await processor.processVideo({
+          source: streamOf(readMediaFixture(fixture)),
+          maxDurationMs: THREE_MINUTES,
+        });
+
+        expect(result.sniffedType).toBe(sniffedType);
+        const planned = planVideoTranscode(result.probe, {
+          maxDurationMs: THREE_MINUTES,
+        });
+        if (!planned.ok) throw new Error("the clip should be in its limit");
+        const { plan } = planned;
+        expect(
+          result.derivatives.map(({ bytes: _bytes, ...rest }) => rest)
+        ).toEqual([
+          {
+            kind: "video_mp4",
+            contentType: "video/mp4",
+            width: plan.width,
+            height: plan.height,
+            durationMs: result.probe.durationMs,
+          },
+          {
+            kind: "video_poster",
+            contentType: "image/jpeg",
+            width: plan.posterWidth,
+            height: plan.posterHeight,
+            durationMs: null,
+          },
+        ]);
+        expect(plan.width % 2).toBe(0);
+        expect(plan.height % 2).toBe(0);
+        expect(Math.max(plan.width, plan.height)).toBeLessThanOrEqual(1920);
+        expect(Math.min(plan.width, plan.height)).toBeLessThanOrEqual(1080);
+        const [copy, poster] = result.derivatives;
+        // An MP4 container, and a JPEG.
+        expect(text("ftyp")).toEqual(copy!.bytes.subarray(4, 8));
+        expect([...poster!.bytes.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+      }
+    );
+
+    it("refuses a clip longer than the limit as video_too_long", async () => {
+      const { processor } = await setup();
+      await expectMediaError(
+        processor.processVideo({
+          source: streamOf(readMediaFixture("gpsMov")),
+          // The tolerance is a second; the clip is a second long.
+          maxDurationMs: -1_000,
+        }),
+        "video_too_long"
+      );
+    });
+
+    it.each([
+      ["a JPEG", async () => readMediaFixture("gpsJpeg")],
+      ["a HEIC photo", async () => readMediaFixture("iphoneHeic")],
+      ["a PDF", async () => text("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n")],
+      ["no bytes", async () => new Uint8Array()],
+    ])("refuses %s as unsupported_type", async (_, bytes) => {
+      const { processor } = await setup();
+      await expectMediaError(
+        processor.processVideo({
+          source: streamOf(await bytes()),
+          maxDurationMs: THREE_MINUTES,
+        }),
+        "unsupported_type"
       );
     });
   });

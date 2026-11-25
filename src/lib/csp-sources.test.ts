@@ -30,6 +30,8 @@ describe("cspContext: file storage", () => {
       expect(directive(header.value, "connect-src")).toContain(R2_ORIGIN);
       // <img src="/api/files/…"> follows a redirect to the bucket.
       expect(directive(header.value, "img-src")).toContain(R2_ORIGIN);
+      // An entry's <video> plays its signed copy from the bucket (#86).
+      expect(directive(header.value, "media-src")).toContain(R2_ORIGIN);
       expect(directive(header.value, "default-src")).toEqual(["'self'"]);
     }
   });

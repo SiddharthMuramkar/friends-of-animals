@@ -4,8 +4,10 @@ import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
   CONSENT_LINK_PREFIX,
+  DONATION_CHECKOUT_PREFIX,
   individualRegisterSlug,
   isConsentLinkPage,
+  isDonationCheckoutPage,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
@@ -18,6 +20,8 @@ import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
+import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
+import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
 // outside dependencies, the published-competition and public-post checks,
@@ -87,6 +91,18 @@ export type RequestProxyDeps = {
    * (src/app/blog/_lib/public-slugs.ts).
    */
   isPublicPostSlug: SlugLookup;
+  /**
+   * Whether a verified directory listing (#127) has this slug: the
+   * directory, through a memo (src/app/ngos/_lib/public-slugs.ts). Without
+   * one, every listing slug is the 404.
+   */
+  isPublicListingSlug?: SlugLookup;
+  /**
+   * Whether an adoptable animal (#129) has a public page at this slug:
+   * the adoption module, through a memo (src/app/adopt/_lib/public-slugs.ts).
+   * Without one, every animal slug is the 404.
+   */
+  isAdoptableSlug?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -94,6 +110,8 @@ export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
 export function createProxy({
   isPublishedCompetitionSlug,
   isPublicPostSlug,
+  isPublicListingSlug = async () => false,
+  isAdoptableSlug = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -131,6 +149,48 @@ export function createProxy({
     }
   }
 
+  /**
+   * Whether /ngos/<raw> is a verified listing: not pending, rejected,
+   * suspended, withdrawn or unknown. A slug no listing could have is never
+   * asked about. If the database can't answer, the request goes through
+   * and the page answers for itself.
+   */
+  async function isPublicListing(raw: string): Promise<boolean> {
+    const slug = decodedSlug(raw);
+    if (!isListingSlug(slug)) return false;
+    try {
+      return await isPublicListingSlug(slug);
+    } catch (error) {
+      console.error(
+        "Proxy: could not check a listing slug against the database.",
+        error instanceof Error ? error.message : error
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Whether /adopt/<raw> has a public page: published, on hold or adopted,
+   * under a verified directory listing. If the database can't answer, the
+   * request goes through and the page answers for itself.
+   */
+  async function isAdoptable(raw: string): Promise<boolean> {
+    const slug = decodedSlug(raw);
+    // /adopt/stories is a page of its own (#130); no animal's slug is a
+    // single word, so none can take it.
+    if (slug === "stories") return true;
+    if (!ADOPTION_SLUG_PATTERN.test(slug)) return false;
+    try {
+      return await isAdoptableSlug(slug);
+    } catch (error) {
+      console.error(
+        "Proxy: could not check an adoption slug against the database.",
+        error instanceof Error ? error.message : error
+      );
+      return true;
+    }
+  }
+
   // Unlisted slugs render at request time, and the header's <Suspense>
   // starts streaming before the page's notFound() runs, so they would keep
   // a 200 status (cacheComponents rules out dynamicParams = false).
@@ -145,6 +205,13 @@ export function createProxy({
     // Bearer links use the nonce policy and render without sign-in.
     if (isUnderPrefix(pathname, [CONSENT_LINK_PREFIX])) {
       return isConsentLinkPage(pathname)
+        ? withNonceCsp(request)
+        : missingSignedInPage(request);
+    }
+    // A donation's checkout (#106) is a bearer page too: the nonce policy,
+    // which carries Razorpay's origins, for anyone signed in or not.
+    if (isUnderPrefix(pathname, [DONATION_CHECKOUT_PREFIX])) {
+      return isDonationCheckoutPage(pathname)
         ? withNonceCsp(request)
         : missingSignedInPage(request);
     }
@@ -172,7 +239,11 @@ export function createProxy({
     const known =
       section === "blog"
         ? await isPublicPost(raw)
-        : await isPublishedCompetition(raw);
+        : section === "ngos"
+          ? await isPublicListing(raw)
+          : section === "adopt"
+            ? await isAdoptable(raw)
+            : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };

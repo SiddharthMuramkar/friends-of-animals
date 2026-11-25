@@ -67,6 +67,7 @@ import type { MessageChannel } from "./domain/channels";
 import {
   DEFAULT_PREFERENCES,
   planDelivery,
+  type DeliveryPlan,
   type SuppressionReason,
 } from "./domain/delivery-plan";
 import { renderEmailHtml, renderTemplate } from "./domain/template";
@@ -93,7 +94,7 @@ type InboxMessage = {
   values: Record<string, string>;
 };
 
-type Message = InboxMessage & { recipient: Recipient };
+export type Message = InboxMessage & { recipient: Recipient };
 
 export async function dispatchEvent(
   deps: OutboxDeps,
@@ -326,7 +327,7 @@ async function templatesFor(db: AppDb, key: string): Promise<Templates> {
   return Object.fromEntries(rows.map((row) => [row.channel, row]));
 }
 
-async function recipientOf(
+export async function recipientOf(
   deps: OutboxDeps,
   userId: string,
   { lock = false } = {}
@@ -385,7 +386,7 @@ async function sendMessage(
   smsEnabled: boolean
 ): Promise<{ deliveryId: string; error: unknown }[]> {
   const { route, templates, recipient } = message;
-  const plan = planDelivery({
+  const plan: DeliveryPlan = planDelivery({
     routeChannels: route.channels,
     requiredByLaw: route.requiredByLaw,
     preferences: await preferencesOf(deps.db, recipient.id),
@@ -398,6 +399,20 @@ async function sendMessage(
     },
   });
 
+  return deliverToAccount(deps, message, plan);
+}
+
+/**
+ * Sends one message to one account on the channels `plan` chose, and
+ * records the ones it held back. For a sender that plans its own channels
+ * on the consent its message rests on (#126 campaigns). Returns the port
+ * failures, each to be retried with its outbox delivery.
+ */
+export async function deliverToAccount(
+  deps: OutboxDeps,
+  message: Message,
+  plan: DeliveryPlan
+): Promise<{ deliveryId: string; error: unknown }[]> {
   for (const { channel, reason } of plan.suppressed) {
     await recordSuppressed(deps, message, channel, reason);
   }

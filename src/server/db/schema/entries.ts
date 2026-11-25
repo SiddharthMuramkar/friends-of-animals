@@ -30,6 +30,7 @@ import {
   type EntryText,
 } from "../../modules/entries/domain/entry-text";
 import { ENTRY_FILE_KINDS } from "../../modules/entries/domain/file-kinds";
+import type { EssayBody } from "../../rich-text/essay";
 import {
   ENTRY_FILE_STATUSES,
   ENTRY_STATUSES,
@@ -149,6 +150,14 @@ export const entryFile = pgTable(
     kind: entryFileKind().notNull(),
     /** The uploaded file (#63); null only for a typed essay (#86). */
     fileAssetId: uuid("file_asset_id").references(() => fileAsset.id),
+    /**
+     * A typed essay (#86), through the rich-text sanitiser's `essay`
+     * profile (src/server/rich-text/essay.ts): paragraphs of plain text,
+     * never HTML. Null for every other kind.
+     */
+    essayBody: jsonb("essay_body").$type<EssayBody>(),
+    /** A typed essay's words, as the participant's own editor counts them. */
+    wordCount: integer("word_count"),
     status: entryFileStatus().notNull(),
     /** Text waiting to be published with a replacement for a live image. */
     pendingText: jsonb("pending_text").$type<EntryText>(),
@@ -175,6 +184,15 @@ export const entryFile = pgTable(
     check(
       "entry_file_asset_matches_kind",
       sql`(${table.kind} = 'text') = (${table.fileAssetId} IS NULL)`
+    ),
+    // Only a typed essay has its text and its count, and it always has both.
+    check(
+      "entry_file_essay_matches_kind",
+      sql`(${table.kind} = 'text') = (${table.essayBody} IS NOT NULL) AND (${table.kind} = 'text') = (${table.wordCount} IS NOT NULL)`
+    ),
+    check(
+      "entry_file_word_count_positive",
+      sql`${table.wordCount} IS NULL OR ${table.wordCount} > 0`
     ),
     // A live file has the instant it went live; a file that never did has
     // none. A superseded one may have been either.

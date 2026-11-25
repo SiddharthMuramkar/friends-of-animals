@@ -1,4 +1,4 @@
-import { and, eq, gt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, or } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import { entryUploadGrant, fileAsset } from "../../db/schema";
@@ -6,13 +6,26 @@ import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import type { ObjectStorage } from "../../ports/storage";
 import {
+  ENTRY_FILE_PURPOSES,
+  type EntryFilePurpose,
+} from "../files/domain/purposes";
+import {
   quarantineKeyFor,
   storageKeyFor,
   uploadKeyFor,
 } from "../files/domain/storage-key";
 
 const MAX_OUTSTANDING_GRANTS = 3;
-const MAX_GRANTS_PER_UPLOAD_WINDOW = 6;
+
+/**
+ * Upload URLs one uploader may take while earlier ones are still valid: a
+ * participant enters one work, a coordinator (#87) a class one after
+ * another, each in a few seconds.
+ */
+export const GRANTS_PER_UPLOAD_WINDOW = {
+  participant: 6,
+  coordinator: 30,
+} as const;
 const STAGED_UPLOAD_SWEEP_DELAY_MS = 60 * 60 * 1000;
 
 /** Register both cleanups in the same transaction as the grant. */
@@ -48,11 +61,13 @@ export async function canIssueUploadGrant(
     registrationId,
     now,
     retiringFileId,
+    uploader,
   }: {
     ownerId: string;
     registrationId: string;
     now: Date;
     retiringFileId: string | undefined;
+    uploader: keyof typeof GRANTS_PER_UPLOAD_WINDOW;
   }
 ): Promise<boolean> {
   const grants = await tx
@@ -83,7 +98,7 @@ export async function canIssueUploadGrant(
   // Completed and retired PUT URLs both count until they expire.
   return (
     grants.filter((grant) => grant.ownerId === ownerId).length <
-      MAX_GRANTS_PER_UPLOAD_WINDOW &&
+      GRANTS_PER_UPLOAD_WINDOW[uploader] &&
     outstanding.filter((grant) => grant.ownerId === ownerId).length <
       MAX_OUTSTANDING_GRANTS &&
     !outstanding.some((grant) => grant.registrationId === registrationId)
@@ -113,8 +128,11 @@ export async function pendingUploadFileId(
   return pending?.id;
 }
 
-/** The file lock serializes preparation, acceptance and expiry. */
-export async function lockEntryImage(
+/**
+ * An entry's upload (a picture, a video or an essay's PDF), locked: the
+ * file lock serializes preparation, acceptance and expiry.
+ */
+export async function lockEntryUpload(
   tx: AppDb,
   fileId: string,
   ownerId?: string
@@ -125,7 +143,7 @@ export async function lockEntryImage(
     .where(
       and(
         eq(fileAsset.id, fileId),
-        eq(fileAsset.purpose, "entry_image"),
+        inArray(fileAsset.purpose, [...ENTRY_FILE_PURPOSES]),
         ownerId === undefined ? undefined : eq(fileAsset.ownerUserId, ownerId)
       )
     )
@@ -167,7 +185,7 @@ export async function expireUploadGrant(
   { fileId }: { fileId: string }
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const upload = await lockEntryImage(tx, fileId);
+    const upload = await lockEntryUpload(tx, fileId);
     if (!upload?.grant || upload.grant.expiresAt > clock.now()) return;
     const { file, grant } = upload;
     if (prefix === null) {
@@ -175,7 +193,10 @@ export async function expireUploadGrant(
     }
     const keyFields = { prefix, fileId: file.id };
     const stagedKey = uploadKeyFor(keyFields);
-    const originalKey = storageKeyFor({ ...keyFields, purpose: "entry_image" });
+    const originalKey = storageKeyFor({
+      ...keyFields,
+      purpose: file.purpose as EntryFilePurpose,
+    });
     // A scan can already have moved an accepted file by the time its grant expires.
     const quarantinedInScope =
       file.uploadedAt !== null &&

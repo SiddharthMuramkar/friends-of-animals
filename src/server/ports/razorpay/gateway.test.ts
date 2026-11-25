@@ -120,6 +120,7 @@ describe("razorpayGateway", () => {
         status: "failed",
         amountMinor: 150_000n,
         currency: "INR",
+        international: false,
       },
       {
         id: paymentId,
@@ -127,6 +128,7 @@ describe("razorpayGateway", () => {
         status: "captured",
         amountMinor: 150_000n,
         currency: "INR",
+        international: false,
       },
     ]);
   });

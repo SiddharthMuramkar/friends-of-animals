@@ -8,6 +8,7 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { errorSummaryForLogs } from "@/server/errors";
 import { tagsToRefreshForSetting } from "@/server/modules/cms/domain/org-facts";
+import { donationTagsForSetting } from "@/server/modules/donations/terms";
 import {
   isSettingKey,
   type SettingInput,
@@ -92,6 +93,8 @@ export async function changeSettingAction(
   if (state.status === "saved") {
     // The tax facts show on public pages through one cached read (#111).
     if (known) for (const tag of tagsToRefreshForSetting(known)) updateTag(tag);
+    // The donate page's terms likewise (#106).
+    if (known) for (const tag of donationTagsForSetting(known)) updateTag(tag);
     refresh();
   }
   return withMessage(state, kind);

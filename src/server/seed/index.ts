@@ -19,11 +19,19 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedDonations } from "./donations";
+import { seedDirectory } from "./directory";
+import { seedAdoption } from "./adoption";
+import { seedAdoptionApplications } from "./adoption-applications";
 import { seedEntries } from "./entries";
+import { seedInstitutionSubmissions } from "./institution-submissions";
+import { seedSchoolRound } from "./school-round";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
 import { seedBreaches } from "./breaches";
 import { seedLedger } from "./ledger";
+import { seedLedgerPeriods } from "./ledger-periods";
+import { seedBudgets } from "./ledger-budgets";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
@@ -38,7 +46,9 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedReminders } from "./reminders";
 import { seedSettings } from "./settings";
+import { seedVolunteers } from "./volunteers";
 import type { Seeder } from "./types";
 
 export type { SeedDeps, Seeder } from "./types";
@@ -46,6 +56,9 @@ export type { SeedBuilders } from "./builders";
 export { SEED_ACCOUNTS } from "./accounts";
 export { SEED_SCOPES } from "./scopes";
 export { SEED_COMPETITION_MANAGER } from "./competitions";
+export { SEED_DIRECTORY } from "./directory";
+export { SEED_ADOPTION } from "./adoption";
+export { SEED_ADOPTION_APPLICATIONS } from "./adoption-applications";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
@@ -63,6 +76,10 @@ const seeders: readonly Seeder[] = [
   // After the identity and access seeds: the seeded members (#116).
   seedBreaches,
   seedInstitutions,
+  // After the identity and access seeds: its own seeded members (#127).
+  seedDirectory,
+  // After the directory seed: its listings offer the animals (#129).
+  seedAdoption,
   seedPrivacy,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,
@@ -82,16 +99,35 @@ const seeders: readonly Seeder[] = [
   seedParticipants,
   // After the participants seed: Asha's entries, one per outcome (#85).
   seedEntries,
+  // After the institutions, competitions and entries seeds: the school's
+  // TREES27 students and their entries, for the coordinator roster (#87).
+  seedInstitutionSubmissions,
+  // After the payments, refunds and judging seeds: Kinder Skies' paid
+  // students' entries and the school's open round (#89).
+  seedSchoolRound,
   // After the participants seed: a guardian, their under-13 child and a
   // teen whose own login is linked to them (#81).
   seedGuardians,
+  // Before the ledger seed, whose reconcile posts its donations (#106).
+  seedDonations,
   seedLedger,
+  // After the ledger seed: its postings are in open months (#109).
+  seedLedgerPeriods,
+  seedBudgets,
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,
+  // After the consent and guardians seeds: the declarations and the
+  // linked teen (#123).
+  seedVolunteers,
+  // After the adoption and consent seeds: applications on the seeded
+  // animals, on version 1 of the adopter's consents (#130).
+  seedAdoptionApplications,
   seedConsentLinks,
   // After every registration seed: the sent one's count comes from them.
   seedAnnouncements,
+  // After every competition seed: their reminders, as publishing plans them (#84).
+  seedReminders,
   seedNotifications,
   seedContact,
   seedCms,

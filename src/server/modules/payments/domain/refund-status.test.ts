@@ -77,11 +77,16 @@ describe("initialRefundStatus()", () => {
     expect(initialRefundStatus("duplicate")).toBe("approved");
   });
 
-  it("knows exactly three kinds", () => {
+  it("approves a donation's foreign payment refund at once (#106)", () => {
+    expect(initialRefundStatus("foreign_payment")).toBe("approved");
+  });
+
+  it("knows exactly four kinds", () => {
     expect(REFUND_KINDS).toEqual([
       "discretionary",
       "cancellation",
       "duplicate",
+      "foreign_payment",
     ]);
   });
 });

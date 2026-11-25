@@ -8,9 +8,36 @@
 import { GUARDIAN_PURPOSES } from "./guardian-purposes";
 
 /**
+ * The two declarations a volunteer applicant makes (#123): the safeguarding
+ * declaration and the code of conduct. Each is a document staff publish;
+ * the volunteers module records the applicant's acceptance when they apply
+ * (or accept a newer version), never through `giveConsent`, and a
+ * community manager's approval needs both on their current versions.
+ */
+export const VOLUNTEER_PURPOSES = [
+  "volunteer_safeguarding_declaration",
+  "volunteer_code_of_conduct",
+] as const;
+export type VolunteerPurpose = (typeof VOLUNTEER_PURPOSES)[number];
+
+/**
+ * An adopter's two consents (#130): sharing their contact details with the
+ * listing organisation, given when they apply, and sharing their success
+ * story, given when they write it. The adoption module records both on the
+ * current document, never through `giveConsent`; the adopter withdraws a
+ * story's consent from their application's page, which unpublishes it.
+ */
+export const ADOPTION_PURPOSES = [
+  "adoption_contact_sharing",
+  "adoption_success_story",
+] as const;
+export type AdoptionPurpose = (typeof ADOPTION_PURPOSES)[number];
+
+/**
  * `competition_terms` is a competition's own terms (#72), apart from the
  * site's terms of use. The guardian purposes (#82) follow: what a verified
- * guardian gives and withdraws for a child (./guardian-purposes.ts).
+ * guardian gives and withdraws for a child (./guardian-purposes.ts). Then
+ * the volunteer declarations (#123), then the adopter's (#130).
  */
 export const CONSENT_PURPOSES = [
   "privacy_notice",
@@ -18,6 +45,8 @@ export const CONSENT_PURPOSES = [
   "messages",
   "competition_terms",
   ...GUARDIAN_PURPOSES,
+  ...VOLUNTEER_PURPOSES,
+  ...ADOPTION_PURPOSES,
 ] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
@@ -44,6 +73,9 @@ export type GivablePurpose = (typeof GIVABLE_PURPOSES)[number];
 export const WITHDRAWABLE_PURPOSES = [
   ...GIVABLE_PURPOSES,
   ...GUARDIAN_PURPOSES,
+  // An adopter withdraws a success story's consent through the adoption
+  // module (#130).
+  "adoption_success_story",
 ] as const satisfies readonly ConsentPurpose[];
 export type WithdrawablePurpose = (typeof WITHDRAWABLE_PURPOSES)[number];
 

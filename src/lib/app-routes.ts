@@ -69,6 +69,23 @@ export const ADMIN_PAYMENTS_REVIEW = "/admin/payments/review";
 /** The staff data inventory (#114). */
 export const ADMIN_PRIVACY = "/admin/privacy";
 
+/** The grievance officer's queue of privacy requests (#115). */
+export const ADMIN_PRIVACY_REQUESTS = "/admin/privacy/requests";
+
+/** One privacy request, for the grievance officer (#115). */
+export function adminPrivacyRequestPath(requestId: string): string {
+  return `${ADMIN_PRIVACY_REQUESTS}/${encodeURIComponent(requestId)}`;
+}
+
+/** A user's own privacy requests, and where they make one (#115). */
+export const MY_PRIVACY_REQUESTS = "/dashboard/privacy";
+export const NEW_PRIVACY_REQUEST = "/dashboard/privacy/new";
+
+/** One of a user's privacy requests (#115). */
+export function myPrivacyRequestPath(requestId: string): string {
+  return `${MY_PRIVACY_REQUESTS}/${encodeURIComponent(requestId)}`;
+}
+
 /** One payment batch in the admin area (#79): record an offline payment. */
 export function adminPaymentBatchPath(batchId: string): string {
   return `/admin/payments/batches/${encodeURIComponent(batchId)}`;
@@ -88,6 +105,13 @@ export const ADMIN_REFUNDS = "/admin/refunds";
 export const ADMIN_LEDGER = "/admin/ledger";
 export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
 export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
+/** Period lock, two-approver requests, budgets and the accountant's export (#109). */
+export const ADMIN_LEDGER_PERIODS = `${ADMIN_LEDGER}/periods`;
+export const ADMIN_LEDGER_APPROVALS = `${ADMIN_LEDGER}/approvals`;
+export const ADMIN_LEDGER_BUDGETS = `${ADMIN_LEDGER}/budgets`;
+export const ADMIN_LEDGER_BUDGET_REPORT = `${ADMIN_LEDGER_BUDGETS}/report`;
+export const ADMIN_LEDGER_EXPORT = `${ADMIN_LEDGER}/export`;
+export const ADMIN_LEDGER_EXPORT_CSV = `${ADMIN_LEDGER}/export.csv`;
 
 export function adminLedgerPostingPath(seq: bigint | string): string {
   return `${ADMIN_LEDGER}/${encodeURIComponent(String(seq))}`;
@@ -114,11 +138,139 @@ export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
 }
 
+/** Finance's donations (#106): the list and each donation's page. */
+export const ADMIN_DONATIONS = "/admin/donations";
+
+export function adminDonationPath(donationId: string): string {
+  return `${ADMIN_DONATIONS}/${encodeURIComponent(donationId)}`;
+}
+
+/**
+ * Volunteering (#123): a member's application, a guardian's view of their
+ * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
+ * rather than in APP_ROUTES, like the payments pages.
+ */
+export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
+export const ADMIN_VOLUNTEERS = "/admin/volunteers";
+
+export function adminVolunteerApplicationPath(applicationId: string): string {
+  return `${ADMIN_VOLUNTEERS}/${encodeURIComponent(applicationId)}`;
+}
+
+export function guardianChildVolunteerPath(childId: string): string {
+  return `${guardianChildPath(childId)}/volunteer`;
+}
+
 /** The breach log and its staff-only detail pages (#116). */
 export const ADMIN_BREACHES = "/admin/breaches";
 
 export function adminBreachPath(breachId: string): string {
   return `${ADMIN_BREACHES}/${encodeURIComponent(breachId)}`;
+}
+
+/**
+ * The NGO directory (#127): registering a listing, the listings a person
+ * acts for, and the staff review queue. Listed with APP_ROUTE_TEMPLATES
+ * rather than in APP_ROUTES, like the payments pages. The public listing
+ * page, /ngos/<slug>, is outside the signed-in tree.
+ */
+export const NGO_REGISTER = "/ngos/register";
+export const MY_LISTINGS = "/organisation";
+export const ADMIN_DIRECTORY = "/admin/directory";
+
+/** One listing the signed-in user acts for. */
+export function myListingPath(listingId: string): string {
+  return `${MY_LISTINGS}/${encodeURIComponent(listingId)}`;
+}
+
+/** Where the listing's people edit it. */
+export function editListingPath(listingId: string): string {
+  return `${myListingPath(listingId)}/edit`;
+}
+
+/** One listing in the staff review queue. */
+export function adminDirectoryListingPath(listingId: string): string {
+  return `${ADMIN_DIRECTORY}/${encodeURIComponent(listingId)}`;
+}
+
+/** A verified listing's public page. */
+export function publicListingPath(slug: string): string {
+  return `/ngos/${encodeURIComponent(slug)}`;
+}
+
+/**
+ * A directory listing's animals for adoption (#129), managed by its
+ * representatives. Listed with APP_ROUTE_TEMPLATES. The public pages,
+ * /adopt and /adopt/<slug>, are in src/lib/routes.ts.
+ */
+export function adoptionsPath(listingId: string): string {
+  return `${myListingPath(listingId)}/adoptions`;
+}
+
+/** Where a representative adds an animal. */
+export function newAdoptionPath(listingId: string): string {
+  return `${adoptionsPath(listingId)}/new`;
+}
+
+/** One animal's photos, publishing and details. */
+export function adoptionPath(listingId: string, adoptionId: string): string {
+  return `${adoptionsPath(listingId)}/${encodeURIComponent(adoptionId)}`;
+}
+
+/** Where a representative edits an animal's details. */
+export function editAdoptionPath(
+  listingId: string,
+  adoptionId: string
+): string {
+  return `${adoptionPath(listingId, adoptionId)}/edit`;
+}
+
+/** An animal's applications, for its organisation (#130). */
+export function adoptionApplicationsPath(
+  listingId: string,
+  adoptionId: string
+): string {
+  return `${adoptionPath(listingId, adoptionId)}/applications`;
+}
+
+/**
+ * Adoption applications (#130): an applicant's own, where they apply, and
+ * the adoption coordinator's queue. Listed with APP_ROUTE_TEMPLATES. The
+ * public stories page, /adopt/stories, is in src/lib/routes.ts.
+ */
+export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_ADOPTIONS = "/admin/adoptions";
+
+export function myAdoptionApplicationPath(applicationId: string): string {
+  return `${DASHBOARD_ADOPTIONS}/${encodeURIComponent(applicationId)}`;
+}
+
+export function applyToAdoptPath(slug: string): string {
+  return `${DASHBOARD_ADOPTIONS}/apply/${encodeURIComponent(slug)}`;
+}
+
+export function adminAdoptionApplicationPath(applicationId: string): string {
+  return `${ADMIN_ADOPTIONS}/${encodeURIComponent(applicationId)}`;
+}
+
+/**
+ * Adopters' success stories (#130), public. Kept out of src/lib/routes.ts:
+ * its ROUTES ship to every page's browser code, and /awareness sits at the
+ * JS budget. The sitemap lists it by hand.
+ */
+export const ADOPTION_STORIES_PATH = "/adopt/stories";
+
+/** An adoptable animal's public page. */
+export function adoptableAnimalPath(slug: string): string {
+  return `/adopt/${encodeURIComponent(slug)}`;
+}
+
+/** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_CAMPAIGNS = "/admin/campaigns";
+export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
+
+export function adminCampaignPath(campaignId: string): string {
+  return `${ADMIN_CAMPAIGNS}/${encodeURIComponent(campaignId)}`;
 }
 
 /** Where a competition manager or staff admin asks for a batch's refund. */
@@ -179,6 +331,43 @@ export function studentConsentsPath(
   return `/institution/registrations/${encodeURIComponent(reference)}/consents?${query.toString()}`;
 }
 
+/** A registration's submission roster: every student's entry (#87). */
+export function institutionSubmissionsPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/submissions?${query.toString()}`;
+}
+
+/** One student's entry, where their coordinator uploads it (#87). */
+export function studentSubmissionPath(
+  reference: string,
+  registrationNumber: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/submissions/${encodeURIComponent(registrationNumber)}?${query.toString()}`;
+}
+
+/** Where a coordinator certifies the competition's conduct (#87). */
+/** A registration's school round page (#89), for the institution acting. */
+export function schoolRoundPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/school-round?${query.toString()}`;
+}
+
+export function conductCertificationPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/conduct?${query.toString()}`;
+}
+
 /** Where a coordinator adds a student to a registration (#75). */
 export function newStudentPath(
   reference: string,
@@ -223,13 +412,51 @@ export function payMyRegistrationPath(registrationId: string): string {
 export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
 
 /**
- * The pages with the Checkout island (#77): a school's pay page and an
- * adult's own (#78). Razorpay's origins and its headers come with these
- * documents only (./csp-sources.ts, ./security-headers.ts).
+ * A donation's checkout (#106): a bearer page for whoever holds the
+ * donation's checkout token, signed in or not. src/proxy.ts gives it the
+ * nonce policy, like a consent link, without the sign-in check.
+ */
+export const DONATION_CHECKOUT_PREFIX = "/donate/checkout";
+export const DONATION_CHECKOUT_ROUTE = `${DONATION_CHECKOUT_PREFIX}/[donationId]`;
+
+export function donationCheckoutPath(donationId: string, token: string) {
+  const query = new URLSearchParams({ t: token });
+  return `${DONATION_CHECKOUT_PREFIX}/${encodeURIComponent(donationId)}?${query.toString()}`;
+}
+
+export function isDonationCheckoutPage(pathname: string): boolean {
+  return fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE);
+}
+
+/** A donation's thank-you page (#106), for the same token's holder. */
+export const DONATION_THANK_YOU = "/donate/thank-you";
+
+export function donationThankYouPath(donationId: string, token: string) {
+  const query = new URLSearchParams({ d: donationId, t: token });
+  return `${DONATION_THANK_YOU}?${query.toString()}`;
+}
+
+/**
+ * Receipts (#106): a receipt behind its 7-day link, and the form that
+ * emails the donor a new link. Never cached, indexed or sent as a referrer.
+ */
+export const RECEIPTS_PREFIX = "/receipts";
+export const RECEIPT_REQUEST = `${RECEIPTS_PREFIX}/request`;
+
+export function receiptPath(token: string): string {
+  return `${RECEIPTS_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+/**
+ * The pages with the Checkout island (#77): a school's pay page, an
+ * adult's own (#78) and a donation's checkout (#106). Razorpay's origins
+ * and its headers come with these documents only (./csp-sources.ts,
+ * ./security-headers.ts).
  */
 export const CHECKOUT_ROUTES = [
   PAY_FEES_ROUTE,
   PAY_MY_REGISTRATION_ROUTE,
+  DONATION_CHECKOUT_ROUTE,
 ] as const;
 
 /** A payment batch's status and receipt (#77). */
@@ -298,21 +525,41 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,
+  ADMIN_PRIVACY_REQUESTS,
+  "/admin/privacy/requests/[id]",
+  MY_PRIVACY_REQUESTS,
+  NEW_PRIVACY_REQUEST,
+  "/dashboard/privacy/[id]",
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
   ADMIN_REFUNDS,
   "/admin/refunds/[id]",
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
+  ADMIN_DONATIONS,
+  "/admin/donations/[id]",
+  ADMIN_CAMPAIGNS,
+  ADMIN_NEW_CAMPAIGN,
+  "/admin/campaigns/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_NEW_LEDGER_ENTRY,
+  ADMIN_LEDGER_PERIODS,
+  ADMIN_LEDGER_APPROVALS,
+  ADMIN_LEDGER_BUDGETS,
+  ADMIN_LEDGER_BUDGET_REPORT,
+  ADMIN_LEDGER_EXPORT,
+  ADMIN_LEDGER_EXPORT_CSV,
   "/admin/ledger/[seq]",
   "/admin/competitions/[id]/cancel",
   "/institution/competitions/[code]/judging-guide",
   "/institution/registrations/[ref]",
   "/institution/registrations/[ref]/consents",
+  "/institution/registrations/[ref]/submissions",
+  "/institution/registrations/[ref]/submissions/[number]",
+  "/institution/registrations/[ref]/conduct",
+  "/institution/registrations/[ref]/school-round",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",
@@ -324,9 +571,29 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]",
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
+  "/guardian/children/[id]/volunteer",
+  DASHBOARD_VOLUNTEER,
+  ADMIN_VOLUNTEERS,
+  "/admin/volunteers/[id]",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
+  NGO_REGISTER,
+  MY_LISTINGS,
+  "/organisation/[id]",
+  "/organisation/[id]/edit",
+  ADMIN_DIRECTORY,
+  "/admin/directory/[id]",
+  "/organisation/[id]/adoptions",
+  "/organisation/[id]/adoptions/new",
+  "/organisation/[id]/adoptions/[adoptionId]",
+  "/organisation/[id]/adoptions/[adoptionId]/edit",
+  "/organisation/[id]/adoptions/[adoptionId]/applications",
+  "/dashboard/adoptions",
+  "/dashboard/adoptions/[id]",
+  "/dashboard/adoptions/apply/[slug]",
+  "/admin/adoptions",
+  "/admin/adoptions/[id]",
 ] as const;
 
 /**
@@ -346,6 +613,17 @@ export function invitationPath(token: string): string {
 }
 
 /**
+ * Where a campaign message's withdrawal link opens (#126). The path carries
+ * its token, the bearer credential, so analytics leaves the prefix out
+ * (src/lib/analytics/umami.ts). Anyone holding the link can open it.
+ */
+export const WITHDRAWAL_PREFIX = "/withdraw";
+
+export function withdrawalPath(token: string): string {
+  return `${WITHDRAWAL_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+/**
  * Path prefixes that need a signed-in user. src/proxy.ts sends visitors
  * without a session cookie to sign in; #65's CSP gives these a nonce.
  * Each tree also needs the proxy's matcher to list it, and a layout that
@@ -361,6 +639,8 @@ export const SIGNED_IN_PREFIXES = [
   "/institutions/register",
   "/participant",
   "/guardian",
+  "/ngos/register",
+  "/organisation",
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

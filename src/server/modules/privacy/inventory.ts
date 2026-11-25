@@ -122,6 +122,15 @@ const WHILE_INSTITUTION_TAKES_PART = {
   toConfirm: true,
 } as const;
 
+/** A directory listing (#127): an organisation's, or an individual's own. */
+const WHILE_LISTED = {
+  policy: "directoryListings",
+  periodKey: "directoryListings",
+  basis:
+    "FOA shows people where to find help for an animal, and answers for what it verified and published",
+  toConfirm: true,
+} as const;
+
 const AFTER_INVITATION_CLOSES = {
   policy: "coordinatorInvitations",
   periodKey: "coordinatorInvitations",
@@ -157,6 +166,31 @@ const BREACH_RECORD = {
   periodKey: "breachRecords",
   basis:
     "Legal obligation: FOA shows the Data Protection Board what it knew, did and told whom about a personal data breach (legal basis to confirm)",
+  toConfirm: true,
+} as const;
+
+/**
+ * A volunteer application (#123): a closed one that wasn't approved goes a
+ * year after it closed; an approved one stays while the person volunteers.
+ */
+const VOLUNTEER_APPLICATION_RECORD = {
+  policy: "volunteerApplications",
+  periodKey: "volunteerApplications",
+  basis:
+    "Child protection: shows who applied to work near children, what they declared, who approved them and why anyone was declined (legal basis to confirm, HR-55)",
+  toConfirm: true,
+} as const;
+
+/**
+ * An adoption application (#130) and its success story: deleted 2 years
+ * after the application closed, unless a published story still rests on
+ * it.
+ */
+const ADOPTION_APPLICATION_RECORD = {
+  policy: "adoptionApplications",
+  periodKey: "adoptionApplications",
+  basis:
+    "Facilitating an adoption: lets FOA's coordinator and the listing organisation match the adopter, and answer later questions about the adoption (legal basis to confirm, HR-31)",
   toConfirm: true,
 } as const;
 
@@ -372,6 +406,24 @@ const ANNOUNCEMENT_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Donations (#106): money records, with the donor as they gave. */
+const DONATION_RECORD = {
+  policy: "donationRecords",
+  periodKey: "donationRecords",
+  basis:
+    "Financial records: FOA answers for each donation and its receipt to the donor, its auditors and the tax authorities",
+  toConfirm: true,
+} as const;
+
+/** Campaigns (#126): who wrote and sent each, and who each message went to. */
+const CAMPAIGN_RECORD = {
+  policy: "campaigns",
+  periodKey: "campaigns",
+  basis:
+    "Shows FOA who wrote and sent each campaign and who it reached on which consent, and lets a withdrawal by link find them",
+  toConfirm: true,
+} as const;
+
 /** A competition-scoped consent: what a signed form or code link recorded. */
 const COMPETITION_CONSENT_RECORD = {
   ...CONSENT_RECORD,
@@ -436,6 +488,30 @@ const ENTRY_PENDING_TEXT = {
   toConfirm: true,
 } as const;
 
+/** Privacy rights requests (#115): kept 3 years after they close. */
+const PRIVACY_REQUEST_RECORD = {
+  policy: "privacyRequests",
+  periodKey: "privacyRequests",
+  basis:
+    "FOA shows what a person asked under their data rights and how and when it answered (DPDP Act 2023; HR-30)",
+  toConfirm: true,
+} as const;
+
+/** Erasure records (#115b): kept as the proof of each erasure. */
+const ERASURE_RECORD = {
+  policy: "erasureRecords",
+  periodKey: "erasureRecords",
+  basis:
+    "FOA shows it erased what a person asked, and erases it again if a backup is restored (DPDP Act 2023; HR-30)",
+  toConfirm: true,
+} as const;
+
+const privacyRequestColumn = rowsOf("privacy_request", {
+  subject: { kind: "user", via: "subject_kind + subject_id" },
+  retention: PRIVACY_REQUEST_RECORD,
+  onExpiry: "delete_row",
+});
+
 const user = rowsOf("user", {
   subject: { kind: "user", via: "id" },
   retention: WHILE_ACCOUNT_OPEN,
@@ -471,6 +547,19 @@ const verification = rowsOf("verification", {
 const institution = rowsOf("institution", {
   subject: { kind: "institution", via: "id" },
   retention: WHILE_INSTITUTION_TAKES_PART,
+  onExpiry: "delete_row",
+});
+
+const listing = rowsOf("directory_listing", {
+  subject: { kind: "directory_listing", via: "id" },
+  retention: WHILE_LISTED,
+  onExpiry: "delete_row",
+});
+
+/** An adoption listing (#129) lives and goes with its directory listing. */
+const adoptable = rowsOf("adoption_listing", {
+  subject: { kind: "directory_listing", via: "directory_listing_id" },
+  retention: WHILE_LISTED,
   onExpiry: "delete_row",
 });
 
@@ -552,6 +641,25 @@ const GUARDIAN_INVITATION_RECIPIENT = {
   kind: "invitee",
   via: "kind + contact_hash",
 } as const;
+
+const volunteerApplication = rowsOf("volunteer_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: VOLUNTEER_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
+
+const adoptionApplication = rowsOf("adoption_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: ADOPTION_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
+
+/** A success story goes with its application. */
+const adoptionStory = rowsOf("adoption_story", {
+  subject: { kind: "adoption_application", via: "application_id" },
+  retention: ADOPTION_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
 
 /** A payment record: anonymised once the financial floor has passed. */
 const payment = (table: string, via: string) =>
@@ -833,6 +941,33 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     subject: { kind: "user", via: "verified_by" },
     onExpiry: "set_null",
   }),
+  // NGO directory listings (#127): an individual rescuer's or foster
+  // caregiver's listing is about them, so its details are personal data.
+  listing("slug", "identity"),
+  listing("name", "identity"),
+  listing("description", "content"),
+  listing("address_ciphertext", "contact"),
+  listing("city", "contact"),
+  listing("state", "contact"),
+  listing("pin_code", "contact"),
+  listing("contact_phone_ciphertext", "contact"),
+  listing("contact_email_ciphertext", "contact"),
+  listing("website", "contact"),
+  listing("public_contact_fields", "preference"),
+  listing("status_reason", "content"),
+  listing("owner_user_id", "identity", {
+    subject: { kind: "user", via: "owner_user_id" },
+    onExpiry: "retain",
+  }),
+  actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
+  // Adoption listings (#129): an animal fostered by an individual is
+  // where they live, so its location is theirs. The animal's own details
+  // are not personal data (non-personal.ts).
+  adoptable("state", "contact"),
+  adoptable("city", "contact"),
+  adoptable("city_key", "contact"),
+  adoptable("pin_code", "contact"),
+  actorColumn("adoption_listing", "created_by_user_id", WHILE_LISTED),
   // Coordinator invitations (#74)
   coordinatorInvitation("identifier_ciphertext", "contact"),
   coordinatorInvitation("identifier_hash", "technical"),
@@ -931,6 +1066,46 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "participation_declared_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
+  // Who certified the school's conduct (#87); the audit log keeps it too.
+  actorColumn(
+    "conduct_certification",
+    "certified_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  // The school round (#89): who attested, finalised and picked; the
+  // judging panel's names and roles (HR-31: retention to confirm).
+  actorColumn(
+    "school_round",
+    "judging_attested_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn("school_round", "finalised_by_user_id", WHILE_REGISTRATION_KEPT),
+  actorColumn(
+    "school_round_pick",
+    "picked_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn(
+    "school_round_transition",
+    "actor_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  {
+    table: "school_round_panel_member",
+    column: "full_name",
+    category: "identity",
+    subject: { kind: "panel_member", via: "id" },
+    retention: WHILE_REGISTRATION_KEPT,
+    onExpiry: "delete_row",
+  },
+  {
+    table: "school_round_panel_member",
+    column: "designation",
+    category: "identity",
+    subject: { kind: "panel_member", via: "id" },
+    retention: WHILE_REGISTRATION_KEPT,
+    onExpiry: "delete_row",
+  },
   // Students an institution enrols (#75)
   profile("full_name", "identity"),
   profile("dob_ciphertext", "demographic"),
@@ -999,12 +1174,39 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("refund", "manual_recorded_by", PAYMENT_RECORD),
   // The ledger keeps finance authorship and text that may name people (#105).
   actorColumn("ledger_posting", "created_by_user_id", LEDGER_RECORD, "retain"),
+  // Period locks and two-approver requests (#109): who asked, who decided,
+  // and finance's own words (an unlock reason, a manual entry's narration).
+  actorColumn("ledger_period", "locked_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn(
+    "ledger_period",
+    "last_unlocked_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "finance_approval",
+    "requested_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "finance_approval",
+    "decided_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  // Budgets (#109): who set each one.
+  actorColumn("ledger_budget", "created_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn("ledger_budget", "updated_by_user_id", LEDGER_RECORD, "retain"),
   ...(
     [
       ["ledger_account", "name", LEDGER_CATEGORY],
       ["ledger_account", "public_label", LEDGER_CATEGORY],
       ["ledger_posting", "description", LEDGER_RECORD],
       ["ledger_line", "memo", LEDGER_RECORD],
+      ["ledger_period", "last_unlock_reason", LEDGER_RECORD],
+      ["finance_approval", "payload", LEDGER_RECORD],
+      ["finance_approval", "decision_reason", LEDGER_RECORD],
     ] as const
   ).map(([table, column, retention]): InventoryField => ({
     table,
@@ -1146,6 +1348,8 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "set_null",
   }),
   entryFile("receipt_title", "content"),
+  // A typed essay is the work itself (#86), kept like the entry's words.
+  entryFile("essay_body", "content"),
   actorColumn("entry_file", "uploaded_by_user_id", ENTRY_RECORD),
   ...(["file_asset_id", "registration_id", "upload_key"] as const).map(
     (column) =>
@@ -1177,6 +1381,20 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   },
   actorColumn("announcement", "created_by", ANNOUNCEMENT_RECORD),
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
+  // Campaigns (#126): staff accounts, and each message's recipient and the
+  // consents it rested on.
+  actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
+  actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
+  rowsOf("campaign_recipient", {
+    subject: { kind: "user", via: "user_id" },
+    retention: CAMPAIGN_RECORD,
+    onExpiry: "delete_row",
+  })("user_id", "identity"),
+  rowsOf("campaign_recipient", {
+    subject: { kind: "consent_subject", via: "bases" },
+    retention: CAMPAIGN_RECORD,
+    onExpiry: "delete_row",
+  })("bases", "identity"),
   // Legal holds (#114): a released hold stays as the record of who held
   // what and why, until the releasedLegalHolds policy deletes it.
   ...(
@@ -1193,6 +1411,108 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Donations (#106): the donor as they gave, the wall name they chose,
+  // and the receipt that froze their name. Kept as financial records.
+  ...(
+    [
+      ["user_id", "identity", "set_null"],
+      ["name_ciphertext", "identity", "retain"],
+      ["email_ciphertext", "contact", "retain"],
+      ["email_hash", "contact", "retain"],
+      ["organisation_name", "identity", "retain"],
+    ] as const
+  ).map(([column, category, onExpiry]) =>
+    rowsOf("donor", {
+      subject: { kind: "donor", via: "id" },
+      retention: DONATION_RECORD,
+      onExpiry,
+    })(column, category)
+  ),
+  rowsOf("donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  rowsOf("receipt", {
+    subject: { kind: "donor", via: "donation_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "retain",
+  })("snapshot", "identity"),
+  actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
+  // Privacy rights requests (#115): who asked about whom, and the words
+  // the requester and the grievance officer wrote, encrypted.
+  privacyRequestColumn("subject_id", "identity"),
+  privacyRequestColumn("requested_by_user_id", "identity", {
+    subject: { kind: "user", via: "requested_by_user_id" },
+  }),
+  privacyRequestColumn("correction_details_ciphertext", "content"),
+  privacyRequestColumn("rejection_reason_ciphertext", "content"),
+  privacyRequestColumn("resolution_ciphertext", "content"),
+  actorColumn("privacy_request", "assigned_to_user_id", PRIVACY_REQUEST_RECORD),
+  actorColumn(
+    "privacy_request",
+    "erasure_approved_by_user_id",
+    PRIVACY_REQUEST_RECORD
+  ),
+  rowsOf("privacy_request_note", {
+    subject: {
+      kind: "user",
+      via: "request_id → privacy_request.subject_kind + subject_id",
+    },
+    retention: PRIVACY_REQUEST_RECORD,
+    onExpiry: "delete_row",
+  })("body_ciphertext", "content"),
+  actorColumn("privacy_request_note", "author_user_id", PRIVACY_REQUEST_RECORD),
+  // Erasure records (#115b): ids of the accounts and profiles erased.
+  ...(["subject_id", "user_ids", "profile_ids"] as const).map((column) =>
+    rowsOf("erasure_record", {
+      subject: {
+        kind: "user",
+        via: "subject_kind + subject_id, user_ids, profile_ids",
+      },
+      retention: ERASURE_RECORD,
+      onExpiry: "retain",
+    })(column, "identity")
+  ),
+  // Volunteer applications (#123): the applicant's answers and the record
+  // of who vetted them.
+  volunteerApplication("applicant_user_id", "identity"),
+  volunteerApplication("participant_profile_id", "identity"),
+  volunteerApplication("date_of_birth_ciphertext", "demographic"),
+  volunteerApplication("interests", "preference"),
+  volunteerApplication("availability", "preference"),
+  volunteerApplication("guardian_user_id", "identity", {
+    subject: { kind: "user", via: "guardian_user_id" },
+  }),
+  volunteerApplication("safeguarding_consent_id", "technical"),
+  volunteerApplication("conduct_consent_id", "technical"),
+  volunteerApplication("decline_reason_ciphertext", "content"),
+  actorColumn(
+    "volunteer_application",
+    "decided_by_user_id",
+    VOLUNTEER_APPLICATION_RECORD,
+    "delete_row"
+  ),
+  adoptionApplication("applicant_user_id", "identity"),
+  adoptionApplication("participant_profile_id", "identity"),
+  adoptionApplication("date_of_birth_ciphertext", "demographic"),
+  adoptionApplication("phone_ciphertext", "contact"),
+  adoptionApplication("address_ciphertext", "contact"),
+  adoptionApplication("answers_ciphertext", "content"),
+  adoptionApplication("contact_sharing_consent_id", "technical"),
+  adoptionApplication("outcome_reason_ciphertext", "content"),
+  actorColumn(
+    "adoption_application",
+    "decided_by_user_id",
+    ADOPTION_APPLICATION_RECORD
+  ),
+  adoptionStory("body", "content"),
+  adoptionStory("consent_event_id", "technical"),
+  actorColumn(
+    "adoption_story",
+    "published_by_user_id",
+    ADOPTION_APPLICATION_RECORD
+  ),
 ];
 
 const fieldsWithRetentionMessages = INVENTORY_FIELDS.map<InventoryViewEntry>(

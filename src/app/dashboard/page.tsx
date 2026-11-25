@@ -9,12 +9,21 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_ADOPTIONS,
+  ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
+  ADMIN_PRIVACY_REQUESTS,
   ADMIN_REFUNDS,
+  ADMIN_VOLUNTEERS,
   APP_ROUTES,
+  MY_PRIVACY_REQUESTS,
+  DASHBOARD_ADOPTIONS,
+  DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
+  MY_LISTINGS,
+  myListingPath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -67,6 +76,8 @@ async function Areas() {
   ]);
   // Only a safeguarding lead is pointed at the reports (#116).
   const lead = grants.some((grant) => grant.role === "safeguarding_lead");
+  // Only the grievance officer is pointed at privacy requests (#115).
+  const officer = grants.some((grant) => grant.role === "grievance_officer");
   // Finance, staff admins and super admins look after payments (#79).
   const money = grants.some((grant) =>
     (["finance", "staff_admin", "super_admin"] as const).some(
@@ -74,6 +85,20 @@ async function Areas() {
     )
   );
   const finance = grants.some((grant) => grant.role === "finance");
+  // Staff admins and super admins check directory listings (#127).
+  const directory = grants.some(
+    (grant) => grant.role === "staff_admin" || grant.role === "super_admin"
+  );
+  // Community managers and super admins vet volunteers (#123).
+  const community = grants.some(
+    (grant) =>
+      grant.role === "community_manager" ||
+      (grant.role === "super_admin" && grant.scope.type === "global")
+  );
+  // Adoption coordinators handle adoption applications (#130).
+  const adoption = grants.some(
+    (grant) => grant.role === "adoption_coordinator"
+  );
   const competitions = grants.some(
     (grant) =>
       grant.role === "competition_manager" ||
@@ -121,9 +146,13 @@ async function Areas() {
             area={link.area}
             id={link.id}
             lead={lead}
+            officer={officer}
             money={money}
             finance={finance}
+            directory={directory}
             competitions={competitions}
+            community={community}
+            adoption={adoption}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -136,16 +165,24 @@ async function AreaBody({
   area,
   id,
   lead,
+  officer,
   money,
   finance,
+  directory,
   competitions,
+  community,
+  adoption,
 }: {
   area: DashboardLink["area"];
   id?: string;
   lead: boolean;
+  officer: boolean;
   money: boolean;
   finance: boolean;
+  directory: boolean;
   competitions: boolean;
+  community: boolean;
+  adoption: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -169,7 +206,14 @@ async function AreaBody({
         ? links([
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
             { href: APP_ROUTES.guardian, label: t("member.children") },
+            { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
+            { href: MY_LISTINGS, label: t("member.directory") },
+            { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
+            { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
           ])
+        : null}
+      {area === "organisation" && id
+        ? links([{ href: myListingPath(id), label: t("organisation.listing") }])
         : null}
       {area === "institution" && id
         ? links([
@@ -199,6 +243,17 @@ async function AreaBody({
                   },
                 ]
               : []),
+            ...(officer
+              ? [
+                  {
+                    href: ADMIN_PRIVACY_REQUESTS,
+                    label: t("admin.privacyRequests"),
+                  },
+                ]
+              : []),
+            ...(directory
+              ? [{ href: ADMIN_DIRECTORY, label: t("admin.directory") }]
+              : []),
             ...(money
               ? [
                   {
@@ -211,6 +266,12 @@ async function AreaBody({
               : []),
             ...(finance
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
+              : []),
+            ...(community
+              ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
+              : []),
+            ...(adoption
+              ? [{ href: ADMIN_ADOPTIONS, label: t("admin.adoptions") }]
               : []),
           ])
         : null}

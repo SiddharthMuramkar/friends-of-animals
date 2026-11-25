@@ -8,7 +8,7 @@ describe("outcomesOf", () => {
     [{ status: "uploaded", processing: null }, []],
     [{ status: "scanning", processing: null }, []],
     [{ status: "quarantined", processing: null }, ["scan_infected"]],
-    // Bytes that aren't the declared picture can't be opened as one.
+    // Bytes that aren't the declared type can't be opened as it.
     [
       { status: "rejected", processing: null },
       ["scan_clean", "processing_failed"],
@@ -19,10 +19,29 @@ describe("outcomesOf", () => {
       { status: "clean", processing: "failed" },
       ["scan_clean", "processing_failed"],
     ],
-    // Clean with no media job: nothing has made its copies yet.
+    // Clean, its media job not queued yet: nothing has made its copies.
     [{ status: "clean", processing: null }, ["scan_clean"]],
     [{ status: "deleted", processing: null }, []],
-  ] as const)("reads %j as every outcome so far: %j", (file, outcomes) => {
-    expect(outcomesOf(file)).toEqual(outcomes);
+  ] as const)(
+    "reads %j, with a media job, as every outcome so far: %j",
+    (file, outcomes) => {
+      expect(outcomesOf({ ...file, hasMediaJob: true })).toEqual(outcomes);
+    }
+  );
+
+  it("reads a clean file with no media job as ready: an essay's PDF (#86)", () => {
+    expect(
+      outcomesOf({ status: "clean", processing: null, hasMediaJob: false })
+    ).toEqual(["scan_clean", "processed"]);
+    expect(
+      outcomesOf({ status: "scanning", processing: null, hasMediaJob: false })
+    ).toEqual([]);
+    expect(
+      outcomesOf({
+        status: "quarantined",
+        processing: null,
+        hasMediaJob: false,
+      })
+    ).toEqual(["scan_infected"]);
   });
 });

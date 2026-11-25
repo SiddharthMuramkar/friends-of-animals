@@ -45,6 +45,19 @@ Encrypt a column with `encryptedText()` when it identifies a person directly,
 such as a phone number, personal email address or date of birth. An institution's
 own office contact details are stored plain and listed in the catalogue.
 
+A directory listing (#127) can be an individual rescuer's or foster caregiver's own,
+so its name, slug, description, place and contacts are personal data. Its address,
+phone and email are encrypted; city, state and pin code stay plain because the
+public page shows them. The policy `directoryListings` keeps it while it is in the
+directory (no daily job yet, HR-31). Its documents are files of purpose
+`directory_document`, which only staff open.
+
+An adoption listing (#129) is about an animal, so its details are not personal data,
+but its state, city and pin code say where an individual foster caregiver lives; those
+and the representative who wrote it are listed under `directoryListings`, because an
+adoption listing lives and goes with its directory listing. Its photos are files of
+purpose `adoption_photo`; only their resized copies are ever public.
+
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 
@@ -56,6 +69,28 @@ lists who leads the response, who wrote each timeline entry, who was told,
 and the accounts and child profiles a notice couldn't reach. All of it is
 kept while the breach is open and for 5 years after it closes, then deleted
 with the breach (HR-31, pending confirmation).
+
+## Rights requests
+
+A privacy rights request names whose data it is about by id (an account or a
+child's profile) and who filed it. What the requester asks to correct, why a
+request was refused, what was corrected and the grievance officer's notes are
+encrypted. A closed request and its notes are deleted 3 years after it closes
+(`privacyRequests`, HR-31, pending confirmation). An erasure leaves an
+`erasure_record` holding ids only: whose data it erased, what it did with each
+kind of record and what it kept, as proof of the erasure and so it can be done
+again after a backup is restored (HR-30).
+
+## Volunteer applications
+
+A volunteer application holds the applicant's date of birth (encrypted,
+copied from their participant profile when they have one), the areas they
+offered and when they are free, the guardian who approved a 14- to
+17-year-old's application, the consent events behind the two declarations,
+and the community manager who decided, with a decline reason (encrypted).
+An application declined or withdrawn is deleted 365 days after it closes
+(`volunteerApplications`); an approved one stays while the person volunteers
+(HR-31, HR-55, pending confirmation).
 
 ## Scheduled retention
 

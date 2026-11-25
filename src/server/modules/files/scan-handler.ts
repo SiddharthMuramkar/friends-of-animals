@@ -6,7 +6,8 @@
 // upload moved it there (use-cases/upload.ts), so nothing can change it
 // after this read, and a clean file is served as it was scanned. What the
 // file becomes is scanOutcome's call (domain/scan-outcome.ts):
-//   - clean        deliverable to anyone `can()` allows;
+//   - clean        deliverable to anyone `can()` allows; its media job is
+//                  queued, or files.file_ready says it needs none (#86);
 //   - quarantined  moved to `<prefix>quarantine/<id>`, audited, never
 //                  delivered to anyone (files.file_quarantined);
 //   - rejected     its bytes aren't the declared type; the object is
@@ -42,6 +43,7 @@ import {
   type FileEvent,
   type FileStatus,
 } from "./domain/file-status";
+import { mediaJobFor } from "./domain/media-work";
 import { queueMediaWork } from "./process-image";
 import { scanOutcome, type ScanOutcome } from "./domain/scan-outcome";
 import {
@@ -224,12 +226,20 @@ async function settle(
   };
 
   if (status === "clean") {
-    // An image's derivatives are queued with the verdict (#85), never
-    // before it.
+    // An image's or a video's derivatives are queued with the verdict
+    // (#85, #86), never before it. A file that gets none is ready now, and
+    // the module whose upload it was hears so (an essay's PDF, #86).
     await db.transaction(async (tx) => {
-      if (await recordVerdict(tx, file, verdict)) {
+      if (!(await recordVerdict(tx, file, verdict))) return;
+      if (mediaJobFor(file) !== null) {
         await queueMediaWork(tx, clock, file);
+        return;
       }
+      await emit(tx, clock, {
+        type: "files.file_ready",
+        aggregate: { type: "file_asset", id: file.id },
+        payload: { fileId: file.id },
+      });
     });
     return;
   }

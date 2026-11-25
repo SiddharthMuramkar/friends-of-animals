@@ -17,6 +17,9 @@
 //   is confirmed and nothing is refunded;
 // - otherwise nothing changes.
 //
+// A batch of another purpose (a donation, #106) goes to its module's
+// handler (./purposes.ts) in the same transaction, with the batch locked.
+//
 // It doesn't matter how often, or in what order, the signals arrive: a
 // payment the batch was captured with, or that has a case, is never acted
 // on again, so a batch confirms once and a payment is reviewed once, with
@@ -37,9 +40,17 @@ import {
   type PaymentReviewReason,
 } from "./domain/review-case";
 import { knownPaymentIds, openReviewCases } from "./open-review-case";
+import { purposeHandler } from "./purposes";
+
+/** What a sync reads and writes with: a use case's context, or the
+ * worker's deps acting as the worker (#106's expiry schedule). */
+export type SyncContext = Pick<
+  UseCaseContext,
+  "db" | "payments" | "clock" | "actor" | "cipher" | "settings" | "appEnv"
+>;
 
 export async function syncBatch(
-  ctx: UseCaseContext,
+  ctx: SyncContext,
   batchId: string,
   actorRole: Role | null
 ): Promise<SyncOutcome> {
@@ -64,6 +75,16 @@ export async function syncBatch(
   return ctx.db.transaction(async (tx): Promise<SyncOutcome> => {
     const batch = await lockBatchAndParticipation(tx, batchId);
     if (!batch) return "awaiting_payment";
+    // A donation's batch (#106): its module decides what the money does.
+    if (batch.purpose !== "registration_fee") {
+      return purposeHandler(batch.purpose).sync(
+        tx,
+        ctx,
+        batch,
+        payments,
+        actorRole
+      );
+    }
     const decision = decideCapture(
       {
         status: batch.status,
