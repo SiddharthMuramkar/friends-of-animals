@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { messages } from "@/i18n/messages";
+import { LOCALE } from "@/i18n/formats";
+import { MediaViewer } from "@/components/media-viewer/media-viewer";
+import { siteArt } from "@/lib/art";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -197,6 +202,7 @@ const SECTIONS = [
   { id: "showcase", hue: "teal" },
   { id: "dark", hue: "pink" },
   { id: "illustrations", hue: "red" },
+  { id: "viewer", hue: "teal" },
 ] as const satisfies readonly { id: string; hue: TileHue }[];
 
 const HUES: TileHue[] = ["red", "green", "blue", "yellow", "teal", "pink"];
@@ -694,6 +700,39 @@ export default async function Page() {
             {t("illustrations.markNote")}
           </p>
         </Sub>
+      </Section>
+      <Section
+        id="viewer"
+        labelledBy="sg-viewer"
+        width="wide"
+        hue="teal"
+        tone="tint"
+      >
+        <SectionHeading
+          id="sg-viewer"
+          eyebrow="08"
+          tile="teal"
+          title={t("sections.viewer")}
+        />
+        <div className="mt-6 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5">
+          <NextIntlClientProvider
+            locale={LOCALE}
+            timeZone="Asia/Kolkata"
+            messages={{ judgeScoring: messages.judgeScoring }}
+          >
+            <MediaViewer
+              media={{
+                kind: "image",
+                url: siteArt("scene-street-neighbours").plain.src,
+                width: null,
+                height: null,
+                thumbnailUrl: null,
+              }}
+              entryCode="SAMPLE"
+            />
+          </NextIntlClientProvider>
+          <AiMark className="mt-3" />
+        </div>
       </Section>
     </>
   );

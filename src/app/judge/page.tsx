@@ -3,7 +3,11 @@ import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
-import { APP_ROUTES, judgeOnboardingPath } from "@/lib/app-routes";
+import {
+  APP_ROUTES,
+  judgeOnboardingPath,
+  judgeRoundPath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { CARD, JudgeSection, Loading } from "./_components/common";
@@ -23,6 +27,7 @@ async function Rounds() {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const t = await getTranslations("judging");
+  const scoring = await getTranslations("judgeScoring");
   const data = await as(actor).myJudgeRounds();
   return (
     <div className="mt-8 flex flex-col gap-4">
@@ -38,6 +43,12 @@ async function Rounds() {
                 {t(`statuses.${round.status}`)} ·{" "}
                 {t(readiness.ready ? "ready" : "notReady")}
               </p>
+              {readiness.ready &&
+              (round.status === "open" || round.status === "locked") ? (
+                <ButtonLink href={judgeRoundPath(round.id)} prefetch={false}>
+                  {scoring("openAssignments", { name: round.name })}
+                </ButtonLink>
+              ) : null}
               <ButtonLink
                 href={judgeOnboardingPath(round.id)}
                 variant="secondary"
