@@ -66,3 +66,5 @@ export * from "./scoring";
 export * from "./artwork-custody";
 
 export * from "./round-results";
+
+export * from "./results";

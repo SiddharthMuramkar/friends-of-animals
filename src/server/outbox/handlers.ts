@@ -12,6 +12,8 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { publishResultsRelease } from "../modules/results/releases";
+import { sendFamilyPrize } from "../modules/results/messages";
 import { retainUnrequested } from "../modules/physical-artwork/custody";
 import { openArtworkResultsWindow } from "../modules/physical-artwork/results-window";
 import type { Deps } from "../deps";
@@ -147,6 +149,8 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "results.publish": async (deps, delivery) => { await publishResultsRelease({...deps, actor:{kind:"system",process:"worker"}},delivery.payload); },
+  "results.send_family_prize": sendFamilyPrize,
   "verification.forward_individual_entries": (deps, { payload }) =>
     forwardOnSubmissionsClosed(deps, payload),
   "verification.forward_late_entry": (deps, { payload }) =>

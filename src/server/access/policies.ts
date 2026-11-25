@@ -18,6 +18,7 @@ import { COORDINATORS_POLICY } from "../modules/institutions/coordinators/policy
 import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
+import { RESULTS_POLICY } from "../modules/results/policy";
 import { JUDGING_POLICY } from "../modules/judging/policy";
 import { COMPETITION_TERMS_POLICY } from "../modules/competitions/terms/policy";
 import { PAYMENTS_POLICY } from "../modules/payments/policy";
@@ -61,6 +62,7 @@ export const POLICY = composePolicies(
   CONTACT_POLICY,
   SAFEGUARDING_POLICY,
   JUDGING_POLICY,
+  RESULTS_POLICY,
   COMPETITION_TERMS_POLICY,
   PAYMENTS_POLICY,
   PARTICIPANTS_POLICY,
