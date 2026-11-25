@@ -423,3 +423,84 @@ it("keeps delivered sale accounting after either subject erases their data, with
     ledger.postings.filter((p) => p.sourceType === "auction_sale")
   ).toHaveLength(1);
 });
+
+it("reviews wrong-currency and mismatched captures and extra money without selling twice", async () => {
+  const h = await createHarness();
+  await h.seed.preview();
+  const visitor = h.as(h.visitor());
+  const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
+  const other = h.as(await h.signIn(SEED_AUCTIONS.buyerMobile));
+  const finance = h.as((await signInAs(h)).actor);
+  const code = { lotCode: SEED_AUCTIONS.paymentOffer },
+    otherCode = { lotCode: SEED_AUCTIONS.paymentOfferMobile };
+  const offer = (await buyer.getMyAuctionOffer(code))!,
+    secondOffer = (await other.getMyAuctionOffer(otherCode))!;
+  const order = await buyer.openAuctionCheckout({ offerId: offer.id }),
+    secondOrder = await other.openAuctionCheckout({ offerId: secondOffer.id });
+  if (!order.ok || !secondOrder.ok) throw new Error("Checkout refused");
+  h.gateway.capture(order.checkout.orderId, {
+    amount: { amountMinor: 500n, currency: "USD" },
+  });
+  h.gateway.capture(order.checkout.orderId, {
+    amount: { amountMinor: 100n, currency: "INR" },
+  });
+  expect(
+    await visitor.receiveGatewayWebhook(
+      h.gateway.webhook({
+        type: "payment.captured",
+        orderId: order.checkout.orderId,
+      })
+    )
+  ).toMatchObject({ ok: true, outcome: "needs_review" });
+  expect(await buyer.getMyAuctionOffer(code)).toMatchObject({
+    status: "open",
+    batchStatus: "needs_review",
+  });
+  h.gateway.capture(secondOrder.checkout.orderId);
+  expect(
+    await visitor.receiveGatewayWebhook(
+      h.gateway.webhook({
+        type: "payment.captured",
+        orderId: secondOrder.checkout.orderId,
+      })
+    )
+  ).toMatchObject({ ok: true, outcome: "captured" });
+  h.gateway.capture(secondOrder.checkout.orderId);
+  expect(
+    await visitor.receiveGatewayWebhook(
+      h.gateway.webhook({
+        type: "payment.captured",
+        orderId: secondOrder.checkout.orderId,
+      })
+    )
+  ).toMatchObject({ ok: true, outcome: "needs_review" });
+  expect(await other.getMyAuctionOffer(otherCode)).toMatchObject({
+    status: "paid",
+    batchStatus: "captured",
+  });
+  const reviewed = await finance.listPaymentReviewCases({ state: "open" });
+  if (!reviewed.ok) throw new Error("Review denied");
+  expect(reviewed.cases.filter((c) => c.batchId === order.batchId)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ currency: "USD", reason: "amount_mismatch" }),
+      expect.objectContaining({
+        currency: "INR",
+        amountMinor: 100n,
+        reason: "amount_mismatch",
+      }),
+    ])
+  );
+  expect(
+    reviewed.cases.filter((c) => c.batchId === secondOrder.batchId)
+  ).toEqual([
+    expect.objectContaining({ reason: "already_paid", amountMinor: 160101n }),
+  ]);
+  const ledger = await finance.listPostings({});
+  if (!ledger.ok) throw new Error("Ledger denied");
+  expect(
+    ledger.postings.filter((p) => p.sourceType === "auction_sale")
+  ).toHaveLength(2);
+  expect(
+    ledger.postings.filter((p) => p.sourceType === "auction_review")
+  ).toHaveLength(2);
+});
