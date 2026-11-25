@@ -19,7 +19,7 @@ export type OfflineCapture = {
   registrations: readonly RegistrationAtCapture[];
   /** The proof file named in the form, or null if there's no such file. */
   proof: {
-    ownerUserId: string;
+    ownerUserId: string | null;
     purpose: FilePurpose;
     status: FileStatus;
   } | null;

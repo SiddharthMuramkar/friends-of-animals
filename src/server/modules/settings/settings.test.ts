@@ -642,6 +642,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "retention.communityMembersDays",
+        value: 365,
+        defaultValue: 365,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 7305, unit: "days" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "retention.adoptionApplicationsDays",
         value: 730,
         defaultValue: 730,

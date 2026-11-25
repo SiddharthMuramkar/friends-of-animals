@@ -6,6 +6,11 @@ import {
   saleValues,
 } from "../auctions/messages";
 import {
+  certificateReadyRecipients,
+  certificateReadyValues,
+  CERTIFICATE_READY_VARIABLES,
+} from "../certificates/messages";
+import {
   PRIZE_VARIABLES,
   prizeRecipients,
   prizeValues,
@@ -51,6 +56,7 @@ import {
   competition,
   competitionTransitionBlock,
   auctionBid,
+  auctionLot,
   institution,
   userRole,
 } from "../../db/schema";
@@ -325,6 +331,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "artwork.returned":
     case "results.release_due":
     case "results.prize_awarded":
+    case "community.member_joined":
+    case "engagement.milestone_recorded":
+    case "certificate.render":
+    case "certificates.ready":
     case "results.published":
     case "auction.lot_created":
     case "auction.lot.open":
@@ -448,6 +458,10 @@ export const AUDIENCES = {
   auction_school: async (db, delivery) =>
     delivery.eventType === "auction.sale_captured"
       ? schoolRecipients(db, delivery.payload.offerId)
+      : [],
+  certificate_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "certificates.ready" && cipher
+      ? certificateReadyRecipients(db, delivery.payload, cipher)
       : [],
   prize_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "results.prize_awarded" && cipher
@@ -963,7 +977,14 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: PRIZE_VARIABLES,
     load: (db, delivery) => prizeValues(db, delivery.payload),
   },
+  "community.member_joined": { names: [], load: async () => ({}) },
+  "engagement.milestone_recorded": { names: [], load: async () => ({}) },
   "results.published": { names: [], load: async () => ({}) },
+  "certificate.render": { names: [], load: async () => ({}) },
+  "certificates.ready": {
+    names: CERTIFICATE_READY_VARIABLES,
+    load: (db, delivery) => certificateReadyValues(db, delivery.payload),
+  },
   "auction.lot_created": { names: [], load: async () => ({}) },
   "auction.lot.open": { names: [], load: async () => ({}) },
   "auction.lot.close": { names: [], load: async () => ({}) },
@@ -971,7 +992,15 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "auction.lot_closed": { names: [], load: async () => ({}) },
   "auction.bid_outbid": {
     names: ["lot.code"],
-    load: async (_db, { payload }) => ({ "lot.code": payload.lotCode }),
+    load: async (db, { payload }): Promise<Record<string, string>> => {
+      const [row] = await db
+        .select({ code: auctionLot.lotCode })
+        .from(auctionBid)
+        .innerJoin(auctionLot, eq(auctionBid.lotId, auctionLot.id))
+        .where(eq(auctionBid.id, payload.previousBidId));
+      if (!row) return {};
+      return { "lot.code": row.code };
+    },
   },
   "auction.offer_opened": {
     names: ["lot.code", "offer.link", "offer.deadline"],

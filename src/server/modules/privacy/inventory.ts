@@ -757,7 +757,99 @@ const judgeConflictRecord = rowsOf("judge_conflict", {
   retention: JUDGING_RECORD,
   onExpiry: "delete_row",
 });
+const COMMUNITY_HISTORY = {
+  policy: "communityHistory",
+  periodKey: "communityHistory",
+  basis: "The person's private engagement journey, including earned milestones",
+  toConfirm: true,
+} as const;
+const LEFT_MEMBER_PROFILE = {
+  policy: "communityMembers",
+  periodKey: "communityMembers",
+  basis:
+    "Keeping the member profile available while active, then clearing its identifying text after departure",
+  toConfirm: true,
+} as const;
+function communitySubjectField(
+  table: string,
+  column: "subject_user_id" | "subject_profile_id"
+): InventoryField {
+  return rowsOf(table, {
+    subject: {
+      kind: column === "subject_user_id" ? "user" : "participant_profile",
+      via: column,
+    },
+    retention: COMMUNITY_HISTORY,
+    onExpiry: "delete_row",
+  })(column, "identity");
+}
+function communityField(
+  table: string,
+  column: string,
+  category: PersonalDataCategory,
+  profileText = false
+): InventoryField {
+  return rowsOf(table, {
+    subject: {
+      kind: "community_subject",
+      via: "subject_user_id or subject_profile_id",
+    },
+    retention: profileText ? LEFT_MEMBER_PROFILE : COMMUNITY_HISTORY,
+    onExpiry: profileText ? "set_null" : "delete_row",
+  })(column, category);
+}
+
 const INVENTORY_FIELDS: readonly InventoryField[] = [
+  // Private community history follows the account/profile; text left after
+  // departure is cleared by the configured 365-day policy.
+  ...["community_member", "engagement_milestone", "timeline_entry"].flatMap(
+    (table) => [
+      communitySubjectField(table, "subject_user_id"),
+      communitySubjectField(table, "subject_profile_id"),
+    ]
+  ),
+  actorColumn("community_member", "joined_by_user_id", COMMUNITY_HISTORY),
+  communityField(
+    "community_member",
+    "display_name_ciphertext",
+    "identity",
+    true
+  ),
+  communityField("community_member", "about_ciphertext", "content", true),
+  communityField("engagement_milestone", "kind", "content"),
+  communityField("engagement_milestone", "source_id", "technical"),
+  communityField("timeline_entry", "kind", "content"),
+  communityField("timeline_entry", "ref_id", "technical"),
+  communityField("timeline_entry", "source_key", "technical"),
+  communityField("timeline_entry", "milestone_id", "technical"),
+  ...[
+    "participant_profile_id",
+    "registration_id",
+    "number",
+    "name_snapshot",
+    "award_position",
+    "award_label",
+    "type",
+    "revoked_reason",
+    "pdf_file_id",
+  ].map((c) =>
+    rowsOf("certificate", {
+      subject: { kind: "participant_profile", via: "participant_profile_id" },
+      retention: JUDGING_RECORD,
+      onExpiry: "delete_row",
+    })(
+      c,
+      c === "name_snapshot" || c === "participant_profile_id"
+        ? "identity"
+        : "content"
+    )
+  ),
+  actorColumn("certificate", "revoked_by_user_id", STAFF_RECORD),
+  rowsOf("certificate_ready_notice", {
+    subject: { kind: "user", via: "recipient_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("recipient_user_id", "identity"),
   ...[
     "created_by_user_id",
     "opened_by_user_id",

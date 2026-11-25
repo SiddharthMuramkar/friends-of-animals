@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
+  CERTIFICATE_VERIFY_PREFIX,
   CONSENT_LINK_PREFIX,
   DONATION_CHECKOUT_PREFIX,
   individualRegisterSlug,
@@ -218,6 +219,9 @@ export function createProxy({
     if (appEnv() === "production" && isNonProductionPath(pathname)) {
       return missingSignedInPage(request);
     }
+    // Public certificate verification needs a full response even without JS.
+    if (isUnderPrefix(pathname, [CERTIFICATE_VERIFY_PREFIX]))
+      return withNonceCsp(request);
     // Bearer links use the nonce policy and render without sign-in.
     if (isUnderPrefix(pathname, [CONSENT_LINK_PREFIX])) {
       return isConsentLinkPage(pathname)

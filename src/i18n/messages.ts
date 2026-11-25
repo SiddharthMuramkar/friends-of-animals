@@ -1,3 +1,5 @@
+import certificatePdf from "../../messages/en-IN/certificatePdf.json";
+import certificates from "../../messages/en-IN/certificates.json";
 import results from "../../messages/en-IN/results.json";
 // Every namespace file, imported statically so the merged messages are typed
 // and bundled at build time. One file per namespace: each agent edits its own.
@@ -57,6 +59,7 @@ import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
+import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
 import donorDashboard from "../../messages/en-IN/donorDashboard.json";
@@ -158,6 +161,7 @@ export const NAMESPACES = [
   "directory",
   "adoption",
   "adoptionApplications",
+  "community",
   "donate",
   "donationCheckout",
   "donorDashboard",
@@ -166,6 +170,8 @@ export const NAMESPACES = [
   "adminDonations",
   "entries",
   "artwork",
+  "certificates",
+  "certificatePdf",
   "artworkCustody",
   "auctions",
   "error",
@@ -261,6 +267,7 @@ export const messages = {
   ...directory,
   ...adoption,
   ...adoptionApplications,
+  ...community,
   ...donate,
   ...donationCheckout,
   ...donorDashboard,
@@ -269,6 +276,8 @@ export const messages = {
   ...adminDonations,
   ...entries,
   ...artwork,
+  ...certificates,
+  ...certificatePdf,
   ...artworkCustody,
   ...auctions,
   ...error,

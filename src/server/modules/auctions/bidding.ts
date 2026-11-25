@@ -123,7 +123,7 @@ export async function placeBid(ctx: UseCaseContext, input: PlaceBidInput) {
       await emit(tx, ctx.clock, {
         type: "auction.bid_outbid",
         aggregate: { type: "auction_bid", id: bidId },
-        payload: { previousBidId: previous.id, lotCode: lot.lotCode },
+        payload: { previousBidId: previous.id },
       });
     }
     return {

@@ -32,6 +32,9 @@ import { getTableConfig, PgTable, type PgColumn } from "drizzle-orm/pg-core";
 import * as schema from "../../../../db/schema";
 import {
   account,
+  communityMember,
+  engagementMilestone,
+  timelineEntry,
   auditLog,
   consentEvent,
   consentForm,
@@ -79,6 +82,7 @@ import {
   user,
   userRole,
 } from "../../../../db/schema";
+import { COMMUNITY_MEMBER_PURPOSE } from "../../../community/profile-fields";
 import { USER_PHONE } from "../../../../identity/stored-phone";
 import { DONOR_PURPOSE } from "../../../donations/donors";
 import { LINK_CONTACT } from "../../../consent-links/repository";
@@ -156,10 +160,44 @@ export const PARTICIPANT_FILE_PURPOSES = [
   ...ENTRY_FILE_PURPOSES,
   "consent_form",
   "artwork_condition_photo",
+  "certificate_pdf",
 ] as const;
 
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
+  {
+    table: communityMember,
+    where: (scope) =>
+      or(
+        within(communityMember.subjectUserId, users(scope)),
+        within(communityMember.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    decrypt: {
+      display_name_ciphertext: COMMUNITY_MEMBER_PURPOSE.displayName,
+      about_ciphertext: COMMUNITY_MEMBER_PURPOSE.about,
+    },
+    withhold: ["joined_by_user_id"],
+  },
+  {
+    table: engagementMilestone,
+    where: (scope) =>
+      or(
+        within(engagementMilestone.subjectUserId, users(scope)),
+        within(engagementMilestone.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+  },
+  {
+    table: timelineEntry,
+    where: (scope) =>
+      or(
+        within(timelineEntry.subjectUserId, users(scope)),
+        within(timelineEntry.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    withhold: ["source_key"],
+  },
   {
     table: user,
     where: (scope) => within(user.id, users(scope)),
@@ -307,6 +345,13 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: schema.certificate,
+    where: (scope) =>
+      within(schema.certificate.participantProfileId, profiles(scope)),
+    owners: ["participant_profile_id"],
+    withhold: ["revoked_by_user_id", "revoked_reason"],
+  },
+  {
     table: schema.resultAward,
     where: (scope) =>
       sql`${schema.resultAward.entryId} IN ${entryIdsOf(scope)} AND ${schema.resultAward.releaseId} IN (SELECT ${schema.resultRelease.id} FROM ${schema.resultRelease} WHERE ${schema.resultRelease.status} = 'published')`,
@@ -416,6 +461,7 @@ export const SECTIONS: readonly Section[] = [
           within(fileAsset.ownerUserId, users(scope)),
           notInArray(fileAsset.purpose, [...PARTICIPANT_FILE_PURPOSES])
         ),
+        sql`${fileAsset.id} IN (SELECT ${schema.certificate.pdfFileId} FROM ${schema.certificate} WHERE ${within(schema.certificate.participantProfileId, profiles(scope))})`,
         sql`${fileAsset.id} IN (SELECT ${artworkPhoto.fileAssetId} FROM ${artworkPhoto} INNER JOIN ${physicalArtwork} ON ${physicalArtwork.id} = ${artworkPhoto.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${entryFile.fileAssetId} FROM ${entryFile} WHERE ${entryFile.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${consentForm.fileAssetId} FROM ${consentForm} WHERE ${within(consentForm.participantProfileId, profiles(scope))})`
@@ -593,6 +639,7 @@ export const SECTIONS: readonly Section[] = [
 
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
+  certificate_ready_notice: "background_job",
   verification: "sign_in_secret",
   receipt_link: "receipt_bearer_link",
   otp_rate_limit: "keyed_hash_only",

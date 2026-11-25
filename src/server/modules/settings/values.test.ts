@@ -207,6 +207,7 @@ describe("resolveAllSettings", () => {
       ["retention.guardianInvitationsDays", 30, "default"],
       ["retention.contactMessagesMonths", 24, "default"],
       ["retention.volunteerApplicationsDays", 365, "default"],
+      ["retention.communityMembersDays", 365, "default"],
       ["retention.adoptionApplicationsDays", 730, "default"],
       ["retention.releasedLegalHoldsDays", 365, "default"],
       ["retention.financialRecordsDays", 2922, "default"],

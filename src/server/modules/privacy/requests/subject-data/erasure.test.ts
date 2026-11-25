@@ -9,6 +9,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   auditLog,
+  communityMember,
+  engagementMilestone,
+  timelineEntry,
   consentEvent,
   entry,
   erasureRecord,
@@ -225,6 +228,12 @@ describe("executeErasure", () => {
     await h.settings.set("privacy.erasureEnabled", true);
     const asha = await participantWithEntry(h, await paidCompetition(h), ASHA);
     await withMessagesConsent(h, asha);
+    expect(
+      await h.as(asha.actor).joinCommunity({
+        displayName: "Private member",
+        about: "Private introduction",
+      })
+    ).toMatchObject({ ok: true });
     const filed = await erasureFiled(h, asha);
     const [entryRow] = await h.db
       .select({ fileId: fileAsset.id, key: fileAsset.storageKey })
@@ -234,6 +243,18 @@ describe("executeErasure", () => {
     const mark = h.email.sent.length;
 
     const plan = await erase(h, filed);
+    expect(plan.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "community_history",
+          action: "delete",
+          count: 3,
+        }),
+      ])
+    );
+    expect(await h.db.select().from(communityMember)).toEqual([]);
+    expect(await h.db.select().from(engagementMilestone)).toEqual([]);
+    expect(await h.db.select().from(timelineEntry)).toEqual([]);
 
     // The profile stays for the paid registration, with nothing of Asha.
     const profile = await profileOf(h, asha.profileId);

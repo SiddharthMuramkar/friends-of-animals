@@ -11,6 +11,7 @@
 
 import {
   CHECKOUT_ROUTES,
+  CERTIFICATE_VERIFY_PREFIX,
   CONSENT_LINK_PREFIX,
   DONATION_CHECKOUT_PREFIX,
   DONATION_THANK_YOU,
@@ -95,6 +96,8 @@ const BEARER_HEADERS: SecurityHeader[] = [
 export function consentLinkHeaders(): HeaderRule[] {
   return [
     `${CONSENT_LINK_PREFIX}/:path*`,
+    CERTIFICATE_VERIFY_PREFIX,
+    `${CERTIFICATE_VERIFY_PREFIX}/:path*`,
     `${DONATION_CHECKOUT_PREFIX}/:path*`,
     DONATION_THANK_YOU,
     RECEIPTS_PREFIX,

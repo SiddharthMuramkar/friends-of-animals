@@ -23,6 +23,7 @@ import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import { grantGlobalRole } from "../../access/flow-grant";
+import { convergeCommunityIdentity } from "../community/converge";
 import { recordAudit } from "../../audit/record";
 import {
   createLinkToken,
@@ -517,6 +518,7 @@ export async function acceptTeenInvitation(
       .update(participantProfile)
       .set({ loginUserId: userId, updatedAt: now })
       .where(eq(participantProfile.id, child.id));
+    await convergeCommunityIdentity(tx, ctx, userId, child.id);
     await tx
       .update(guardianInvitation)
       .set({

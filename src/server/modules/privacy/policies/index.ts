@@ -14,6 +14,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { COMMUNITY_MEMBERS } from "./community";
 import { CONTACT_MESSAGES } from "./contact";
 import { FINANCIAL_RECORDS } from "./financial";
 import { QUARANTINED_FILES } from "./files";
@@ -58,6 +59,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   SAFEGUARDING_REPORTS,
   BREACH_RECORDS,
   VOLUNTEER_APPLICATIONS,
+  COMMUNITY_MEMBERS,
   ADOPTION_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
@@ -130,6 +132,7 @@ export const LIFECYCLE_POLICY_KEYS = [
   "erasureRecords",
   /** Campaigns (#126): kept with the campaign's record. */
   "campaigns",
+  "communityHistory",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

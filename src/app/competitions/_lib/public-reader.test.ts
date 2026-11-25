@@ -19,7 +19,7 @@ describe("the public pages' reader", () => {
     expect(list.map((c) => [c.slug, c.status, c.sample])).toEqual([
       ["originals-for-animals", "FOA_JUDGING", false],
       ["kindness-in-art", "FOA_JUDGING", false],
-      ["art-for-kindness", "FOA_JUDGING", false],
+      ["art-for-kindness", "RESULTS_PUBLISHED", false],
       ["kinder-skies", "SCHOOL_JUDGING", false],
       // Open for the school's submissions (#87).
       ["trees-for-birds", "REGISTRATION_CLOSED", false],

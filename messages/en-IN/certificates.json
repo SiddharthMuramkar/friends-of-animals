@@ -1,0 +1,63 @@
+{
+  "certificates": {
+    "title": "Certificates",
+    "myLead": "Your certificates and those of children you manage. Download a PDF when it is ready.",
+    "adminLead": "Review issued certificates and retry any PDF that failed to render.",
+    "empty": "No certificates yet.",
+    "competition": "Competition",
+    "competitionWithCode": "{name} ({code})",
+    "issuedOn": "{day}/{month}/{year}",
+    "choose": "Show certificates",
+    "verify": "Verify certificate",
+    "verifyLead": "Scan the QR code on your certificate or enter its number below to check its validity.",
+    "number": "Certificate number",
+    "numberHelp": "For example, FOA-C-27-9XQ4M2T7KD.",
+    "lookup": "Check certificate",
+    "another": "Check another certificate",
+    "valid": "Valid certificate",
+    "unknown": "Unknown certificate",
+    "unknownLead": "No certificate matches that number. Check the spelling on the certificate and try again.",
+    "revoked": "Revoked certificate",
+    "revokedLead": "This certificate is no longer valid.",
+    "limited": "Too many checks",
+    "limitedLead": "Please try again in {seconds} seconds.",
+    "withheld": "Name withheld",
+    "loading": "Checking certificate…",
+    "award": "Recognition",
+    "date": "Issued on",
+    "recipient": "Recipient",
+    "download": "Download PDF",
+    "retry": "Retry PDF render",
+    "success": "Retry requested.",
+    "failure": "That certificate cannot be retried.",
+    "renderStatus": {
+      "pending": "PDF pending",
+      "failed": "PDF failed",
+      "rendered": "PDF ready"
+    },
+    "status": {
+      "issued": "Issued",
+      "revoked": "Revoked",
+      "superseded": "Replaced"
+    },
+    "type": {
+      "participation": "Participation",
+      "school_merit": "School merit",
+      "finalist": "Finalist",
+      "winner": "Winner",
+      "runner_up": "Runner-up",
+      "volunteer_service": "Volunteer service"
+    },
+    "bands": {
+      "first": "First place",
+      "second": "Second place",
+      "third": "Third place",
+      "gold": "Gold",
+      "silver": "Silver",
+      "bronze": "Bronze",
+      "grade_a": "Grade A",
+      "grade_b": "Grade B"
+    },
+    "position": "Position {position}"
+  }
+}

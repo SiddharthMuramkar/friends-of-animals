@@ -58,6 +58,16 @@ type EntryVerificationPayload = {
 };
 
 export type DomainEvent =
+  | {
+      type: "community.member_joined";
+      aggregate: { type: "community_member"; id: string };
+      payload: { memberId: string };
+    }
+  | {
+      type: "engagement.milestone_recorded";
+      aggregate: { type: "engagement_milestone"; id: string };
+      payload: { milestoneId: string };
+    }
   /** A listing was registered, or renamed and sent back for review. */
   | DirectoryListingEvent<"directory.listing_submitted">
   /** FOA verified it: it is public, and its owner represents it. */
@@ -481,6 +491,20 @@ export type DomainEvent =
       };
     }
   | {
+      type: "certificate.render";
+      aggregate: { type: "certificate"; id: string };
+      payload: { certificateId: string };
+    }
+  | {
+      type: "certificates.ready";
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        recipientUserId: string;
+      };
+    }
+  | {
       type: "auction.lot_created";
       aggregate: { type: "auction_lot"; id: string };
       payload: { lotId: string };
@@ -508,7 +532,7 @@ export type DomainEvent =
   | {
       type: "auction.bid_outbid";
       aggregate: { type: "auction_bid"; id: string };
-      payload: { previousBidId: string; lotCode: string };
+      payload: { previousBidId: string };
     }
   | {
       type: "auction.offer_opened";
@@ -920,6 +944,8 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "community.member_joined": z.object({ memberId: z.uuid() }),
+  "engagement.milestone_recorded": z.object({ milestoneId: z.uuid() }),
   "consent.form_reviewed": z.object({
     formId: z.uuid(),
     uploaderUserId: z.uuid(),
@@ -1053,6 +1079,12 @@ export const EVENT_PAYLOADS = {
     releaseId: z.uuid(),
     publishedAt: z.iso.datetime(),
   }),
+  "certificate.render": z.object({ certificateId: z.uuid() }),
+  "certificates.ready": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    recipientUserId: z.uuid(),
+  }),
   "auction.lot_created": z.object({ lotId: z.uuid() }),
   "auction.lot.open": z.object({ lotId: z.uuid() }),
   "auction.lot.close": z.object({ lotId: z.uuid() }),
@@ -1060,7 +1092,6 @@ export const EVENT_PAYLOADS = {
   "auction.lot_closed": z.object({ lotId: z.uuid() }),
   "auction.bid_outbid": z.object({
     previousBidId: z.uuid(),
-    lotCode: z.string().regex(/^LOT-\d{2}-[0-9A-HJKMNP-TV-Z]{5}$/),
   }),
   "auction.offer_opened": z.object({ offerId: z.uuid() }),
   "auction.offer.expire": z.object({ offerId: z.uuid() }),
@@ -1190,6 +1221,9 @@ export function parseStoredEventPayload(
  * none.
  */
 export const SUBSCRIBERS = {
+  // No route sends a message for these yet; the domain facts are durable.
+  "community.member_joined": ["notifications.dispatch"],
+  "engagement.milestone_recorded": ["notifications.dispatch"],
   "consent.form_reviewed": ["notifications.dispatch"],
   "identity.user_signed_up": ["notifications.dispatch"],
   "files.file_uploaded": ["files.scan_file"],
@@ -1303,7 +1337,13 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "results.send_family_prize",
   ],
-  "results.published": ["artwork.open_results_window"],
+  "results.published": [
+    "artwork.open_results_window",
+    "certificates.issue",
+    "community.record_results",
+  ],
+  "certificate.render": ["certificate.render"],
+  "certificates.ready": ["notifications.dispatch"],
   "artwork.retain_unrequested": ["artwork.retain_unrequested"],
   "auction.lot_created": ["notifications.dispatch"],
   "auction.lot.open": ["auctions.open_lot"],

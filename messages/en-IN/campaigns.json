@@ -63,7 +63,9 @@
           "not_found": "That campaign no longer exists.",
           "campaign_not_editable": "This campaign has been sent, so it can no longer be changed.",
           "campaign_draft_changed": "Someone saved this draft since you opened it. Reload the page and try again."
-        }
+        },
+        "milestones": "Engagement milestones",
+        "milestonesHint": "Leave all unticked for any engagement journey. Earned milestones remain in history even after leaving."
       },
       "roles": {
         "guardian": "Guardians",
@@ -84,7 +86,8 @@
         "rolesLine": "Roles: {list}",
         "competitionsLine": "Competitions: {list}",
         "citiesLine": "Cities: {list}",
-        "contentTitle": "What it says"
+        "contentTitle": "What it says",
+        "milestonesLine": "Engagement milestones: {list}"
       },
       "preview": {
         "title": "Preview",

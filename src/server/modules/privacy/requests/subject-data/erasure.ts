@@ -30,6 +30,11 @@ import type { FieldCipher } from "../../../../crypto/field-cipher";
 import type { AppDb } from "../../../../db/app-db";
 import {
   account,
+  certificate,
+  communityMember,
+  engagementMilestone,
+  timelineEntry,
+  certificateReadyNotice,
   auditLog,
   artworkPhoto,
   physicalArtwork,
@@ -383,8 +388,24 @@ export async function gatherErasure(
         )
       )
   ).map((row) => row.id);
+  const certificateFileIds = (
+    await db
+      .select({ id: certificate.pdfFileId })
+      .from(certificate)
+      .where(
+        and(
+          within(certificate.participantProfileId, profileIds),
+          isNotNull(certificate.pdfFileId)
+        )
+      )
+  ).map((r) => r.id!);
   const fileIds = [
-    ...new Set([...entryFileIds, ...artworkFileIds, ...uploadIds]),
+    ...new Set([
+      ...entryFileIds,
+      ...artworkFileIds,
+      ...uploadIds,
+      ...certificateFileIds,
+    ]),
   ];
 
   // A registration a payment, a refund or consent evidence names stays.
@@ -529,6 +550,40 @@ export async function gatherErasure(
       )),
     uploads: uploadIds.length,
     entries: entryIds.length,
+    communityHistory:
+      (await n(
+        db
+          .select({ n: count() })
+          .from(communityMember)
+          .where(
+            or(
+              within(communityMember.subjectUserId, users),
+              within(communityMember.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(engagementMilestone)
+          .where(
+            or(
+              within(engagementMilestone.subjectUserId, users),
+              within(engagementMilestone.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(timelineEntry)
+          .where(
+            or(
+              within(timelineEntry.subjectUserId, users),
+              within(timelineEntry.subjectProfileId, profileIds)
+            )
+          )
+      )),
     auctionBids: await n(
       db
         .select({ n: count() })
@@ -705,6 +760,37 @@ async function eraseRecords(
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
+  // A paid account or profile can remain for a statutory floor, but its
+  // community history is not a financial record. Erase both subject keys.
+  await tx
+    .delete(timelineEntry)
+    .where(
+      or(
+        within(timelineEntry.subjectUserId, users),
+        within(timelineEntry.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx
+    .delete(engagementMilestone)
+    .where(
+      or(
+        within(engagementMilestone.subjectUserId, users),
+        within(engagementMilestone.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx
+    .delete(communityMember)
+    .where(
+      or(
+        within(communityMember.subjectUserId, users),
+        within(communityMember.subjectProfileId, scope.profileIds)
+      )
+    );
+  // A retained guardian account is not the member's identity.
+  await tx
+    .update(communityMember)
+    .set({ joinedByUserId: null })
+    .where(within(communityMember.joinedByUserId, users));
   // Preserve accepted amounts and deadlines, even for an account retained
   // only for other financial records. Erasure never lowers the lot's price.
   await tx
@@ -731,6 +817,12 @@ async function eraseRecords(
     .where(within(roundAssignment.entryId, entryIds));
   await tx.delete(judgeConflict).where(within(judgeConflict.entryId, entryIds));
   await tx.delete(roundEntry).where(within(roundEntry.entryId, entryIds));
+  await tx
+    .delete(certificateReadyNotice)
+    .where(within(certificateReadyNotice.recipientUserId, users));
+  await tx
+    .delete(certificate)
+    .where(within(certificate.participantProfileId, scope.profileIds));
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx
