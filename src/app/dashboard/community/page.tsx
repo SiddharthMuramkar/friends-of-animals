@@ -6,7 +6,11 @@ import { MemberProfile } from "@/components/community/member-profile";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { DASHBOARD_TIMELINE, APP_ROUTES } from "@/lib/app-routes";
+import {
+  DASHBOARD_TIMELINE,
+  DASHBOARD_AMBASSADORS,
+  APP_ROUTES,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
@@ -51,6 +55,9 @@ async function Community({
     <div className="mt-8 space-y-6">
       <MemberProfile data={data} query={query} />
       <div className="flex flex-wrap gap-3">
+        <ButtonLink href={DASHBOARD_AMBASSADORS} variant="secondary">
+          {t("ambassadorsLink")}
+        </ButtonLink>
         <ButtonLink href={DASHBOARD_TIMELINE} variant="secondary">
           {t("timelineLink")}
         </ButtonLink>

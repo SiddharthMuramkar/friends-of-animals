@@ -18,6 +18,12 @@ describe("the settings seed", () => {
     expect(await rows()).toEqual(first);
     expect(first.map(({ key, value }) => ({ key, value }))).toEqual([
       { key: "adoption.minAdopterAgeYears", value: 18 },
+      { key: "ambassadors.minAgeYears", value: 18 },
+      { key: "ambassadors.minMembershipDays", value: 90 },
+      {
+        key: "ambassadors.qualifyingMilestones",
+        value: "foa_finalist,volunteer",
+      },
       { key: "artwork.dispatchDays", value: 14 },
       { key: "artwork.dispatchReminderLeadHours", value: 72 },
       {
@@ -71,6 +77,7 @@ describe("the settings seed", () => {
       { key: "reminders.schoolRoundShortlistDueFirstHours", value: 72 },
       { key: "reminders.schoolRoundShortlistDueSecondHours", value: 24 },
       { key: "retention.adoptionApplicationsDays", value: 730 },
+      { key: "retention.ambassadorApplicationsDays", value: 365 },
       { key: "retention.capturedMessagesDays", value: 30 },
       { key: "retention.clubApplicationsDays", value: 730 },
       { key: "retention.clubMembershipsDays", value: 730 },

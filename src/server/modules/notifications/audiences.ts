@@ -1,4 +1,9 @@
 import {
+  ambassadorApplicant,
+  ambassadorReviewers,
+  ambassadorDeclineValues,
+} from "../community/ambassadors/messages";
+import {
   clubNoticeRecipients,
   clubNoticeValues,
   CLUB_NOTICE_VARIABLES,
@@ -364,6 +369,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "event.registration_created":
     case "event.registration_cancelled":
     case "event.waitlist_promoted":
+    case "ambassador.application_submitted":
+    case "ambassador.application_approved":
+    case "ambassador.application_declined":
     case "community.member_joined":
     case "engagement.milestone_recorded":
     case "certificate.archive_requested":
@@ -723,6 +731,20 @@ export const AUDIENCES = {
    * Whoever applied to volunteer (#123): an adult on every channel the
    * route names, a teen in the inbox only.
    */
+  ambassador_applicant: async (db, delivery) => {
+    switch (delivery.eventType) {
+      case "ambassador.application_submitted":
+      case "ambassador.application_approved":
+      case "ambassador.application_declined":
+        return ambassadorApplicant(db, delivery.payload.applicationId);
+      default:
+        return [];
+    }
+  },
+  ambassador_reviewers: async (db, delivery) =>
+    delivery.eventType === "ambassador.application_submitted"
+      ? ambassadorReviewers(db, delivery.payload.applicationId)
+      : [],
   club_applicant: async (db, delivery) =>
     delivery.eventType === "club.decision_recorded"
       ? clubNoticeRecipients(db, delivery.payload.decisionId)
@@ -1066,6 +1088,13 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "results.prize_awarded": {
     names: PRIZE_VARIABLES,
     load: (db, delivery) => prizeValues(db, delivery.payload),
+  },
+  "ambassador.application_submitted": { names: [], load: async () => ({}) },
+  "ambassador.application_approved": { names: [], load: async () => ({}) },
+  "ambassador.application_declined": {
+    names: ["decline.reason"],
+    load: (db, { payload }, cipher) =>
+      ambassadorDeclineValues(db, payload.applicationId, cipher),
   },
   "community.member_joined": { names: [], load: async () => ({}) },
   "engagement.milestone_recorded": { names: [], load: async () => ({}) },
