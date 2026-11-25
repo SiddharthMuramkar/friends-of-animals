@@ -67,7 +67,7 @@ it("round creation and rubric revision share a competition-first lock order", as
   const now = world.clock.now();
   await world.db.insert(competition).values({
     id: competitionId,
-    code: `${[...suffix.slice(0, 6)].map((ch) => String.fromCharCode(65 + Number.parseInt(ch, 16))).join("")}98`,
+    code: `${Array.from({ length: 6 }, (_, i) => String.fromCharCode(65 + Number.parseInt(suffix[i]!, 16))).join("")}98`,
     slug: `round-rubric-race-${suffix.toLowerCase()}`,
     name: "Round pin race",
     status: "published",
