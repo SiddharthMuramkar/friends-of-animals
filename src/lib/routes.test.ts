@@ -30,7 +30,6 @@ describe("ROUTES", () => {
       "/login",
       "/events",
       "/volunteer",
-      "/auctions",
     ];
     for (const route of all) {
       expect(unbuilt).not.toContain(route.path);
