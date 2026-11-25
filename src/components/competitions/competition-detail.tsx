@@ -166,18 +166,29 @@ export async function CompetitionDetail({
               <p className="mt-5 max-w-prose text-lead text-ink">{c.theme}</p>
             ) : null}
 
-            <ButtonLink
-              prefetch={action === "results" ? false : undefined}
-              href={
-                action === "results" && !c.sample
-                  ? `${ROUTES.competition.path.replace("[slug]", encodeURIComponent(c.slug))}/results`
-                  : "#take-part"
-              }
-              size="lg"
-              className="mt-8"
-            >
-              {actionLabel}
-            </ButtonLink>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <ButtonLink
+                prefetch={action === "results" ? false : undefined}
+                href={
+                  action === "results" && !c.sample
+                    ? `${ROUTES.competition.path.replace("[slug]", encodeURIComponent(c.slug))}/results`
+                    : "#take-part"
+                }
+                size="lg"
+              >
+                {actionLabel}
+              </ButtonLink>
+              {action !== "results" && action !== "cancelled" && !c.sample && (
+                <ButtonLink
+                  variant="secondary"
+                  prefetch={false}
+                  href={`${ROUTES.competition.path.replace("[slug]", encodeURIComponent(c.slug))}/results`}
+                  size="lg"
+                >
+                  {t("liveResultsLink")}
+                </ButtonLink>
+              )}
+            </div>
 
             <dl
               aria-label={t("facts")}
