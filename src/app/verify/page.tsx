@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
@@ -6,7 +7,9 @@ export const metadata = {
   title: "Verify a certificate",
   robots: { index: false, follow: false },
 };
+export const instant = false;
 export default async function Page() {
+  await connection();
   const t = await getTranslations("certificates");
   return (
     <Section

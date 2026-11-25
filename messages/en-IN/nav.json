@@ -41,9 +41,7 @@
       "myChildren": "My children",
       "auctions": "Artwork auctions",
       "auctionLot": "Auction lot",
-      "competitionResults": "Competition results",
-      "verify": "Verify certificate",
-      "certificateVerification": "Certificate verification"
+      "competitionResults": "Competition results"
     }
   }
 }

@@ -43,8 +43,6 @@ const DEFINITIONS = {
     sitemap: { updated: UPDATED, priority: 0.9 },
   },
   competition: { path: "/competitions/[slug]", hue: "pink" },
-  verify: { path: "/verify", hue: "green" },
-  certificateVerification: { path: "/verify/[number]", hue: "green" },
   competitionResults: { path: "/competitions/[slug]/results", hue: "pink" },
   /** The route chooser (#78): through a school, or as an individual adult. */
   participate: {

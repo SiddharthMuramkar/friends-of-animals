@@ -263,6 +263,8 @@ export const judgeOnboardingPath = (id: string) =>
 export const isJudgeInvitationPage = (path: string) =>
   fitsTemplate(path, `${JUDGE_INVITATIONS_PREFIX}/[token]`);
 
+/** Public request-time verification, never signed in or cached. */
+export const CERTIFICATE_VERIFY_PREFIX = "/verify";
 export const ADMIN_CERTIFICATES = "/admin/certificates";
 export const MY_CERTIFICATES = "/dashboard/certificates";
 export const ADMIN_ARTWORK = "/admin/artwork";

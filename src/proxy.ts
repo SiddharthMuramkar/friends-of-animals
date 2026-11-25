@@ -23,6 +23,8 @@ export function proxy(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: [
+    "/verify",
+    "/verify/:path*",
     "/blog/:slug",
     "/competitions/:slug",
     "/account",
