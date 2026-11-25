@@ -1,14 +1,23 @@
 import { expect, it } from "vitest";
-import { createHarness } from "@/test/harness";
+import { createHarness, type Harness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
+import { seedGallery } from "../../seed/gallery";
+import { seedSocialExport } from "../../seed/social-export";
 import { signedInWith } from "../judging/testing";
 import { SEED_ACCOUNTS } from "../../seed/accounts";
 import { SEED_AUCTION_COMPETITION } from "../../seed/competitions";
 import { SEED_SOCIAL_EXPORT } from "../../seed/social-export-samples";
 import { SEED_GALLERY } from "../../seed/gallery-samples";
 
+async function seed(h: Harness) {
+  await seedAuctionResults(h.deps);
+  await seedGallery(h.deps);
+  await seedSocialExport(h.deps);
+}
+
 it("seeds distinct demo grants and actual social stamps, and lets the adult creator withdraw their own permission without resurrecting the export on reseed", async () => {
   const h = await createHarness();
-  await h.seed.preview();
+  await seed(h);
   const curator = h.as(
     await signedInWith(h, {
       role: "content_manager",
@@ -75,7 +84,7 @@ it("seeds distinct demo grants and actual social stamps, and lets the adult crea
     ok: false,
     error: "not_found",
   });
-  await h.seed.preview();
+  await seed(h);
   expect(await curator.listSocialExports()).toEqual([]);
   expect(await owner.myPublicUseConsents()).toEqual(
     expect.arrayContaining([
