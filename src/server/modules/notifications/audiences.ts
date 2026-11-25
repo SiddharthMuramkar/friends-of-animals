@@ -134,6 +134,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "files.file_uploaded":
     case "files.processing_requested":
+    case "files.video_processing_requested":
+    case "files.file_ready":
     case "files.file_processed":
     case "files.file_processing_failed":
     case "files.file_quarantined":
@@ -638,6 +640,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "consent.link_sent": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
+  "files.video_processing_requested": { names: [], load: async () => ({}) },
+  "files.file_ready": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
   "files.file_quarantined": { names: [], load: async () => ({}) },

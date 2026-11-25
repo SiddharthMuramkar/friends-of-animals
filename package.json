@@ -31,7 +31,8 @@
     "vercel-build": "pnpm db:migrate && pnpm db:seed && next build && pnpm check:build",
     "test:e2e": "playwright test",
     "files:purge-preview": "tsx scripts/purge-preview-files.ts",
-    "test:live": "vitest run --config vitest.live.config.ts"
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "test:media": "vitest run --config vitest.media.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1173.0",

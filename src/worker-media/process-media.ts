@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   MediaError,
+  type ImageProcessor,
   type MediaErrorCode,
-  type MediaProcessor,
   type MediaResult,
 } from "../server/ports/media";
 
@@ -13,7 +13,7 @@ export type MediaProcessReply =
   | { code: MediaErrorCode };
 
 /** A hard deadline covers WASM decode and every derivative, including native sharp code. */
-export function processMediaInChild(timeoutSeconds: number): MediaProcessor {
+export function processMediaInChild(timeoutSeconds: number): ImageProcessor {
   return {
     processImage(input) {
       return new Promise((resolve, reject) => {

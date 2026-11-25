@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { scanOutcome } from "./scan-outcome";
+import type { SniffedContentType } from "./sniff";
 
 describe("scanOutcome", () => {
   it("marks a clean file whose bytes match its declared type clean", () => {
@@ -33,6 +34,32 @@ describe("scanOutcome", () => {
         verdict: { verdict: "clean" },
       })
     ).toMatchObject({ status: "rejected" });
+  });
+
+  it("takes MP4, QuickTime and 3GP for each other, but WebM or an image only for itself (#86)", () => {
+    const clean = (declaredType: string, sniffedType: SniffedContentType) =>
+      scanOutcome({ declaredType, sniffedType, verdict: { verdict: "clean" } });
+    for (const [declared, sniffed] of [
+      ["video/mp4", "video/quicktime"],
+      ["video/quicktime", "video/mp4"],
+      ["video/mp4", "video/3gpp"],
+      ["video/webm", "video/webm"],
+    ] as const) {
+      expect(clean(declared, sniffed)).toMatchObject({ status: "clean" });
+    }
+    for (const [declared, sniffed] of [
+      ["video/mp4", "video/webm"],
+      ["video/webm", "video/mp4"],
+      ["video/mp4", "image/png"],
+      ["image/png", "video/mp4"],
+      ["application/pdf", "video/mp4"],
+    ] as const) {
+      expect(clean(declared, sniffed)).toEqual({
+        kind: "settled",
+        status: "rejected",
+        scanResult: "type_mismatch",
+      });
+    }
   });
 
   it("quarantines an infected file, naming the signature", () => {
