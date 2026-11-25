@@ -95,7 +95,7 @@ describe("the school round seed", () => {
     await h.seed.preview();
 
     expect(await rows()).toEqual(first);
-    expect(first.rounds).toHaveLength(1);
+    expect(first.rounds).toHaveLength(2);
     expect(first.picks).toHaveLength(2);
   });
 });

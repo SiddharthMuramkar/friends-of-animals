@@ -48,9 +48,9 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
   const all = await api.listCertificates({
     competitionId: input.competitionId,
   });
-  expect(all).toHaveLength(8);
-  expect(all.filter((c) => c.type === "participation")).toHaveLength(4);
-  expect(new Set(all.map((c) => c.number)).size).toBe(8);
+  expect(all).toHaveLength(16);
+  expect(all.filter((c) => c.type === "participation")).toHaveLength(9);
+  expect(new Set(all.map((c) => c.number)).size).toBe(16);
   expect(
     all.every((c) => /^FOA-C-\d{2}-[0-9A-HJKMNP-TV-Z]{10}$/.test(c.number))
   ).toBe(true);
@@ -83,7 +83,7 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
       (c) => c.renderStatus === "rendered"
     )
   ).toBe(true);
-  expect(h.pdf.rendered).toHaveLength(8);
+  expect(h.pdf.rendered).toHaveLength(16);
   expect(
     h.pdf.rendered.every((j) =>
       j.data.verifyUrl.endsWith(`/verify/${j.data.number}`)
@@ -153,14 +153,14 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
   ).toHaveLength(1);
   await h.as(worker).renderCertificate({ certificateId: item.id });
   await h.drain();
-  expect(h.pdf.rendered).toHaveLength(8);
+  expect(h.pdf.rendered).toHaveLength(16);
   expect(await h.as(worker).issueCertificates(input)).toEqual({ issued: 0 });
   expect(
     await h.db
       .select()
       .from(fileAsset)
       .where(eq(fileAsset.purpose, "certificate_pdf"))
-  ).toHaveLength(8);
+  ).toHaveLength(16);
   expect(
     await h.db
       .select()

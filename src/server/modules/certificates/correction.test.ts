@@ -35,21 +35,17 @@ it("requires a reason and competition-manager authority; revocation and reissue 
   ).resolves.toMatchObject({ ok: false });
   for (const actor of [participant, other, h.visitor()]) {
     await expect(
-      h
-        .as(actor)
-        .revokeCertificate({
-          certificateId: adult!.id,
-          reason: "Issued in error",
-        })
+      h.as(actor).revokeCertificate({
+        certificateId: adult!.id,
+        reason: "Issued in error",
+      })
     ).rejects.toMatchObject({ code: "forbidden" });
     await expect(
-      h
-        .as(actor)
-        .reissueCertificate({
-          certificateId: child.id,
-          reason: "Spelling error",
-          recipientName: "Corrected child name",
-        })
+      h.as(actor).reissueCertificate({
+        certificateId: child.id,
+        reason: "Spelling error",
+        recipientName: "Corrected child name",
+      })
     ).rejects.toMatchObject({ code: "forbidden" });
   }
   expect(
@@ -133,13 +129,11 @@ it("requires a reason and competition-manager authority; revocation and reissue 
     .from(resultRelease)
     .where(eq(resultRelease.id, SEED_RESULTS.releaseId));
   expect(
-    await h
-      .as(worker)
-      .issueCertificates({
-        competitionId: SEED_RESULTS.competitionId,
-        releaseId: SEED_RESULTS.releaseId,
-        publishedAt: release!.publishedAt!.toISOString(),
-      })
+    await h.as(worker).issueCertificates({
+      competitionId: SEED_RESULTS.competitionId,
+      releaseId: SEED_RESULTS.releaseId,
+      publishedAt: release!.publishedAt!.toISOString(),
+    })
   ).toEqual({ issued: 0 });
   const audits = await h.db
     .select()
