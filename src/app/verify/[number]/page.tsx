@@ -39,9 +39,7 @@ async function Result({ params }: PageProps<"/verify/[number]">) {
           {outcome.competition && (
             <div>
               <dt className="font-semibold">{t("competition")}</dt>
-              <dd>
-                {`${outcome.competition.name} (${outcome.competition.code})`}
-              </dd>
+              <dd>{t("competitionWithCode", outcome.competition)}</dd>
             </div>
           )}
           <div>
@@ -50,7 +48,7 @@ async function Result({ params }: PageProps<"/verify/[number]">) {
           </div>
           <div>
             <dt className="font-semibold">{t("date")}</dt>
-            <dd>{`${outcome.issuedOn.day}/${outcome.issuedOn.month}/${outcome.issuedOn.year}`}</dd>
+            <dd>{t("issuedOn", outcome.issuedOn)}</dd>
           </div>
         </dl>
       ) : (

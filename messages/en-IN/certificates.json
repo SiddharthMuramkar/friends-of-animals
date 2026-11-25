@@ -5,6 +5,8 @@
     "adminLead": "Review issued certificates and retry any PDF that failed to render.",
     "empty": "No certificates yet.",
     "competition": "Competition",
+    "competitionWithCode": "{name} ({code})",
+    "issuedOn": "{day}/{month}/{year}",
     "choose": "Show certificates",
     "verify": "Verify certificate",
     "verifyLead": "Scan the QR code on your certificate or enter its number below to check its validity.",
