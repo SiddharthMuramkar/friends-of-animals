@@ -57,6 +57,30 @@ it("waits for the actual reminder times, reschedules changes, suppresses queued/
   await h.drain();
   expect(await count(ap)).toBe(2);
   expect(reminders()).toMatchObject([{ to: a.email }, { to: a.email }]);
+  const changed = (await ap.listInbox()).filter((row) =>
+    row.title.startsWith("Change:")
+  ).length;
+  await manager.updateEvent({
+    eventId,
+    ...moved,
+    summary: "Updated wording only",
+  });
+  await h.drain();
+  expect(
+    (await ap.listInbox()).filter((row) => row.title.startsWith("Change:"))
+  ).toHaveLength(changed);
+  h.clock.advance({ hours: 21, minutes: 59 });
+  await h.drain();
+  expect(await count(ap)).toBe(2);
+  h.clock.advance({ minutes: 1 });
+  await h.drain();
+  expect(await count(ap)).toBe(3);
+  expect(await count(bp)).toBe(0);
+  expect(reminders()).toMatchObject([
+    { to: a.email },
+    { to: a.email },
+    { to: a.email },
+  ]);
   h.clock.set(moved.endsAt);
   await h.drain();
   expect(await manager.getEventForAdmin({ eventId })).toMatchObject({
