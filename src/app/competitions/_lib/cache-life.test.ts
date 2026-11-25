@@ -5,6 +5,21 @@ import { SEED_COORDINATORS } from "@/server/seed/coordinators";
 import { SEED_INSTITUTIONS } from "@/server/seed/institutions";
 import { SEED_SCHOOL_ROUND } from "@/server/seed/school-round";
 import { createHarness } from "@/test/harness";
+import { seedFunctions } from "@/server/seed/builders";
+import { seedIdentity } from "@/server/seed/identity";
+import { seedAccess } from "@/server/seed/access";
+import { seedCompetitions } from "@/server/seed/competitions";
+import { seedJudging } from "@/server/seed/judging";
+import { seedConsent } from "@/server/seed/consent";
+import { seedCompetitionTerms } from "@/server/seed/competition-terms";
+import { seedSettings } from "@/server/seed/settings";
+import { seedInstitutions } from "@/server/seed/institutions";
+import { seedCoordinators } from "@/server/seed/coordinators";
+import { seedRegistrations } from "@/server/seed/registration";
+import { seedPayments } from "@/server/seed/payments";
+import { seedRefunds } from "@/server/seed/refunds";
+import { seedSchoolRound } from "@/server/seed/school-round";
+import { seedReminders } from "@/server/seed/reminders";
 
 import { publicCacheLife } from "./cache-life";
 import { PUBLIC_READER } from "./public-reader";
@@ -15,6 +30,25 @@ import { PUBLIC_READER } from "./public-reader";
 
 const NOW = new Date("2027-01-15T04:30:00.000Z");
 const MINUTE_MS = 60 * 1000;
+
+// Test the actual scheduled competitions and school round without building
+// unrelated preview media, auction, certificate, event and survey fixtures.
+const { seedPreview: seedScheduledCompetitions } = seedFunctions([
+  seedIdentity,
+  seedAccess,
+  seedCompetitions,
+  seedJudging,
+  seedConsent,
+  seedCompetitionTerms,
+  seedSettings,
+  seedInstitutions,
+  seedCoordinators,
+  seedRegistrations,
+  seedPayments,
+  seedRefunds,
+  seedSchoolRound,
+  seedReminders,
+]);
 
 /** `ms` after NOW (before it when negative). */
 const at = (ms: number) => new Date(NOW.getTime() + ms);
@@ -142,7 +176,7 @@ describe("the public pages' cache life", () => {
 
   it("follows the seeded competitions through a move the worker makes", async () => {
     const h = await createHarness({ now: "2026-11-21T06:30:00.000Z" });
-    await h.seed.preview();
+    await seedScheduledCompetitions(h.deps);
     const reader = h.as(PUBLIC_READER);
     const lifeNow = async () =>
       publicCacheLife(await reader.listPublishedCompetitions(), h.clock.now());
