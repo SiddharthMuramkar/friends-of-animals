@@ -5,7 +5,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, exists, inArray } from "drizzle-orm";
 
 import type { Actor } from "../../actor";
 import type { AppDb } from "../../db/app-db";
@@ -14,6 +14,7 @@ import {
   competitionCategory,
   entry,
   entryFile,
+  institutionRegistration,
   participantProfile,
   registration,
   schoolRound,
@@ -31,6 +32,45 @@ import {
   assertSchoolRoundTransition,
   type SchoolRoundStatus,
 } from "./domain/status";
+
+/**
+ * The competition's institution registrations that get a school round:
+ * active ones with at least one confirmed student, with their round's
+ * status (null while it hasn't opened).
+ */
+export async function confirmedRegistrations(
+  db: AppDb,
+  competitionId: string
+): Promise<{ id: string; roundStatus: SchoolRoundStatus | null }[]> {
+  return db
+    .select({ id: institutionRegistration.id, roundStatus: schoolRound.status })
+    .from(institutionRegistration)
+    .leftJoin(
+      schoolRound,
+      eq(schoolRound.institutionRegistrationId, institutionRegistration.id)
+    )
+    .where(
+      and(
+        eq(institutionRegistration.competitionId, competitionId),
+        eq(institutionRegistration.status, "active"),
+        exists(
+          db
+            .select({ id: registration.id })
+            .from(registration)
+            .where(
+              and(
+                eq(
+                  registration.institutionRegistrationId,
+                  institutionRegistration.id
+                ),
+                eq(registration.status, "confirmed")
+              )
+            )
+        )
+      )
+    )
+    .orderBy(institutionRegistration.id);
+}
 
 /** UUIDv7 identity for rounds and their rows. */
 export const nextRoundRowId = monotonicUuidv7();

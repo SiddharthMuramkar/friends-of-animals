@@ -6,6 +6,7 @@
       "registration_open": "Registration open",
       "registration_closed": "Registration closed",
       "school_judging": "School judging",
+      "foa_judging": "FOA judging",
       "cancelled": "Cancelled"
     },
     "inSentence": {
@@ -14,6 +15,7 @@
       "registration_open": "registration open",
       "registration_closed": "registration closed",
       "school_judging": "school judging",
+      "foa_judging": "FOA judging",
       "cancelled": "cancelled"
     },
     "countdown": {
@@ -22,10 +24,13 @@
       "closes": "Registration closes {at} ({relative})",
       "closesDue": "Registration closing shortly",
       "entriesClose": "Entries close {at} ({relative})",
-      "entriesCloseDue": "Entries have closed; judging starts shortly"
+      "entriesCloseDue": "Entries have closed; judging starts shortly",
+      "shortlistsClose": "School shortlists close {at} ({relative})",
+      "shortlistsCloseDue": "School shortlists have closed; FOA judging starts once every school has finished"
     },
     "blockReason": {
-      "rubrics_missing": "These disciplines have no published rubric yet: {disciplines}."
+      "rubrics_missing": "These disciplines have no published rubric yet: {disciplines}.",
+      "school_rounds_unfinished": "{unfinished, plural, one {# school round is} other {# school rounds are}} not finished yet ({overdue} overdue, {open} still open, {missing} not opened). Close an overdue round on the school's behalf to move on."
     }
   }
 }

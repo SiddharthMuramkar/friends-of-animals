@@ -84,7 +84,8 @@
       "title": "Your shortlist",
       "none": "No entry was shortlisted.",
       "notShortlisted": "Not shortlisted: {count, plural, one {# entry} other {# entries}}.",
-      "notShortlistedStudents": "Not shortlisted: {count, plural, one {# student} other {# students}}."
+      "notShortlistedStudents": "Not shortlisted: {count, plural, one {# student} other {# students}}.",
+      "closed": "FOA closed this round on your school’s behalf on {date}. Reason: {reason}"
     },
     "outcome": {
       "panel_saved": "The panel is saved.",
@@ -130,6 +131,7 @@
       "replaceFor": "Upload work again for {name}",
       "create": "Create shortlisted entry",
       "replace": "Upload replacement",
+      "correct": "Review FOA correction request",
       "discipline": "Discipline",
       "choose": "Choose a discipline",
       "titleField": "Title (required)",
@@ -184,6 +186,33 @@
         "forbidden": "You no longer act for this institution.",
         "storage_unavailable": "File storage is unavailable. Try again later.",
         "unknown": "Something went wrong. Try again."
+      }
+    },
+    "overdueNotice": "The shortlist deadline has passed. Your round is overdue, but you can still make changes and finalise it.",
+    "manager": {
+      "title": "School rounds",
+      "lead": "Track school shortlists, close overdue rounds on a school’s behalf, or reopen a round during school judging before FOA verifies an entry.",
+      "back": "Back to competitions",
+      "empty": "No school rounds have opened yet.",
+      "close": "Close on the school’s behalf",
+      "closeLead": "This applies the saved shortlist and marks all other entries not shortlisted, even if the school did not certify its judging.",
+      "reason": "Reason (required)",
+      "saving": "Saving…",
+      "recordedReason": "Recorded reason: {reason}",
+      "reopen": "Reopen school round",
+      "reopenLead": "This makes the shortlist a draft again and reverts entry outcomes. Only rounds without FOA-verified entries can be reopened during school judging.",
+      "outcome": {
+        "closed": "School round closed on the school’s behalf.",
+        "reopened": "School round reopened.",
+        "invalid_input": "Enter a valid reason.",
+        "not_found": "That school round was not found.",
+        "competition_not_judging": "This competition is not in judging.",
+        "round_not_overdue": "Only overdue rounds can be closed on a school’s behalf.",
+        "shortlist_only": "This round cannot be closed yet.",
+        "finalise_blocked": "The saved shortlist is no longer valid.",
+        "reopen_blocked": "The round cannot be reopened. The competition must be in school judging, the round finished and no entry can have reached FOA verification.",
+        "forbidden": "You do not manage this competition.",
+        "failed": "Something went wrong. Try again."
       }
     }
   }

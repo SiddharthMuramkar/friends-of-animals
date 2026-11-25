@@ -1,4 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
+import { ButtonLink } from "@/components/site/button-link";
+import { studentSubmissionPath } from "@/lib/app-routes";
 import { SectionHeading } from "@/components/site/heading";
 import { EntryStatusChip } from "@/app/participant/entries/_components/entry-status";
 import { typeNameKeys } from "@/app/account/files/_lib/upload";
@@ -88,7 +90,9 @@ export async function ShortlistOnlyStudents({
           const editable =
             round.canEdit && (!entry || entry.status === "school_shortlisted");
           const canRetry =
-            retry && round.competition.status === "school_judging";
+            retry &&
+            (round.competition.status === "school_judging" ||
+              round.competition.status === "foa_judging");
           const choices = student.disciplines.flatMap((value) => {
             const rule = uploadRuleFor(value);
             if (!rule) return [];
@@ -138,9 +142,24 @@ export async function ShortlistOnlyStudents({
                 </>
               ) : (
                 <p className="mt-2 text-ink-muted">
-                  {t(round.finalised ? "notShortlisted" : "noEntry")}
+                  {t(
+                    round.finalised || round.closed
+                      ? "notShortlisted"
+                      : "noEntry"
+                  )}
                 </p>
               )}
+              {entry?.status === "sent_back" && student.registrationNumber ? (
+                <ButtonLink
+                  href={studentSubmissionPath(
+                    round.reference,
+                    student.registrationNumber,
+                    institutionId
+                  )}
+                >
+                  {t("correct")}
+                </ButtonLink>
+              ) : null}
               {(editable || canRetry) && choices.length ? (
                 <ShortlistedEntryForm
                   key={`${student.registrationId}-${entry?.upload ?? "new"}`}

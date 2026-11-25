@@ -2,17 +2,21 @@ import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import {
+  competition,
   entry,
   entryFile,
   entryTransition,
   outbox,
   schoolRound,
 } from "@/server/db/schema";
+import { managerOf, signedInWith } from "@/server/modules/judging/testing";
+import { signedInVerifier } from "@/server/modules/verification/testing";
 import { guardianEmail } from "@/server/modules/payments/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import {
   createdEntry,
+  pastShortlistDeadline,
   putShortlistedEntry,
   shortlistOnlySchool,
   type RoundWorld,
@@ -224,5 +228,144 @@ describe("finalising a shortlist-only round", () => {
         picks: [{ entryId, position: null }],
       })
     ).toEqual({ ok: false, error: "shortlist_only" });
+  });
+});
+
+describe("shortlist-only round management and FOA correction", () => {
+  it("closes an overdue shortlist-only round, promotes its live picks, and lets pending picks retry after FOA judging starts", async () => {
+    const h = await createHarness();
+    const school = await shortlistOnlySchool(h, { students: 3 });
+    const live = await createdEntry(h, school, 1, { position: 1 });
+    await h.drain();
+    h.media.failNext(1, "media_decode_failed");
+    const failed = await createdEntry(h, school, 2);
+    await h.drain();
+    const coordinator = h.as(school.coordinator.actor);
+    const view = await coordinator.getSchoolRound(school.ref);
+    if (!view.ok) throw new Error(view.error);
+    const ref = {
+      competitionId: school.competition.id,
+      roundId: view.round.id,
+    };
+    const manager = h.as(await signedInWith(h, managerOf(ref.competitionId)));
+    await pastShortlistDeadline(h);
+    expect(
+      await manager.closeSchoolRoundOnBehalf({
+        ...ref,
+        reason: "School requested FOA assistance",
+      })
+    ).toMatchObject({ ok: true, shortlisted: 2, notShortlisted: 1 });
+    expect(await statusOf(h, live.entryId)).toMatchObject({
+      status: "submitted_to_foa",
+    });
+    expect(await statusOf(h, failed.entryId)).toMatchObject({
+      status: "school_shortlisted",
+    });
+    await h.drain();
+    expect(
+      (
+        await h.db
+          .select({ status: competition.status })
+          .from(competition)
+          .where(eq(competition.id, ref.competitionId))
+      )[0]?.status
+    ).toBe("foa_judging");
+    expect(h.email.lastTo(guardianEmail(3))?.subject).toBe(
+      "School judging finished for Paws on the Pavement"
+    );
+    expect(
+      await coordinator.completeShortlistedEntry(
+        await putShortlistedEntry(h, school, 2)
+      )
+    ).toMatchObject({ ok: true, entryCode: failed.code });
+    await h.drain();
+    expect(await statusOf(h, failed.entryId)).toMatchObject({
+      status: "submitted_to_foa",
+    });
+  });
+
+  it("reopens before the deadline, preserves created picks, and tells only registrations whose outcome changes", async () => {
+    const h = await createHarness();
+    const school = await shortlistOnlySchool(h, { students: 3 });
+    const picked = await createdEntry(h, school, 1, { position: 1 });
+    await h.drain();
+    await readyToFinalise(h, school);
+    const coordinator = h.as(school.coordinator.actor);
+    const view = await coordinator.getSchoolRound(school.ref);
+    if (!view.ok) throw new Error(view.error);
+    const ref = {
+      competitionId: school.competition.id,
+      roundId: view.round.id,
+    };
+    const manager = h.as(await signedInWith(h, managerOf(ref.competitionId)));
+    expect(await finalise(h, school)).toMatchObject({ ok: true });
+    await h.drain();
+    expect(await manager.reopenSchoolRound(ref)).toMatchObject({
+      ok: true,
+      status: "open",
+    });
+    expect(await statusOf(h, picked.entryId)).toMatchObject({
+      status: "school_shortlisted",
+    });
+    expect(await coordinator.getSchoolRound(school.ref)).toMatchObject({
+      ok: true,
+      round: {
+        students: expect.arrayContaining([
+          expect.objectContaining({
+            registrationId: school.registrationIds[0],
+            entry: expect.objectContaining({ position: 1 }),
+          }),
+        ]),
+      },
+    });
+    const second = await createdEntry(h, school, 2);
+    await h.drain();
+    const before = h.email.sent.length;
+    expect(await finalise(h, school)).toMatchObject({
+      ok: true,
+      shortlisted: 2,
+      notShortlisted: 1,
+    });
+    await h.drain();
+    expect(h.email.sent.slice(before).map((m) => m.to)).toEqual([
+      guardianEmail(2),
+    ]);
+    expect(await statusOf(h, picked.entryId)).toMatchObject({
+      status: "submitted_to_foa",
+    });
+    expect(await statusOf(h, second.entryId)).toMatchObject({
+      status: "submitted_to_foa",
+    });
+  });
+
+  it("lets a coordinator correct a sent-back shortlist-only entry through the ordinary correction path", async () => {
+    const h = await createHarness();
+    const school = await shortlistOnlySchool(h, { students: 1 });
+    const picked = await createdEntry(h, school, 1);
+    await h.drain();
+    await readyToFinalise(h, school);
+    await finalise(h, school);
+    await h.drain();
+    const verifier = h.as(await signedInVerifier(h));
+    expect(
+      await verifier.sendBackEntry({
+        entryId: picked.entryId,
+        reason: { code: "other", text: "Please clarify the title" },
+      })
+    ).toMatchObject({ ok: true, status: "sent_back" });
+    const coordinator = h.as(school.coordinator.actor);
+    expect(
+      await coordinator.listInstitutionSubmissions(school.ref)
+    ).toMatchObject({
+      ok: true,
+      rows: [{ status: "sent_back", action: "replace", hold: null }],
+    });
+    expect(
+      await coordinator.resubmitEntry({
+        entryId: picked.entryId,
+        title: "Corrected title",
+        description: "Description of the work",
+      })
+    ).toMatchObject({ ok: true, status: "submitted_to_foa" });
   });
 });

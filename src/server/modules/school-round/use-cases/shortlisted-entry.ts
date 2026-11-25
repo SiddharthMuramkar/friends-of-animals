@@ -70,7 +70,7 @@ import {
   SHORTLIST_ONLY_DECLARATIONS_VERSION,
   type ShortlistOnlyDeclaration,
 } from "../domain/shortlist-only";
-import { isRoundFinished } from "../domain/status";
+import { isSchoolRoundFinished } from "../domain/status";
 import { loadPicks, loadRound, loadRoundEntries } from "../store";
 import { limitsOf, roundEditable, roundInput } from "./get-school-round";
 
@@ -212,8 +212,9 @@ async function openStudent(
     !editable &&
     !(
       needsFile &&
-      isRoundFinished(round.status) &&
-      scope.competition.status === "school_judging"
+      isSchoolRoundFinished(round.status) &&
+      (scope.competition.status === "school_judging" ||
+        scope.competition.status === "foa_judging")
     )
   ) {
     return { ok: false, error: "round_not_editable" };
@@ -375,7 +376,11 @@ async function record(
   const attached = await entryFileOf(tx, file.id);
   if (attached) {
     return open.current && attached.entryId === open.current.row.id
-      ? { ok: true, entryCode: open.current.row.code, status: "school_shortlisted" }
+      ? {
+          ok: true,
+          entryCode: open.current.row.code,
+          status: "school_shortlisted",
+        }
       : { ok: false, error: "file_not_found" };
   }
   const now = ctx.clock.now();
@@ -412,7 +417,8 @@ async function record(
     ? await checkRoom(tx, open, chosen.discipline, request.position)
     : null;
   if (room && !room.ok) return room;
-  if (file.status === "rejected") return { ok: false, error: "upload_rejected" };
+  if (file.status === "rejected")
+    return { ok: false, error: "upload_rejected" };
   if (file.status !== "pending_upload") {
     return { ok: false, error: "file_not_found" };
   }

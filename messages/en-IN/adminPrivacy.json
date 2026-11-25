@@ -270,6 +270,12 @@
           "receipt_title": "Keeps the adult participant's receipt tied to the submitted title",
           "essay_body": "Keeps the essay a participant typed as their entry, for review and judging"
         },
+        "entry_verification": {
+          "entry_id": "Connect the verification decision to the submitted entry.",
+          "reason_text": "Explain to the participant or coordinator what needs to be corrected.",
+          "decided_by_user_id": "Record the verifier responsible for the decision.",
+          "resubmitted_by_user_id": "Record who resubmitted the entry."
+        },
         "entry_transition": {
           "entry_id": "Associates a change in status with the participant's entry",
           "entry_file_id": "Shows which upload caused a change in the entry's status",
@@ -500,7 +506,8 @@
         },
         "school_round": {
           "judging_attested_by_user_id": "Records which coordinator attested the school judging",
-          "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
+          "finalised_by_user_id": "Records which coordinator finalised the school shortlist",
+          "closed_by_user_id": "Records which competition manager closed an overdue school round on the school's behalf"
         },
         "school_round_declaration": {
           "declared_by_user_id": "Records which coordinator made the declarations for a shortlisted entry they created"

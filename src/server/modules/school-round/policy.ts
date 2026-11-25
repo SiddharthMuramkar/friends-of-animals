@@ -14,6 +14,9 @@ import { COORDINATORS_POLICY } from "../institutions/coordinators/policy";
 const institutionPeople = COORDINATORS_POLICY["institution.coordinate"];
 
 export const SCHOOL_ROUND_POLICY = {
+  "school_round.manager_read": role("competition_manager"),
+  "school_round.close_on_behalf": role("competition_manager"),
+  "school_round.reopen": role("competition_manager"),
   "school_round.read": institutionPeople,
   "school_round.manage": institutionPeople,
   "school_round.finalise": institutionPeople,

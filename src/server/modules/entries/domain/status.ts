@@ -68,7 +68,19 @@ export type EntryTrigger =
   | "shortlisted_entry_created"
   /** Not picked in a finalised school round (#89). */
   | "not_shortlisted"
-  | "essay_typed";
+  | "essay_typed"
+  /** Its school round was reopened: back to where it was before (#90). */
+  | "school_round_reopened"
+  /** Submissions closed: an individual entry goes on to FOA (#92). */
+  | "forwarded_to_foa"
+  /** An FOA verifier verified the entry (#92). */
+  | "foa_verified"
+  /** An FOA verifier sent the entry back with a reason (#92). */
+  | "sent_back"
+  /** A sent-back entry was resubmitted in time (#92). */
+  | "resubmitted"
+  /** The new file a sent-back entry was resubmitted with went live (#92). */
+  | "resubmission_live";
 
 export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: null, to: "processing", trigger: "upload_completed" },
@@ -107,6 +119,53 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   // one goes back to processing first, then here.
   { from: null, to: "submitted", trigger: "essay_typed" },
   { from: "processing", to: "submitted", trigger: "essay_typed" },
+  // A competition manager reopens the school round (#90): each entry goes
+  // back to the status it had before the round was decided.
+  {
+    from: "school_shortlisted",
+    to: "submitted",
+    trigger: "school_round_reopened",
+  },
+  {
+    from: "submitted_to_foa",
+    to: "submitted",
+    trigger: "school_round_reopened",
+  },
+  { from: "sent_back", to: "submitted", trigger: "school_round_reopened" },
+  {
+    from: "submitted_to_foa",
+    to: "school_shortlisted",
+    trigger: "school_round_reopened",
+  },
+  {
+    from: "sent_back",
+    to: "school_shortlisted",
+    trigger: "school_round_reopened",
+  },
+  ...(["processing", "submitted", "rejected", "failed"] as const).map((to) => ({
+    from: "not_shortlisted" as const,
+    to,
+    trigger: "school_round_reopened" as const,
+  })),
+  // FOA verification (#92). The individual route skips the school round:
+  // its submitted entries go on to FOA once submissions close. A verifier
+  // verifies an entry or sends it back; a sent-back entry resubmitted
+  // before its deadline waits for a verifier again (owner decision
+  // 2026-11-19: no separate resubmitted status). Nothing leaves
+  // foa_verified here.
+  {
+    from: "submitted",
+    to: "submitted_to_foa",
+    trigger: "forwarded_to_foa",
+  },
+  { from: "submitted_to_foa", to: "foa_verified", trigger: "foa_verified" },
+  { from: "submitted_to_foa", to: "sent_back", trigger: "sent_back" },
+  { from: "sent_back", to: "submitted_to_foa", trigger: "resubmitted" },
+  {
+    from: "sent_back",
+    to: "submitted_to_foa",
+    trigger: "resubmission_live",
+  },
 ];
 
 export type EntryFileTrigger =

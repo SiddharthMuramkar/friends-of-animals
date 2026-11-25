@@ -2,7 +2,7 @@
 //
 // Kept apart from ./documents.ts, which the client bundles through
 // src/lib/app-routes.ts (isSignedInPath): importing ROUTES there shipped
-// the whole public route registry to every page (SPEC §13.2 JS budget).
+// the whole public route registry to every page, exceeding the JavaScript budget.
 
 import { ROUTES } from "../../../../lib/routes";
 import type { CmsDocumentKey } from "./documents";

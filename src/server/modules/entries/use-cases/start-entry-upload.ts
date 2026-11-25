@@ -23,6 +23,7 @@ import {
 } from "../../consent/participation-gate";
 import type { EntryFilePurpose } from "../../files/domain/purposes";
 import { checkUpload, type UploadKind } from "../domain/upload-rules";
+import { resubmissionDueAt } from "../../verification/store";
 import { decideUpload } from "../domain/submission";
 import { chooseDiscipline, uploadRuleFor } from "../rules";
 import {
@@ -67,6 +68,7 @@ export type EntryUploadRefusal =
   | "too_long"
   | "submission_not_open"
   | "deadline_passed"
+  | "resubmission_closed"
   | "entry_locked"
   | "upload_limit";
 
@@ -152,6 +154,9 @@ export async function startEntryUpload(
       entry: current ? snapshotOf(current) : null,
       window,
       now: ctx.clock.now(),
+      resubmissionDueAt: current
+        ? await resubmissionDueAt(tx, current.row.id, current.row.status)
+        : null,
     });
     if (!decision.ok) return { ok: false, error: decision.reason };
 

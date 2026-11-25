@@ -31,7 +31,7 @@ import { SCHOOL_ROUND_STATUSES } from "../../modules/school-round/domain/status"
 import { competition, competitionCategory } from "./competitions";
 import { entry } from "./entries";
 import { user } from "./identity";
-import { institutionRegistration } from "./registration";
+import { institutionRegistration, registration } from "./registration";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
@@ -77,6 +77,15 @@ export const schoolRound = pgTable(
      * so a rerun of that handler queues nothing twice.
      */
     familiesNotifiedAt: timestamptz("families_notified_at"),
+    /**
+     * A competition manager closed the overdue round on the school's
+     * behalf (#90): who, when and why. Cleared when the round is reopened.
+     */
+    closedByUserId: uuid("closed_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    closedAt: timestamptz("closed_at"),
+    closeReason: text("close_reason"),
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
@@ -87,6 +96,11 @@ export const schoolRound = pgTable(
       table.judgingAttestedByUserId
     ),
     index("school_round_finalised_by_user_id_idx").on(table.finalisedByUserId),
+    index("school_round_closed_by_user_id_idx").on(table.closedByUserId),
+    check(
+      "school_round_close_reason_present",
+      sql`${table.closeReason} IS NULL OR length(trim(${table.closeReason})) > 0`
+    ),
   ]
 );
 
@@ -125,7 +139,7 @@ export const schoolRoundPick = pgTable(
     /** An entry is picked at most once. */
     entryId: uuid("entry_id")
       .primaryKey()
-      .references(() => entry.id),
+      .references(() => entry.id, { onDelete: "cascade" }),
     roundId: uuid("round_id")
       .notNull()
       .references(() => schoolRound.id, { onDelete: "cascade" }),
@@ -215,5 +229,44 @@ export const schoolRoundTransition = pgTable(
     ),
     index("school_round_transition_round_id_idx").on(table.roundId),
     index("school_round_transition_actor_user_id_idx").on(table.actorUserId),
+  ]
+);
+
+export const SCHOOL_ROUND_OUTCOMES = [
+  "shortlisted",
+  "not_shortlisted",
+] as const;
+
+export const schoolRoundOutcome = pgEnum(
+  "school_round_outcome",
+  SCHOOL_ROUND_OUTCOMES
+);
+
+/**
+ * What each entry's family was last told about its school round (#90), so
+ * that after a reopen and a second decision only the families whose
+ * outcome (or school position) changed are told again. No personal data:
+ * ids, the outcome and the position.
+ */
+export const schoolRoundFamilyNotice = pgTable(
+  "school_round_family_notice",
+  {
+    registrationId: uuid("registration_id")
+      .primaryKey()
+      .references(() => registration.id, { onDelete: "cascade" }),
+    roundId: uuid("round_id")
+      .notNull()
+      .references(() => schoolRound.id, { onDelete: "cascade" }),
+    outcome: schoolRoundOutcome().notNull(),
+    /** The school position the message named; null if none. */
+    position: integer(),
+    toldAt: timestamptz("told_at").notNull(),
+  },
+  (table) => [
+    index("school_round_family_notice_round_id_idx").on(table.roundId),
+    check(
+      "school_round_family_notice_position_shortlisted",
+      sql`${table.position} IS NULL OR (${table.outcome} = 'shortlisted' AND ${table.position} >= 1)`
+    ),
   ]
 );

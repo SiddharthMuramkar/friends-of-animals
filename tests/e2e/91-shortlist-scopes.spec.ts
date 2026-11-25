@@ -33,6 +33,9 @@ for (const scope of ["all_participants", "shortlist_only"] as const) {
         await page
           .getByRole("link", { name: `Upload work for ${student.name}` })
           .click();
+        await expect(
+          page.getByRole("heading", { level: 1, name: student.name })
+        ).toBeVisible();
         await expectAccessible(page, "student upload");
         await page
           .getByRole("textbox", { name: "Title", exact: true })

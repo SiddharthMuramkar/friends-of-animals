@@ -37,6 +37,24 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   // school round, already shortlisted. No upload outcome moves it, and it
   // is never not_shortlisted.
   [null, "school_shortlisted"],
+  // A competition manager reopens the school round (#90): each entry goes
+  // back to where it was before the round was decided.
+  ["school_shortlisted", "submitted"],
+  ["submitted_to_foa", "submitted"],
+  ["sent_back", "submitted"],
+  ["submitted_to_foa", "school_shortlisted"],
+  ["sent_back", "school_shortlisted"],
+  ["not_shortlisted", "processing"],
+  ["not_shortlisted", "submitted"],
+  ["not_shortlisted", "rejected"],
+  ["not_shortlisted", "failed"],
+  // FOA verification (#92): an individual entry is forwarded once
+  // submissions close; a verifier verifies it or sends it back; a
+  // sent-back entry is resubmitted and waits for a verifier again.
+  ["submitted", "submitted_to_foa"],
+  ["submitted_to_foa", "foa_verified"],
+  ["submitted_to_foa", "sent_back"],
+  ["sent_back", "submitted_to_foa"],
 ];
 
 const ALLOWED_FILE_MOVES: ReadonlyArray<

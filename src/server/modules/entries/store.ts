@@ -100,6 +100,12 @@ const AUDIT_ACTION: Record<EntryTrigger, string> = {
   not_shortlisted: "entry.not_shortlisted",
   shortlisted_entry_created: "entry.created",
   essay_typed: "entry.submitted",
+  school_round_reopened: "entry.school_round_reopened",
+  forwarded_to_foa: "entry.submitted_to_foa",
+  foa_verified: "entry.foa_verified",
+  sent_back: "entry.sent_back",
+  resubmitted: "entry.resubmitted",
+  resubmission_live: "entry.returned_to_foa",
 };
 
 /** Records a status change while the entry is locked or newly inserted. */
@@ -114,6 +120,8 @@ export async function recordMove(
     /** The file whose upload or outcome moved it; null for a school round's move. */
     entryFileId: string | null;
     actorRole: Role | null;
+    /** More for the audit row's `after`, such as a send-back's reason (#92). */
+    details?: Record<string, unknown>;
   }
 ): Promise<void> {
   moveEntry(move.from, move.to);
@@ -140,7 +148,11 @@ export async function recordMove(
     action: AUDIT_ACTION[move.trigger],
     entity: { type: "entry", id: move.entryId },
     before: { status: move.from },
-    after: { status: move.to, entryFileId: move.entryFileId },
+    after: {
+      status: move.to,
+      entryFileId: move.entryFileId,
+      ...move.details,
+    },
     actorRole: move.actorRole,
   });
 }
@@ -224,8 +236,11 @@ function outboxEvent(
         payload: { ...ids, replacement: event !== "entry.failed" },
       } as const;
     case "entry.replacement_live":
-      // The participant sees it on their page; no message for now.
-      return null;
+      return {
+        type: "entry.replacement_live",
+        aggregate,
+        payload: { entryId: ids.entryId, entryFileId: ids.entryFileId },
+      } as const;
   }
 }
 
@@ -325,6 +340,8 @@ export async function settleEntryFile(
     }
     const event =
       decision.event &&
+      (decision.event !== "entry.replacement_live" ||
+        row.status === "sent_back") &&
       outboxEvent(decision.event, {
         entryId: row.id,
         entryFileId,

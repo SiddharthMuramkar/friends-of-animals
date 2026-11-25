@@ -28,10 +28,31 @@ export const SCHOOL_ROUND_TRANSITIONS: readonly Transition[] = [
   { from: null, to: "open" },
   // The coordinator attests the judging and finalises the shortlist (#89).
   { from: "open", to: "finalised" },
+  // The shortlist deadline passes with the round unfinished (#90). Nothing
+  // finalises it automatically; the school can still finalise it late, or
+  // a competition manager closes it on the school's behalf.
+  { from: "open", to: "overdue" },
+  { from: "overdue", to: "finalised" },
+  { from: "overdue", to: "closed_on_behalf" },
+  // A competition manager reopens a decided round while none of its entries
+  // is FOA-verified: open before the deadline, overdue after it (#90).
+  { from: "finalised", to: "open" },
+  { from: "finalised", to: "overdue" },
+  { from: "closed_on_behalf", to: "open" },
+  { from: "closed_on_behalf", to: "overdue" },
 ];
 
-/** Statuses in which the coordinator may still change panel and picks. */
-const EDITABLE_STATUSES: readonly SchoolRoundStatus[] = ["open"];
+/**
+ * Statuses in which the coordinator may still change panel and picks, and
+ * finalise: an overdue round is still the school's to finish (#90).
+ */
+const EDITABLE_STATUSES: readonly SchoolRoundStatus[] = ["open", "overdue"];
+
+/** Decided rounds: finalised by the school or closed on its behalf. */
+const FINISHED_STATUSES: readonly SchoolRoundStatus[] = [
+  "finalised",
+  "closed_on_behalf",
+];
 
 export function canTransitionSchoolRound(
   from: SchoolRoundStatus | null,
@@ -65,15 +86,12 @@ export function assertSchoolRoundTransition(
   }
 }
 
-/**
- * Whether the round is over: finalised, or closed on the school's behalf
- * (#90). A shortlist-only entry goes on to FOA only then (#91).
- */
-export function isRoundFinished(status: SchoolRoundStatus): boolean {
-  return status === "finalised" || status === "closed_on_behalf";
-}
-
 /** Whether the coordinator may still record the panel and change picks. */
 export function isSchoolRoundEditable(status: SchoolRoundStatus): boolean {
   return EDITABLE_STATUSES.includes(status);
+}
+
+/** Whether the round is decided: finalised, or closed on the school's behalf. */
+export function isSchoolRoundFinished(status: SchoolRoundStatus): boolean {
+  return FINISHED_STATUSES.includes(status);
 }

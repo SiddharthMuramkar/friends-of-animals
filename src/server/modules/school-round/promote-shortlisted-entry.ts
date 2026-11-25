@@ -10,7 +10,7 @@ import { lockRegistrationStatus } from "../entries/registration-facts";
 import { applySchoolRoundOutcome } from "../entries/school-round-outcome";
 import { lockEntry, WORKER } from "../entries/store";
 import { shortlistOnlyReadiness } from "./domain/shortlist-only";
-import { isRoundFinished } from "./domain/status";
+import { isSchoolRoundFinished } from "./domain/status";
 import { loadRound } from "./store";
 
 export async function promoteShortlistedEntry(
@@ -50,7 +50,7 @@ export async function promoteShortlistedEntry(
       scope: facts.scope,
       status: locked.row.status,
       fileLive: locked.files.some((file) => file.status === "live"),
-      roundFinished: isRoundFinished(round.status),
+      roundFinished: isSchoolRoundFinished(round.status),
     });
     if (readiness.kind !== "promote") return;
     await applySchoolRoundOutcome(

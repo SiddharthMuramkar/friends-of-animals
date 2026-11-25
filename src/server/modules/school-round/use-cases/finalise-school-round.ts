@@ -31,14 +31,13 @@ import type { UseCaseContext } from "../../../use-cases";
 import { applySchoolRoundOutcome } from "../../entries/school-round-outcome";
 import { isConductCertified } from "../../institution-submissions/conduct";
 import { planFinalisation, type FinaliseBlocker } from "../domain/finalise";
-import { planShortlistOnlyOutcomes } from "../domain/shortlist-only";
+import { planShortlistOnlyRound } from "../shortlist-only-outcomes";
 import { JUDGING_STATEMENT_VERSION } from "../domain/judging-statement";
 import { assertSchoolRoundTransition } from "../domain/status";
 import {
   loadPanel,
   loadPicks,
   loadRoundEntries,
-  loadRoundStudents,
   recordRoundTransition,
 } from "../store";
 import { withLockedRound, type RoundRefusal } from "./editable-round";
@@ -102,27 +101,8 @@ export async function finaliseSchoolRound(
       }
       assertSchoolRoundTransition(round.status, "finalised");
 
-      const students = shortlistOnly
-        ? await loadRoundStudents(tx, scope.id)
-        : [];
-      const byEntry = new Map(
-        students.flatMap((student) =>
-          student.entry ? [[student.entry.entryId, student.entry] as const] : []
-        )
-      );
       const shortlistPlan = shortlistOnly
-        ? planShortlistOnlyOutcomes({
-            enrolments: students.map((student) => ({
-              registrationId: student.registrationId,
-              confirmed: true,
-            })),
-            entries: entries.map((each) => ({
-              entryId: each.entryId,
-              registrationId: each.registrationId,
-              fileLive: byEntry.get(each.entryId)?.hasLiveFile ?? false,
-              position: byEntry.get(each.entryId)?.position ?? null,
-            })),
-          })
+        ? await planShortlistOnlyRound(tx, scope.id, entries)
         : null;
       if (shortlistPlan && !shortlistPlan.ok)
         return {

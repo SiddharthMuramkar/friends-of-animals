@@ -624,7 +624,7 @@ describe("the submission deadline", () => {
     await h.drain();
 
     const [list] = await h.as(ravi.actor).listMyEntries();
-    expect(list).toMatchObject({ status: "submitted" });
+    expect(list).toMatchObject({ status: "submitted_to_foa" });
   });
 
   it("refuses an upload before submissions open", async () => {
