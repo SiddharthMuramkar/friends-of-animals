@@ -1,5 +1,5 @@
 {
-  "id": "9b9d3ca7-9f6b-4a20-8a6c-b3507439cdf8",
+  "id": "f11a2975-d7a5-4a41-b1bc-0e400818ce9f",
   "prevId": "09286f2c-2692-4004-a48a-a20af28e7853",
   "version": "7",
   "dialect": "postgresql",
@@ -14043,7 +14043,7 @@
           "name": "owner_user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -14214,10 +14214,6 @@
         "directory_listing_verified_at_matches_status": {
           "name": "directory_listing_verified_at_matches_status",
           "value": "\"directory_listing\".\"status\" NOT IN ('verified', 'suspended') OR \"directory_listing\".\"verified_at\" IS NOT NULL"
-        },
-        "directory_listing_open_owner_present": {
-          "name": "directory_listing_open_owner_present",
-          "value": "\"directory_listing\".\"owner_user_id\" IS NOT NULL OR \"directory_listing\".\"status\" IN ('withdrawn', 'rejected')"
         }
       },
       "isRLSEnabled": false
@@ -18891,6 +18887,227 @@
         "physical_artwork_dispatch_recorded_together": {
           "name": "physical_artwork_dispatch_recorded_together",
           "value": "(\"physical_artwork\".\"courier_name\" IS NULL) = (\"physical_artwork\".\"dispatched_at\" IS NULL) AND (\"physical_artwork\".\"tracking_number\" IS NULL) = (\"physical_artwork\".\"dispatched_at\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.criterion_score": {
+      "name": "criterion_score",
+      "schema": "",
+      "columns": {
+        "score_sheet_id": {
+          "name": "score_sheet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criterion_id": {
+          "name": "criterion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_at_version": {
+          "name": "changed_at_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "criterion_score_criterion_idx": {
+          "name": "criterion_score_criterion_idx",
+          "columns": [
+            {
+              "expression": "criterion_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "criterion_score_score_sheet_id_score_sheet_id_fk": {
+          "name": "criterion_score_score_sheet_id_score_sheet_id_fk",
+          "tableFrom": "criterion_score",
+          "tableTo": "score_sheet",
+          "columnsFrom": [
+            "score_sheet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "criterion_score_criterion_id_rubric_criterion_id_fk": {
+          "name": "criterion_score_criterion_id_rubric_criterion_id_fk",
+          "tableFrom": "criterion_score",
+          "tableTo": "rubric_criterion",
+          "columnsFrom": [
+            "criterion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "criterion_score_score_sheet_id_criterion_id_pk": {
+          "name": "criterion_score_score_sheet_id_criterion_id_pk",
+          "columns": [
+            "score_sheet_id",
+            "criterion_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "criterion_score_range": {
+          "name": "criterion_score_range",
+          "value": "\"criterion_score\".\"value\" BETWEEN 0 AND 100"
+        },
+        "criterion_score_version": {
+          "name": "criterion_score_version",
+          "value": "\"criterion_score\".\"changed_at_version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.score_sheet": {
+      "name": "score_sheet",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "judge_user_id": {
+          "name": "judge_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "comment_version": {
+          "name": "comment_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "complete": {
+          "name": "complete",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "score_sheet_round_id_entry_id_judge_user_id_round_assignment_round_id_entry_id_judge_user_id_fk": {
+          "name": "score_sheet_round_id_entry_id_judge_user_id_round_assignment_round_id_entry_id_judge_user_id_fk",
+          "tableFrom": "score_sheet",
+          "tableTo": "round_assignment",
+          "columnsFrom": [
+            "round_id",
+            "entry_id",
+            "judge_user_id"
+          ],
+          "columnsTo": [
+            "round_id",
+            "entry_id",
+            "judge_user_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "score_sheet_assignment_unique": {
+          "name": "score_sheet_assignment_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "round_id",
+            "entry_id",
+            "judge_user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "score_sheet_version": {
+          "name": "score_sheet_version",
+          "value": "\"score_sheet\".\"version\" >= 0 AND \"score_sheet\".\"comment_version\" BETWEEN 0 AND \"score_sheet\".\"version\""
+        },
+        "score_sheet_comment_length": {
+          "name": "score_sheet_comment_length",
+          "value": "char_length(\"score_sheet\".\"comment\") <= 2000"
+        },
+        "score_sheet_completed": {
+          "name": "score_sheet_completed",
+          "value": "NOT \"score_sheet\".\"complete\" OR \"score_sheet\".\"completed_at\" IS NOT NULL"
         }
       },
       "isRLSEnabled": false

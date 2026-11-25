@@ -1,9 +1,9 @@
 // Which clean files get derived copies, of which kinds, and where those
 // copies are stored. A module whose uploads need derivatives adds its
-// purpose to IMAGE_DERIVATIVES or VIDEO_DERIVATIVES (85a owns this
+// purpose to its derivative registry (85a owns this
 // registry; #85's entries, #86 video, #102 stamping, #103 gallery and #129
 // adoption append to it). A file with no kinds here gets no media job at
-// all: it is ready as soon as its scan passes (an essay's PDF, #86).
+// all: it is ready as soon as its scan passes (a payment proof, for example).
 //
 // Pure: no I/O, no "server-only".
 
@@ -60,7 +60,7 @@ const IMAGE_TYPES: ReadonlySet<string> = new Set<SniffedImageType>([
 
 /**
  * The derivatives a clean file gets, by its purpose and stored type: none
- * for a type the media processor doesn't decode (a PDF) or a purpose that
+ * for a non-image type or a purpose that
  * registered none.
  */
 export function derivativeKindsFor({
@@ -97,14 +97,19 @@ export function videoDerivativeKindsFor({
 
 /**
  * The media job a clean file gets: an image's (sharp), a video's (ffmpeg),
- * or none, when it is ready as stored.
+ * an essay PDF's (Poppler), or none, when it is ready as stored.
  */
 export function mediaJobFor(file: {
   purpose: FilePurpose;
   contentType: string;
-}): "image" | "video" | null {
+}): "image" | "video" | "pdf" | null {
   if (derivativeKindsFor(file).length > 0) return "image";
   if (videoDerivativeKindsFor(file).length > 0) return "video";
+  if (
+    file.purpose === "entry_document" &&
+    normaliseContentType(file.contentType) === "application/pdf"
+  )
+    return "pdf";
   return null;
 }
 

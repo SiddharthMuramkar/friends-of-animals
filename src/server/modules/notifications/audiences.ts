@@ -152,6 +152,7 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "files.file_uploaded":
     case "files.processing_requested":
     case "files.video_processing_requested":
+    case "files.pdf_processing_requested":
     case "files.file_ready":
     case "files.file_processed":
     case "files.file_processing_failed":
@@ -733,6 +734,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
   "files.video_processing_requested": { names: [], load: async () => ({}) },
+  "files.pdf_processing_requested": { names: [], load: async () => ({}) },
   "files.file_ready": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },

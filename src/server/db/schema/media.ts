@@ -86,13 +86,13 @@ export const fileDerivative = pgTable(
      */
     kind: text().notNull(),
     bucket: text().notNull(),
-    /** `<prefix>derived/<file id>/<kind>.webp`. */
+    /** `<prefix>derived/<file id>/<kind>.<ext>`. */
     storageKey: text("storage_key").notNull().unique(),
     contentType: text("content_type").notNull(),
     /** Pixels; null for a kind with no picture size. */
     width: integer(),
     height: integer(),
-    /** For a video kind; null for images. */
+    /** For a video kind; null for images and PDFs. */
     durationMs: integer("duration_ms"),
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
     createdAt: timestamptz("created_at").notNull(),

@@ -90,18 +90,24 @@ function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
           "Invalid environment: worker-media requires R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET"
         );
       }
-      const [{ processMediaInChild }, { ffmpegVideoProcessor }] =
-        await Promise.all([
-          import("../worker-media/process-media"),
-          import("../server/ports/media-ffmpeg"),
-        ]);
+      const [
+        { processMediaInChild },
+        { ffmpegVideoProcessor },
+        { popplerPdfProcessor },
+      ] = await Promise.all([
+        import("../worker-media/process-media"),
+        import("../server/ports/media-ffmpeg"),
+        import("../server/ports/media-pdf"),
+      ]);
       // Images in a child process with a hard deadline; videos in ffmpeg,
       // which has its own per clip (#86).
       const images = processMediaInChild(timeoutSeconds);
       const videos = ffmpegVideoProcessor();
+      const pdfs = popplerPdfProcessor();
       return {
         processImage: (input) => images.processImage(input),
         processVideo: (input) => videos.processVideo(input),
+        processPdf: (input) => pdfs.processPdf(input),
       };
     },
     openDatabase(url, connections) {

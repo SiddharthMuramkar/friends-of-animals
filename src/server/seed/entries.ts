@@ -183,7 +183,7 @@ const SEED_VIDEO = {
   durationMs: 4_000,
 } as const;
 
-async function seedVideoDerivatives(
+export async function seedVideoDerivatives(
   db: AppDb,
   storage: Pick<ObjectStorage, "write">,
   {

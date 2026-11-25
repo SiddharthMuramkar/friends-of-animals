@@ -768,6 +768,24 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     retention: JUDGING_RECORD,
     onExpiry: "delete_row",
   })("judge_user_id", "identity"),
+  rowsOf("score_sheet", {
+    subject: { kind: "user", via: "judge_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("judge_user_id", "identity"),
+  rowsOf("score_sheet", {
+    subject: ENTRY_PARTICIPANT,
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("comment", "content"),
+  rowsOf("criterion_score", {
+    subject: {
+      kind: "participant_profile",
+      via: "score_sheet_id → score_sheet.entry_id → entry.participant_profile_id",
+    },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("value", "content"),
   judgeInvite("email_ciphertext", "contact"),
   judgeInvite("email_hash", "technical"),
   judgeInvite("token_ciphertext", "technical", { onExpiry: "set_null" }),

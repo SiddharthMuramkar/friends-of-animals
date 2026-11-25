@@ -20,8 +20,8 @@ import { invalidInput, type InvalidInput } from "../../../input";
 import { deliveryDecision, type DeliveryRefusal } from "../domain/delivery";
 import {
   derivativeExtension,
-  STORED_DERIVATIVE_KINDS,
-  type StoredDerivativeKind,
+  VISUAL_DERIVATIVE_KINDS,
+  type VisualDerivativeKind,
 } from "../domain/derivatives";
 import { DOWNLOAD_URL_TTL_SECONDS } from "./delivery";
 import { findReadableFile } from "./readable-file";
@@ -29,7 +29,7 @@ import type { FilesContext } from "./upload";
 
 export type GetFileDerivativeUrlInput = {
   fileId: string;
-  kind: StoredDerivativeKind;
+  kind: VisualDerivativeKind;
 };
 
 export type GetFileDerivativeUrlResult =
@@ -54,7 +54,7 @@ export type GetFileDerivativeUrlResult =
 
 const getFileDerivativeUrlInput = z.object({
   fileId: z.uuid(),
-  kind: z.enum(STORED_DERIVATIVE_KINDS),
+  kind: z.enum(VISUAL_DERIVATIVE_KINDS),
 });
 
 /**
@@ -128,7 +128,7 @@ export type SignedDerivative = {
 async function signedDerivative(
   ctx: Pick<FilesContext, "db" | "clock" | "storage">,
   file: { id: string; purpose: string },
-  kind: StoredDerivativeKind
+  kind: VisualDerivativeKind
 ): Promise<SignedDerivative | null> {
   const [derivative] = await ctx.db
     .select()
@@ -169,7 +169,7 @@ async function signedDerivative(
 export async function moduleDerivativeUrl(
   ctx: Pick<FilesContext, "db" | "clock" | "storage">,
   fileId: string,
-  kind: StoredDerivativeKind
+  kind: VisualDerivativeKind
 ): Promise<SignedDerivative | null> {
   const [file] = await ctx.db
     .select({
