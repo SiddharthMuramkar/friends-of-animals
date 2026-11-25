@@ -185,6 +185,29 @@ it("counts fee captures per batch, completed refunds once, and real issued certi
     verified: 0,
     certificates: 0,
   });
+  const neighbours = await manager.getCompetitionReport({
+    competitionCode: "NEIGH27",
+  });
+  if (!neighbours.ok) throw Error(neighbours.error);
+  // A single captured ₹100 adult payment. The school batch is still open.
+  expect(neighbours.report.fees).toEqual({
+    currency: "INR",
+    routes: [
+      {
+        route: "institution",
+        totals: { capturedMinor: 0n, refundedMinor: 0n, netMinor: 0n },
+      },
+      {
+        route: "individual",
+        totals: {
+          capturedMinor: 10_000n,
+          refundedMinor: 0n,
+          netMinor: 10_000n,
+        },
+      },
+    ],
+    total: { capturedMinor: 10_000n, refundedMinor: 0n, netMinor: 10_000n },
+  });
   const mixed = await manager.getCompetitionReport({
     competitionCode: "ORIG27",
   });
