@@ -15,6 +15,7 @@ import { z } from "zod";
 import { authorize } from "../../access/can";
 import {
   competition,
+  donation,
   institution,
   paymentBatch,
   paymentBatchItem,
@@ -25,7 +26,7 @@ import { invalidInput, type InvalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { participationRefusals } from "../consent/participation-gate";
 import { guardianFlowsActive } from "../guardians/availability";
-import type { PaymentBatchStatus } from "./domain/batch-status";
+import type { PaymentBatchStatus, PaymentPurpose } from "./domain/batch-status";
 import {
   allowedOutcomes,
   BATCH_STATUSES_BEFORE_REVIEW,
@@ -54,7 +55,11 @@ export type PaymentReviewCaseItem = {
   currency: string;
   openedAt: Date;
   payer: PaymentReviewPayer;
-  competitionName: string;
+  /** Null for a donation's batch (#106): `purpose` says so. */
+  competitionName: string | null;
+  purpose: PaymentPurpose;
+  /** The donation a donation's batch pays for; null for fees. */
+  donationId: string | null;
   resolution: {
     outcome: PaymentReviewOutcome;
     resolvedAt: Date;
@@ -103,6 +108,8 @@ const ITEM_COLUMNS = {
   institutionName: institution.name,
   payerName: payerUser.name,
   competitionName: competition.name,
+  purpose: paymentBatch.purpose,
+  donationId: donation.id,
 };
 
 type ItemRow = Awaited<ReturnType<typeof caseQuery>>[number];
@@ -131,6 +138,8 @@ function itemOf(row: ItemRow): PaymentReviewCaseItem {
     openedAt: row.openedAt,
     payer,
     competitionName: row.competitionName,
+    purpose: row.purpose,
+    donationId: row.donationId,
     resolution:
       row.outcome !== null && row.resolvedAt !== null
         ? {
@@ -144,13 +153,17 @@ function itemOf(row: ItemRow): PaymentReviewCaseItem {
 }
 
 function caseQuery(ctx: UseCaseContext) {
-  return ctx.db
-    .select(ITEM_COLUMNS)
-    .from(paymentReviewCase)
-    .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
-    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
-    .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
-    .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId));
+  return (
+    ctx.db
+      .select(ITEM_COLUMNS)
+      .from(paymentReviewCase)
+      .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
+      // A donation's batch (#106) has no competition.
+      .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
+      .leftJoin(donation, eq(donation.paymentBatchId, paymentBatch.id))
+      .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
+      .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId))
+  );
 }
 
 const listInput = z.object({ state: z.enum(["open", "resolved"]) });
@@ -233,7 +246,7 @@ export async function getPaymentReviewCase(
     })
     .from(paymentReviewCase)
     .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
-    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
     .leftJoin(resolver, eq(resolver.id, paymentReviewCase.resolvedByUserId))
     .where(eq(paymentReviewCase.id, caseId));
   if (!details || !isBeforeReview(details.batchStatusBefore)) {
@@ -255,6 +268,7 @@ export async function getPaymentReviewCase(
     batchStatusBefore: details.batchStatusBefore,
     currency: item.currency,
     amountMinor: item.amountMinor,
+    purpose: item.purpose,
   });
   let participationUnavailable = false;
   if (

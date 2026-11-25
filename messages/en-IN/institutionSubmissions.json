@@ -54,7 +54,12 @@
         "back": "Back to your dashboard"
       },
       "back": "Back to the registration",
-      "dashboardLink": "Entries"
+      "dashboardLink": "Entries",
+      "schoolRound": {
+        "title": "School round",
+        "body": "Once submissions close, record your judging panel, pick your shortlist for FOA and finalise.",
+        "link": "Open the school round"
+      }
     },
     "student": {
       "meta": "A student’s entry",

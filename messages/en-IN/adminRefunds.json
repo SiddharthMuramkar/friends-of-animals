@@ -11,7 +11,8 @@
     "kinds": {
       "discretionary": "Asked for",
       "cancellation": "Competition cancelled",
-      "duplicate": "Payment in review"
+      "duplicate": "Payment in review",
+      "foreign_payment": "Foreign donation returned"
     },
     "statuses": {
       "requested": "Waiting for finance",

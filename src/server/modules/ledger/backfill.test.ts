@@ -64,12 +64,16 @@ describe("backfillLedgerFromPayments", () => {
     const system = h.as({ kind: "system", process: "cli" });
     expect(await system.backfillLedgerFromPayments()).toEqual({
       capturesPosted: 2,
+      donationsPosted: 0,
+      foreignPosted: 0,
       refundsPosted: 0,
     });
     const posted = await read();
     expect(posted.map((row) => row.sourceId).sort()).toEqual(paymentIds.sort());
     expect(await system.backfillLedgerFromPayments()).toEqual({
       capturesPosted: 0,
+      donationsPosted: 0,
+      foreignPosted: 0,
       refundsPosted: 0,
     });
     await h.drain();

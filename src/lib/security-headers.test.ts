@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 
-import { payFeesPath, payMyRegistrationPath } from "./app-routes";
+import {
+  donationCheckoutPath,
+  payFeesPath,
+  payMyRegistrationPath,
+} from "./app-routes";
 import { ROUTES } from "./routes";
 import {
   checkoutPageHeaders,
+  consentLinkHeaders,
   DIRECTORY_SEARCH_PATH,
   directorySearchHeaders,
   securityHeaders,
@@ -101,6 +106,20 @@ describe("checkoutPageHeaders", () => {
     });
   });
 
+  it("does the same on a donation's checkout (#106), and not on /donate", () => {
+    const { pathname } = new URL(
+      donationCheckoutPath(
+        "0193a8f0-0000-7000-8000-000000000001",
+        "x".repeat(43)
+      ),
+      "http://localhost:3000"
+    );
+
+    expect(matching(pathname)).toHaveLength(1);
+    expect(matching("/donate")).toEqual([]);
+    expect(matching("/donate/thank-you")).toEqual([]);
+  });
+
   it("leaves every other page's headers as they are", () => {
     for (const path of [
       "/",
@@ -119,6 +138,34 @@ describe("checkoutPageHeaders", () => {
     for (const rule of rules) {
       for (const { key } of rule.headers) expect(everyPage).toContain(key);
     }
+  });
+});
+
+describe("consentLinkHeaders", () => {
+  const rules = consentLinkHeaders();
+  const matching = (path: string) =>
+    rules.filter((rule) => getPathMatch(rule.source)(path) !== false);
+
+  it.each([
+    "/consent/abc",
+    "/donate/checkout/0193a8f0-0000-7000-8000-000000000001",
+    "/donate/thank-you",
+    "/receipts/abc",
+    "/receipts/request",
+  ])("never caches, indexes or refers from %s", (path) => {
+    const [rule, ...others] = matching(path);
+    expect(others).toEqual([]);
+    expect(
+      Object.fromEntries(rule!.headers.map((h) => [h.key, h.value]))
+    ).toEqual({
+      "Referrer-Policy": "no-referrer",
+      "Cache-Control": "private, no-store",
+      "X-Robots-Tag": "noindex, nofollow",
+    });
+  });
+
+  it.each(["/", "/donate", "/contact"])("leaves %s alone", (path) => {
+    expect(matching(path)).toEqual([]);
   });
 });
 

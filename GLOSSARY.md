@@ -311,6 +311,40 @@ six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
 Route is free.
 _Avoid_: Entry number, roll number, receipt number
 
+## Donations
+
+**Donation**:
+Money someone gives FOA, once online in INR (#106), and later monthly or
+recorded offline. An online donation is paid through a Payment batch whose
+purpose is the donation, and has exactly one Receipt once captured. Adults
+only; foreign money is returned while FOA isn't registered under FCRA.
+_Avoid_: Contribution, gift record, payment
+
+**Donor**:
+Who gave a Donation, as they gave it: a person, or a company or CSR partner
+with a contact person, which chooses whether its name may be shown in
+public. A guest donor has no account.
+_Avoid_: Supporter, patron, sponsor
+
+**Receipt**:
+The numbered record of a captured Donation: FOA-RCPT, the financial year and
+six digits (FOA-RCPT-2627-000123), gapless within the year. Everything it
+prints is frozen when it is issued; a full refund cancels it, and its number
+is never used again. Never sent as an attachment.
+_Avoid_: Invoice, acknowledgement, 80G certificate
+
+**Receipt link**:
+A link that opens one Receipt for 7 days. A new link is a new token; nothing
+extends an old one. The donor gets one by email, finance can make one to
+pass on by hand.
+_Avoid_: Download link, receipt URL
+
+**Checkout token**:
+The bearer in a Donation's checkout and thank-you links, so whoever started
+it can pay and see what happened without an account. It never opens the
+Receipt.
+_Avoid_: Donation password, access code
+
 ## Site content
 
 **Content document**:
@@ -454,8 +488,9 @@ dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
 **Derivative**:
-A copy the platform makes of an uploaded picture, such as a thumbnail or a
-display copy: upright, resized and stripped of location and camera details.
+A copy the platform makes of an uploaded picture or video, such as a
+thumbnail, a display copy, or a video's playable copy and its poster:
+upright, resized and stripped of location and camera details.
 Whoever may see the original may see its derivatives, once its scan passes.
 _Avoid_: Rendition, variant, thumbnail (one kind of derivative)
 
@@ -533,6 +568,38 @@ round can't be finalised without it.
 _Avoid_: Conduct declaration, sign-off (the participation declaration is the
 institution's consent to take part)
 
+**School round**:
+The first Round on the institution route: one per Institution registration
+with a confirmed student, opened when its competition enters school judging.
+The coordinator records the Panel, picks the Shortlist and finalises it.
+_Avoid_: School judging (the competition's status), first round
+
+**Category**:
+One discipline for one age group of a competition, such as Drawing for
+Group A. Entries are shortlisted and placed within their Category.
+_Avoid_: Section, class
+
+**Panel**:
+The people who judged a School round, each with their full name and role.
+_Avoid_: Jury (FOA's judges), judges (alone)
+
+**Shortlist**:
+The entries a school picks, per Category, to go on to FOA judging, up to the
+competition's shortlist size. It is a draft until the School round is
+finalised; finalising makes each Entry school-shortlisted or not
+shortlisted.
+_Avoid_: Selection, finalists
+
+**School position**:
+A place (1st, 2nd, 3rd...) a school gives a shortlisted Entry in its
+Category, up to the competition's number of positions. Optional.
+_Avoid_: Rank, prize
+
+**Judging attestation**:
+The coordinator's statement, given when finalising, that the Shortlist and
+School positions are the Panel's fair judgement against FOA's Rubric.
+_Avoid_: Judging certificate, sign-off
+
 ## Registration
 
 **Institution registration**:
@@ -581,10 +648,10 @@ The work a participant submits for a competition registration; a registration
 has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
-The reference assigned to an entry when its first upload is confirmed, such as `NEIGH27-E-7K3QZ9`.
+The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
 
 **Live file**
-The entry’s current image after it passes its safety and processing checks.
+The entry’s current work (an image, a video, or an essay typed or as a PDF) after it passes its safety and processing checks. A typed essay has none to pass and is live as soon as it is saved.
 
 **Pending replacement**
 A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.

@@ -11,13 +11,14 @@ import {
   authorizeEntrySubmission,
   submissionFacts,
 } from "../registration-facts";
-import { isImageDiscipline } from "../rules";
+import { isEntryDiscipline } from "../rules";
 
 const inputSchema = z.object({ registrationId: z.uuid() });
 
 /**
- * The first-upload form for a confirmed individual or their guardian, or a
- * school's coordinator for their student (#87).
+ * The first-submission form for a confirmed individual or their guardian,
+ * or a school's coordinator for their student (#87): every discipline the
+ * competition offers that takes entries (pictures, videos and essays, #86).
  */
 export async function getEntryUploadOptions(
   ctx: UseCaseContext,
@@ -47,7 +48,7 @@ export async function getEntryUploadOptions(
     .where(eq(entry.registrationId, registrationId));
   if (existing)
     return { ok: false, error: "entry_exists", code: existing.code } as const;
-  const disciplines = facts.competition.disciplines.filter(isImageDiscipline);
+  const disciplines = facts.competition.disciplines.filter(isEntryDiscipline);
   if (disciplines.length === 0) {
     return { ok: false, error: "discipline_not_offered" } as const;
   }

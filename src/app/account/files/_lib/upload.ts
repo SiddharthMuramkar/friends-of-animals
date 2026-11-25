@@ -70,7 +70,10 @@ export function downloadPathFor(fileId: string): string {
   return `/api/files/${fileId}`;
 }
 
-/** Every type a purpose takes, HEIC and HEIF (entry images, #85) included. */
+/**
+ * Every type a purpose takes, HEIC and HEIF (entry images, #85) and phone
+ * videos (entry videos, #86) included.
+ */
 type NamedContentType = PurposeRule["contentTypes"][number];
 
 const TYPE_NAME_KEY = {
@@ -80,6 +83,10 @@ const TYPE_NAME_KEY = {
   "application/pdf": "pdf",
   "image/heic": "heic",
   "image/heif": "heif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/3gpp": "threeGp",
+  "video/webm": "webm",
 } as const satisfies Record<NamedContentType, string>;
 
 export type TypeNameKey = (typeof TYPE_NAME_KEY)[NamedContentType];

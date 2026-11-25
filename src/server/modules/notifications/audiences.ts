@@ -99,6 +99,10 @@ import {
   volunteerApplicant,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
+import {
+  outcomeValues,
+  SCHOOL_ROUND_OUTCOME_VARIABLES,
+} from "../school-round/family-outcomes";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -125,6 +129,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "files.file_uploaded":
     case "files.processing_requested":
+    case "files.video_processing_requested":
+    case "files.file_ready":
     case "files.file_processed":
     case "files.file_processing_failed":
     case "files.file_quarantined":
@@ -191,6 +197,13 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "donation.captured":
+    case "donation.foreign_payment_received":
+    case "donation.refunded":
+    case "receipt.link_requested":
+      // A guest donor has no account: the donations module emails the
+      // address they gave, and tells a signed-in donor in-app (#106).
+      return null;
     case "guardian.teen_invited":
       // The teen may have no account yet: the invitation goes to the
       // invited address by its own handler (#81), not by a route row.
@@ -256,6 +269,16 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
+      return null;
+    case "competition.school_judging_started":
+    case "school_round.shortlist_finalised":
+      // Open the rounds and queue the families' messages (#89); no route
+      // row names them.
+      return null;
+    case "entry.school_shortlisted":
+    case "entry.not_shortlisted":
+      // The family contact isn't a user: their message goes by the school
+      // round's own handler (#89), not by a route row.
       return null;
   }
 }
@@ -373,6 +396,12 @@ export const AUDIENCES = {
    * route's template while the route is enabled.
    */
   family_contact: async () => [],
+  /**
+   * Whoever gave a donation (#106), who may have no account. No user
+   * receives it here: the donations module sends the route's template to
+   * the donor's address, and in-app to a signed-in donor.
+   */
+  donor: async () => [],
   /** The staff team a contact message was routed to (#113). */
   contact_team: async (db, delivery) =>
     delivery.eventType === "contact_message.received"
@@ -583,6 +612,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "consent.link_sent": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
+  "files.video_processing_requested": { names: [], load: async () => ({}) },
+  "files.file_ready": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
   "files.file_quarantined": { names: [], load: async () => ({}) },
@@ -663,6 +694,31 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: RECEIPT_VARIABLES,
     load: (db, { payload }) => receiptValues(db, payload.batchId),
   },
+  // The donations module renders these itself (#106): only it can mint a
+  // receipt link as the email goes. Declared so templates check out.
+  "donation.captured": {
+    names: [
+      "donation.amount",
+      "receipt.number",
+      "receipt.link",
+      "receipt.expiresOn",
+    ],
+    load: async () => ({}),
+  },
+  "donation.foreign_payment_received": { names: [], load: async () => ({}) },
+  "donation.refunded": {
+    names: ["donation.amount", "refund.amount", "refund.reference"],
+    load: async () => ({}),
+  },
+  "receipt.link_requested": {
+    names: [
+      "donation.amount",
+      "receipt.number",
+      "receipt.link",
+      "receipt.expiresOn",
+    ],
+    load: async () => ({}),
+  },
   "guardian.teen_invited": { names: [], load: async () => ({}) },
   "refund.approved": { names: [], load: async () => ({}) },
   "refund.processed": {
@@ -710,6 +766,16 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "entry.file_failed": {
     names: ENTRY_ATTEMPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload),
+  },
+  "competition.school_judging_started": { names: [], load: async () => ({}) },
+  "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "entry.school_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "entry.not_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
   },
   "privacy_request.submitted": {
     names: REQUEST_VARIABLES,

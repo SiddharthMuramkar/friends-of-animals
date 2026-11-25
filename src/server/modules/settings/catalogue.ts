@@ -99,6 +99,33 @@ export const SETTINGS = {
   "org.registrationType": textSetting({ default: "", maxLength: 100 }),
   "org.registrationNumber": textSetting({ default: "", maxLength: 50 }),
   "org.pan": textSetting({ default: "", maxLength: 10 }),
+  // Donations (#106). Off until Razorpay's live keys (HR-15) and the
+  // accountant's chart and receipts (HR-47) are in place: the donate page
+  // then says donations open soon, and nothing starts. Seeded on for local
+  // runs and previews, which pay through the test checkout. The amounts
+  // and the expiry are defaults FOA confirms (HR-51).
+  "donations.enabled": booleanSetting({ default: false }),
+  // Whether someone without an account may give.
+  "donations.allowGuest": booleanSetting({ default: true }),
+  "donations.minAmountRupees": integerSetting({
+    default: 100,
+    min: 1,
+    max: 100_000,
+    unit: "rupees",
+  }),
+  "donations.maxAmountRupees": integerSetting({
+    default: 100_000,
+    min: 1,
+    max: 10_000_000,
+    unit: "rupees",
+  }),
+  // How long an online donation waits for Checkout before it expires.
+  "donations.pendingExpiryHours": integerSetting({
+    default: 24,
+    min: 1,
+    max: 168,
+    unit: "hours",
+  }),
   // Safeguarding (#116): concern reports one IP may send in an hour before
   // the form refuses and shows the helplines instead (HR-48).
   "safeguarding.reportsPerIpPerHour": integerSetting({

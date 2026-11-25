@@ -5,6 +5,7 @@
 
 import type { ScanVerdict } from "../../../ports/malware-scanner";
 import type { SniffedContentType } from "./sniff";
+import { sameVideoFamily, type SniffedVideoType } from "./video-sniff";
 
 export type ScanOutcome =
   | {
@@ -47,7 +48,21 @@ export function scanOutcome({
  */
 const HEIF_FAMILY: ReadonlySet<string> = new Set(["image/heic", "image/heif"]);
 
+const VIDEO_TYPES: ReadonlySet<string> = new Set<SniffedVideoType>([
+  "video/mp4",
+  "video/quicktime",
+  "video/3gpp",
+  "video/webm",
+]);
+
+/**
+ * Phones label MP4, QuickTime and 3GP loosely (#86), and ffmpeg reads them
+ * the same way, so those three match each other (./video-sniff.ts).
+ */
 function sameType(declared: string, sniffed: SniffedContentType): boolean {
+  if (VIDEO_TYPES.has(sniffed)) {
+    return sameVideoFamily(declared, sniffed as SniffedVideoType);
+  }
   return (
     declared === sniffed ||
     (HEIF_FAMILY.has(declared) && HEIF_FAMILY.has(sniffed))

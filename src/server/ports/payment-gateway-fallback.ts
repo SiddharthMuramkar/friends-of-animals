@@ -192,6 +192,8 @@ export class FallbackPaymentGateway implements PaymentGateway {
       status: row.status,
       amountMinor: row.amountMinor,
       currency: row.currency,
+      // The test checkout pays with no card at all: never from abroad.
+      international: false,
     }));
   }
 

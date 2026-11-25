@@ -1,16 +1,22 @@
-// The media processor port: image bytes in, derived copies out. It makes the
-// sizes planImageDerivatives() plans, as WebP, with the orientation baked
-// into the pixels and no metadata at all (no EXIF location or camera, no
-// XMP, no IPTC), because participants are often children and a photo's GPS
-// is a safeguarding leak. It never touches storage or the database: the
-// Files module's media job reads the original and writes the derivatives
-// (src/server/modules/files).
+// The media processor port: an original in, derived copies out. For an
+// image it makes the sizes planImageDerivatives() plans, as WebP, with the
+// orientation baked into the pixels; for a video (#86), the H.264 and AAC
+// MP4 copy and the JPEG poster planVideoTranscode() plans. No derivative
+// carries any metadata (no EXIF or QuickTime location, camera, creation
+// time; no XMP, no IPTC), because participants are often children and a
+// photo's or a clip's GPS is a safeguarding leak. It never touches storage
+// or the database: the Files module's media jobs read the original and
+// write the derivatives (src/server/modules/files).
 //
 // Adapters:
-//   - sharp (./media-sharp.ts): prebuilt sharp, with HEIC decoded by WASM
-//     libheif first. Runs in worker-media, and in Vitest without Docker.
+//   - sharp (./media-sharp.ts) for images: prebuilt sharp, with HEIC
+//     decoded by WASM libheif first. Runs in worker-media, and in Vitest
+//     without Docker.
+//   - ffmpeg (./media-ffmpeg.ts) for videos: ffprobe and ffmpeg, which
+//     only the worker-media image installs.
 //   - the in-memory fake (src/test/fakes/media.ts): Seam 1 tests.
-// Both pass ./media.contract.ts.
+// Each passes ./media.contract.ts for what it handles; the ffmpeg run of it
+// is ./media-ffmpeg.media.test.ts (`pnpm test:media`, where ffmpeg is).
 //
 // Loads under plain Node (the worker): relative imports only.
 
@@ -18,8 +24,11 @@ import type {
   DerivativeKind,
   PixelSize,
   PlannedDerivative,
+  VideoDerivativeKind,
 } from "../modules/files/domain/derivatives";
 import type { SniffedImageType } from "../modules/files/domain/image-type";
+import type { VideoProbe } from "../modules/files/domain/video-probe";
+import type { SniffedVideoType } from "../modules/files/domain/video-sniff";
 
 export type MediaInput = {
   /** The whole original, as uploaded. */
@@ -43,10 +52,50 @@ export type MediaResult = {
   derivatives: MediaDerivative[];
 };
 
-export interface MediaProcessor {
+export type VideoInput = {
+  /** The whole original, streamed from storage. */
+  source: ReadableStream<Uint8Array>;
+  /** The longest clip taken, as ffprobe measures it (./video-duration.ts). */
+  maxDurationMs: number;
+};
+
+export type VideoDerivative = {
+  kind: VideoDerivativeKind;
+  contentType: "video/mp4" | "image/jpeg";
+  width: number;
+  height: number;
+  /** The copy's length; null for the poster, or when unknown. */
+  durationMs: number | null;
+  bytes: Uint8Array;
+};
+
+export type VideoResult = {
+  /** What the bytes are, whatever type the upload declared. */
+  sniffedType: SniffedVideoType;
+  /** What ffprobe read: length, upright size and codecs, no metadata. */
+  probe: VideoProbe;
+  /** The watchable copy, then its poster. */
+  derivatives: VideoDerivative[];
+};
+
+/** An image adapter's half of the port (sharp). */
+export interface ImageProcessor {
   /** Rejects with a MediaError when the bytes can't be processed. */
   processImage(input: MediaInput): Promise<MediaResult>;
 }
+
+/** A video adapter's half of the port (ffmpeg, #86). */
+export interface VideoProcessor {
+  /**
+   * The video's watchable copy and poster. Rejects with a MediaError when
+   * the clip can't be taken (too long, no picture, undecodable, past its
+   * deadline); anything else it throws is worth another try.
+   */
+  processVideo(input: VideoInput): Promise<VideoResult>;
+}
+
+/** What worker-media runs the media queue with: both halves. */
+export interface MediaProcessor extends ImageProcessor, VideoProcessor {}
 
 /**
  * Why an image couldn't be processed. Each code is safe to store and to
@@ -60,13 +109,19 @@ export type MediaErrorCode =
   /** More pixels than the processor will decode (a decompression bomb). */
   | "image_too_large"
   /** The media process ran past its deadline. */
-  | "media_timeout";
+  | "media_timeout"
+  /** A video longer than its limit, as ffprobe measures it (#86). */
+  | "video_too_long"
+  /** A video file with no picture in it, only sound or data (#86). */
+  | "no_video_stream";
 
 export const MEDIA_ERROR_CODES = [
   "unsupported_type",
   "media_decode_failed",
   "image_too_large",
   "media_timeout",
+  "video_too_long",
+  "no_video_stream",
 ] as const satisfies readonly MediaErrorCode[];
 
 export class MediaError extends Error {
@@ -80,10 +135,12 @@ export class MediaError extends Error {
 }
 
 const MEDIA_ERROR_MESSAGES: Record<MediaErrorCode, string> = {
-  unsupported_type: "The file is not an image type the platform processes",
-  media_decode_failed: "The image could not be decoded",
+  unsupported_type: "The file is not a type the platform processes",
+  media_decode_failed: "The file could not be decoded",
   image_too_large: "The image has more pixels than the platform processes",
-  media_timeout: "The image took too long to process",
+  media_timeout: "The file took too long to process",
+  video_too_long: "The video is longer than the limit",
+  no_video_stream: "The file has no video picture in it",
 };
 
 /** The most pixels an adapter decodes by default: 100 megapixels. */
@@ -106,8 +163,8 @@ export type FileProcessingErrorCode =
 export class MediaNotConfiguredError extends Error {
   constructor() {
     super(
-      "No media processor here: images are processed in worker-media, " +
-        "which drains the media queue."
+      "No media processor here: images and videos are processed in " +
+        "worker-media, which drains the media queue."
     );
     this.name = "MediaNotConfiguredError";
   }
@@ -119,4 +176,5 @@ export class MediaNotConfiguredError extends Error {
  */
 export const unconfiguredMedia: MediaProcessor = {
   processImage: () => Promise.reject(new MediaNotConfiguredError()),
+  processVideo: () => Promise.reject(new MediaNotConfiguredError()),
 };

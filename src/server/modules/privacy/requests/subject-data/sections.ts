@@ -386,6 +386,9 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // Which finance user last locked or reopened a ledger month (#109):
   // rows keyed by month, with no id to list.
   ledger_period: "staff_last_change",
+  // Which coordinator picked an entry for a school's shortlist (#89): keyed
+  // by the entry, with no id of its own to list.
+  school_round_pick: "coordinator_pick",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };

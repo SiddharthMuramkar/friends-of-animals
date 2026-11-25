@@ -47,6 +47,7 @@ import competitionCancel from "../../messages/en-IN/competitionCancel.json";
 import contact from "../../messages/en-IN/contact.json";
 import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
 import institutionSubmissions from "../../messages/en-IN/institutionSubmissions.json";
+import schoolRound from "../../messages/en-IN/schoolRound.json";
 import guardianConsent from "../../messages/en-IN/guardianConsent.json";
 import guardianConsentDelivery from "../../messages/en-IN/guardianConsentDelivery.json";
 import coordinators from "../../messages/en-IN/coordinators.json";
@@ -56,6 +57,10 @@ import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
 import donate from "../../messages/en-IN/donate.json";
+import donationCheckout from "../../messages/en-IN/donationCheckout.json";
+import donations from "../../messages/en-IN/donations.json";
+import receipts from "../../messages/en-IN/receipts.json";
+import adminDonations from "../../messages/en-IN/adminDonations.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
@@ -133,6 +138,7 @@ export const NAMESPACES = [
   "coordinators",
   "coordinatorConsents",
   "institutionSubmissions",
+  "schoolRound",
   "guardianConsent",
   "guardianConsentDelivery",
   "contactForm",
@@ -141,6 +147,10 @@ export const NAMESPACES = [
   "directory",
   "adoption",
   "donate",
+  "donationCheckout",
+  "donations",
+  "receipts",
+  "adminDonations",
   "entries",
   "error",
   "files",
@@ -222,6 +232,7 @@ export const messages = {
   ...coordinators,
   ...coordinatorConsents,
   ...institutionSubmissions,
+  ...schoolRound,
   ...guardianConsent,
   ...guardianConsentDelivery,
   ...contactForm,
@@ -230,6 +241,10 @@ export const messages = {
   ...directory,
   ...adoption,
   ...donate,
+  ...donationCheckout,
+  ...donations,
+  ...receipts,
+  ...adminDonations,
   ...entries,
   ...error,
   ...files,

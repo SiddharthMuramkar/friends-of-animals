@@ -393,6 +393,15 @@ const ANNOUNCEMENT_RECORD = {
   toConfirm: true,
 } as const;
 
+/** Donations (#106): money records, with the donor as they gave. */
+const DONATION_RECORD = {
+  policy: "donationRecords",
+  periodKey: "donationRecords",
+  basis:
+    "Financial records: FOA answers for each donation and its receipt to the donor, its auditors and the tax authorities",
+  toConfirm: true,
+} as const;
+
 /** Campaigns (#126): who wrote and sent each, and who each message went to. */
 const CAMPAIGN_RECORD = {
   policy: "campaigns",
@@ -1037,6 +1046,40 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "certified_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
+  // The school round (#89): who attested, finalised and picked; the
+  // judging panel's names and roles (HR-31: retention to confirm).
+  actorColumn(
+    "school_round",
+    "judging_attested_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn("school_round", "finalised_by_user_id", WHILE_REGISTRATION_KEPT),
+  actorColumn(
+    "school_round_pick",
+    "picked_by_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  actorColumn(
+    "school_round_transition",
+    "actor_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  {
+    table: "school_round_panel_member",
+    column: "full_name",
+    category: "identity",
+    subject: { kind: "panel_member", via: "id" },
+    retention: WHILE_REGISTRATION_KEPT,
+    onExpiry: "delete_row",
+  },
+  {
+    table: "school_round_panel_member",
+    column: "designation",
+    category: "identity",
+    subject: { kind: "panel_member", via: "id" },
+    retention: WHILE_REGISTRATION_KEPT,
+    onExpiry: "delete_row",
+  },
   // Students an institution enrols (#75)
   profile("full_name", "identity"),
   profile("dob_ciphertext", "demographic"),
@@ -1279,6 +1322,8 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "set_null",
   }),
   entryFile("receipt_title", "content"),
+  // A typed essay is the work itself (#86), kept like the entry's words.
+  entryFile("essay_body", "content"),
   actorColumn("entry_file", "uploaded_by_user_id", ENTRY_RECORD),
   ...(["file_asset_id", "registration_id", "upload_key"] as const).map(
     (column) =>
@@ -1340,6 +1385,34 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Donations (#106): the donor as they gave, the wall name they chose,
+  // and the receipt that froze their name. Kept as financial records.
+  ...(
+    [
+      ["user_id", "identity", "set_null"],
+      ["name_ciphertext", "identity", "retain"],
+      ["email_ciphertext", "contact", "retain"],
+      ["email_hash", "contact", "retain"],
+      ["organisation_name", "identity", "retain"],
+    ] as const
+  ).map(([column, category, onExpiry]) =>
+    rowsOf("donor", {
+      subject: { kind: "donor", via: "id" },
+      retention: DONATION_RECORD,
+      onExpiry,
+    })(column, category)
+  ),
+  rowsOf("donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  rowsOf("receipt", {
+    subject: { kind: "donor", via: "donation_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "retain",
+  })("snapshot", "identity"),
+  actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
   // Privacy rights requests (#115): who asked about whom, and the words
   // the requester and the grievance officer wrote, encrypted.
   privacyRequestColumn("subject_id", "identity"),

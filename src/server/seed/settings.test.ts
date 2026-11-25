@@ -20,6 +20,11 @@ describe("the settings seed", () => {
       { key: "auth.emailSignIn", value: true },
       { key: "auth.staffSessionHours", value: 12 },
       { key: "breach.authorityEmail", value: "" },
+      { key: "donations.allowGuest", value: true },
+      { key: "donations.enabled", value: true },
+      { key: "donations.maxAmountRupees", value: 100_000 },
+      { key: "donations.minAmountRupees", value: 100 },
+      { key: "donations.pendingExpiryHours", value: 24 },
       // The accountant's export waits for HR-47 only in production (#109).
       { key: "ledger.accountantExport", value: true },
       { key: "ledger.approvalExpiryDays", value: 7 },

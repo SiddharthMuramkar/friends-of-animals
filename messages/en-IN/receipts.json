@@ -1,0 +1,60 @@
+{
+  "receipts": {
+    "meta": {
+      "title": "Your receipt",
+      "requestTitle": "Get a new receipt link"
+    },
+    "loading": "Loading your receipt…",
+    "sheet": {
+      "title": "Donation receipt",
+      "number": "Receipt number",
+      "issued": "Date",
+      "receivedFrom": "Received from",
+      "organisation": "On behalf of",
+      "amount": "Amount",
+      "inWords": "In words",
+      "mode": "Paid",
+      "online": "Online",
+      "reference": "Payment reference",
+      "issuer": "Issued by",
+      "registration": "Registration",
+      "registrationNumber": "Registration number",
+      "pan": "PAN",
+      "address": "Address",
+      "toBeConfirmed": "To be confirmed",
+      "noGoods": "No goods or services were provided in return for this donation.",
+      "noTax": "This receipt does not give a tax deduction.",
+      "cancelled": "Cancelled: this donation was refunded, so this receipt is no longer valid.",
+      "print": "Print or save as PDF",
+      "linkExpires": "This link works until {date}."
+    },
+    "expired": {
+      "title": "This receipt link has expired",
+      "body": "Receipt links work for 7 days. You can ask for a new one with your email address and the receipt number.",
+      "request": "Ask for a new link"
+    },
+    "request": {
+      "eyebrow": "Donations",
+      "title": "Get a new receipt link",
+      "lead": "Enter the email address you gave and your receipt number. If they match a donation, we email a new link, valid for 7 days.",
+      "email": {
+        "label": "Email"
+      },
+      "number": {
+        "label": "Receipt number",
+        "hint": "It looks like FOA-RCPT-2627-000123 and is in the thank-you email."
+      },
+      "submit": "Email me a new link",
+      "submitting": "Sending…",
+      "sent": "If the email address and receipt number match a donation, a new link is on its way. Check your inbox and spam folder.",
+      "rateLimited": "You've asked a few times already. Please try again in an hour.",
+      "invalid": "Enter your email address and the receipt number.",
+      "failed": "Something went wrong. Please try again in a few minutes."
+    },
+    "notFound": {
+      "title": "We couldn't find this receipt",
+      "body": "The link may be mistyped or cut short. You can ask for a new one with your email address and the receipt number.",
+      "request": "Ask for a new link"
+    }
+  }
+}
