@@ -1,12 +1,7 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { createPgWorld, type PgWorld } from "@/test/pg";
-import {
-  certificate,
-  competition,
-  outbox,
-  resultRelease,
-} from "../../db/schema";
+import { certificate, outbox, resultRelease } from "../../db/schema";
 import { SEED_RESULTS } from "../../seed/results";
 let world: PgWorld;
 beforeAll(() => {

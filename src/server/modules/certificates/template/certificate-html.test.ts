@@ -37,9 +37,9 @@ it("posts self-contained HTML with A4 landscape and refuses provider failures", 
   const renderer = gotenbergPdfRenderer({
     baseUrl: "http://pdf.test:3000",
     fetch: async (url, req) => {
-      expect(String(url)).toBe(
-        "http://pdf.test:3000/forms/chromium/convert/html"
-      );
+      expect(
+        typeof url === "string" ? url : url instanceof URL ? url.href : url.url
+      ).toBe("http://pdf.test:3000/forms/chromium/convert/html");
       seen = req?.body as FormData;
       return new Response("%PDF-1.7\n");
     },
@@ -53,9 +53,9 @@ it("posts self-contained HTML with A4 landscape and refuses provider failures", 
   ).toEqual(new TextEncoder().encode("%PDF-1.7\n"));
   expect(seen?.get("paperSize")).toBe("A4");
   expect(seen?.get("landscape")).toBe("true");
-  expect(await (seen?.get("files") as File).text()).toContain(
-    "Winner certificate"
-  );
+  const file = seen?.get("files");
+  if (!(file instanceof File)) throw Error("Missing HTML file");
+  expect(await file.text()).toContain("Winner certificate");
   const error = gotenbergPdfRenderer({
     baseUrl: "http://pdf.test",
     fetch: async () => new Response("private diagnostics", { status: 502 }),

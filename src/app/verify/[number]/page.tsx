@@ -40,7 +40,7 @@ async function Result({ params }: PageProps<"/verify/[number]">) {
             <div>
               <dt className="font-semibold">{t("competition")}</dt>
               <dd>
-                {outcome.competition.name} ({outcome.competition.code})
+                {`${outcome.competition.name} (${outcome.competition.code})`}
               </dd>
             </div>
           )}
