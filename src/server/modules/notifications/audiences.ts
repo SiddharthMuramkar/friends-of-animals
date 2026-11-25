@@ -49,6 +49,7 @@ import {
   competition,
   competitionTransitionBlock,
   auctionBid,
+  auctionLot,
   institution,
   userRole,
 } from "../../db/schema";
@@ -965,7 +966,15 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "auction.lot_closed": { names: [], load: async () => ({}) },
   "auction.bid_outbid": {
     names: ["lot.code"],
-    load: async (_db, { payload }) => ({ "lot.code": payload.lotCode }),
+    load: async (db, { payload }) => {
+      const [row] = await db
+        .select({ code: auctionLot.lotCode })
+        .from(auctionBid)
+        .innerJoin(auctionLot, eq(auctionBid.lotId, auctionLot.id))
+        .where(eq(auctionBid.id, payload.previousBidId));
+      if (!row) return {};
+      return { "lot.code": row.code };
+    },
   },
   "auction.lot_cancelled": { names: [], load: async () => ({}) },
   "artwork.retain_unrequested": { names: [], load: async () => ({}) },

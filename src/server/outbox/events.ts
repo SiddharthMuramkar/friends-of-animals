@@ -522,7 +522,7 @@ export type DomainEvent =
   | {
       type: "auction.bid_outbid";
       aggregate: { type: "auction_bid"; id: string };
-      payload: { previousBidId: string; lotCode: string };
+      payload: { previousBidId: string };
     }
   | {
       type: "auction.lot_cancelled";
@@ -1065,7 +1065,6 @@ export const EVENT_PAYLOADS = {
   "auction.lot_closed": z.object({ lotId: z.uuid() }),
   "auction.bid_outbid": z.object({
     previousBidId: z.uuid(),
-    lotCode: z.string().regex(/^LOT-\d{2}-[0-9A-HJKMNP-TV-Z]{5}$/),
   }),
   "auction.lot_cancelled": z.object({ lotId: z.uuid() }),
   "artwork.retain_unrequested": z.object({ competitionId: z.uuid() }),
