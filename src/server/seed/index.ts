@@ -21,6 +21,7 @@ import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
 import { seedDirectory } from "./directory";
 import { seedAdoption } from "./adoption";
+import { seedAdoptionApplications } from "./adoption-applications";
 import { seedEntries } from "./entries";
 import { seedInstitutionSubmissions } from "./institution-submissions";
 import { seedFiles } from "./files";
@@ -53,6 +54,7 @@ export { SEED_SCOPES } from "./scopes";
 export { SEED_COMPETITION_MANAGER } from "./competitions";
 export { SEED_DIRECTORY } from "./directory";
 export { SEED_ADOPTION } from "./adoption";
+export { SEED_ADOPTION_APPLICATIONS } from "./adoption-applications";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
@@ -106,6 +108,9 @@ const seeders: readonly Seeder[] = [
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).
   seedVolunteers,
+  // After the adoption and consent seeds: applications on the seeded
+  // animals, on version 1 of the adopter's consents (#130).
+  seedAdoptionApplications,
   seedConsentLinks,
   // After every registration seed: the sent one's count comes from them.
   seedAnnouncements,
