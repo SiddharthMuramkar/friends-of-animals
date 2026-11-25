@@ -19,7 +19,17 @@ import { H, type HeadingLevel, sub } from "./heading";
 import { QuoteFigure } from "./quote-figure";
 import { SeasonalCalendar } from "./seasonal-calendar";
 
-/** Shows the current month in India. On /awareness, visitors can browse the year. */
+// Size the month grid against the panel itself, not the page: from six
+// columns on wide cards to two on the narrowest phones. Each tile is at
+// least 48px tall and remains a useful target when text is enlarged.
+const MONTH_GRID =
+  "grid min-w-0 grid-cols-2 gap-2 @min-[10rem]/seasonal-month:grid-cols-3 @min-[13.5rem]/seasonal-month:grid-cols-4 @min-[20.5rem]/seasonal-month:grid-cols-6";
+const MONTH_TILE =
+  "relative grid aspect-square min-h-12 max-h-16 min-w-0 place-items-center rounded-[22%] px-1 pt-2 pb-1 font-display text-sm leading-tight font-bold";
+const MONTH_PANEL =
+  "@container/seasonal-month min-w-0 rounded-3xl bg-section-teal p-[min(1.5rem,8%)] sm:p-8 lg:col-start-2 lg:row-start-1";
+
+/** Shows the current month in India. Interactive instances browse the year. */
 export async function SeasonalCard({
   id = "seasonal",
   headingLevel = 2,
@@ -32,38 +42,45 @@ export async function SeasonalCard({
   className?: string;
 }) {
   const current = seasonalGuideFor(new Date(await cachedNow()));
-  const format = await getFormatter();
+  const [format, t] = await Promise.all([
+    getFormatter(),
+    getTranslations("showcase.seasonal"),
+  ]);
   const months = SEASONAL_MONTHS.map((entry) => {
     const date = new Date(Date.UTC(2026, entry.month - 1, 15));
     return {
       entry,
       name: format.dateTime(date, { month: "long" }),
-      initial: format.dateTime(date, { month: "narrow" }),
+      shortName: format.dateTime(date, { month: "short" }),
       titleId: `${id}-${entry.slug}`,
     };
   });
   const cardClass = cn(
-    "grid grid-cols-1 gap-8 rounded-3xl border-2 border-border bg-surface p-6 shadow-warm [--section-heading:var(--section-teal-heading)] sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-10",
+    "grid min-w-0 grid-cols-1 items-start gap-8 rounded-3xl border-2 border-border bg-surface p-6 shadow-warm [--section-heading:var(--section-teal-heading)] sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:grid-rows-[auto_1fr] lg:gap-10 lg:gap-y-6",
     className
   );
 
   if (interactive) {
-    const t = await getTranslations("showcase.seasonal");
     return (
       <SeasonalCalendar
+        key={current.month}
+        id={id}
         initialMonth={current.month}
-        className={cn(
-          cardClass,
-          "items-start lg:grid-rows-[auto_1fr] lg:gap-y-6"
-        )}
+        className={cardClass}
+        panelClassName={MONTH_PANEL}
         picker={
-          <fieldset className="mt-6 grid min-w-0 grid-cols-3 gap-2 @min-[13.5rem]/seasonal-month:grid-cols-4 @min-[20.5rem]/seasonal-month:grid-cols-6">
-            <legend className="sr-only">{t("monthPicker")}</legend>
-            {months.map(({ entry, name, initial }) => (
+          <fieldset className={cn("mt-4", MONTH_GRID)}>
+            <legend className="mb-3 text-sm font-semibold text-(--section-heading)">
+              {t("monthPicker")}
+            </legend>
+            {months.map(({ entry, name, shortName }) => (
               <label
                 key={entry.month}
                 title={name}
-                className="relative grid aspect-square min-h-12 max-h-16 cursor-pointer place-items-center rounded-[22%] bg-surface font-display text-sm font-bold text-ink-muted hover:ring-2 hover:ring-teal-700 has-checked:bg-teal-700 has-checked:text-white has-checked:shadow-warm has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
+                className={cn(
+                  MONTH_TILE,
+                  "cursor-pointer bg-surface text-ink-muted hover:ring-2 hover:ring-teal-700 has-checked:bg-teal-700 has-checked:text-white has-checked:shadow-warm has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
+                )}
               >
                 <input
                   name={`${id}-months`}
@@ -74,7 +91,9 @@ export async function SeasonalCard({
                   className="peer absolute inset-0 size-full cursor-pointer opacity-0"
                 />
                 <span className="sr-only">{name}</span>
-                <span aria-hidden="true">{initial}</span>
+                <span aria-hidden="true" className="max-w-full wrap-anywhere">
+                  {shortName}
+                </span>
                 <Check
                   aria-hidden="true"
                   className="absolute top-1 right-1 hidden size-3 peer-checked:block"
@@ -105,39 +124,42 @@ export async function SeasonalCard({
   const { name, titleId } = months[current.month - 1]!;
   return (
     <article aria-labelledby={titleId} className={cardClass}>
-      <SeasonalCopy
-        entry={current}
-        headingLevel={headingLevel}
-        monthName={name}
-        titleId={titleId}
-        isCurrentMonth
-      />
-      <div className="flex flex-col gap-6">
-        {!current.imageId && (
-          <div
-            aria-hidden="true"
-            className="@container/seasonal-month rounded-3xl bg-section-teal p-[min(1.5rem,8%)] sm:p-8"
-          >
-            <p className="font-display text-h2 leading-none font-bold wrap-anywhere text-(--section-heading)">
-              {name}
-            </p>
-            <ol className="mt-6 grid grid-cols-3 gap-2 @min-[12rem]/seasonal-month:grid-cols-6">
-              {months.map(({ entry, initial }) => (
-                <li
-                  key={entry.month}
-                  className={cn(
-                    "grid aspect-square place-items-center rounded-[22%] font-display text-sm font-bold",
-                    entry.month === current.month
-                      ? "bg-teal-700 text-white shadow-warm"
-                      : "bg-surface text-ink-muted"
-                  )}
-                >
-                  {initial}
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
+      <div aria-hidden="true" className={MONTH_PANEL}>
+        <p className="font-display text-h2 leading-none font-bold wrap-anywhere text-(--section-heading)">
+          {name}
+        </p>
+        <p className="mt-4 mb-3 text-sm font-semibold text-(--section-heading)">
+          {t("calendarLabel")}
+        </p>
+        <ol className={MONTH_GRID}>
+          {months.map(({ entry, shortName }) => (
+            <li
+              key={entry.month}
+              className={cn(
+                MONTH_TILE,
+                entry.month === current.month
+                  ? "bg-teal-700 text-white shadow-warm"
+                  : "bg-surface text-ink-muted"
+              )}
+            >
+              <span className="max-w-full wrap-anywhere">{shortName}</span>
+              {entry.month === current.month ? (
+                <Check className="absolute top-1 right-1 size-3" />
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+        <SeasonalCopy
+          entry={current}
+          headingLevel={headingLevel}
+          monthName={name}
+          titleId={titleId}
+          isCurrentMonth
+        />
+      </div>
+      <div className="min-w-0 lg:col-start-2 lg:row-start-2">
         <SeasonalMedia entry={current} />
       </div>
     </article>

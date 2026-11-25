@@ -17,6 +17,9 @@ import {
   RECEIPTS_PREFIX,
 } from "./app-routes";
 import type { HeaderRule } from "./csp";
+import { DIRECTORY_SEARCH_PATH } from "./document-navigation";
+
+export { DIRECTORY_SEARCH_PATH } from "./document-navigation";
 
 export type SecurityHeader = { key: string; value: string };
 
@@ -58,9 +61,6 @@ export function checkoutPageHeaders(): HeaderRule[] {
     ],
   }));
 }
-
-/** The directory search's path (#128): ROUTES.ngos in ./routes.ts. */
-export const DIRECTORY_SEARCH_PATH = "/ngos";
 
 /**
  * The directory search's override (#128): its "Use my location" button may

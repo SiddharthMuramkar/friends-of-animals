@@ -4,7 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  type CompetitionCardModel,
+  type CompetitionView,
+  DISCIPLINES,
   fromSample,
 } from "@/components/competitions/model";
 import { SAMPLE_COMPETITIONS } from "@/content/sample";
@@ -16,24 +17,65 @@ import {
   isListedCompetitionSlug,
 } from "./view";
 
-const open = fromSample(
+const openCard = fromSample(
   SAMPLE_COMPETITIONS.find((c) => c.status === "REGISTRATION_OPEN")!
 );
+const open = {
+  ...openCard,
+  categories: openCard.disciplines.flatMap((discipline) =>
+    openCard.ageGroups.map((g) => ({ discipline, ageGroup: g.label }))
+  ),
+};
 
 describe("filterTokens", () => {
   it("gives the status chip word, disciplines and overlapping age bands", () => {
     const t = filterTokens(open);
     expect(t.status).toBe("open");
     expect(t.disciplines).toBe("DRAWING PAINTING PHOTOGRAPHY");
-    expect(t.ages).toBe("a5 a9 a13");
+    expect(t.ages).toBe("a3 a9 a13");
+    expect(t.pairs.split(" ")).toHaveLength(9);
   });
 
   it("only lists bands an age group overlaps", () => {
-    const teens: CompetitionCardModel = {
-      ...open,
-      ageGroups: [{ label: "Group C", minAge: 14, maxAge: 17 }],
-    };
+    const teens: Pick<CompetitionView, "status" | "ageGroups" | "categories"> =
+      {
+        ...open,
+        ageGroups: [{ label: "Group C", minAge: 14, maxAge: 17 }],
+        categories: [{ discipline: "DRAWING", ageGroup: "Group C" }],
+      };
     expect(filterTokens(teens).ages).toBe("a13");
+  });
+
+  it("includes both ends of the supported ages and requires a real category", () => {
+    const t = filterTokens({
+      status: "REGISTRATION_OPEN",
+      ageGroups: [
+        { label: "Young", minAge: 3, maxAge: 4 },
+        { label: "Not offered", minAge: 9, maxAge: 12 },
+        { label: "Adults", minAge: 31, maxAge: 99 },
+      ],
+      categories: [
+        { discipline: "DRAWING", ageGroup: " young " },
+        { discipline: "PHOTOGRAPHY", ageGroup: "ADULTS" },
+        { discipline: "ESSAY", ageGroup: "Unknown" },
+      ],
+    });
+    expect(t.disciplines).toBe("DRAWING PHOTOGRAPHY");
+    expect(t.ages).toBe("a3 a18");
+    expect(t.pairs).toBe("DRAWING-a3 PHOTOGRAPHY-a18");
+  });
+
+  it("matches every age band overlapped by a category's group, without duplicates", () => {
+    const t = filterTokens({
+      status: "REGISTRATION_OPEN",
+      ageGroups: [{ label: "Primary", minAge: 7, maxAge: 10 }],
+      categories: [
+        { discipline: "DRAWING", ageGroup: "Primary" },
+        { discipline: "DRAWING", ageGroup: "Primary" },
+      ],
+    });
+    expect(t.ages).toBe("a3 a9");
+    expect(t.pairs).toBe("DRAWING-a3 DRAWING-a9");
   });
 
   it("files a published competition under upcoming", () => {
@@ -43,7 +85,19 @@ describe("filterTokens", () => {
   });
 
   it("has one band key per AGE_BANDS entry", () => {
-    expect(AGE_BANDS.map((b) => b.key)).toEqual(["a5", "a9", "a13", "a18"]);
+    expect(AGE_BANDS.map((b) => b.key)).toEqual(["a3", "a9", "a13", "a18"]);
+  });
+
+  it("has a CSS category selector for every discipline and age pair", () => {
+    const css = readFileSync(
+      path.join(import.meta.dirname, "../_components/filters.module.css"),
+      "utf8"
+    );
+    for (const discipline of DISCIPLINES) {
+      for (const { key } of AGE_BANDS) {
+        expect(css).toContain(`[data-categories~="${discipline}-${key}"]`);
+      }
+    }
   });
 });
 

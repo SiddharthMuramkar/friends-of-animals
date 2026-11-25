@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { AiMark } from "@/components/art/ai-mark";
+import { Illustration } from "@/components/art/illustration";
 import { LivingIllustration } from "@/components/art/living-illustration";
 import { type Sticker, StickerScatter } from "@/components/art/sticker-scatter";
 import { BadgeConstellation } from "@/components/showcase/badge-constellation";
@@ -109,7 +110,10 @@ async function Announcement() {
   );
 }
 
-type BlockProps = HomePage;
+// A build-time shell can be replaced by the live CMS document. It displays
+// the current kindness tip, but its month controls appear only in the live
+// content so there are never two competing radio groups during streaming.
+type BlockProps = HomePage & { streamingFallback?: true };
 
 // The hero's columns and its photo's column. The sleeping dog's layer uses
 // them too, so the dog keeps to the photo's lower-left corner.
@@ -287,13 +291,22 @@ async function HowItWorks() {
   const t = await getTranslations("home.how");
   return (
     <Section labelledBy="home-how" width="wide" tone="tint" hue="green">
-      <SectionHeading
-        id="home-how"
-        eyebrow={t("eyebrow")}
-        tile="green"
-        title={t("title")}
-        lead={t("lead")}
-      />
+      <div className="flex flex-wrap items-end gap-3">
+        <SectionHeading
+          id="home-how"
+          eyebrow={t("eyebrow")}
+          tile="green"
+          title={t("title")}
+          lead={t("lead")}
+          className="min-w-0 flex-[1_1_16rem]"
+        />
+        <Illustration
+          id="sticker-palm-squirrel"
+          sizes="(min-width: 640px) 96px, 64px"
+          decorative
+          className="pointer-events-none ms-auto w-[64px] max-w-full shrink-0 sm:w-[96px]"
+        />
+      </div>
       <TwoDoors id="home-doors" headingLevel={3} className="mt-10" />
       <JudgingPath compact headingLevel={3} className="mt-12" />
     </Section>
@@ -424,11 +437,15 @@ async function Stories() {
   );
 }
 
-async function Seasonal() {
+async function Seasonal({ streamingFallback }: BlockProps) {
   const t = await getTranslations("home.seasonal");
   return (
     <Section width="wide" hue="teal" className="py-10 sm:py-14">
-      <SeasonalCard id="home-seasonal" headingLevel={2} />
+      <SeasonalCard
+        id={streamingFallback ? "home-seasonal-fallback" : "home-seasonal"}
+        headingLevel={2}
+        interactive={!streamingFallback}
+      />
       <MoreLink href={ROUTES.awareness.path}>{t("more")}</MoreLink>
     </Section>
   );
@@ -551,7 +568,7 @@ const SECTIONS: Record<
   events: () => null,
 };
 
-function HomeContent(page: HomePage) {
+function HomeContent(page: BlockProps) {
   return (
     <>
       {page.preview ? (
@@ -577,8 +594,8 @@ export default function Page() {
   return (
     <>
       <Announcement />
-      <Live
-        fallback={seedHomePage()}
+      <Live<BlockProps>
+        fallback={{ ...seedHomePage(), streamingFallback: true }}
         load={loadHomePage}
         published={loadPublishedHomePage}
       >
