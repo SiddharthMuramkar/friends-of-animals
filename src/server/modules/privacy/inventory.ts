@@ -845,6 +845,19 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     )
   ),
   actorColumn("certificate", "revoked_by_user_id", STAFF_RECORD),
+  ...["certificate_ids", "profile_ids", "storage_key"].map((c) =>
+    rowsOf("certificate_archive", {
+      subject: { kind: "participant_profile", via: "profile_ids" },
+      retention: {
+        policy: "files",
+        periodKey: "certificateArchives",
+        basis:
+          "A temporary copy of private certificates for their institution's coordinators",
+        toConfirm: true,
+      },
+      onExpiry: "delete_row",
+    })(c, "technical")
+  ),
   rowsOf("certificate_ready_notice", {
     subject: { kind: "user", via: "recipient_user_id" },
     retention: JUDGING_RECORD,

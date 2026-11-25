@@ -108,6 +108,7 @@
         "privacyRequests": "While the request is open, then 3 years after it is closed",
         "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored",
         "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)",
+        "certificateArchives": "Up to 24 hours after requesting a ZIP, unless held as evidence; a revoked certificate invalidates its ZIP immediately",
         "communityHistory": "Until erasure of the account or participant profile",
         "communityMembers": "While active, then 365 days after departure"
       },
@@ -734,6 +735,11 @@
           "revoked_reason": "Reason staff revoked or corrected a certificate.",
           "pdf_file_id": "Private PDF generated from the certificate.",
           "revoked_by_user_id": "Staff member who revoked or corrected the certificate."
+        },
+        "certificate_archive": {
+          "certificate_ids": "Private certificates in the institution’s temporary ZIP.",
+          "profile_ids": "Participants whose PDFs are in the ZIP, so FOA can remove the ZIP upon erasure.",
+          "storage_key": "Location of the private ZIP; never sent as a public URL."
         },
         "certificate_ready_notice": {
           "recipient_user_id": "Account notified once its certificates were ready."

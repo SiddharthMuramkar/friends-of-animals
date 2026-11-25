@@ -64,8 +64,18 @@ export async function listCertificates(
 ) {
   await authorize(ctx, "certificates.list", scope(competitionId));
   if (!z.uuid().safeParse(competitionId).success) return [];
-  return ctx.db
-    .select(publicFields)
+  const correction = await can(
+    ctx,
+    "certificates.correct",
+    scope(competitionId)
+  );
+  const canCorrect = correction.allowed || "secondFactor" in correction;
+  const rows = await ctx.db
+    .select({
+      ...publicFields,
+      recipientName: certificate.nameSnapshot,
+      revokedReason: certificate.revokedReason,
+    })
     .from(certificate)
     .where(
       and(
@@ -74,6 +84,12 @@ export async function listCertificates(
       )
     )
     .orderBy(asc(certificate.number));
+  return rows.map(({ recipientName, revokedReason, ...row }) => ({
+    ...row,
+    correction:
+      canCorrect && row.status === "issued" ? { recipientName } : null,
+    revokedReason: canCorrect ? revokedReason : null,
+  }));
 }
 export async function retryCertificateRender(
   ctx: UseCaseContext,

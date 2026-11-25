@@ -11,6 +11,7 @@ import {
 import { emit } from "../../outbox/emit";
 import type { OutboxDeps } from "../../outbox/handlers";
 import { PdfRenderError, unconfiguredPdfRenderer } from "../../ports/pdf";
+import { lockSubject } from "../privacy/requests/submit";
 import { storageKeyFor } from "../files/domain/storage-key";
 import { certificateDocument } from "./document";
 import { readyCertificateRecipients } from "./messages";
@@ -26,9 +27,15 @@ export async function renderCertificate(
   await authorize(ctx, "certificates.render");
   const retry = await ctx.db.transaction(async (tx) => {
     const [hint] = await tx
-      .select({ competitionId: certificate.competitionId })
+      .select({
+        competitionId: certificate.competitionId,
+        participantProfileId: certificate.participantProfileId,
+      })
       .from(certificate)
       .where(eq(certificate.id, certificateId));
+    // Serialize with subject erasure before taking the competition lock.
+    if (hint?.participantProfileId)
+      await lockSubject(tx, hint.participantProfileId);
     // Serialize readiness decisions across the release, not merely one PDF.
     if (hint?.competitionId)
       await tx
