@@ -22,3 +22,15 @@ export async function dispatchArtwork(
   );
   redirect(`${path}?result=${result.ok ? "ok" : "error"}`);
 }
+
+export async function requestReturn(
+  route: "individual" | "institution",
+  artworkId: string
+) {
+  const path = route === "individual" ? MY_ARTWORK : INSTITUTION_ARTWORK;
+  const result = await orSecondFactor(
+    async () => as(await currentActor()).requestArtworkReturn({ artworkId }),
+    path
+  );
+  redirect(`${path}?result=${result.ok ? "ok" : "error"}`);
+}

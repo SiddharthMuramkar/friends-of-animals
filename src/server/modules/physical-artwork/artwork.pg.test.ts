@@ -14,6 +14,8 @@ import {
   SEED_ARTWORK_COMPETITION,
   SEED_COMPETITION_MANAGER,
 } from "@/server/seed/competitions";
+import { SEED_ARTWORK_VERIFIER } from "@/server/seed/physical-artwork";
+import { conditionPhotos, verificationDetails } from "./testing";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 import { generateCode } from "../codes/codes";
 
@@ -99,11 +101,35 @@ describe("physical artwork concurrency", () => {
     expect(receipts.filter((r) => !r.ok)).toMatchObject([
       { error: "already_received" },
     ]);
+    const verifierActor = await world.signedIn(SEED_ARTWORK_VERIFIER, {
+      secondFactor: true,
+    });
+    const verifier = world.as(verifierActor);
+    const photos = await conditionPhotos(world, verifierActor, artworkId);
+    const decisions = await Promise.all([
+      verifier.verifyArtwork({ artworkId, ...verificationDetails, photos }),
+      verifier.raiseArtworkDiscrepancy({
+        artworkId,
+        reason: "mismatch",
+        notes: "Label differs",
+      }),
+    ]);
+    // Exactly one inspection can commit. The row lock forces the other
+    // decision to observe its new status instead of overwriting it.
+    expect(decisions.filter((d) => d.ok)).toHaveLength(1);
+    expect(decisions.filter((d) => !d.ok)).toHaveLength(1);
+    const custody = await verifier.getArtworkCustody({ artworkId });
+    if (!custody.ok) throw new Error("missing custody");
+    expect(["verified", "discrepancy"]).toContain(custody.status);
+    expect(Boolean(custody.verification)).toBe(custody.status === "verified");
+    expect(custody.discrepancies.length).toBe(
+      custody.status === "discrepancy" ? 1 : 0
+    );
     expect(
       await world.db
         .select()
         .from(physicalArtwork)
         .where(eq(physicalArtwork.entryId, entryId))
-    ).toMatchObject([{ id: artworkId, status: "received" }]);
+    ).toMatchObject([{ id: artworkId, status: custody.status }]);
   });
 });

@@ -1,10 +1,11 @@
-// #94 owns the single physical readiness check. Until that authoritative
-// seam is available, fail closed: verified digital work alone never makes a
-// physical artwork ready. #94 replaces this adapter with its set-based check.
+// The round admission transaction uses the authoritative custody check;
+// no digital status or judge action can substitute for a verified original.
 import type { AppDb } from "../../db/app-db";
-export async function physicallyReadyEntryIds(
-  _db: AppDb,
-  _competitionId: string
+import { physicallyReadyEntryIds as readyArtworkEntryIds } from "../physical-artwork/readiness";
+
+export function physicallyReadyEntryIds(
+  db: AppDb,
+  competitionId: string
 ): Promise<Set<string>> {
-  return new Set();
+  return readyArtworkEntryIds(db, { competitionId });
 }

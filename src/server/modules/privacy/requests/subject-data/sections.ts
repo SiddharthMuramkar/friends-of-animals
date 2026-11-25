@@ -40,6 +40,14 @@ import {
   entryTransition,
   entryVerification,
   physicalArtwork,
+  roundEntry,
+  roundAssignment,
+  judgeOnboarding,
+  artworkPhoto,
+  artworkCustodyEvent,
+  artworkDiscrepancy,
+  artworkReturnRequest,
+  artworkVerification,
   fileAsset,
   guardian,
   guardianInvitation,
@@ -288,6 +296,68 @@ export const SECTIONS: readonly Section[] = [
     owners: ["entry_id", "registration_id"],
   },
   {
+    table: roundEntry,
+    where: (scope) =>
+      or(
+        sql`${roundEntry.entryId} IN ${entryIdsOf(scope)}`,
+        within(roundEntry.admittedByUserId, users(scope))
+      )!,
+    owners: ["entry_id", "admitted_by_user_id"],
+    withhold: ["admitted_by_user_id"],
+  },
+  {
+    table: roundAssignment,
+    // A judge's assignments belong in their rights export, but the private
+    // source-entry and other staff identities must never pierce blind judging.
+    where: (scope) =>
+      or(
+        within(roundAssignment.judgeUserId, users(scope)),
+        within(roundAssignment.assignedByUserId, users(scope))
+      )!,
+    owners: ["judge_user_id", "assigned_by_user_id"],
+    withhold: ["entry_id", "judge_user_id", "assigned_by_user_id"],
+  },
+  {
+    table: judgeOnboarding,
+    where: (scope) => within(judgeOnboarding.judgeUserId, users(scope)),
+    owners: ["judge_user_id"],
+  },
+  {
+    table: artworkVerification,
+    where: (scope) =>
+      sql`${artworkVerification.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["verified_by"],
+  },
+  {
+    table: artworkPhoto,
+    where: (scope) =>
+      sql`${artworkPhoto.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["created_by"],
+  },
+  {
+    table: artworkCustodyEvent,
+    where: (scope) =>
+      sql`${artworkCustodyEvent.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["actor_user_id"],
+  },
+  {
+    table: artworkDiscrepancy,
+    where: (scope) =>
+      sql`${artworkDiscrepancy.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["raised_by", "resolved_by"],
+  },
+  {
+    table: artworkReturnRequest,
+    where: (scope) =>
+      sql`${artworkReturnRequest.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["requested_by"],
+  },
+  {
     table: entryVerification,
     where: (scope) => sql`${entryVerification.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],
@@ -298,11 +368,12 @@ export const SECTIONS: readonly Section[] = [
     where: (scope) =>
       or(
         within(fileAsset.ownerUserId, users(scope)),
+        sql`${fileAsset.id} IN (SELECT ${artworkPhoto.fileAssetId} FROM ${artworkPhoto} INNER JOIN ${physicalArtwork} ON ${physicalArtwork.id} = ${artworkPhoto.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${entryFile.fileAssetId} FROM ${entryFile} WHERE ${entryFile.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${consentForm.fileAssetId} FROM ${consentForm} WHERE ${within(consentForm.participantProfileId, profiles(scope))})`
       )!,
     owners: ["owner_user_id", "id"],
-    withhold: ["bucket", "storage_key"],
+    withhold: ["bucket", "storage_key", "owner_user_id"],
   },
   {
     // A school's payment names many students: only the person's own items.

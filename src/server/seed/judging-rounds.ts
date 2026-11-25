@@ -1,8 +1,11 @@
 // Preview-only sample rounds and judges (#95). Terms are sample documents,
 // never published to staging or production by this seed.
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import {
   competition,
+  entry,
+  roundEntry,
+  roundAssignment,
   consentEvent,
   judgeInvitation,
   judgeOnboarding,
@@ -16,6 +19,8 @@ import { pinRubrics } from "../modules/judging/domain/rubric-pins";
 import { roundNameKey } from "../modules/judging/domain/round-settings";
 import { JUDGE_EMAIL, JUDGE_TOKEN } from "../modules/judging/judges";
 import { createLinkToken } from "../crypto/link-token";
+import { physicallyReadyEntryIds } from "../modules/physical-artwork/readiness";
+import { loadJudgeReadiness } from "../modules/judging/judges";
 import { ensureGrant } from "./access";
 import type { SeedDeps } from "./types";
 const id = (n: number) =>
@@ -40,7 +45,7 @@ export async function seedJudgingRounds(deps: SeedDeps) {
   const [comp] = await db
     .select()
     .from(competition)
-    .where(eq(competition.code, "NEIGH27"));
+    .where(eq(competition.code, "ORIG27"));
   if (!comp) return;
   const now = clock.now();
   const pinning = pinRubrics(
@@ -48,6 +53,7 @@ export async function seedJudgingRounds(deps: SeedDeps) {
     await db.select().from(rubric).where(eq(rubric.competitionId, comp.id))
   );
   if (!pinning.ok) return;
+  let createdOpenRound = false;
   for (const [roundId, name, status] of [
     [SEED_JUDGING.draftRoundId, "Sample national draft", "draft"],
     [SEED_JUDGING.openRoundId, "Sample national final", "open"],
@@ -70,6 +76,7 @@ export async function seedJudgingRounds(deps: SeedDeps) {
         })
         .onConflictDoNothing()
         .returning({ id: judgingRound.id });
+      if (added && status === "open") createdOpenRound = true;
       if (added)
         await tx.insert(judgingRoundRubric).values(
           pinning.pins.map((p) => ({
@@ -135,6 +142,50 @@ export async function seedJudgingRounds(deps: SeedDeps) {
           conflictsNone: true,
           updatedAt: now,
         })
+        .onConflictDoNothing();
+    });
+  }
+  // Preview physical pool is selected through the real readiness check, not
+  // inferred from digital verification. Do not populate earlier preview
+  // rounds belonging to a different competition or changed by a user.
+  if (
+    createdOpenRound &&
+    round.competitionId === comp.id &&
+    round.status === "open" &&
+    (await loadJudgeReadiness(db, { roundId, judgeUserId: ready.id })).ready
+  ) {
+    await db.transaction(async (tx) => {
+      const readyIds = [
+        ...(await physicallyReadyEntryIds(tx, { competitionId: comp.id })),
+      ];
+      if (!readyIds.length) return;
+      const candidates = await tx
+        .select({ id: entry.id })
+        .from(entry)
+        .where(
+          and(
+            eq(entry.competitionId, comp.id),
+            eq(entry.status, "foa_verified"),
+            inArray(entry.id, readyIds)
+          )
+        );
+      if (!candidates.length) return;
+      await tx
+        .insert(roundEntry)
+        .values(
+          candidates.map((e) => ({ roundId, entryId: e.id, admittedAt: now }))
+        )
+        .onConflictDoNothing();
+      await tx
+        .insert(roundAssignment)
+        .values(
+          candidates.map((e) => ({
+            roundId,
+            entryId: e.id,
+            judgeUserId: ready.id,
+            assignedAt: now,
+          }))
+        )
         .onConflictDoNothing();
     });
   }
