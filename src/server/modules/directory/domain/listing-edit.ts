@@ -96,11 +96,11 @@ export type ListingResource = {
  */
 export function listingResource(listing: {
   id: string;
-  ownerUserId: string;
+  ownerUserId: string | null;
   verifiedAt: Date | null;
 }): ListingResource {
   const scopes = [{ type: "organisation" as const, id: listing.id }];
-  return listing.verifiedAt === null
+  return listing.verifiedAt === null && listing.ownerUserId !== null
     ? { scopes, ownerId: listing.ownerUserId }
     : { scopes };
 }

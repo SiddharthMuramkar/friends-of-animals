@@ -23,6 +23,8 @@ const NONE: ErasureFacts = {
   freeRegistrations: 0,
   keptRegistrations: 0,
   guardianLinks: 0,
+  directoryListings: 0,
+  directoryPublications: 0,
   deletableProfiles: 0,
   keptProfiles: 0,
   keptProfileBasis: "financial_record",

@@ -19,7 +19,8 @@
 //   an upload another record keeps).
 // - A guardian's children are their own people: their records stay until
 //   someone files an erasure for them.
-// - A legal hold keeps everything (but still withdraws consents).
+// - A legal hold keeps everything (but still withdraws consents and pauses
+//   publication of a directory listing).
 //
 // The fingerprint covers every kind's action and basis, whether the person
 // has any of it or not, never counts, ids or dates: a message delivered
@@ -53,6 +54,8 @@ export const ERASURE_CATEGORIES = [
   "entries",
   "registrations",
   "guardian_links",
+  "directory_listings",
+  "directory_publication",
   "profile",
   "account",
   "kept_profile",
@@ -101,6 +104,8 @@ export type ErasureFacts = {
   freeRegistrations: number;
   keptRegistrations: number;
   guardianLinks: number;
+  directoryListings: number;
+  directoryPublications: number;
   deletableProfiles: number;
   keptProfiles: number;
   keptProfileBasis: "financial_record" | "consent_proof";
@@ -140,6 +145,8 @@ export function planErasure(facts: ErasureFacts): ErasurePlan {
     category("entries", "delete", facts.entries),
     category("registrations", "delete", facts.freeRegistrations),
     category("guardian_links", "delete", facts.guardianLinks),
+    category("directory_publication", "withdraw", facts.directoryPublications),
+    category("directory_listings", "anonymise", facts.directoryListings),
     category("profile", "delete", facts.deletableProfiles),
     kept
       ? category("account", "retain", facts.accounts, kept.basis, kept.until)
@@ -178,7 +185,7 @@ export function planErasure(facts: ErasureFacts): ErasurePlan {
       "rights_record"
     ),
   ];
-  // Under a legal hold everything stays; consents are still withdrawn.
+  // Under a legal hold information stays; consent and publication are withdrawn.
   const decided = planned.map((each) =>
     facts.onLegalHold && each.action !== "withdraw"
       ? {

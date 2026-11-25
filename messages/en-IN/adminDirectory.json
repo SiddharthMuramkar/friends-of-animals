@@ -38,7 +38,7 @@
         "title": "No listing with that link",
         "body": "It may have been typed wrongly. Go back to the list to find it."
       },
-      "registeredBy": "Registered by",
+      "registeredBy": "Responsible account",
       "registeredOn": "Registered on {date}",
       "detailsTitle": "Details",
       "documentsTitle": "Proof",
