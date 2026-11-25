@@ -19,11 +19,9 @@ async function check(page: Page, label: string) {
   await expectNoSidewaysScrollAt320(page, label);
 }
 
-test("published events, waitlist promotion, check-in and attendee timeline", async ({
+test("public events and campaign pages are current and accessible", async ({
   page,
   request,
-  browser,
-  seedAccount,
 }, info) => {
   const fixture =
     info.project.name === "mobile" ? SEED_EVENTS.mobile : SEED_EVENTS.full;
@@ -48,6 +46,17 @@ test("published events, waitlist promotion, check-in and attendee timeline", asy
     page.getByRole("link", { name: "Sign in to register" })
   ).toBeVisible();
   await check(page, "public event detail");
+});
+
+test("published events, waitlist promotion, check-in and attendee timeline", async ({
+  page,
+  request,
+  browser,
+  seedAccount,
+}, info) => {
+  const fixture =
+    info.project.name === "mobile" ? SEED_EVENTS.mobile : SEED_EVENTS.full;
+  const detail = `/events/${fixture.slug}`;
   const name = `Event attendee ${info.project.name}`;
   const email = await seedAccount({ name, grants: [] });
   await signInByCode(page, request, email);
@@ -84,42 +93,10 @@ test("published events, waitlist promotion, check-in and attendee timeline", asy
     await expect(
       manager.getByRole("heading", { name: fixture.title })
     ).toBeVisible();
-    await check(manager, "event admin list");
-    await manager.getByRole("link", { name: "Create an event" }).click();
-    await expect(
-      manager.getByRole("heading", { name: "Create an event", level: 1 })
-    ).toBeVisible();
-    await check(manager, "create event form");
-    const title = `Preview campaign ${info.project.name}`;
-    await manager.getByLabel("Type", { exact: true }).selectOption("campaign");
-    await manager.getByLabel("Title", { exact: true }).fill(title);
-    await manager
-      .getByLabel("Short summary")
-      .fill("Support clean water for neighbourhood animals.");
-    await manager
-      .getByLabel("Starts (IST)", { exact: true })
-      .fill(instantToIstLocal(new Date(Date.now() + 72 * 3600_000)));
-    await manager
-      .getByLabel("Ends (IST)", { exact: true })
-      .fill(instantToIstLocal(new Date(Date.now() + 74 * 3600_000)));
-    await manager.getByRole("button", { name: "Save draft" }).click();
-    await expect(
-      manager.getByRole("heading", { name: title, level: 1 })
-    ).toBeVisible();
-    await check(manager, "event edit form");
-    await manager.getByRole("button", { name: "Publish event" }).click();
-    await expect(manager.getByText("Published", { exact: true })).toBeVisible();
-    await manager
-      .getByRole("button", { name: "Cancel event", exact: true })
-      .click();
-    await expect(manager.getByText("Cancelled", { exact: true })).toBeVisible();
-
     await manager.goto(`/admin/events/${fixture.id}/registrations`);
-    const first = manager
-      .getByRole("listitem")
-      .filter({
-        has: manager.getByRole("heading", { name: "Ravi Kumar", exact: true }),
-      });
+    const first = manager.getByRole("listitem").filter({
+      has: manager.getByRole("heading", { name: "Ravi Kumar", exact: true }),
+    });
     await expect(first).toBeVisible();
     await check(manager, "registrations and waitlist");
     await first.getByRole("button", { name: "Cancel registration" }).click();
@@ -161,6 +138,56 @@ test("published events, waitlist promotion, check-in and attendee timeline", asy
   }
 });
 
+test("organiser creates, publishes and cancels a campaign", async ({
+  page: manager,
+  request,
+  seedAccount,
+}, info) => {
+  const secret = generateTotpSecret();
+  const email = await seedAccount({
+    name: `Event publisher ${info.project.name}`,
+    grants: [{ role: "content_manager", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+  await signInByCode(manager, request, email);
+  await manager.goto("/admin/events");
+  await expect(manager).toHaveURL(/\/auth\/second-factor\?next=/);
+  await manager
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await manager.getByRole("button", { name: "Continue" }).click();
+  await expect(manager).toHaveURL(/\/admin\/events$/);
+  await check(manager, "event admin list");
+  await manager.getByRole("link", { name: "Create an event" }).click();
+  await expect(
+    manager.getByRole("heading", { name: "Create an event", level: 1 })
+  ).toBeVisible();
+  await check(manager, "create event form");
+  const title = `Preview campaign ${info.project.name}`;
+  await manager.getByLabel("Type", { exact: true }).selectOption("campaign");
+  await manager.getByLabel("Title", { exact: true }).fill(title);
+  await manager
+    .getByLabel("Short summary")
+    .fill("Support clean water for neighbourhood animals.");
+  await manager
+    .getByLabel("Starts (IST)", { exact: true })
+    .fill(instantToIstLocal(new Date(Date.now() + 72 * 3600_000)));
+  await manager
+    .getByLabel("Ends (IST)", { exact: true })
+    .fill(instantToIstLocal(new Date(Date.now() + 74 * 3600_000)));
+  await manager.getByRole("button", { name: "Save draft" }).click();
+  await expect(
+    manager.getByRole("heading", { name: title, level: 1 })
+  ).toBeVisible();
+  await check(manager, "event edit form");
+  await manager.getByRole("button", { name: "Publish event" }).click();
+  await expect(manager.getByText("Published", { exact: true })).toBeVisible();
+  await manager
+    .getByRole("button", { name: "Cancel event", exact: true })
+    .click();
+  await expect(manager.getByText("Cancelled", { exact: true })).toBeVisible();
+});
+
 test("verified guardians can register a child on a separate private page", async ({
   page,
   request,
@@ -177,14 +204,12 @@ test("verified guardians can register a child on a separate private page", async
     page.getByRole("heading", { name: "Child’s event registrations", level: 1 })
   ).toBeVisible();
   await check(page, "guardian event registration page");
-  const card = page
-    .getByRole("listitem")
-    .filter({
-      has: page.getByRole("heading", {
-        name: SEED_EVENTS.campaign.title,
-        exact: true,
-      }),
-    });
+  const card = page.getByRole("listitem").filter({
+    has: page.getByRole("heading", {
+      name: SEED_EVENTS.campaign.title,
+      exact: true,
+    }),
+  });
   await expect(card).toBeVisible();
   // The campaign is for active members; only the child's membership counts.
   await card.getByRole("button", { name: "Register", exact: true }).click();
@@ -193,5 +218,27 @@ test("verified guardians can register a child on a separate private page", async
       "Join the FOA community before registering for this event.",
       { exact: true }
     )
+  ).toBeVisible();
+  await page.goto(`/guardian/children/${family.childIds[0]}/timeline`);
+  await page
+    .getByLabel("Display name (required)")
+    .fill(`Event child ${info.project.name}`);
+  await page
+    .getByRole("button", { name: "Join the community", exact: true })
+    .click();
+  await expect(page.getByText("Active member", { exact: true })).toBeVisible();
+  await page.goto(`/guardian/children/${family.childIds[0]}/events`);
+  await page
+    .getByRole("listitem")
+    .filter({
+      has: page.getByRole("heading", {
+        name: SEED_EVENTS.campaign.title,
+        exact: true,
+      }),
+    })
+    .getByRole("button", { name: "Register", exact: true })
+    .click();
+  await expect(
+    page.getByText("Your place is confirmed.", { exact: true })
   ).toBeVisible();
 });
