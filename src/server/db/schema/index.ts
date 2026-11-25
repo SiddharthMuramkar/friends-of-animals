@@ -54,3 +54,4 @@ export * from "./adoption-applications";
 export * from "./campaigns";
 export * from "./volunteers";
 export * from "./school-round";
+export * from "./verification";

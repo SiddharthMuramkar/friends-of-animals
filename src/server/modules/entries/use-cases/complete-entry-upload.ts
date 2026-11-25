@@ -48,6 +48,11 @@ import {
 import { entryCodeFormat } from "../domain/entry-code";
 import { ENTRY_TEXT_LIMITS, type EntryText } from "../domain/entry-text";
 import type { EntryStatus } from "../domain/status";
+import {
+  latestVerification,
+  recordResubmission,
+  resubmissionDueAt,
+} from "../../verification/store";
 import { decideUpload, type UploadDecision } from "../domain/submission";
 import { checkUpload } from "../domain/upload-rules";
 import { chooseDiscipline, uploadRuleFor } from "../rules";
@@ -228,6 +233,9 @@ async function record(
     entry: current ? snapshotOf(current) : null,
     window,
     now,
+    resubmissionDueAt: current
+      ? await resubmissionDueAt(tx, current.row.id, current.row.status)
+      : null,
   });
   if (!decision.ok) return { ok: false, error: decision.reason };
   if (file.status === "rejected")
@@ -241,7 +249,10 @@ async function record(
     description: request.description,
     statement: request.statement || null,
   };
-  const pendingText = current?.row.status === "submitted" ? text : null;
+  const pendingText =
+    current?.row.status === "submitted" || current?.row.status === "sent_back"
+      ? text
+      : null;
   const row = current
     ? await updateEntry(tx, now, current, decision, pendingText ? null : text)
     : await createEntry(tx, now, {
@@ -291,6 +302,17 @@ async function record(
         decision.action === "create" ? "upload_completed" : "upload_retried",
       entryFileId,
       actorRole,
+    });
+  }
+
+  if (current?.row.status === "sent_back") {
+    const latest = await latestVerification(tx, row.id);
+    if (!latest) throw new Error("Missing send-back record");
+    await recordResubmission(tx, {
+      verificationId: latest.id,
+      at: now,
+      userId: actor.userId,
+      withFile: true,
     });
   }
 

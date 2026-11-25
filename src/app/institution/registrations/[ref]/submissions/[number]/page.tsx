@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
+import { Correction } from "@/app/_components/verification/correction";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
@@ -83,15 +84,23 @@ async function Student({ params, searchParams }: Props) {
       </>
     );
   }
-  return <StudentView page={page} institutionId={institutionId} />;
+  return (
+    <StudentView
+      page={page}
+      institutionId={institutionId}
+      refused={Boolean(query.resubmitError)}
+    />
+  );
 }
 
 async function StudentView({
   page,
   institutionId,
+  refused,
 }: {
   page: StudentSubmission;
   institutionId: string;
+  refused: boolean;
 }) {
   const [t, entries, format] = await Promise.all([
     getTranslations("institutionSubmissions.student"),
@@ -189,6 +198,18 @@ async function StudentView({
         )}
       </div>
 
+      {entry ? (
+        <Correction
+          entry={entry}
+          href={studentSubmissionPath(
+            page.reference,
+            student.registrationNumber,
+            institutionId
+          )}
+          canCorrect={Boolean(upload) && !checking}
+          refused={refused}
+        />
+      ) : null}
       {upload ? (
         <section aria-labelledby="student-upload-heading" className="mt-8">
           <h2 id="student-upload-heading" className="text-h3">

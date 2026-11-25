@@ -30,6 +30,7 @@ import {
   VOLUNTEER_AGE_RULE_BOUNDS,
   VOLUNTEER_AGE_RULE_DEFAULTS,
 } from "../volunteers/domain/eligibility";
+import { RESUBMISSION_DAYS } from "../verification/domain/decide";
 import {
   booleanSetting,
   integerSetting,
@@ -220,6 +221,15 @@ export const SETTINGS = {
   // and the hourly reminder sync plans any new time.
   "reminders.entrySubmissionDueFirstHours": reminderHours(72),
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
+  // FOA verification (#92): how long a sent-back entry stays open for its
+  // resubmission, counted from the send-back. The owner's default is 7
+  // days (2026-11-19); FOA confirms it (HR-37).
+  "entries.resubmissionDays": integerSetting({
+    default: RESUBMISSION_DAYS.default,
+    min: RESUBMISSION_DAYS.min,
+    max: RESUBMISSION_DAYS.max,
+    unit: "days",
+  }),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel

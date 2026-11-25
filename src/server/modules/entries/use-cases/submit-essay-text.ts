@@ -41,6 +41,12 @@ import {
   DEFAULT_ESSAY_RULE,
 } from "../domain/essay-text";
 import type { EntryStatus } from "../domain/status";
+import { applyVerificationMove } from "../verification-move";
+import {
+  latestVerification,
+  recordResubmission,
+  resubmissionDueAt,
+} from "../../verification/store";
 import { decideUpload } from "../domain/submission";
 import {
   authorizeEntrySubmission,
@@ -81,6 +87,7 @@ export type EssayTextRefusal =
   | "too_long"
   | "submission_not_open"
   | "deadline_passed"
+  | "resubmission_closed"
   | "entry_locked";
 
 export type SubmitEssayTextResult =
@@ -159,6 +166,9 @@ async function record(
     entry: current ? snapshotOf(current) : null,
     window,
     now,
+    resubmissionDueAt: current
+      ? await resubmissionDueAt(tx, current.row.id, current.row.status)
+      : null,
   });
   if (!decision.ok) return { ok: false, error: decision.reason };
 
@@ -171,7 +181,9 @@ async function record(
     .select({ kind: participantProfile.ownerKind })
     .from(participantProfile)
     .where(eq(participantProfile.id, facts.participantProfileId));
-  const firstSubmission = current?.row.status !== "submitted";
+  const isResubmission = current?.row.status === "sent_back";
+  const firstSubmission =
+    !isResubmission && current?.row.status !== "submitted";
   const entryFileId = nextEntryRowId(now);
 
   let entryId: string;
@@ -200,7 +212,7 @@ async function record(
       .update(entry)
       .set({
         ...text,
-        status: "submitted",
+        status: isResubmission ? "sent_back" : "submitted",
         ...(firstSubmission ? { submittedAt: now } : {}),
         updatedAt: now,
       })
@@ -264,6 +276,25 @@ async function record(
         registrationId: request.registrationId,
       },
     });
+  }
+  if (isResubmission) {
+    const latest = await latestVerification(tx, entryId);
+    if (!latest) throw new Error("Missing send-back record");
+    await recordResubmission(tx, {
+      verificationId: latest.id,
+      at: now,
+      userId: actor.userId,
+      withFile: true,
+    });
+    await applyVerificationMove(tx, ctx, {
+      entryId,
+      from: "sent_back",
+      to: "submitted_to_foa",
+      actorRole,
+      entryFileId,
+      details: { verificationId: latest.id, withFile: true },
+    });
+    return { ok: true, entryCode, status: "submitted_to_foa" };
   }
   return { ok: true, entryCode, status: "submitted" };
 }
