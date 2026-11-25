@@ -146,7 +146,8 @@ async function applyCustody(
 ): Promise<Result> {
   const tx = ctx.db;
   const now = ctx.clock.now();
-  if (await isHeldForAuction(tx, work.id)) return { ok: false, error: "auction_reserved" };
+  if (await isHeldForAuction(tx, work.id))
+    return { ok: false, error: "auction_reserved" };
   const state = await stateOf(tx, work);
   const decision = decideCustody(state, command, now);
   if (!decision.ok)
@@ -321,8 +322,9 @@ async function verifyArtwork(
       work ? resource(work.competitionId) : {}
     );
     if (!work) return { ok: false, error: "not_found" } as const;
-    if (await isHeldForAuction(tx, work.id)) return { ok: false, error: "auction_reserved" };
-  const state = await stateOf(tx, work);
+    if (await isHeldForAuction(tx, work.id))
+      return { ok: false, error: "auction_reserved" };
+    const state = await stateOf(tx, work);
     // Status refusal has precedence over any photo selection.
     if (state.status !== "received")
       return applyCustody(
@@ -541,7 +543,10 @@ export async function returnSummary(
   return {
     returnWindow,
     returnRequested,
-    mayRequestReturn: allowed.allowed && refusal.ok && !(await isHeldForAuction(ctx.db, work.id)),
+    mayRequestReturn:
+      allowed.allowed &&
+      refusal.ok &&
+      !(await isHeldForAuction(ctx.db, work.id)),
   };
 }
 
@@ -632,9 +637,9 @@ async function getArtworkCustody(
     picture,
     mayVerify: (await can(ctx, "artwork.verify", resource(work.competitionId)))
       .allowed,
-    mayManage: (
-      await can(ctx, "artwork.manage_custody", resource(work.competitionId))
-    ).allowed && !(await isHeldForAuction(ctx.db, work.id)),
+    mayManage:
+      (await can(ctx, "artwork.manage_custody", resource(work.competitionId)))
+        .allowed && !(await isHeldForAuction(ctx.db, work.id)),
   } as const;
 }
 

@@ -280,8 +280,10 @@ export function adminVerificationEntryPath(entryId: string): string {
 
 export const ADMIN_AUCTIONS = "/admin/auctions";
 export const ADMIN_AUCTIONS_NEW = "/admin/auctions/lots/new";
-export const adminAuctionLotPath = (lotId:string) => `${ADMIN_AUCTIONS}/lots/${encodeURIComponent(lotId)}`;
-export const auctionLotPath = (lotCode:string) => `/auctions/${encodeURIComponent(lotCode)}`;
+export const adminAuctionLotPath = (lotId: string) =>
+  `${ADMIN_AUCTIONS}/lots/${encodeURIComponent(lotId)}`;
+export const auctionLotPath = (lotCode: string) =>
+  `/auctions/${encodeURIComponent(lotCode)}`;
 export const ADMIN_ADOPTIONS = "/admin/adoptions";
 
 export function myAdoptionApplicationPath(applicationId: string): string {

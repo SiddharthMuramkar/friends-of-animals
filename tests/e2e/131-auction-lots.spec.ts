@@ -1,63 +1,108 @@
 import { expect } from "@playwright/test";
-import { generateTotpSecret,totpCode } from "../../src/server/modules/second-factor/domain/totp";
+import {
+  generateTotpSecret,
+  totpCode,
+} from "../../src/server/modules/second-factor/domain/totp";
 import { SEED_AUCTIONS } from "../../src/server/seed/auctions";
-import { expectAccessible, expectAccessibleInDark, expectRendersAccessibly } from "./support/a11y";
+import {
+  expectAccessible,
+  expectAccessibleInDark,
+  expectRendersAccessibly,
+} from "./support/a11y";
 import { test } from "./support/seed-account";
 import { signInByCode } from "./support/sign-in";
 
-const admin="/admin/auctions";
-const ist=(days:number)=>new Date(Date.now()+(days*24*60+330)*60000).toISOString().slice(0,16);
+const admin = "/admin/auctions";
+const ist = (days: number) =>
+  new Date(Date.now() + (days * 24 * 60 + 330) * 60000)
+    .toISOString()
+    .slice(0, 16);
 
-test("visitors browse consented lots; auction manager drafts, schedules and cancels one",async({page,request,seedAccount},info)=>{
-  await expectRendersAccessibly(page,"/auctions");
-  await expect(page.getByRole("heading",{name:"Upcoming and open lots"})).toBeVisible();
+test("visitors browse consented lots; auction manager drafts, schedules and cancels one", async ({
+  page,
+  request,
+  seedAccount,
+}, info) => {
+  await expectRendersAccessibly(page, "/auctions");
+  await expect(
+    page.getByRole("heading", { name: "Upcoming and open lots" })
+  ).toBeVisible();
   await expect(page.getByText("Created by Rohan D.")).toBeVisible();
-  await expect(page.getByText("Rohan Desai",{exact:true})).toHaveCount(0);
-  await expectAccessibleInDark(page,"public auctions");
-  await page.getByRole("link",{name:`View lot ${SEED_AUCTIONS.open}`}).click();
-  await expect(page.getByRole("heading",{name:`Lot ${SEED_AUCTIONS.open}`})).toBeVisible();
-  await expectAccessible(page,"public lot");
-  await expectAccessibleInDark(page,"public lot");
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await expect(page.getByText("Rohan Desai", { exact: true })).toHaveCount(0);
+  await expectAccessibleInDark(page, "public auctions");
+  await page
+    .getByRole("link", { name: `View lot ${SEED_AUCTIONS.open}` })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: `Lot ${SEED_AUCTIONS.open}` })
+  ).toBeVisible();
+  await expectAccessible(page, "public lot");
+  await expectAccessibleInDark(page, "public lot");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth
+    )
+  ).toBe(true);
 
-  const secret=generateTotpSecret();
-  const staff=await seedAccount({name:"Auction manager",grants:[{role:"auction_manager",scope:{type:"global"}}],totpSecret:secret});
-  await signInByCode(page,request,staff);
+  const secret = generateTotpSecret();
+  const staff = await seedAccount({
+    name: "Auction manager",
+    grants: [{ role: "auction_manager", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+  await signInByCode(page, request, staff);
   await page.goto(admin);
   await expect(page).toHaveURL(/\/auth\/second-factor\?next=/);
-  await page.getByRole("textbox",{name:"6-digit code"}).fill(totpCode(secret,new Date()));
-  await page.getByRole("button",{name:"Continue"}).click();
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page).toHaveURL(/\/admin\/auctions$/);
-  await expectAccessible(page,"auction admin");
-  await expectAccessibleInDark(page,"auction admin");
-  await page.getByRole("link",{name:"Create a lot"}).click();
-  await expect(page.getByRole("heading",{name:"Create a lot"})).toBeVisible();
-  await expectAccessible(page,"new auction lot");
-  await expectAccessibleInDark(page,"new auction lot");
-  const option=info.project.name==="mobile"?"AUCT27-A-5EED04 · Isha D.":"AUCT27-A-5EED03 · Ravi Kumar";
-  await page.getByLabel("Eligible original artwork").selectOption({label:option});
-  await page.getByLabel("Public story (required)").fill("A celebration of everyday kindness.");
+  await expectAccessible(page, "auction admin");
+  await expectAccessibleInDark(page, "auction admin");
+  await page.getByRole("link", { name: "Create a lot" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create a lot" })
+  ).toBeVisible();
+  await expectAccessible(page, "new auction lot");
+  await expectAccessibleInDark(page, "new auction lot");
+  const option =
+    info.project.name === "mobile"
+      ? "AUCT27-A-5EED04 · Isha D."
+      : "AUCT27-A-5EED03 · Ravi Kumar";
+  await page
+    .getByLabel("Eligible original artwork")
+    .selectOption({ label: option });
+  await page
+    .getByLabel("Public story (required)")
+    .fill("A celebration of everyday kindness.");
   await page.getByLabel("Starting price in rupees (required)").fill("500");
-  await page.getByLabel("Private reserve price in rupees (required)").fill("1000");
+  await page
+    .getByLabel("Private reserve price in rupees (required)")
+    .fill("1000");
   await page.getByLabel("Opening date and time in IST (required)").fill(ist(1));
   await page.getByLabel("Closing date and time in IST (required)").fill(ist(2));
-  await page.getByRole("button",{name:"Create draft"}).click();
+  await page.getByRole("button", { name: "Create draft" }).click();
   await expect(page).toHaveURL(/\/admin\/auctions\/lots\/[0-9a-f-]+$/);
-  const title=await page.getByRole("heading",{level:1}).textContent();
+  const title = await page.getByRole("heading", { level: 1 }).textContent();
   expect(title).toMatch(/^LOT-/);
-  await expect(page.getByRole("heading",{name:"Draft"})).toBeVisible();
-  await expectAccessible(page,"auction lot admin detail");
-  await expectAccessibleInDark(page,"auction lot admin detail");
-  await page.getByRole("button",{name:"Schedule lot"}).click();
-  await expect(page.getByRole("heading",{name:"Upcoming"})).toBeVisible();
-  const detail=page.url().split("?")[0]!;
+  await expect(page.getByRole("heading", { name: "Draft" })).toBeVisible();
+  await expectAccessible(page, "auction lot admin detail");
+  await expectAccessibleInDark(page, "auction lot admin detail");
+  await page.getByRole("button", { name: "Schedule lot" }).click();
+  await expect(page.getByRole("heading", { name: "Upcoming" })).toBeVisible();
+  const detail = page.url().split("?")[0]!;
   await page.goto(`/auctions/${title}`);
-  await expect(page.getByText("A celebration of everyday kindness.")).toBeVisible();
-  await expect(page.getByText("₹1,000.00",{exact:true})).toHaveCount(0);
+  await expect(
+    page.getByText("A celebration of everyday kindness.")
+  ).toBeVisible();
+  await expect(page.getByText("₹1,000.00", { exact: true })).toHaveCount(0);
   await page.goto(detail);
-  await page.getByLabel("Reason for cancellation (required)").fill("Keep in exhibition");
-  await page.getByRole("button",{name:"Cancel lot"}).click();
-  await expect(page.getByRole("heading",{name:"Cancelled"})).toBeVisible();
-  const response=await page.goto(`/auctions/${title}`);
+  await page
+    .getByLabel("Reason for cancellation (required)")
+    .fill("Keep in exhibition");
+  await page.getByRole("button", { name: "Cancel lot" }).click();
+  await expect(page.getByRole("heading", { name: "Cancelled" })).toBeVisible();
+  const response = await page.goto(`/auctions/${title}`);
   expect(response?.status()).toBe(404);
 });

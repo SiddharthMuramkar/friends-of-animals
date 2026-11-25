@@ -14,7 +14,15 @@
     "view": "View lot {code}",
     "back": "Back to auctions",
     "status": {
-      "draft": "Draft", "scheduled": "Upcoming", "open": "Open", "closed": "Closed", "awaiting_payment": "Awaiting payment", "sold": "Sold", "unsold": "Unsold", "relisted": "Relisted", "cancelled": "Cancelled"
+      "draft": "Draft",
+      "scheduled": "Upcoming",
+      "open": "Open",
+      "closed": "Closed",
+      "awaiting_payment": "Awaiting payment",
+      "sold": "Sold",
+      "unsold": "Unsold",
+      "relisted": "Relisted",
+      "cancelled": "Cancelled"
     },
     "admin": {
       "title": "Manage auction lots",

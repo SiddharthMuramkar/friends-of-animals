@@ -87,8 +87,13 @@ const DEFINITIONS = {
     sitemap: { updated: "2026-11-24", priority: 0.7 },
   },
   adoptable: { path: "/adopt/[slug]", hue: "green" },
-  auctions: { path: "/auctions", hue: "yellow", footer: "organisation", sitemap: {updated:"2026-11-25",priority:0.6} },
-  auctionLot: {path:"/auctions/[lotCode]",hue:"yellow"},
+  auctions: {
+    path: "/auctions",
+    hue: "yellow",
+    footer: "organisation",
+    sitemap: { updated: "2026-11-25", priority: 0.6 },
+  },
+  auctionLot: { path: "/auctions/[lotCode]", hue: "yellow" },
   about: {
     path: "/about",
     hue: "blue",

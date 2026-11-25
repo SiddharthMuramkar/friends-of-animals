@@ -101,8 +101,9 @@ export const consentUseCases = (ctx: UseCaseContext) => ({
   withdrawConsent: (input: { purpose: GivablePurpose }) =>
     withdrawConsent(ctx, input),
   myConsents: () => myConsents(ctx),
-  myAuctionConsents:()=>myAuctionConsents(ctx),
-  withdrawMyAuctionConsent:(input:{competitionId:string})=>withdrawMyAuctionConsent(ctx,input),
+  myAuctionConsents: () => myAuctionConsents(ctx),
+  withdrawMyAuctionConsent: (input: { competitionId: string }) =>
+    withdrawMyAuctionConsent(ctx, input),
   childConsents: (input: { childId: string }) => childConsents(ctx, input),
   giveChildConsent: (input: GiveChildConsentInput) =>
     giveChildConsent(ctx, input),

@@ -104,7 +104,7 @@ async function Areas() {
   );
   // Adoption coordinators handle adoption applications (#130).
   const verifier = grants.some((grant) => grant.role === "foa_verifier");
-  const auction=grants.some(g=>g.role==="auction_manager");
+  const auction = grants.some((g) => g.role === "auction_manager");
   const adoption = grants.some(
     (grant) => grant.role === "adoption_coordinator"
   );
@@ -301,7 +301,9 @@ async function AreaBody({
             ...(verifier
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
               : []),
-            ...(auction ? [{href:ADMIN_AUCTIONS,label:t("admin.auctions")}] : []),
+            ...(auction
+              ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]
+              : []),
             ...(adoption
               ? [{ href: ADMIN_ADOPTIONS, label: t("admin.adoptions") }]
               : []),

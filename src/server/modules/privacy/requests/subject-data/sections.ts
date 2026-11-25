@@ -324,10 +324,11 @@ export const SECTIONS: readonly Section[] = [
     owners: ["judge_user_id"],
   },
   {
-    table:auctionLot,
-    where:(scope)=>sql`${auctionLot.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
-    owners:["artwork_id","consent_event_id","lot_code"],
-    withhold:["created_by"],
+    table: auctionLot,
+    where: (scope) =>
+      sql`${auctionLot.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id", "consent_event_id", "lot_code"],
+    withhold: ["created_by"],
   },
   {
     table: artworkVerification,
