@@ -32,7 +32,11 @@ async function correct(
 ) {
   "use server";
   const path = `${ADMIN_CERTIFICATES}?competition=${encodeURIComponent(competitionId)}`;
-  const reason = String(form.get("reason") ?? "");
+  const field = (name: string) => {
+    const value = form.get(name);
+    return typeof value === "string" ? value : "";
+  };
+  const reason = field("reason");
   const result = await adminCall(async () => {
     const app = as(await currentActor());
     return mode === "revoke"
@@ -40,7 +44,7 @@ async function correct(
       : app.reissueCertificate({
           certificateId,
           reason,
-          recipientName: String(form.get("recipientName") ?? ""),
+          recipientName: field("recipientName"),
         });
   }, path);
   redirect(

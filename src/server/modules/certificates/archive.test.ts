@@ -162,13 +162,11 @@ it("builds exactly the current institution's rendered certificates in the backgr
     .where(eq(institution.id, school.institutionId));
   const superAdmin = await h.signIn(await h.seed.superAdmin());
   expect(
-    await h
-      .as(superAdmin)
-      .revokeRole({
-        userId: school.coordinator.userId,
-        role: "institution_coordinator",
-        scope: { type: "institution", id: school.institutionId },
-      })
+    await h.as(superAdmin).revokeRole({
+      userId: school.coordinator.userId,
+      role: "institution_coordinator",
+      scope: { type: "institution", id: school.institutionId },
+    })
   ).toMatchObject({ ok: true });
   await expect(
     coord.getInstitutionCertificateArchiveLink({ archiveId: rerun.archiveId })

@@ -18,16 +18,19 @@ import { insertCertificate } from "./issue";
 
 // Fold whitespace for the printed name; reject unprintable controls in
 // both fields (including NUL, which Postgres cannot store).
-const printable = (value: string) =>
-  [...value].every((c) => {
+function printable(value: string) {
+  for (const c of value) {
     const code = c.codePointAt(0)!;
-    return (
-      code === 9 ||
-      code === 10 ||
-      code === 13 ||
-      (code >= 32 && (code < 127 || code > 159))
-    );
-  });
+    if (
+      code !== 9 &&
+      code !== 10 &&
+      code !== 13 &&
+      (code < 32 || (code >= 127 && code <= 159))
+    )
+      return false;
+  }
+  return true;
+}
 const common = z.object({
   certificateId: z.uuid(),
   reason: z.string().trim().min(1).max(1000).refine(printable),
