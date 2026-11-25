@@ -1,40 +1,63 @@
 import {
-  type CompetitionCardModel,
+  type CompetitionView,
+  DISCIPLINES,
   type StatusLabel,
   statusChip,
 } from "@/components/competitions/model";
+import { AGE_BOUNDS } from "@/server/modules/competitions/domain/age-groups";
 import { COMPETITION_SLUG_PATTERN } from "@/server/modules/competitions/domain/slug";
 
 import type { SlugLookup } from "./slug-lookup";
 
 /**
  * Age bands for the /competitions age filter. Fixed, so the filter's CSS can
- * name each one; a competition matches every band its age groups overlap.
+ * name each one; a category matches every band its age group overlaps.
  */
 export const AGE_BANDS = [
-  { key: "a5", min: 5, max: 8 },
+  { key: "a3", min: AGE_BOUNDS.min, max: 8 },
   { key: "a9", min: 9, max: 12 },
   { key: "a13", min: 13, max: 17 },
-  { key: "a18", min: 18, max: 30 },
+  { key: "a18", min: 18, max: AGE_BOUNDS.max },
 ] as const;
 export type AgeBandKey = (typeof AGE_BANDS)[number]["key"];
 
-/** Space-separated tokens for a card's data-* attributes (CSS filters). */
+/**
+ * Space-separated tokens for the CSS filters. Both a discipline and an age
+ * must be offered in the same category: a competition can offer drawing to
+ * children and photography to adults, without offering adult drawing.
+ */
 export function filterTokens(
-  c: Pick<CompetitionCardModel, "status" | "disciplines" | "ageGroups">
+  c: Pick<CompetitionView, "status" | "ageGroups" | "categories">
 ): {
   status: StatusLabel;
   disciplines: string;
   ages: string;
+  pairs: string;
 } {
-  const chip = statusChip(c.status);
-  const bands = AGE_BANDS.filter((b) =>
-    c.ageGroups.some((g) => g.minAge <= b.max && g.maxAge >= b.min)
-  ).map((b) => b.key);
+  const ageGroups = new Map(
+    c.ageGroups.map((g) => [g.label.trim().toLowerCase(), g])
+  );
+  const pairs = new Set<string>();
+  const disciplines = new Set<string>();
+  const ages = new Set<AgeBandKey>();
+  for (const cat of c.categories) {
+    const group = ageGroups.get(cat.ageGroup.trim().toLowerCase());
+    if (!group) continue;
+    for (const band of AGE_BANDS) {
+      if (group.minAge <= band.max && group.maxAge >= band.min) {
+        disciplines.add(cat.discipline);
+        ages.add(band.key);
+        pairs.add(`${cat.discipline}-${band.key}`);
+      }
+    }
+  }
   return {
-    status: chip?.label ?? "upcoming",
-    disciplines: c.disciplines.join(" "),
-    ages: bands.join(" "),
+    status: statusChip(c.status)?.label ?? "upcoming",
+    disciplines: DISCIPLINES.filter((d) => disciplines.has(d)).join(" "),
+    ages: AGE_BANDS.filter((b) => ages.has(b.key))
+      .map((b) => b.key)
+      .join(" "),
+    pairs: [...pairs].join(" "),
   };
 }
 

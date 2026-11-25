@@ -143,7 +143,12 @@ function DonateFormRound({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-8">
+    <form
+      method="post"
+      onSubmit={onSubmit}
+      noValidate
+      className="flex flex-col gap-8"
+    >
       {view.alert ? (
         <FormAlert tone="danger" label={labels.problem}>
           <p>{view.alert}</p>
@@ -188,17 +193,18 @@ function DonateFormRound({
           />
           <span>{labels.amount.other}</span>
         </label>
-        {amount === "other" ? (
+        <div hidden={amount !== "other"} className="min-w-0">
           <TextField
             id="donate-other-amount"
             name="otherAmount"
+            disabled={amount !== "other"}
             inputMode="decimal"
             autoComplete="off"
             defaultValue={entered.otherAmount}
             label={labels.amount.otherLabel}
             hint={labels.amount.otherHint}
           />
-        ) : null}
+        </div>
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">
@@ -222,10 +228,11 @@ function DonateFormRound({
         </div>
       </fieldset>
 
-      {organisation ? (
+      <div hidden={!organisation} className="min-w-0">
         <TextField
           id="donate-organisation"
           name="organisationName"
+          disabled={!organisation}
           autoComplete="organization"
           maxLength={120}
           required
@@ -234,7 +241,7 @@ function DonateFormRound({
           hint={labels.organisation.hint}
           error={errors.organisationName}
         />
-      ) : null}
+      </div>
 
       <TextField
         id="donate-name"
@@ -260,40 +267,38 @@ function DonateFormRound({
         error={errors.email}
       />
 
-      {organisation ? (
-        <fieldset
-          aria-describedby={describedBy(
-            errors,
-            "disclose",
-            "donate-disclose-hint"
-          )}
-          className="flex flex-col gap-3"
-        >
-          <legend className="mb-2 font-semibold text-ink">
-            {labels.disclose.legend}
-          </legend>
-          <p id="donate-disclose-hint" className="text-sm text-ink-muted">
-            {labels.disclose.hint}
-          </p>
-          {errors.disclose ? (
-            <FieldError id="donate-disclose-error">
-              {errors.disclose}
-            </FieldError>
-          ) : null}
-          {(["yes", "no"] as const).map((choice) => (
-            <label key={choice} className={CHOICE}>
-              <input
-                type="radio"
-                name="disclose"
-                value={choice}
-                defaultChecked={entered.disclose === choice}
-                className="size-5 shrink-0 accent-link"
-              />
-              <span>{labels.disclose[choice]}</span>
-            </label>
-          ))}
-        </fieldset>
-      ) : null}
+      <fieldset
+        hidden={!organisation}
+        disabled={!organisation}
+        aria-describedby={describedBy(
+          errors,
+          "disclose",
+          "donate-disclose-hint"
+        )}
+        className={organisation ? "flex min-w-0 flex-col gap-3" : "hidden"}
+      >
+        <legend className="mb-2 font-semibold text-ink">
+          {labels.disclose.legend}
+        </legend>
+        <p id="donate-disclose-hint" className="text-sm text-ink-muted">
+          {labels.disclose.hint}
+        </p>
+        {errors.disclose ? (
+          <FieldError id="donate-disclose-error">{errors.disclose}</FieldError>
+        ) : null}
+        {(["yes", "no"] as const).map((choice) => (
+          <label key={choice} className={CHOICE}>
+            <input
+              type="radio"
+              name="disclose"
+              value={choice}
+              defaultChecked={entered.disclose === choice}
+              className="size-5 shrink-0 accent-link"
+            />
+            <span>{labels.disclose[choice]}</span>
+          </label>
+        ))}
+      </fieldset>
 
       <div className="flex flex-col gap-3">
         <label className={CHOICE}>
@@ -310,17 +315,18 @@ function DonateFormRound({
         <p id="donate-wall-hint" className="text-sm text-ink-muted">
           {labels.wall.hint}
         </p>
-        {onWall ? (
+        <div hidden={!onWall} className="min-w-0">
           <TextField
             id="donate-wall-name"
             name="wallName"
+            disabled={!onWall}
             maxLength={60}
             defaultValue={entered.wallName}
             label={labels.wall.nameLabel}
             hint={labels.wall.nameHint}
             error={errors.wallName}
           />
-        ) : null}
+        </div>
       </div>
 
       <fieldset

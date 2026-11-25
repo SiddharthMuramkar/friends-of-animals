@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
+import { Illustration } from "@/components/art/illustration";
 import { buttonStyles, ButtonLink } from "@/components/site/button-link";
 import { inputStyles } from "@/components/form/text-field";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
+import { ADOPTION_STORIES_PATH } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { ADOPTION_AGE_BANDS } from "@/server/modules/adoption/domain/age";
@@ -42,12 +44,26 @@ export default async function Page({ searchParams }: PageProps<"/adopt">) {
   const t = await getTranslations("adoption.browse");
   return (
     <Section hue={HUE} tone="tint" className="pt-10 sm:pt-14">
-      <PageHeader
-        eyebrow={t("eyebrow")}
-        tile={HUE}
-        title={t("title")}
-        lead={t("lead")}
-      />
+      <div className="flex flex-wrap items-end gap-3">
+        <PageHeader
+          eyebrow={t("eyebrow")}
+          tile={HUE}
+          title={t("title")}
+          lead={t("lead")}
+          className="min-w-0 flex-[1_1_16rem]"
+        />
+        <Illustration
+          id="sticker-adoption-friends"
+          sizes="(min-width: 640px) 112px, 88px"
+          decorative
+          className="pointer-events-none ms-auto w-[88px] max-w-full shrink-0 sm:w-[112px]"
+        />
+      </div>
+      <div className="mt-5">
+        <ButtonLink href={ADOPTION_STORIES_PATH} variant="secondary">
+          {t("storiesLink")}
+        </ButtonLink>
+      </div>
       <Suspense fallback={<ResultsFallback label={t("loading")} />}>
         <Browse searchParams={searchParams} />
       </Suspense>

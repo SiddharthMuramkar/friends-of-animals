@@ -92,7 +92,26 @@ test("searches from the browser's location, the same as from its pin code", asyn
   // Pimpri's pin-code centre, to more places than the search keeps.
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 18.63021, longitude: 73.80044 });
-  await page.goto("/ngos");
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "style",
+    /--header-height:/
+  );
+  // Enter via the normal footer navigation, not a direct page.goto:
+  // the directory's special Permissions-Policy belongs to its document.
+  const documentResponse = page.waitForResponse(
+    (response) =>
+      response.request().isNavigationRequest() &&
+      new URL(response.url()).pathname === "/ngos"
+  );
+  await page
+    .getByRole("contentinfo")
+    .getByRole("link", { name: "Find animal help" })
+    .click();
+  expect((await documentResponse).headers()["permissions-policy"]).toContain(
+    "geolocation=(self)"
+  );
+  await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
   await page
     .getByRole("combobox", { name: "Distance" })
     .selectOption({ label: "Within 10 km" });
@@ -105,7 +124,80 @@ test("searches from the browser's location, the same as from its pin code", asyn
   ).toBeVisible();
   expect(await results(page).allInnerTexts()).toEqual(byPin);
   await checkBothThemes(page, "directory search from a location");
+
+  // Refining the filters does not require another location request.
+  const search = page.getByRole("search", { name: "Search" });
+  await expect(
+    search.getByText(/Searching from your approximate location/)
+  ).toBeVisible();
+  await search
+    .getByRole("combobox", { name: "Service" })
+    .selectOption("veterinary_care");
+  await search.getByRole("combobox", { name: "Distance" }).selectOption("25");
+  await search.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(
+    page.getByText(/checked listings? within 25 km of your location/)
+  ).toBeVisible();
+  await expect(card(page, NGO)).toBeVisible();
+  await expect(card(page, RESCUER)).toHaveCount(0);
+
+  // Typing a PIN replaces the previous rounded coordinates.
+  await search.getByRole("textbox", { name: "Pin code" }).fill("411018");
+  await search.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(page.getByText(/within 25 km of 411018/)).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("lat")).toBe(false);
+  expect(new URL(page.url()).searchParams.has("lng")).toBe(false);
+
+  // Leaving the directory restores the rest of the site's document policy.
+  const outside = page.waitForResponse(
+    (response) =>
+      response.request().isNavigationRequest() &&
+      new URL(response.url()).pathname === "/ngos/seed-paws-trust"
+  );
+  await card(page, NGO).getByRole("link", { name: NGO }).click();
+  expect((await outside).headers()["permissions-policy"]).toContain(
+    "geolocation=()"
+  );
   expect(violations).toEqual([]);
+});
+
+test("a delayed location response cannot replace a more recent PIN search", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
+      value(success: PositionCallback) {
+        Object.defineProperty(window, "finishLocation", {
+          value: () =>
+            success({
+              coords: { latitude: 18.63021, longitude: 73.80044 },
+            } as GeolocationPosition),
+        });
+      },
+    });
+  });
+  await page.goto("/ngos");
+  await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
+  const search = page.getByRole("search", { name: "Search" });
+  const locate = search.getByRole("button", { name: "Use my location" });
+  await locate.click();
+  await expect(locate).toBeDisabled();
+  await search.getByRole("textbox", { name: "Pin code" }).fill("411018");
+
+  // Exercise the native submit event, holding only the browser's default
+  // navigation so we can deliver the late location response on this page.
+  await search.locator("form").evaluate((form: HTMLFormElement) => {
+    form.addEventListener("submit", (event) => event.preventDefault(), {
+      once: true,
+    });
+    form.requestSubmit();
+    (window as unknown as { finishLocation: () => void }).finishLocation();
+  });
+  await expect(locate).toBeEnabled();
+  await expect(page).toHaveURL("/ngos");
+  await search.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(page).toHaveURL(/\/ngos\?pin=411018&service=&radius=10$/);
+  await expect(card(page, RESCUER)).toBeVisible();
 });
 
 test("explains a bad or unknown pin code and never shows unverified listings", async ({

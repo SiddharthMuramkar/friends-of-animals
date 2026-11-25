@@ -2,7 +2,13 @@
 
 import { LocateFixed } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore, type MouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type MouseEvent,
+} from "react";
 
 import { LOCATION_DECIMALS } from "@/server/modules/directory/domain/geo";
 
@@ -40,15 +46,48 @@ export function UseMyLocation({
 }) {
   const ok = useSyncExternalStore(noop, supported, () => false);
   const [status, setStatus] = useState<Status>("idle");
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const request = useRef(0);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!ok) return;
+    const form = buttonRef.current?.form;
+    const cancel = () => {
+      request.current++;
+      setStatus("idle");
+    };
+    // If a pin was entered, do not send the previous location alongside it.
+    const preferPin = (event: FormDataEvent) => {
+      const pin = event.formData.get("pin");
+      if (typeof pin === "string" && pin.trim()) {
+        event.formData.delete("lat");
+        event.formData.delete("lng");
+      }
+    };
+    form?.addEventListener("formdata", preferPin);
+    form?.addEventListener("submit", cancel);
+    window.addEventListener("pagehide", cancel);
+    return () => {
+      form?.removeEventListener("formdata", preferPin);
+      form?.removeEventListener("submit", cancel);
+      window.removeEventListener("pagehide", cancel);
+      // getCurrentPosition has no abort signal. Ignore any reply after the
+      // page was hidden, including when Next keeps the page in an Activity.
+      cancel();
+    };
+  }, [ok]);
+
   if (!ok) return null;
 
   function locate(event: MouseEvent<HTMLButtonElement>) {
     const form = event.currentTarget.form;
     const fields = form ? new FormData(form) : new FormData();
+    const id = ++request.current;
     setStatus("locating");
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        if (id !== request.current) return;
         const query = new URLSearchParams({
           lat: rounded(coords.latitude),
           lng: rounded(coords.longitude),
@@ -63,6 +102,7 @@ export function UseMyLocation({
         router.push(`${path}?${query.toString()}`);
       },
       (error) => {
+        if (id !== request.current) return;
         setStatus(
           error.code === error.PERMISSION_DENIED ? "denied" : "unavailable"
         );
@@ -83,6 +123,7 @@ export function UseMyLocation({
   return (
     <div className="flex flex-col gap-2">
       <button
+        ref={buttonRef}
         type="button"
         onClick={locate}
         disabled={status === "locating"}

@@ -114,10 +114,10 @@ for (const [name, fill] of Object.entries(SINGLE_COLOURS)) {
   );
 }
 
-// Favicon: the tiles alone (#17) on a transparent square, hinted to whole
-// pixels at each size so the edges stay sharp; the wordmark is unreadable at
-// 16–48 px. It is a bitmap ICO, not an SVG, because a vector can't be sharp at
-// every size: browsers pick the frame for the screen's pixel density.
+// Favicon: the tiles alone (#17) on a transparent square, with whole-pixel
+// gutters, outer margins and size-specific lettering. The wordmark is
+// unreadable at 16–48 px. Browsers pick the bitmap ICO frame for the screen's
+// pixel density, retaining these optical adjustments.
 const favicon = ico(
   FAVICON_GRIDS.map((grid) => ({
     size: grid.size,

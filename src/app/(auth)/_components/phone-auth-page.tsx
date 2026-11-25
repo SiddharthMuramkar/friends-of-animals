@@ -77,7 +77,7 @@ async function PhoneMethod({ intent }: { intent: Intent }) {
           channel="phone"
           intent={intent}
           signUpPath={ROUTES.signUpPhone.path}
-          emailPath={email.path}
+          {...(methods.email ? { emailPath: email.path } : {})}
           labels={{
             name: { label: tf("name.label"), hint: tf("name.hint") },
             contact: { label: tf("phone.label"), hint: tf("phone.hint") },
@@ -89,17 +89,19 @@ async function PhoneMethod({ intent }: { intent: Intent }) {
             resend: tf("resend"),
             changeContact: tf("changePhone"),
             signUpInstead: tf("signUpInstead"),
-            useEmail: t("useEmail"),
+            useEmail: methods.email ? t("useEmail") : undefined,
             problem: tc("danger"),
             done: tc("success"),
           }}
         />
       </div>
-      <p className="mt-6">
-        <SiteLink href={email.path} className={inlineLink}>
-          {t("useEmail")}
-        </SiteLink>
-      </p>
+      {methods.email ? (
+        <p className="mt-6">
+          <SiteLink href={email.path} className={inlineLink}>
+            {t("useEmail")}
+          </SiteLink>
+        </p>
+      ) : null}
     </>
   );
 }

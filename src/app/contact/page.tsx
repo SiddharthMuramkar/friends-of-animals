@@ -17,10 +17,12 @@ import { TileMarker } from "@/components/site/tile";
 import { CONTACT_FIELD_LIMITS } from "@/server/modules/contact/domain/limits";
 import { CONTACT_TOPICS } from "@/server/modules/contact/domain/routing";
 import { contactHref } from "@/lib/contact";
+import { DASHBOARD_VOLUNTEER } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { WithOrgFacts } from "@/components/site/with-org-facts";
 import { isFactShown } from "@/lib/site";
+import { cn } from "@/lib/utils";
 import type { OrgFacts } from "@/server/modules/cms/domain/org-facts";
 import { loadFactsPreview } from "@/server/modules/cms/site-pages";
 
@@ -37,6 +39,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /** ContactTopic values, in the form's order. */
 const TOPICS = CONTACT_TOPICS;
+const TOPIC_LINKS = {
+  NGOS: ROUTES.ngos.path,
+  ADOPTION: ROUTES.adopt.path,
+  VOLUNTEERING: DASHBOARD_VOLUNTEER,
+} as const;
 
 const LINK =
   "inline-flex min-h-11 items-center font-semibold text-link underline decoration-2 underline-offset-4 hover:text-link-hover";
@@ -68,7 +75,14 @@ export default async function Page() {
       <Section
         labelledBy={details.length > 0 ? "details-title" : "topics-title"}
       >
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div
+          className={cn(
+            "grid grid-cols-1 gap-12",
+            details.length > 0
+              ? "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+              : "mx-auto max-w-5xl"
+          )}
+        >
           {details.length > 0 ? (
             <div>
               <SectionHeading id="details-title" title={t("details.title")} />
@@ -125,7 +139,12 @@ export default async function Page() {
               />
             </div>
             <p className="mt-3 text-ink-muted">{t("topics.lead")}</p>
-            <ul className="mt-6 grid grid-cols-1 gap-3">
+            <ul
+              className={cn(
+                "mt-6 grid grid-cols-1 gap-3",
+                details.length === 0 && "sm:grid-cols-2"
+              )}
+            >
               {TOPICS.map((k) => (
                 <li
                   key={k}
@@ -140,6 +159,11 @@ export default async function Page() {
                   <p className="mt-1.5 text-ink-muted">
                     {t(`topics.items.${k}.body`)}
                   </p>
+                  {k === "NGOS" || k === "ADOPTION" || k === "VOLUNTEERING" ? (
+                    <SiteLink href={TOPIC_LINKS[k]} className={LINK}>
+                      {t(`topics.items.${k}.link`)}
+                    </SiteLink>
+                  ) : null}
                 </li>
               ))}
               <li className="rounded-3xl border-2 border-danger-border bg-danger-bg p-5">
@@ -246,6 +270,7 @@ export default async function Page() {
               }))}
               labels={{
                 topic: { legend: tf("topic.legend") },
+                detailsLegend: tf("detailsLegend"),
                 safeguarding: {
                   label: tf("safeguarding.label"),
                   body: tf("safeguarding.body"),

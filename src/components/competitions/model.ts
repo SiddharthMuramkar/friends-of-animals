@@ -155,6 +155,22 @@ export function primaryAction(status: CompetitionStatus): PrimaryAction {
   }
 }
 
+/** Which registration options are actually offered by a real open competition. */
+export function liveRegistrationMode(
+  c: Pick<CompetitionCardModel, "status" | "sample" | "routes">
+): "school" | "individual" | "both" | null {
+  if (c.sample || c.status !== "REGISTRATION_OPEN") return null;
+  const school = c.routes.some((r) => r.route === "INSTITUTION");
+  const individual = c.routes.some((r) => r.route === "INDIVIDUAL");
+  return school
+    ? individual
+      ? "both"
+      : "school"
+    : individual
+      ? "individual"
+      : null;
+}
+
 export type FileRule = {
   discipline: Discipline;
   /** Message key for the accepted file types. */

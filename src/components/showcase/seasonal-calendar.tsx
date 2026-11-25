@@ -11,22 +11,26 @@ type Month = {
 };
 
 export function SeasonalCalendar({
+  id,
   months,
   initialMonth,
   picker,
   className,
+  panelClassName,
 }: {
+  id: string;
   months: readonly Month[];
   initialMonth: number;
   picker: ReactNode;
   className: string;
+  panelClassName: string;
 }) {
   const [month, setMonth] = useState(initialMonth);
   const selected = months[month - 1]!;
 
   return (
-    <article aria-labelledby={selected.titleId} className={className}>
-      <div className="@container/seasonal-month rounded-3xl bg-section-teal p-[min(1.5rem,8%)] sm:p-8 lg:col-start-2 lg:row-start-1">
+    <article id={id} aria-labelledby={selected.titleId} className={className}>
+      <div className={panelClassName}>
         <p className="font-display text-h2 leading-none font-bold wrap-anywhere text-(--section-heading)">
           {selected.name}
         </p>
