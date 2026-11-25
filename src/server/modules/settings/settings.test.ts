@@ -410,6 +410,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "artwork.returnWindowDays",
+        value: 30,
+        defaultValue: 30,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 365, unit: "days" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "artwork.dispatchReminderLeadHours",
         value: 72,
         defaultValue: 72,

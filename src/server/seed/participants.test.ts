@@ -108,9 +108,14 @@ describe("the participants seed", () => {
           status: "confirmed",
           registrationNumber: "BIRDS27-R-5EEDB1",
         }),
+        // His physical artwork awaiting discrepancy resolution (#94).
+        expect.objectContaining({
+          status: "confirmed",
+          registrationNumber: "ORIG27-R-5EED05",
+        }),
       ])
     );
-    expect(ravis).toHaveLength(3);
+    expect(ravis).toHaveLength(4);
     const [batch] = await h.db.select().from(paymentBatch);
     expect(
       (await h.db.select().from(paymentBatch)).filter(
