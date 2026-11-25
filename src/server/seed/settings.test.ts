@@ -17,6 +17,7 @@ describe("the settings seed", () => {
 
     expect(await rows()).toEqual(first);
     expect(first.map(({ key, value }) => ({ key, value }))).toEqual([
+      { key: "adoption.minAdopterAgeYears", value: 18 },
       { key: "auth.emailSignIn", value: true },
       { key: "auth.staffSessionHours", value: 12 },
       { key: "breach.authorityEmail", value: "" },
@@ -43,6 +44,7 @@ describe("the settings seed", () => {
       { key: "privacy.requestDueDays", value: 30 },
       { key: "reminders.entrySubmissionDueFirstHours", value: 72 },
       { key: "reminders.entrySubmissionDueSecondHours", value: 24 },
+      { key: "retention.adoptionApplicationsDays", value: 730 },
       { key: "retention.capturedMessagesDays", value: 30 },
       { key: "retention.contactMessagesMonths", value: 24 },
       { key: "retention.coordinatorInvitationLinksDays", value: 1 },

@@ -47,6 +47,7 @@ import { privacyRequestUseCases } from "./modules/privacy/requests";
 import { institutionSubmissionsUseCases } from "./modules/institution-submissions";
 import { directoryUseCases } from "./modules/directory";
 import { adoptionUseCases } from "./modules/adoption";
+import { adoptionApplicationsUseCases } from "./modules/adoption/applications";
 import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
@@ -86,6 +87,7 @@ const useCases = composeUseCases(
   privacyRequestUseCases,
   directoryUseCases,
   adoptionUseCases,
+  adoptionApplicationsUseCases,
   volunteersUseCases,
   remindersUseCases,
   campaignsUseCases,

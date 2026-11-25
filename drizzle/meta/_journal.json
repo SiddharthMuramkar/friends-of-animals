@@ -771,6 +771,27 @@
       "when": 1795582746088,
       "tag": "0109_109_budgets",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1795582788873,
+      "tag": "0110_130_pre_adoption_consent_purposes",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1795582790344,
+      "tag": "0111_130_adoption_applications",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1795582796174,
+      "tag": "0112_130_adoption_application_messages",
+      "breakpoints": true
     }
   ]
 }

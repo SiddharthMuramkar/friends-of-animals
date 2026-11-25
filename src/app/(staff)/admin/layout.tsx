@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense, type ComponentProps } from "react";
 
 import {
+  ADMIN_ADOPTIONS,
   ADMIN_BREACHES,
   ADMIN_DONATIONS,
   ADMIN_CAMPAIGNS,
@@ -47,6 +48,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       { href: ADMIN_PRIVACY, label: t("privacy") },
       { href: ADMIN_PRIVACY_REQUESTS, label: t("privacyRequests") },
       { href: ADMIN_VOLUNTEERS, label: t("volunteers") },
+      { href: ADMIN_ADOPTIONS, label: t("adoptions") },
     ],
   };
   return (

@@ -28,6 +28,9 @@ const FIRST_TITLES: Record<ConsentPurpose, string> = {
   communications: "Consent to messages about the child",
   volunteer_safeguarding_declaration: "Volunteer safeguarding declaration",
   volunteer_code_of_conduct: "Volunteer code of conduct",
+  adoption_contact_sharing:
+    "Sharing your contact details with the animal's organisation",
+  adoption_success_story: "Sharing your adoption success story",
 };
 
 export type ConsentVersionInput = {

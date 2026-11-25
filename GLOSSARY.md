@@ -767,6 +767,24 @@ What the public sees of a published Adoption listing on /adopt and its own
 page.
 _Avoid_: Pet, available animal
 
+**Adoption application**:
+An adult's request to adopt one Adoptable animal, with how to reach them and
+answers about their home. FOA's Adoption coordinator moves it through review,
+contact and an outcome; the listing organisation only reads it, and sees the
+applicant's contact once the coordinator puts them in touch.
+_Avoid_: Adoption request, enquiry
+
+**Adoption coordinator**:
+The FOA staff role that reviews Adoption applications, puts good matches in
+touch with the listing organisation and records the outcome. FOA facilitates;
+it never takes custody of an animal.
+_Avoid_: Adoption manager, adoption officer
+
+**Success story**:
+An adopter's own words about how their adopted animal settled in, shared on
+/adopt/stories only while they consent, never with their name or contact.
+_Avoid_: Testimonial, adoption post
+
 ## Engineering
 
 **Seed builder**:

@@ -21,10 +21,23 @@ export const VOLUNTEER_PURPOSES = [
 export type VolunteerPurpose = (typeof VOLUNTEER_PURPOSES)[number];
 
 /**
+ * An adopter's two consents (#130): sharing their contact details with the
+ * listing organisation, given when they apply, and sharing their success
+ * story, given when they write it. The adoption module records both on the
+ * current document, never through `giveConsent`; the adopter withdraws a
+ * story's consent from their application's page, which unpublishes it.
+ */
+export const ADOPTION_PURPOSES = [
+  "adoption_contact_sharing",
+  "adoption_success_story",
+] as const;
+export type AdoptionPurpose = (typeof ADOPTION_PURPOSES)[number];
+
+/**
  * `competition_terms` is a competition's own terms (#72), apart from the
  * site's terms of use. The guardian purposes (#82) follow: what a verified
  * guardian gives and withdraws for a child (./guardian-purposes.ts). Then
- * the volunteer declarations (#123).
+ * the volunteer declarations (#123), then the adopter's (#130).
  */
 export const CONSENT_PURPOSES = [
   "privacy_notice",
@@ -33,6 +46,7 @@ export const CONSENT_PURPOSES = [
   "competition_terms",
   ...GUARDIAN_PURPOSES,
   ...VOLUNTEER_PURPOSES,
+  ...ADOPTION_PURPOSES,
 ] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
@@ -59,6 +73,9 @@ export type GivablePurpose = (typeof GIVABLE_PURPOSES)[number];
 export const WITHDRAWABLE_PURPOSES = [
   ...GIVABLE_PURPOSES,
   ...GUARDIAN_PURPOSES,
+  // An adopter withdraws a success story's consent through the adoption
+  // module (#130).
+  "adoption_success_story",
 ] as const satisfies readonly ConsentPurpose[];
 export type WithdrawablePurpose = (typeof WITHDRAWABLE_PURPOSES)[number];
 

@@ -181,6 +181,19 @@ const VOLUNTEER_APPLICATION_RECORD = {
   toConfirm: true,
 } as const;
 
+/**
+ * An adoption application (#130) and its success story: deleted 2 years
+ * after the application closed, unless a published story still rests on
+ * it.
+ */
+const ADOPTION_APPLICATION_RECORD = {
+  policy: "adoptionApplications",
+  periodKey: "adoptionApplications",
+  basis:
+    "Facilitating an adoption: lets FOA's coordinator and the listing organisation match the adopter, and answer later questions about the adoption (legal basis to confirm, HR-31)",
+  toConfirm: true,
+} as const;
+
 const LEGAL_HOLD = {
   policy: "releasedLegalHolds",
   periodKey: "releasedLegalHolds",
@@ -632,6 +645,19 @@ const GUARDIAN_INVITATION_RECIPIENT = {
 const volunteerApplication = rowsOf("volunteer_application", {
   subject: { kind: "user", via: "applicant_user_id" },
   retention: VOLUNTEER_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
+
+const adoptionApplication = rowsOf("adoption_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: ADOPTION_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
+
+/** A success story goes with its application. */
+const adoptionStory = rowsOf("adoption_story", {
+  subject: { kind: "adoption_application", via: "application_id" },
+  retention: ADOPTION_APPLICATION_RECORD,
   onExpiry: "delete_row",
 });
 
@@ -1466,6 +1492,26 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "decided_by_user_id",
     VOLUNTEER_APPLICATION_RECORD,
     "delete_row"
+  ),
+  adoptionApplication("applicant_user_id", "identity"),
+  adoptionApplication("participant_profile_id", "identity"),
+  adoptionApplication("date_of_birth_ciphertext", "demographic"),
+  adoptionApplication("phone_ciphertext", "contact"),
+  adoptionApplication("address_ciphertext", "contact"),
+  adoptionApplication("answers_ciphertext", "content"),
+  adoptionApplication("contact_sharing_consent_id", "technical"),
+  adoptionApplication("outcome_reason_ciphertext", "content"),
+  actorColumn(
+    "adoption_application",
+    "decided_by_user_id",
+    ADOPTION_APPLICATION_RECORD
+  ),
+  adoptionStory("body", "content"),
+  adoptionStory("consent_event_id", "technical"),
+  actorColumn(
+    "adoption_story",
+    "published_by_user_id",
+    ADOPTION_APPLICATION_RECORD
   ),
 ];
 

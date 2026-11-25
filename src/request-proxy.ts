@@ -176,6 +176,9 @@ export function createProxy({
    */
   async function isAdoptable(raw: string): Promise<boolean> {
     const slug = decodedSlug(raw);
+    // /adopt/stories is a page of its own (#130); no animal's slug is a
+    // single word, so none can take it.
+    if (slug === "stories") return true;
     if (!ADOPTION_SLUG_PATTERN.test(slug)) return false;
     try {
       return await isAdoptableSlug(slug);
