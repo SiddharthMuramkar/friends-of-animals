@@ -51,17 +51,21 @@ export function eligibleCapture(db: AppDb) {
     );
 
   // Before #80a, a duplicate could move a paid batch into needs_review
-  // while its original capture remained on the batch.
-  return or(
-    eq(paymentBatch.status, "captured"),
-    and(
-      eq(paymentBatch.status, "needs_review"),
-      isNotNull(paymentBatch.capturedAt),
-      or(
-        isNotNull(paymentBatch.gatewayPaymentId),
-        eq(paymentBatch.captureMethod, "offline")
-      ),
-      exists(openReview)
+  // while its original capture remained on the batch. A donation's batch
+  // (#106) posts from the donation instead (./donations.ts).
+  return and(
+    eq(paymentBatch.purpose, "registration_fee"),
+    or(
+      eq(paymentBatch.status, "captured"),
+      and(
+        eq(paymentBatch.status, "needs_review"),
+        isNotNull(paymentBatch.capturedAt),
+        or(
+          isNotNull(paymentBatch.gatewayPaymentId),
+          eq(paymentBatch.captureMethod, "offline")
+        ),
+        exists(openReview)
+      )
     )
   );
 }
@@ -101,6 +105,9 @@ export async function readCapture(
     .where(and(eq(paymentBatch.id, batchId), eligibleCapture(db)));
   if (!row) return undefined;
   if (row.currency !== "INR") throw new UnsupportedCaptureCurrencyError();
+  const { competitionId } = row;
+  if (competitionId === null)
+    throw new Error("A fee capture has no competition");
 
   if (row.sourceType === "offline_payment") {
     if (!row.sourceId || !row.offline)
@@ -112,7 +119,7 @@ export async function readCapture(
       throw new Error("Offline payment differs from the captured batch");
     return {
       source: { type: row.sourceType, id: row.sourceId },
-      competitionId: row.competitionId,
+      competitionId,
       occurredAt: received.start,
       amountMinor: row.offline.amountMinor,
       method: row.offline.method,
@@ -127,7 +134,7 @@ export async function readCapture(
     throw new UnsupportedCaptureCurrencyError();
   return {
     source: { type: row.sourceType, id: row.sourceId },
-    competitionId: row.competitionId,
+    competitionId,
     occurredAt: row.capturedAt,
     amountMinor: row.acceptedReceipt?.amountMinor ?? row.amountMinor,
     method: "gateway",

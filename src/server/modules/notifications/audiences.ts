@@ -6,7 +6,9 @@
 // minor with no verified guardian). Later tickets add an audience here and
 // route rows that use it, in a migration; #88 added `competition_managers`,
 // #81 `guardian_of_participant`, #80 `institution_coordinators`, #123
-// `volunteer_applicant`, `volunteer_guardians` and `community_managers`.
+// `volunteer_applicant`, `volunteer_guardians` and `community_managers`,
+// #130 `adoption_applicant`, `adoption_listing_representatives` and
+// `adoption_coordinators`.
 //
 // Every message knows its recipient (RECIPIENT_VARIABLES). An event may
 // give more variables (EVENT_VARIABLES): the names it provides and how to
@@ -99,6 +101,13 @@ import {
   volunteerApplicant,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
+import {
+  ADOPTION_APPLICATION_VARIABLES,
+  adoptionApplicant,
+  adoptionApplicationValues,
+  adoptionCoordinators,
+  adoptionListingRepresentatives,
+} from "../adoption/applications/messages";
 import {
   outcomeValues,
   SCHOOL_ROUND_OUTCOME_VARIABLES,
@@ -201,6 +210,13 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "donation.captured":
+    case "donation.foreign_payment_received":
+    case "donation.refunded":
+    case "receipt.link_requested":
+      // A guest donor has no account: the donations module emails the
+      // address they gave, and tells a signed-in donor in-app (#106).
+      return null;
     case "guardian.teen_invited":
       // The teen may have no account yet: the invitation goes to the
       // invited address by its own handler (#81), not by a route row.
@@ -280,6 +296,35 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "entry.not_shortlisted":
       // The family contact isn't a user: their message goes by the school
       // round's own handler (#89), not by a route row.
+      return null;
+    case "adoption.application_submitted":
+    case "adoption.application_under_review":
+    case "adoption.application_in_contact":
+    case "adoption.application_adopted":
+    case "adoption.application_not_matched":
+    case "adoption.application_declined":
+    case "adoption.application_withdrawn":
+    case "adoption.application_listing_closed":
+      // About an adoption application (#130): `adoption_applicant`,
+      // `adoption_listing_representatives` and `adoption_coordinators`
+      // find who hears.
+      return null;
+  }
+}
+
+/** The adoption application an event is about (#130). */
+function adoptionApplicationOf(delivery: Delivery): string | null {
+  switch (delivery.eventType) {
+    case "adoption.application_submitted":
+    case "adoption.application_under_review":
+    case "adoption.application_in_contact":
+    case "adoption.application_adopted":
+    case "adoption.application_not_matched":
+    case "adoption.application_declined":
+    case "adoption.application_withdrawn":
+    case "adoption.application_listing_closed":
+      return delivery.payload.applicationId;
+    default:
       return null;
   }
 }
@@ -398,6 +443,12 @@ export const AUDIENCES = {
    * route's template while the route is enabled.
    */
   family_contact: async () => [],
+  /**
+   * Whoever gave a donation (#106), who may have no account. No user
+   * receives it here: the donations module sends the route's template to
+   * the donor's address, and in-app to a signed-in donor.
+   */
+  donor: async () => [],
   /** The staff team a contact message was routed to (#113). */
   contact_team: async (db, delivery) =>
     delivery.eventType === "contact_message.received"
@@ -487,6 +538,23 @@ export const AUDIENCES = {
   },
   /** Everyone holding the community manager role everywhere (#123). */
   community_managers: async (db) => communityManagers(db),
+  /** Whoever applied to adopt an animal (#130). */
+  adoption_applicant: async (db, delivery) => {
+    const applicationId = adoptionApplicationOf(delivery);
+    return applicationId ? adoptionApplicant(db, applicationId) : [];
+  },
+  /** The animal's organisation's representatives (#130). */
+  adoption_listing_representatives: async (db, delivery) => {
+    const applicationId = adoptionApplicationOf(delivery);
+    return applicationId
+      ? adoptionListingRepresentatives(db, applicationId)
+      : [];
+  },
+  /** Adoption coordinators, global or for the organisation (#130). */
+  adoption_coordinators: async (db, delivery) => {
+    const applicationId = adoptionApplicationOf(delivery);
+    return applicationId ? adoptionCoordinators(db, applicationId) : [];
+  },
   /**
    * A campaign's recipient (#126): the campaigns handler sends to the
    * person it planned, on the consent the message rests on, so the generic
@@ -697,6 +765,31 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: RECEIPT_VARIABLES,
     load: (db, { payload }) => receiptValues(db, payload.batchId),
   },
+  // The donations module renders these itself (#106): only it can mint a
+  // receipt link as the email goes. Declared so templates check out.
+  "donation.captured": {
+    names: [
+      "donation.amount",
+      "receipt.number",
+      "receipt.link",
+      "receipt.expiresOn",
+    ],
+    load: async () => ({}),
+  },
+  "donation.foreign_payment_received": { names: [], load: async () => ({}) },
+  "donation.refunded": {
+    names: ["donation.amount", "refund.amount", "refund.reference"],
+    load: async () => ({}),
+  },
+  "receipt.link_requested": {
+    names: [
+      "donation.amount",
+      "receipt.number",
+      "receipt.link",
+      "receipt.expiresOn",
+    ],
+    load: async () => ({}),
+  },
   "guardian.teen_invited": { names: [], load: async () => ({}) },
   "refund.approved": { names: [], load: async () => ({}) },
   "refund.processed": {
@@ -807,6 +900,46 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "campaign.message_due": {
     names: CAMPAIGN_VARIABLES,
     load: (db, { payload }) => campaignEventValues(db, payload.campaignId),
+  },
+  "adoption.application_submitted": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_under_review": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_in_contact": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_adopted": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_not_matched": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_declined": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_withdrawn": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
+  },
+  "adoption.application_listing_closed": {
+    names: ADOPTION_APPLICATION_VARIABLES,
+    load: (db, { payload }) =>
+      adoptionApplicationValues(db, payload.applicationId),
   },
 };
 

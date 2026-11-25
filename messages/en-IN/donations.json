@@ -1,0 +1,13 @@
+{
+  "donations": {
+    "gateway": {
+      "description": "Donation to Friends of Animals"
+    },
+    "refundNotice": {
+      "subjectName": "a donation"
+    },
+    "refundReasons": {
+      "foreign": "The donation came from a card or account outside India, which FOA can't accept while it isn't registered under FCRA. Refunded automatically."
+    }
+  }
+}

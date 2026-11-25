@@ -29,6 +29,7 @@ import { ANNOUNCEMENTS_POLICY } from "../modules/announcements/policy";
 import { PRIVACY_POLICY } from "../modules/privacy/policy";
 import { PRIVACY_REQUESTS_POLICY } from "../modules/privacy/requests/policy";
 import { BREACHES_POLICY } from "../modules/breaches/policy";
+import { DONATIONS_POLICY } from "../modules/donations/policy";
 import { INSTITUTION_SUBMISSIONS_POLICY } from "../modules/institution-submissions/policy";
 import { DIRECTORY_POLICY } from "../modules/directory/policy";
 import { ADOPTION_POLICY } from "../modules/adoption/policy";
@@ -66,6 +67,7 @@ export const POLICY = composePolicies(
   ANNOUNCEMENTS_POLICY,
   PRIVACY_POLICY,
   BREACHES_POLICY,
+  DONATIONS_POLICY,
   PRIVACY_REQUESTS_POLICY,
   DIRECTORY_POLICY,
   ADOPTION_POLICY,

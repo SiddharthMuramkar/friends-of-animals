@@ -34,6 +34,9 @@ const ALLOWED: ReadonlyArray<
   // batch.
   ["created", "competition_cancelled", "cancelled"],
   ["order_created", "competition_cancelled", "cancelled"],
+  // #106: a donation that expired before anyone paid.
+  ["created", "expired", "cancelled"],
+  ["order_created", "expired", "cancelled"],
 ];
 
 const allowedTo = (from: PaymentBatchStatus, event: PaymentBatchEvent) =>

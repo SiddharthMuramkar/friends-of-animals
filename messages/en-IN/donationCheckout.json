@@ -1,0 +1,58 @@
+{
+  "donationCheckout": {
+    "meta": {
+      "title": "Your donation",
+      "thankYouTitle": "Thank you"
+    },
+    "loading": "Loading your donation…",
+    "eyebrow": "Donate",
+    "title": "Pay {amount}",
+    "lead": "Pay by card, UPI or net banking. Your receipt link comes by email as soon as the payment goes through.",
+    "pay": "Pay {amount}",
+    "paying": "Opening the payment window…",
+    "confirming": "Checking your payment…",
+    "back": "Change the amount or details",
+    "errors": {
+      "not_found": "We couldn't find this donation. Please start again from the donate page.",
+      "gateway_unavailable": "The payment service isn't answering. Nothing was charged. Please try again in a few minutes.",
+      "superseded": "This payment changed in another window. Reload the page to see it.",
+      "failed": "Something went wrong and nothing was charged. Please try again."
+    },
+    "thankYou": {
+      "eyebrow": "Donate",
+      "captured": {
+        "title": "Thank you for giving {amount}",
+        "body": "Your receipt number is {number}. We have emailed you a link to your receipt. It works for 7 days, so save or print the receipt before then.",
+        "lost": "Didn't get the email, or the link has expired? Ask for a new link"
+      },
+      "pending": {
+        "title": "We are waiting for your bank",
+        "body": "We haven't heard back about your payment of {amount} yet. This page updates when you reload it, and we email your receipt as soon as the payment goes through.",
+        "reload": "Check again",
+        "pay": "Go back to the payment"
+      },
+      "failed": {
+        "title": "Your payment didn't go through",
+        "body": "Nothing was taken. You can try again with another card or UPI app.",
+        "retry": "Try paying again"
+      },
+      "expired": {
+        "title": "This donation has expired",
+        "body": "The payment wasn't finished in time, so nothing was taken. If money did leave your account, it comes back to you or we contact you.",
+        "again": "Start a new donation"
+      },
+      "foreign": {
+        "title": "We have returned your payment",
+        "body": "Your payment of {amount} came from a card or account outside India. The law lets us accept donations only from Indian sources for now, so we are returning all of it. A card refund usually arrives within 5 to 7 working days."
+      },
+      "refunded": {
+        "title": "This donation was refunded",
+        "body": "We returned your gift of {amount}, and its receipt is cancelled."
+      },
+      "home": "Back to the donate page"
+    },
+    "notFound": {
+      "body": "The link may be mistyped or cut short. Nothing was charged through it. You can start a new donation from the donate page."
+    }
+  }
+}

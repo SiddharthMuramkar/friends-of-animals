@@ -13,6 +13,7 @@ import { LEGAL_DOCS } from "../../content/legal";
 import { GUARDIAN_CONSENT_DRAFTS } from "../../content/legal/guardian-consents";
 import { MESSAGES_CONSENT_DRAFT } from "../../content/legal/messages-consent";
 import { VOLUNTEER_DECLARATION_DRAFTS } from "../../content/legal/volunteer-declarations";
+import { ADOPTION_CONSENT_DRAFTS } from "../../content/legal/adoption-consents";
 import {
   parseConsentDocumentBody,
   toConsentDocumentBody,
@@ -77,6 +78,12 @@ const SEED_DOCUMENTS: ReadonlyArray<{
   // The volunteer declarations (#123), drafts too (HR-55).
   ...Object.entries(VOLUNTEER_DECLARATION_DRAFTS).map(([purpose, draft]) => ({
     purpose: purpose as keyof typeof VOLUNTEER_DECLARATION_DRAFTS,
+    title: draft.title,
+    body: { short: draft.short, sections: draft.sections },
+  })),
+  // An adopter's consents (#130), drafts too (HR-61).
+  ...Object.entries(ADOPTION_CONSENT_DRAFTS).map(([purpose, draft]) => ({
+    purpose: purpose as keyof typeof ADOPTION_CONSENT_DRAFTS,
     title: draft.title,
     body: { short: draft.short, sections: draft.sections },
   })),

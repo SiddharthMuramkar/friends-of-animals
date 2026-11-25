@@ -1,0 +1,158 @@
+{
+  "adminDonations": {
+    "meta": {
+      "title": "Donations",
+      "description": "Every donation, its receipt and its money."
+    },
+    "nav": "Donations",
+    "eyebrow": "Finance",
+    "title": "Donations",
+    "lead": "Every online donation, newest first. Donors' names and emails are personal data: open them only to answer for the money.",
+    "loading": "Loading donations…",
+    "denied": {
+      "title": "Only finance can see donations",
+      "body": "Your account doesn't have the finance role.",
+      "back": "Go to your account"
+    },
+    "filters": {
+      "legend": "Filter",
+      "status": "Status",
+      "anyStatus": "Any status",
+      "donorType": "Donor",
+      "anyDonor": "Anyone",
+      "from": "From",
+      "to": "To",
+      "apply": "Show",
+      "reset": "Reset"
+    },
+    "table": {
+      "caption": "Donations, newest first",
+      "date": "Started",
+      "donor": "Donor",
+      "amount": "Amount",
+      "status": "Status",
+      "receipt": "Receipt",
+      "none": "None",
+      "guest": "Guest",
+      "open": "Open the donation of {amount} from {donor}"
+    },
+    "empty": "No donations match.",
+    "limited": "Showing the newest {count}. Narrow the dates to see older ones.",
+    "statuses": {
+      "pending": "Waiting for payment",
+      "captured": "Received",
+      "failed": "Payment failed",
+      "expired": "Expired",
+      "refund_pending": "Returning foreign money",
+      "refunded": "Refunded",
+      "partially_refunded": "Partly refunded"
+    },
+    "donorTypes": {
+      "individual": "Person",
+      "corporate": "Company",
+      "csr": "CSR"
+    },
+    "errors": {
+      "invalid_date": "Enter real dates.",
+      "range_reversed": "The from date must be on or before the to date.",
+      "invalid_input": "Check the filters and try again."
+    },
+    "detail": {
+      "back": "All donations",
+      "title": "Donation of {amount}",
+      "notFound": {
+        "title": "Donation not found",
+        "body": "It may have been mistyped.",
+        "back": "All donations"
+      },
+      "donorTitle": "Donor",
+      "name": "Name",
+      "email": "Email",
+      "type": "Gives as",
+      "organisation": "Organisation",
+      "disclose": "Name shown in public",
+      "yes": "Yes",
+      "no": "No",
+      "wall": "Donor wall",
+      "wallOff": "Not on the wall",
+      "wallNoName": "On the wall without a name",
+      "account": "Account",
+      "guest": "Gave without an account",
+      "member": "Gave while signed in",
+      "moneyTitle": "Money",
+      "amount": "Amount",
+      "status": "Status",
+      "started": "Started",
+      "captured": "Received",
+      "payment": "Payment service reference",
+      "receiptTitle": "Receipt",
+      "receiptNumber": "Number",
+      "receiptIssued": "Issued",
+      "receiptCancelled": "Cancelled",
+      "noReceipt": "No receipt: the donation hasn't been received.",
+      "refundsTitle": "Refunds",
+      "noRefunds": "No refunds.",
+      "refundKinds": {
+        "discretionary": "Asked for",
+        "cancellation": "Cancellation",
+        "duplicate": "Second payment returned",
+        "foreign_payment": "Foreign money returned"
+      },
+      "refundStatuses": {
+        "requested": "Waiting for finance",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "processing": "With the gateway",
+        "refunded": "Refunded",
+        "failed": "Failed"
+      },
+      "reviewTitle": "Payments in review",
+      "reviewOpen": "Open the case",
+      "reviewReasons": {
+        "amount_mismatch": "Different amount",
+        "already_paid": "Paid twice",
+        "donation_expired": "Arrived after expiry"
+      }
+    },
+    "link": {
+      "title": "Receipt link",
+      "lead": "Make a new 7-day link to the receipt, for you to open or pass on. It isn't emailed to anyone, and older links keep their own expiry.",
+      "submit": "Make a new link",
+      "submitting": "Making the link…",
+      "made": "New link, valid until {date}:",
+      "cancelled": "The receipt is cancelled, so no new link can be made.",
+      "failed": "Something went wrong. Try again."
+    },
+    "refund": {
+      "title": "Refund",
+      "lead": "Ask for everything left of this donation back. Another finance user approves it, and the money goes back to the card or account it came from.",
+      "reason": {
+        "label": "Why",
+        "hint": "Up to 500 characters. Finance reads it before approving."
+      },
+      "submit": "Ask for a refund",
+      "submitting": "Asking…",
+      "requested": "Refund asked for. It waits for another finance user to approve it.",
+      "approve": "Approve the refund",
+      "reject": "Reject the refund",
+      "noteLabel": "Note for rejecting",
+      "decided": {
+        "approved": "Refund approved. It goes to the payment service now.",
+        "rejected": "Refund rejected."
+      },
+      "errors": {
+        "reason_required": "Say why the donation is refunded.",
+        "reason_too_long": "Use 500 characters or fewer.",
+        "not_refundable": "This donation has no money left to refund.",
+        "refund_in_progress": "A refund of this donation is already in progress.",
+        "same_person": "You asked for this refund, so another finance user must decide it.",
+        "not_requested": "This refund is no longer waiting for a decision.",
+        "note_required": "Write a note to reject it.",
+        "note_too_long": "Use 500 characters or fewer.",
+        "not_rejectable": "This refund can no longer be rejected.",
+        "failed": "Something went wrong and nothing changed. Try again.",
+        "cancellation_refund_required": "The competition was cancelled, so this refund must be paid."
+      }
+    }
+  }
+}

@@ -64,12 +64,16 @@ describe("backfillLedgerFromPayments", () => {
     const system = h.as({ kind: "system", process: "cli" });
     expect(await system.backfillLedgerFromPayments()).toEqual({
       capturesPosted: 2,
+      donationsPosted: 0,
+      foreignPosted: 0,
       refundsPosted: 0,
     });
     const posted = await read();
     expect(posted.map((row) => row.sourceId).sort()).toEqual(paymentIds.sort());
     expect(await system.backfillLedgerFromPayments()).toEqual({
       capturesPosted: 0,
+      donationsPosted: 0,
+      foreignPosted: 0,
       refundsPosted: 0,
     });
     await h.drain();
@@ -213,9 +217,11 @@ describe("the preview ledger seed", () => {
         }),
       ])
     );
+    // Two from the ledger seed, and the year-end entry in the locked
+    // March 2026 from the periods seed (#109).
     expect(
       seeded.postings.filter((row) => row.sourceType === "manual")
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(
       seeded.postings.some((row) => row.sourceId === "pay_seed_review")
     ).toBe(false);

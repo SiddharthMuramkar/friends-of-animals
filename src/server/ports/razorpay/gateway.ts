@@ -81,6 +81,9 @@ const paymentEntity = z.object({
   status: z.enum(["created", "authorized", "captured", "failed", "refunded"]),
   amount: z.number().int().nonnegative(),
   currency: z.string().min(1),
+  // Required: a payment that doesn't say where its card is from is never
+  // taken as domestic (#106).
+  international: z.boolean(),
 });
 
 const paymentCollection = z.object({ items: z.array(paymentEntity) });
@@ -235,6 +238,7 @@ export function razorpayGateway({
         status: payment.status,
         amountMinor: BigInt(payment.amount),
         currency: payment.currency,
+        international: payment.international,
       }));
     },
 

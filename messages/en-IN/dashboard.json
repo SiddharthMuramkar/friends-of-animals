@@ -24,6 +24,7 @@
       "children": "Your children, as a parent or guardian",
       "directory": "Your listing in FOA's NGO directory",
       "volunteer": "Volunteer with Friends of Animals",
+      "adoptions": "Your adoption applications",
       "privacy": "Your privacy requests: see, correct or erase your data"
     },
     "admin": {
@@ -37,6 +38,7 @@
       "ledger": "Ledger",
       "directory": "Directory listings",
       "volunteers": "Volunteer applications",
+      "adoptions": "Adoption applications",
       "privacyRequests": "Privacy requests"
     },
     "institution": {

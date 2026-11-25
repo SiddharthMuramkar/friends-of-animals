@@ -32,6 +32,13 @@ export const PAYMENT_CAPTURE_METHODS = ["gateway", "offline"] as const;
 
 export type PaymentCaptureMethod = (typeof PAYMENT_CAPTURE_METHODS)[number];
 
+/** What a batch pays for (#106): registrations' fees, or one donation,
+ * whose module decides what its payments do (../purposes.ts). Auctions
+ * (#133) add theirs, with their handler. */
+export const PAYMENT_PURPOSES = ["registration_fee", "donation"] as const;
+
+export type PaymentPurpose = (typeof PAYMENT_PURPOSES)[number];
+
 export const PAYMENT_BATCH_EVENTS = [
   /** The gateway returned an order id. */
   "order_opened",
@@ -53,6 +60,8 @@ export const PAYMENT_BATCH_EVENTS = [
   "review_dismissed",
   /** Its competition was cancelled before anyone paid (#80). */
   "competition_cancelled",
+  /** The donation it was opened for expired before anyone paid (#106). */
+  "expired",
 ] as const;
 
 export type PaymentBatchEvent = (typeof PAYMENT_BATCH_EVENTS)[number];
@@ -78,6 +87,7 @@ const TRANSITIONS: Readonly<
     superseded: "cancelled",
     offline_recorded: "captured",
     competition_cancelled: "cancelled",
+    expired: "cancelled",
   },
   order_created: {
     captured: "captured",
@@ -85,6 +95,7 @@ const TRANSITIONS: Readonly<
     offline_recorded: "captured",
     review_opened: "needs_review",
     competition_cancelled: "cancelled",
+    expired: "cancelled",
   },
   // A paid batch stays paid. A second payment opens a case beside it
   // (#80, from #79's review), and refunds are rows of their own, so a

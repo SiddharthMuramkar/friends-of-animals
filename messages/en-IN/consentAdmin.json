@@ -26,7 +26,9 @@
       "auction": "A child's consent to auction",
       "communications": "Messages about a child",
       "volunteer_safeguarding_declaration": "Volunteer safeguarding declaration",
-      "volunteer_code_of_conduct": "Volunteer code of conduct"
+      "volunteer_code_of_conduct": "Volunteer code of conduct",
+      "adoption_contact_sharing": "Adopter contact sharing",
+      "adoption_success_story": "Adoption success story"
     },
     "current": "Version {version}, published {date} by {name}.",
     "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",
