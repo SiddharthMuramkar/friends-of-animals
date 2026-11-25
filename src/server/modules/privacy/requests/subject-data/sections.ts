@@ -55,6 +55,8 @@ import {
   paymentBatchItem,
   paymentReviewCase,
   privacyRequest,
+  judgeOnboarding,
+  roundAssignment,
   refund,
   registration,
   secondFactor,
@@ -273,6 +275,17 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: judgeOnboarding,
+    where: (scope) => within(judgeOnboarding.judgeUserId, users(scope)),
+    owners: ["judge_user_id"],
+  },
+  {
+    table: roundAssignment,
+    where: (scope) => within(roundAssignment.judgeUserId, users(scope)),
+    owners: ["judge_user_id"],
+    withhold: ["entry_id", "assigned_by_user_id"],
+  },
+  {
     table: entryFile,
     where: (scope) => sql`${entryFile.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],
@@ -399,12 +412,18 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // Which finance user last locked or reopened a ledger month (#109):
   // rows keyed by month, with no id to list.
   ledger_period: "staff_last_change",
+  round_entry: "staff_last_change",
   // Which coordinator picked an entry for a school's shortlist (#89): keyed
   // by the entry, with no id of its own to list.
   school_round_pick: "coordinator_pick",
   // Which coordinator declared a shortlisted entry they created (#91):
   // keyed by the entry, with no id of its own to list.
   school_round_declaration: "coordinator_pick",
+  // Private judging assessments can name both a judge and a participant.
+  // An officer handles requests for these records without identifying the
+  // other person or disclosing an unfinished result.
+  score_sheet: "confidential_judging_assessment",
+  criterion_score: "confidential_judging_assessment",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };

@@ -629,6 +629,13 @@
           "assigned_by_user_id": "Records who assigned an entry",
           "judge_user_id": "Identifies the judge assigned to the entry"
         },
+        "score_sheet": {
+          "judge_user_id": "Identifies the assigned judge who scored the work",
+          "comment": "Keeps a judge’s private evaluation of the participant’s work"
+        },
+        "criterion_score": {
+          "value": "Records the score given to work against a pinned rubric criterion"
+        },
         "judge_invitation": {
           "email_ciphertext": "Encrypted address where the invitation is sent",
           "email_hash": "Matches repeated invitations and verified invitees",

@@ -911,6 +911,13 @@
       "when": 1795588806049,
       "tag": "0129_95_judging_rounds",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1795589618682,
+      "tag": "0130_96_score_sheets",
+      "breakpoints": true
     }
   ]
 }

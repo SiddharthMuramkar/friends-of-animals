@@ -705,6 +705,12 @@ The FOA-verified entries a round admits. A physical round additionally needs a p
 **Assignment**:
 One pooled entry allocated to one ready judge, provided their declared and live conflicts do not apply.
 
+**Blind entry view**:
+The assigned Entry’s code, discipline, category, age group and derived work, without personal details or the Entry's title, description or statement.
+
+**Score sheet**:
+One assigned judge’s scores against the round’s pinned Rubric and optional comment. A sheet is complete when every criterion has a score. Changes save incrementally; clearing a score makes the sheet incomplete again.
+
 ## Physical artwork
 
 **Physical artwork**:

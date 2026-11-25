@@ -980,6 +980,10 @@ Rubrics per discipline, the guard that keeps a competition out of school judging
 
 Competition managers create draft rounds and pin each enabled discipline’s published rubric; opening re-pins, then preserves those immutable versions. A round has its own level, award scheme, physical-artwork rule and status (`draft`, `open`, `locked`, `cancelled`). Only the invited verified account may accept a judge invitation, which grants the `judge` role at the exact round scope. The outbox sends the encrypted invitation link, and onboarding records the code of conduct and confidentiality terms as consent events and the conflict declaration. `loadJudgeReadiness()` is the single gate for assignments and the future blind scoring reads. `conflictedEntryIds()` checks declared institution conflicts, staff flags, live institution roles, guardianships and the judge’s own profile; scoring must recheck these live facts. `physicallyReadyEntryIds()` is the fail-closed adapter for #94’s physical-readiness definition. Digital rounds admit FOA-verified entries only. The admin rounds pages expose settings, judges, pool, assignments and conflicts; judges can see only their rounds and onboarding, not entries yet (#96).
 
+#### Blind scoring (#96)
+
+`listMyAssignments`, `getBlindEntry` and `saveScoreSheet` are round-scoped judge-only use cases in `judging/blind`. Each call checks current onboarding and conflicts, and the allow-listed view contains only entry code, discipline, category, age group, and live derived work. The score sheet saves patches against the pinned rubric with field versions, reports conflicting edits, and keeps completion/change audit records without copying free-text comments. A removed or conflicted assignment deletes its sheet and scores; the audit remains. Locked rounds are readable but not writable.
+
 ### ledger
 
 FOA's double-entry books (#105), with the period lock, the two-approver rule, budgets and the accountant's export (#109).
