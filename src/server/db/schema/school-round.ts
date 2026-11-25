@@ -139,7 +139,7 @@ export const schoolRoundPick = pgTable(
     /** An entry is picked at most once. */
     entryId: uuid("entry_id")
       .primaryKey()
-      .references(() => entry.id),
+      .references(() => entry.id, { onDelete: "cascade" }),
     roundId: uuid("round_id")
       .notNull()
       .references(() => schoolRound.id, { onDelete: "cascade" }),
@@ -202,7 +202,10 @@ export const schoolRoundTransition = pgTable(
   ]
 );
 
-export const SCHOOL_ROUND_OUTCOMES = ["shortlisted", "not_shortlisted"] as const;
+export const SCHOOL_ROUND_OUTCOMES = [
+  "shortlisted",
+  "not_shortlisted",
+] as const;
 
 export const schoolRoundOutcome = pgEnum(
   "school_round_outcome",
@@ -220,7 +223,7 @@ export const schoolRoundFamilyNotice = pgTable(
   {
     entryId: uuid("entry_id")
       .primaryKey()
-      .references(() => entry.id),
+      .references(() => entry.id, { onDelete: "cascade" }),
     roundId: uuid("round_id")
       .notNull()
       .references(() => schoolRound.id, { onDelete: "cascade" }),

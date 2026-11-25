@@ -14,12 +14,7 @@ import { globalManager, signedInWith } from "@/server/modules/judging/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { JUDGING_STATEMENT_VERSION } from "./domain/judging-statement";
-import {
-  anotherSchool,
-  readyRound,
-  schoolInJudging,
-  type RoundWorld,
-} from "./testing";
+import { anotherSchool, readyRound, schoolInJudging } from "./testing";
 
 // #89: the coordinator attests the judging and finalises. Finalising needs
 // a panel of at least one, the institution's conduct certification (#87)

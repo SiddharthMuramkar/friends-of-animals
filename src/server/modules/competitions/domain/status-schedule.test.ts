@@ -260,7 +260,6 @@ describe("planStatusJob", () => {
       ],
     });
   });
-
 });
 
 describe("upcomingChange", () => {

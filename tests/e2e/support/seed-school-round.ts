@@ -122,16 +122,14 @@ export const test = base.extend<{
           at: now,
         });
         if (overdue)
-          await db
-            .insert(schema.schoolRoundTransition)
-            .values({
-              id: uuidv7(now),
-              roundId,
-              fromStatus: "open",
-              toStatus: "overdue",
-              actorKind: "system",
-              at: now,
-            });
+          await db.insert(schema.schoolRoundTransition).values({
+            id: uuidv7(now),
+            roundId,
+            fromStatus: "open",
+            toStatus: "overdue",
+            actorKind: "system",
+            at: now,
+          });
         await db.insert(schema.schoolRoundPanelMember).values({
           id: uuidv7(now),
           roundId,

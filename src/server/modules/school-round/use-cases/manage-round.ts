@@ -2,7 +2,7 @@
 // writes hold the competition, then the round, then its entries; in
 // particular a verifier cannot race a reopen (the verifier holds the
 // same round before deciding an entry).
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../../access/can";
 import { recordAudit } from "../../../audit/record";
@@ -275,7 +275,9 @@ export async function reopenSchoolRound(
         .set({
           status: move.to,
           ...(move.to === "submitted" && live.get(move.entryId)
-            ? { submittedAt: live.get(move.entryId)! }
+            ? {
+                submittedAt: sql`coalesce(${entry.submittedAt}, ${live.get(move.entryId)!.toISOString()}::timestamptz)`,
+              }
             : {}),
           updatedAt: now,
         })
