@@ -41,6 +41,7 @@ import {
   type VideoResult,
 } from "@/server/ports/media";
 import { sniffContentType } from "@/server/modules/files/domain/sniff";
+import { fakeRasterPdf } from "@/test/pdf-fixtures";
 import { minimalWebp } from "@/test/webp";
 
 type Source = MediaResult["source"];
@@ -339,9 +340,7 @@ export class FakeMediaProcessor implements MediaProcessor {
       width: null,
       height: null,
       durationMs: null,
-      bytes: new TextEncoder().encode(
-        "%PDF-1.4\n% Raster-only fake copy\n%%EOF\n"
-      ),
+      bytes: fakeRasterPdf(),
     };
   }
 

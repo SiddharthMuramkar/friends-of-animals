@@ -62,3 +62,24 @@ export function essayPdf(pageCount = 2): Uint8Array {
   );
   return new TextEncoder().encode(parts.join(""));
 }
+
+/** Valid, inert one-pixel page for the in-memory fake. It does not pretend to
+ * render the original work (the real adapter's contract checks that). */
+export function fakeRasterPdf(): Uint8Array {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1 1] /Resources << /XObject << /Pixel 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /ASCIIHexDecode /Length 7 >>\nstream\nffffff>\nendstream",
+    "<< /Length 9 >>\nstream\n/Pixel Do\nendstream",
+  ];
+  let body = "%PDF-1.4\n";
+  let offsets = "0000000000 65535 f \n";
+  for (const [i, object] of objects.entries()) {
+    offsets += `${String(body.length).padStart(10, "0")} 00000 n \n`;
+    body += `${i + 1} 0 obj\n${object}\nendobj\n`;
+  }
+  return new TextEncoder().encode(
+    `${body}xref\n0 6\n${offsets}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${body.length}\n%%EOF\n`
+  );
+}
