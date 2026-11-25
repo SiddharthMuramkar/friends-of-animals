@@ -15,6 +15,8 @@ import { Placeholder } from "@/components/site/placeholder";
 import { Section } from "@/components/site/section";
 import { type TileHue, TileMarker } from "@/components/site/tile";
 import { siteUrl } from "@/env";
+import { TRANSPARENCY_PATH } from "@/lib/app-routes";
+import { SiteLink } from "@/components/site/site-link";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { WithOrgFacts } from "@/components/site/with-org-facts";
@@ -216,7 +218,6 @@ export default async function Page() {
                   <Callout tone="warning" className="mt-6">
                     <p>{t("legit.honest")}</p>
                   </Callout>
-                  <p className="mt-4 text-ink-muted">{t("legit.publish")}</p>
                 </div>
               ) : null;
             }}
@@ -225,6 +226,15 @@ export default async function Page() {
       </Section>
 
       <Section hue={HUE} tone="tint">
+        <div className="mb-8">
+          <p className="text-ink-muted">{t("legit.publish")}</p>
+          <SiteLink
+            href={TRANSPARENCY_PATH}
+            className="font-semibold text-link underline"
+          >
+            {t("legit.transparencyLink")}
+          </SiteLink>
+        </div>
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
           <div>
             <h2 className="text-h3 text-(--section-heading,var(--ink))">

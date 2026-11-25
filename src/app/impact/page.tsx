@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getFormatter, getTranslations } from "next-intl/server";
+import { connection } from "next/server";
+import { Suspense } from "react";
 
 import { ImpactCounters } from "@/components/showcase/impact-counters";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
@@ -10,6 +12,12 @@ import { SampleTag } from "@/components/site/sample-tag";
 import { Section } from "@/components/site/section";
 import { TableScroller } from "@/components/site/table-scroller";
 import { type TileHue, TileMarker } from "@/components/site/tile";
+import { TRANSPARENCY_PATH, transparencyYearPath } from "@/lib/app-routes";
+import { SiteLink } from "@/components/site/site-link";
+import { PUBLIC_READER } from "@/app/competitions/_lib/public-reader";
+import { as } from "@/server/app";
+import { periodStart } from "@/server/modules/ledger/domain/period";
+import { formatPaise } from "@/server/modules/payments/domain/money-format";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import { isSampleContentEnabled } from "@/lib/site";
@@ -190,6 +198,11 @@ export default async function Page() {
             </>
           )}
         </Live>
+        <Suspense
+          fallback={<p className="mt-6 text-ink-muted">{t("funds.loading")}</p>}
+        >
+          <FundsRaised />
+        </Suspense>
       </Section>
 
       <Section labelledBy="publish-title" hue={HUE}>
@@ -207,8 +220,64 @@ export default async function Page() {
             </li>
           ))}
         </ul>
-        <p className="mt-6 text-ink-muted">{t("publish.transparency")}</p>
+        <p className="mt-6">
+          <SiteLink
+            href={TRANSPARENCY_PATH}
+            className="font-semibold text-link underline"
+          >
+            {t("publish.transparency")}
+          </SiteLink>
+        </p>
       </Section>
     </>
+  );
+}
+
+// Not a CMS or sample counter: the public figures are read fresh from
+// exactly the same locked-period projection as /transparency.
+async function FundsRaised() {
+  await connection();
+  const [t, format, funds] = await Promise.all([
+    getTranslations("impact.funds"),
+    getFormatter(),
+    as(PUBLIC_READER).getFundsRaised(),
+  ]);
+  return (
+    <section
+      aria-labelledby="funds-raised-title"
+      className="mt-6 rounded-3xl border-2 border-border bg-surface p-6 shadow-warm sm:p-8"
+    >
+      <h2 id="funds-raised-title" className="text-h3">
+        {t("title")}
+      </h2>
+      {funds ? (
+        <>
+          <p
+            data-testid="impact-funds-raised"
+            className="mt-4 font-display text-h1 font-bold wrap-anywhere"
+          >
+            {formatPaise(funds.amountMinor)}
+          </p>
+          <p className="mt-3 text-ink-muted">
+            {t("period", {
+              fy: funds.fy,
+              month: format.dateTime(periodStart(funds.publishedThrough), {
+                timeZone: "Asia/Kolkata",
+                month: "long",
+                year: "numeric",
+              }),
+            })}
+          </p>
+        </>
+      ) : (
+        <p className="mt-4">{t("empty")}</p>
+      )}
+      <SiteLink
+        href={funds ? transparencyYearPath(funds.fy) : TRANSPARENCY_PATH}
+        className="mt-3 inline-block font-semibold text-link underline"
+      >
+        {t("link")}
+      </SiteLink>
+    </section>
   );
 }

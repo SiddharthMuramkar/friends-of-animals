@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { siteUrl } from "@/env";
-import { ADOPTION_STORIES_PATH } from "@/lib/app-routes";
+import { ADOPTION_STORIES_PATH, TRANSPARENCY_PATH } from "@/lib/app-routes";
 import { sitemapRoutes } from "@/lib/routes";
 import { postSitemapEntries } from "@/server/modules/cms/domain/post-seo";
 import { loadPublishedPosts } from "@/server/modules/cms/posts/loaders";
@@ -22,6 +22,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: new URL(ADOPTION_STORIES_PATH, base).href,
       lastModified: "2026-11-25",
       priority: 0.5,
+    },
+    {
+      url: new URL(TRANSPARENCY_PATH, base).href,
+      lastModified: "2026-11-25",
+      priority: 0.7,
     },
     ...postSitemapEntries(await loadPublishedPosts(), base),
   ];

@@ -66,7 +66,8 @@
       "registrationNumber": "Registration number",
       "pan": "PAN",
       "honest": "Until every line above is filled in, please wait before giving. We would rather you wait than give on trust alone.",
-      "publish": "Once giving opens, we will publish what came in and where it went on a transparency page."
+      "publish": "See what we received and spent in our reconciled accounts.",
+      "transparencyLink": "Read our published accounts"
     },
     "receipts": {
       "title": "Receipts and tax",

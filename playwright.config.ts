@@ -19,6 +19,9 @@ const usesBypass = bypassSecretFor(baseURL) !== undefined;
 
 /** The production smoke suite, which only its own project runs. */
 const PROD_SMOKE = "prod-smoke.spec.ts";
+// Locking the ledger is a database-global change. CI gives each of these
+// projects its own service, isolated from other payment/ledger journeys.
+const TRANSPARENCY = "110-transparency.spec.ts";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -47,10 +50,24 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testIgnore: PROD_SMOKE,
+      testIgnore: [PROD_SMOKE, TRANSPARENCY],
       use: { ...devices["Desktop Chrome"] },
     },
-    { name: "mobile", testIgnore: PROD_SMOKE, use: { ...devices["Pixel 7"] } },
+    {
+      name: "mobile",
+      testIgnore: [PROD_SMOKE, TRANSPARENCY],
+      use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "transparency-desktop",
+      testMatch: TRANSPARENCY,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "transparency-mobile",
+      testMatch: TRANSPARENCY,
+      use: { ...devices["Pixel 7"] },
+    },
     // Read-only checks of a live production deployment (.github/workflows/
     // e2e.yml); never part of the journeys above.
     {

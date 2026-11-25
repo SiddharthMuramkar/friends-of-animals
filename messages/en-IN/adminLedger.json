@@ -65,6 +65,7 @@
       "kind": "Type",
       "name": "Name",
       "publicLabel": "Public label (optional)",
+      "publicLabelHint": "Shown on the transparency page. Use a category label, not a donor name or other personal details. Leave blank to show the public group.",
       "publicGroup": "Public group",
       "system": "System category",
       "inactive": "Inactive",

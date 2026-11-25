@@ -36,6 +36,9 @@ import type { DonorType } from "../modules/donations/domain/donor";
 import { RECEIPT_LINK_LIFETIME_MS } from "../modules/donations/domain/receipt-link";
 import { DONOR_PURPOSE, donorEmailHash } from "../modules/donations/donors";
 import { issueReceipt } from "../modules/donations/receipts/issue";
+import { isPeriodClosed } from "../modules/ledger/domain/period-lock";
+import { loadKnownPeriods } from "../modules/ledger/periods";
+import { SEED_LOCKED_MONTH } from "./ledger-periods";
 import type { SeedDeps } from "./types";
 
 const token = (fill: string) => fill.repeat(43).slice(0, 43);
@@ -263,5 +266,71 @@ export async function seedDonations(deps: SeedDeps): Promise<void> {
       refundedAt: now,
       updatedAt: now,
     });
+  });
+}
+
+// Two synthetic historic gifts in the month the period seed publishes.
+// Keep today's donation fixtures where they are, for checkout journeys.
+export const SEED_TRANSPARENCY_DONATIONS = [
+  {
+    donationId: "01938a00-0000-7000-8000-000000110201",
+    donorId: "01938a00-0000-7000-8000-000000110211",
+    batchId: "01938a00-0000-7000-8000-000000110221",
+    name: "Demo donor",
+    email: "demo.supporter@example.test",
+    amountMinor: 120_000n,
+    checkoutToken: token("SeedTransparencyIndividual_"),
+    type: "individual",
+    wallName: "Demo supporter",
+  },
+  {
+    donationId: "01938a00-0000-7000-8000-000000110202",
+    donorId: "01938a00-0000-7000-8000-000000110212",
+    batchId: "01938a00-0000-7000-8000-000000110222",
+    name: "Demo trust contact",
+    email: "demo.trust@example.test",
+    organisationName: "Demo Community Trust",
+    amountMinor: 750_000n,
+    checkoutToken: token("SeedTransparencyOrganisation_"),
+    type: "csr",
+    wallName: null,
+  },
+] as const;
+
+/** Before the ledger and lock seeds; never add historic gifts to an existing locked ledger. */
+export async function seedTransparencyDonations(deps: SeedDeps): Promise<void> {
+  const at = new Date(`${SEED_LOCKED_MONTH}-15T10:00:00+05:30`);
+  if (at > deps.clock.now()) return;
+  await deps.db.transaction(async (tx) => {
+    if (isPeriodClosed(SEED_LOCKED_MONTH, await loadKnownPeriods(tx))) return;
+    for (const seed of SEED_TRANSPARENCY_DONATIONS) {
+      const [existing] = await tx
+        .select({ id: donation.id })
+        .from(donation)
+        .where(eq(donation.id, seed.donationId));
+      if (existing) continue;
+      const paymentId = `pay_seed_transparency_${seed.donationId.slice(-4)}`;
+      await insertDonation(
+        tx,
+        deps,
+        seed,
+        {
+          type: seed.type,
+          status: "captured",
+          batchStatus: "captured",
+          paymentId,
+          showOnWall: seed.wallName !== null,
+          wallName: seed.wallName,
+        },
+        at
+      );
+      await issueReceipt(tx, deps, {
+        donationId: seed.donationId,
+        donorId: seed.donorId,
+        amountMinor: seed.amountMinor,
+        gatewayPaymentId: paymentId,
+        issuedAt: at,
+      });
+    }
   });
 }

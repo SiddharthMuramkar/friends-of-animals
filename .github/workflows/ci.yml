@@ -251,6 +251,13 @@ jobs:
       matrix:
         project: [desktop, mobile]
         shard: [1, 2, 3]
+        include:
+          # A whole ledger period is locked by #110. Neither that lock nor
+          # the test donations can be shared with other payment journeys.
+          - project: transparency-desktop
+            shard: 1
+          - project: transparency-mobile
+            shard: 1
     services:
       postgres:
         image: postgres:18.7-trixie
@@ -370,7 +377,12 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           PROJECT: ${{ matrix.project }}
           SHARD: ${{ matrix.shard }}
-        run: pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3"
+        run: |
+          if [[ "$PROJECT" == transparency-* ]]; then
+            pnpm test:e2e --project="$PROJECT" --workers=1
+          else
+            pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3"
+          fi
 
       - name: Server log
         if: failure()
