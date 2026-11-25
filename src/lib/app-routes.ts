@@ -183,6 +183,13 @@ export const eventCheckInPath = (id: string) =>
   `${adminEventPath(id)}/check-in`;
 export const guardianChildEventsPath = (id: string) =>
   `${guardianChildPath(id)}/events`;
+export const CLUB_APPLY = "/clubs/apply";
+export const DASHBOARD_CLUBS = "/dashboard/clubs";
+export const ADMIN_CLUBS = "/admin/community/clubs";
+export const clubPath = (id: string) =>
+  `${DASHBOARD_CLUBS}/${encodeURIComponent(id)}`;
+export const adminClubPath = (id: string) =>
+  `${ADMIN_CLUBS}/${encodeURIComponent(id)}`;
 export const DASHBOARD_COMMUNITY = "/dashboard/community";
 export const DASHBOARD_TIMELINE = "/dashboard/timeline";
 export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
@@ -721,6 +728,11 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/events/[id]/registrations",
   "/admin/events/[id]/check-in",
   "/guardian/children/[id]/events",
+  CLUB_APPLY,
+  DASHBOARD_CLUBS,
+  `${DASHBOARD_CLUBS}/[clubId]`,
+  ADMIN_CLUBS,
+  `${ADMIN_CLUBS}/[clubId]`,
   DASHBOARD_COMMUNITY,
   DASHBOARD_TIMELINE,
   ADMIN_COMMUNITY_MEMBERS,
@@ -799,6 +811,7 @@ export const SIGNED_IN_PREFIXES = [
   "/admin",
   "/auth",
   "/dashboard",
+  "/clubs",
   "/institution",
   "/institutions/register",
   "/participant",

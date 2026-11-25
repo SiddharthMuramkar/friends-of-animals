@@ -5,6 +5,8 @@ import type { AppDb } from "../../../db/app-db";
 import {
   campaignRecipient,
   communityMember,
+  club,
+  clubDecision,
   event,
   eventRegistration,
   engagementMilestone,
@@ -43,6 +45,16 @@ type AggregateSource = {
 // The aggregate links that identify people or institutions in the event.
 // Read them in batches alongside payload subjects, which can outlive the links.
 const aggregateSources = {
+  club_decision: {
+    table: clubDecision,
+    subjects: [
+      ["user", clubDecision.decidedByUserId],
+      [
+        "user",
+        sql`(SELECT ${club.applicantUserId} FROM ${club} WHERE ${club.id}=${clubDecision.clubId})`,
+      ],
+    ],
+  },
   event: { table: event, subjects: [["user", event.createdByUserId]] },
   event_registration: {
     table: eventRegistration,

@@ -51,6 +51,7 @@
         "ambassador": "Ambassador"
       },
       "kinds": {
+        "club": { "joined": "Joined an FOA club", "left": "Left an FOA club" },
         "event": { "attended": "Attended an FOA event" },
         "milestone": {
           "participant": "Took part in a competition",
@@ -89,6 +90,7 @@
       "intro": "Private membership records for the community team. This view does not show members’ introductions or contact details.",
       "nav": "Community administration",
       "members": "Members",
+      "clubs": "Clubs",
       "filter": "Filter membership status",
       "apply": "Apply filter",
       "count": "{count, plural, one {# member} other {# members}}",

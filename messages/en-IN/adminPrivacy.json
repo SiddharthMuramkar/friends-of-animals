@@ -110,11 +110,30 @@
         "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)",
         "certificateArchives": "Up to 24 hours after requesting a ZIP, unless held as evidence; a revoked certificate invalidates its ZIP immediately",
         "communityHistory": "Until erasure of the account or participant profile",
+        "clubApplications": "While open, then 730 days after closure",
+        "clubMemberships": "While active, then 730 days after leaving",
         "communityMembers": "While active, then 365 days after departure",
         "volunteerService": "Until erasure of the account or participant profile; shared task instructions remain as operational records",
         "certificateRecords": "While the certificate is retained for verification, until subject erasure"
       },
       "purposes": {
+        "club": {
+          "applicant_user_id": "Identify the applicant who started the club.",
+          "applicant_kind": "Record the applicant’s claimed student or teacher affiliation.",
+          "applicant_verified": "Distinguish a verified affiliation from a self-attested affiliation."
+        },
+        "club_membership": {
+          "club_id": "Identify the club a person joined.",
+          "user_id": "Identify the member’s own account.",
+          "role": "Record the member’s claimed student or teacher affiliation.",
+          "affiliation_verified": "Distinguish verified membership affiliation from a self-attestation.",
+          "joined_at": "Date the person joined this club.",
+          "left_at": "Date the person left this club."
+        },
+        "club_decision": {
+          "decided_by_user_id": "Identify the person who made the club decision.",
+          "reason_ciphertext": "Private decision explanation for the applicant and community team."
+        },
         "account": {
           "access_token": "A sign-in provider's access token for the person, when one is used",
           "account_id": "The person's id at the sign-in provider (their own account id for email codes)",
@@ -1063,6 +1082,18 @@
         "communityHistory": {
           "name": "Community history",
           "rule": "Kept in the private journey until the account or participant profile is erased."
+        },
+        "clubApplications": {
+          "name": "Closed club applications",
+          "rule": "Applicant links are cleared {days, plural, one {# day} other {# days}} after a club ends."
+        },
+        "clubDecisions": {
+          "name": "Closed club decision notes",
+          "rule": "Private decision notes and reviewer links are cleared {days, plural, one {# day} other {# days}} after a club ends."
+        },
+        "clubMemberships": {
+          "name": "Former club memberships",
+          "rule": "Private membership records are deleted {days, plural, one {# day} other {# days}} after a member leaves. Engagement timeline entries stay until erasure."
         },
         "communityMembers": {
           "name": "Former member profiles",

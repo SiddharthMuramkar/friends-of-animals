@@ -1,4 +1,9 @@
 import {
+  clubNoticeRecipients,
+  clubNoticeValues,
+  CLUB_NOTICE_VARIABLES,
+} from "../clubs/notices";
+import {
   eventNoticeRecipients,
   eventNoticeValues,
   eventReminderRecipients,
@@ -325,6 +330,7 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "privacy_request.erasure_approved":
       // The export and erasure jobs (#115b); no route row names them.
       return null;
+    case "club.decision_recorded":
     case "volunteer.guardian_approval_requested":
     case "volunteer.application_submitted":
     case "volunteer.application_approved":
@@ -716,6 +722,10 @@ export const AUDIENCES = {
    * Whoever applied to volunteer (#123): an adult on every channel the
    * route names, a teen in the inbox only.
    */
+  club_applicant: async (db, delivery) =>
+    delivery.eventType === "club.decision_recorded"
+      ? clubNoticeRecipients(db, delivery.payload.decisionId)
+      : [],
   volunteer_applicant: async (db, delivery) => {
     const work = volunteerWorkOf(delivery);
     if (work) return volunteerWorkAudience(db, work, false);
@@ -1174,6 +1184,11 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "event.waitlist_promoted": {
     names: EVENT_REGISTRATION_VARIABLES,
     load: eventNoticeValues,
+  },
+  "club.decision_recorded": {
+    names: CLUB_NOTICE_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      clubNoticeValues(db, payload.decisionId, cipher),
   },
   "volunteer.guardian_approval_requested": {
     names: APPLICATION_VARIABLES,

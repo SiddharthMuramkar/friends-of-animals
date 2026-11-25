@@ -41,6 +41,7 @@ export const config = {
     "/admin/:path*",
     "/auth",
     "/auth/:path*",
+    "/clubs/:path*",
     "/dashboard",
     "/dashboard/:path*",
     "/institution",

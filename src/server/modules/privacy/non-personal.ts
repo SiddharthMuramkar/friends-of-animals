@@ -72,6 +72,9 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "attempts",
     "overdue_alerted",
   ],
+  club: ["id", "institution_id", "name", "status", "applied_at", "updated_at"],
+  club_membership: ["id"],
+  club_decision: ["id", "club_id", "from_status", "to_status", "decided_at"],
   community_member: [
     "id",
     "status",
