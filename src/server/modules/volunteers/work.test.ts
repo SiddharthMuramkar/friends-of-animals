@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { guardianLink } from "../../db/schema";
+import { and, eq } from "drizzle-orm";
+import { guardianLink, userRole } from "../../db/schema";
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import {
@@ -329,4 +329,90 @@ it("protects assigned work, verifies a teen certificate privately with current g
   expect(
     await h.as(h.visitor()).verifyCertificate({ number: replaced.number })
   ).toEqual({ outcome: "revoked", number: replaced.number });
+});
+
+it("rechecks role and staff factor, allows past work within assignment history, and refuses self approval", async () => {
+  const h = await createHarness();
+  const managerAccount = await h.seed.member({
+    name: "Service manager and volunteer",
+  });
+  await h.seed.grant(managerAccount, {
+    role: "community_manager",
+    scope: { type: "global" },
+  });
+  await h.seed.grant(managerAccount, {
+    role: "volunteer",
+    scope: { type: "global" },
+  });
+  const manager = h.as(await h.signIn(managerAccount));
+  const second = h.as(await staffActor(h, "community_manager"));
+  const unverified = h.as(
+    await h.signIn(managerAccount, undefined, { secondFactor: false })
+  );
+  await expect(unverified.listVolunteerTasks()).rejects.toMatchObject({
+    code: "second_factor_required",
+  });
+  const task = await second.createVolunteerTask({
+    title: "Read",
+    description: "Review materials",
+  });
+  if (!task.ok) throw Error("Task failed");
+  const taskId = task.taskId;
+  await second.publishVolunteerTask({ taskId });
+  const ordinary = await h.seed.member();
+  expect(
+    await second.assignVolunteerTask({ taskId, volunteerUserId: ordinary.id })
+  ).toEqual({ ok: false, error: "not_volunteer" });
+  await second.assignVolunteerTask({
+    taskId,
+    volunteerUserId: managerAccount.id,
+  });
+  const firstDate = istDate(h.clock.now());
+  h.clock.advance({ days: 2 });
+  await second.unassignVolunteerTask({
+    taskId,
+    volunteerUserId: managerAccount.id,
+  });
+  expect((await second.listVolunteerTasks()).tasks[0]).toMatchObject({
+    status: "open",
+    assignments: [],
+  });
+  h.clock.advance({ days: 1 });
+  await second.assignVolunteerTask({
+    taskId,
+    volunteerUserId: managerAccount.id,
+  });
+  const entry = await manager.logVolunteerHours({
+    taskId,
+    workedOn: firstDate,
+    minutes: 35,
+  });
+  if (!entry.ok) throw Error("Earlier assignment lost");
+  await expect(
+    manager.approveVolunteerHours({ entryId: entry.entryId })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await second.rejectVolunteerHours({ entryId: entry.entryId, reason: " " })
+  ).toEqual({ ok: false, error: "reason_required" });
+  expect(
+    await second.approveVolunteerHours({ entryId: entry.entryId })
+  ).toEqual({ ok: true });
+  await h.drain();
+  expect((await manager.listInbox()).map((x) => x.title)).toContain(
+    "Volunteer hours approved"
+  );
+  await h.db
+    .delete(userRole)
+    .where(
+      and(
+        eq(userRole.userId, managerAccount.id),
+        eq(userRole.role, "volunteer")
+      )
+    );
+  await expect(manager.requestVolunteerCertificate()).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(
+    manager.logVolunteerHours({ taskId, workedOn: firstDate, minutes: 5 })
+  ).rejects.toMatchObject({ code: "forbidden" });
 });

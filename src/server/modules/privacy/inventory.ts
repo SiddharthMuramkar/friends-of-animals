@@ -757,6 +757,13 @@ const judgeConflictRecord = rowsOf("judge_conflict", {
   retention: JUDGING_RECORD,
   onExpiry: "delete_row",
 });
+const CERTIFICATE_RECORD = {
+  policy: "certificateRecords",
+  periodKey: "certificateRecords",
+  basis:
+    "Preserve verified recognition and its private PDF until the subject's records are legally erased",
+  toConfirm: true,
+} as const;
 const VOLUNTEER_SERVICE = {
   policy: "volunteerService",
   periodKey: "volunteerService",
@@ -859,7 +866,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
         kind: "participant_profile",
         via: "participant_profile_id or recipient_user_id for service certificates",
       },
-      retention: JUDGING_RECORD,
+      retention: CERTIFICATE_RECORD,
       onExpiry: "delete_row",
     })(
       c,

@@ -7,6 +7,10 @@ import {
   DASHBOARD_VOLUNTEER_HOURS,
   DASHBOARD_VOLUNTEER_CERTIFICATE,
 } from "@/lib/app-routes";
+function field(data: FormData, key: string) {
+  const value = data.get(key);
+  return typeof value === "string" ? value : "";
+}
 async function run(
   path: string,
   call: () => Promise<{ ok: boolean; error?: string }>
@@ -36,10 +40,10 @@ export async function logHours(formData: FormData) {
   const api = as(await currentActor());
   await run(DASHBOARD_VOLUNTEER_HOURS, () =>
     api.logVolunteerHours({
-      taskId: String(formData.get("taskId") ?? ""),
-      workedOn: String(formData.get("workedOn") ?? ""),
-      minutes: Number(formData.get("minutes")),
-      note: String(formData.get("note") ?? ""),
+      taskId: field(formData, "taskId"),
+      workedOn: field(formData, "workedOn"),
+      minutes: Number(field(formData, "minutes")),
+      note: field(formData, "note"),
     })
   );
 }

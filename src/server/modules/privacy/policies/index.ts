@@ -134,6 +134,7 @@ export const LIFECYCLE_POLICY_KEYS = [
   "campaigns",
   "communityHistory",
   "volunteerService",
+  "certificateRecords",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

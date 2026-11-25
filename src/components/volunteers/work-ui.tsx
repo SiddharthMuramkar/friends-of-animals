@@ -77,9 +77,7 @@ export async function WorkNotice({ result }: { result: unknown }) {
   if (typeof result !== "string") return null;
   const t = await getTranslations("volunteerWork");
   return result === "saved" ? (
-    <p role="status" className="font-semibold">
-      {t("saved")}
-    </p>
+    <output className="block font-semibold">{t("saved")}</output>
   ) : (
     <p role="alert" className="font-semibold">
       {t(outcomes.find((x) => x === result) ?? "error")}

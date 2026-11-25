@@ -27,6 +27,7 @@ import {
   checkHoursDecision,
   checkHoursEntry,
   hoursApprovedSourceKey,
+  istDate,
   minutesLoggedOn,
 } from "./domain/hours";
 import {
@@ -83,10 +84,14 @@ export async function createVolunteerTask(
   ctx: UseCaseContext,
   input: z.input<typeof taskInput>
 ) {
-  const { role } = await authorize(ctx, "volunteer.work.manage");
+  await authorize(ctx, "volunteer.work.manage");
   const p = taskInput.safeParse(input);
   if (!p.success) return invalidInput(p.error);
   return ctx.db.transaction(async (tx) => {
+    const { role } = await authorize(
+      { ...ctx, db: tx },
+      "volunteer.work.manage"
+    );
     const now = ctx.clock.now(),
       id = uuidv7(now);
     await tx.insert(volunteerTask).values({
@@ -287,10 +292,24 @@ export async function logVolunteerHours(
       )
       .orderBy(desc(volunteerTaskAssignment.assignedAt));
     if (!task || !assignments.length) throw forbidden();
+    // Reassignment must not prevent logging work from an earlier genuine
+    // interval. Prefer the active interval when two overlap on one IST day.
+    const assignment =
+      assignments.find(
+        (a) =>
+          a.unassignedAt === null && p.data.workedOn >= istDate(a.assignedAt)
+      ) ??
+      assignments.find(
+        (a) =>
+          p.data.workedOn >= istDate(a.assignedAt) &&
+          (a.unassignedAt === null ||
+            p.data.workedOn <= istDate(a.unassignedAt))
+      ) ??
+      assignments[0]!;
     const check = checkHoursEntry({
       ...p.data,
       taskStatus: task.status,
-      assignment: assignments[0]!,
+      assignment,
       now: ctx.clock.now(),
       minutesLoggedThatDay: minutesLoggedOn(
         (await entriesFor(tx, uid)).map((r) => r.entry),
@@ -302,7 +321,7 @@ export async function logVolunteerHours(
       id = uuidv7(now);
     await tx.insert(volunteerHoursEntry).values({
       id,
-      assignmentId: assignments[0]!.id,
+      assignmentId: assignment.id,
       workedOn: p.data.workedOn,
       minutes: p.data.minutes,
       noteCiphertext: p.data.note?.trim()
@@ -445,9 +464,16 @@ async function recordFor(ctx: UseCaseContext, uid: string) {
     )
     .where(eq(volunteerTaskAssignment.volunteerUserId, uid))
     .orderBy(desc(volunteerTaskAssignment.assignedAt));
-  const tasks = [
-    ...new Map([...assignments].reverse().map((r) => [r.task.id, r])).values(),
-  ].map((r) => ({
+  const latest = new Map<string, (typeof assignments)[number]>();
+  for (const row of assignments) {
+    const previous = latest.get(row.task.id);
+    if (
+      !previous ||
+      (!row.assignment.unassignedAt && previous.assignment.unassignedAt)
+    )
+      latest.set(row.task.id, row);
+  }
+  const tasks = [...latest.values()].map((r) => ({
     ...taskView(ctx, r.task),
     assignedAt: r.assignment.assignedAt,
     unassignedAt: r.assignment.unassignedAt,

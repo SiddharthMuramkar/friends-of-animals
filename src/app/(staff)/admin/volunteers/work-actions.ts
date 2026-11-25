@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { as, currentActor } from "@/server/app";
 import { ADMIN_VOLUNTEER_TASKS, ADMIN_VOLUNTEER_HOURS } from "@/lib/app-routes";
 import { adminCall } from "../_lib/boundary";
+function field(data: FormData, key: string) {
+  const value = data.get(key);
+  return typeof value === "string" ? value : "";
+}
 async function run(
   path: string,
   call: () => Promise<{ ok: boolean; error?: string }>
@@ -21,8 +25,8 @@ export async function createTask(data: FormData) {
   const result = await adminCall(
     () =>
       api.createVolunteerTask({
-        title: String(data.get("title") ?? ""),
-        description: String(data.get("description") ?? ""),
+        title: field(data, "title"),
+        description: field(data, "description"),
       }),
     path
   );
@@ -45,7 +49,7 @@ export async function changeTask(
   const api = as(await currentActor());
   const input = {
     taskId,
-    volunteerUserId: String(data.get("volunteerUserId") ?? ""),
+    volunteerUserId: field(data, "volunteerUserId"),
   };
   await run(`${ADMIN_VOLUNTEER_TASKS}/${taskId}`, () => {
     switch (action) {
@@ -75,7 +79,7 @@ export async function decideHours(
       ? api.approveVolunteerHours({ entryId })
       : api.rejectVolunteerHours({
           entryId,
-          reason: String(data.get("reason") ?? ""),
+          reason: field(data, "reason"),
         })
   );
 }
@@ -86,7 +90,7 @@ export async function correctCertificate(
 ) {
   const api = as(await currentActor());
   await run(ADMIN_VOLUNTEER_HOURS, () => {
-    const reason = String(data.get("reason") ?? "");
+    const reason = field(data, "reason");
     switch (action) {
       case "retry":
         return api.retryCertificateRender({ certificateId });
@@ -96,7 +100,7 @@ export async function correctCertificate(
         return api.reissueCertificate({
           certificateId,
           reason,
-          recipientName: String(data.get("recipientName") ?? ""),
+          recipientName: field(data, "recipientName"),
         });
     }
   });

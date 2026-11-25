@@ -1100,6 +1100,13 @@
       "when": 1795602644699,
       "tag": "0156_124_volunteer_work_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1795602716368,
+      "tag": "0157_124_work_template_email_wording",
+      "breakpoints": true
     }
   ]
 }
