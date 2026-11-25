@@ -555,6 +555,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`consent-links`](#consent-links)       | A school sends a guardian a consent link answered after a one-time code                                                        | #83                     |
 | [`contact`](#contact)                   | The public contact form and the staff contact inbox                                                                            | #113                    |
 | [`directory`](#directory)               | NGO directory listings: registration, staff verification, representatives' edits and documents, public page and search         | #127, #128              |
+| [`donations`](#donations)               | One-time online donations, their gapless receipts behind 7-day links, finance's donation pages                                 | #106                    |
 | [`entries`](#entries)                   | A participant's entry in a competition and its uploaded picture                                                                | #85                     |
 | [`files`](#files)                       | Uploads, the malware scan, image derivatives, signed delivery                                                                  | #63, #85                |
 | [`guardians`](#guardians)               | Guardians, the children they manage, teen logins, guardian requests                                                            | #81                     |
@@ -769,6 +770,31 @@ The NGO directory (#127). An NGO, rescue organisation, shelter, independent resc
 - **Retention:** policy `directoryListings`, kept while listed, no job yet (HR-31). `pincode_location` holds no personal data.
 - **Tests:** `register.test.ts`, `decide.test.ts`, `update.test.ts`, `documents.test.ts`, `review-queue.test.ts`, `outcome-messages.test.ts`, `public.test.ts`, `search.test.ts`, `pincodes.test.ts`, `register.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/directory.test.ts`, `src/proxy.directory.test.ts`, `scripts/import-pincodes-args.test.ts`; E2E `127-ngo-directory.spec.ts`, `128-directory-search.spec.ts`.
 
+### donations
+
+One-time online donations in INR with receipts (#106). Recurring (#107), offline and 80G (#108) and transparency (#110) build on it.
+
+- **Tables** (`donations.ts`): `donor` (who gave, as they gave this time; name and email encrypted, `email_hash` blind index, `organisation_name`, `disclose_organisation`), `donation` (status, `origin`, amount, wall choice, both declarations, its `payment_batch_id` and the SHA-256 of its checkout token), `receipt` (one per captured donation; `FOA-RCPT-{FY}-{000000}`, every printed field frozen in `snapshot`; `cancelled_at` on a full refund, never renumbered), `receipt_sequence` (one counter row per financial year), `receipt_link` (a 7-day link: only the token's hash; `issued_to` donor or finance). Every status and origin (`online_checkout`, `offline_entry`, `recurring_charge`) is in the first migration.
+- **Money path:** a donation is paid through a payment batch of purpose `donation` (no competition, no items). Payments keeps the one funnel (signature, replay guard, the gateway's record, the batch lock) and hands the batch to `modules/payments/purposes.ts`, which calls this module's handler (`payments.ts`, decision in `domain/donation-capture.ts`): a domestic INR payment for the full amount captures the donation and numbers its receipt in the same transaction (`receipts/issue.ts`: counter row locked until commit, so gapless); foreign INR money while `org.fcraEnabled` is off is refunded at once (system refund kind `foreign_payment`) and gets no receipt; anything else (another amount, another currency, a second payment, money after expiry) goes to payment review (#79). Finance may accept late money in review, which captures the donation. A refund reaching `refunded` moves the donation and cancels the receipt once nothing is left.
+- **States** (`domain/donation-status.ts`):
+
+  | From                             | Event → new status                                                                                                          |
+  | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+  | `pending`                        | `captured` → `captured`; `payment_failed` → `failed`; `checkout_expired` → `expired`; `foreign_captured` → `refund_pending` |
+  | `failed`                         | `captured` → `captured`; `checkout_expired` → `expired`; `foreign_captured` → `refund_pending`                              |
+  | `expired`                        | `late_capture_accepted` (from review) → `captured`; `foreign_captured` → `refund_pending`                                   |
+  | `captured`, `partially_refunded` | `refund_processed_in_full` → `refunded`; `refund_processed_in_part` → `partially_refunded`                                  |
+  | `refund_pending`                 | `refund_processed_in_full` → `refunded`                                                                                     |
+  | `refunded`                       | none                                                                                                                        |
+
+- **Ledger:** source `donation` (id = donation id) posts Dr 1100 / Cr 4200 (person), 4210 (company) or 4220 (CSR); source `foreign_donation` (id = gateway payment id) posts Dr 1100 / Cr 2100; refunds reverse them (`ledger/sources/donations.ts`, `ledger/consumers.ts`). The nightly reconcile posts any it missed. The accounts come from `drizzle/0106_106_donation_defaults.sql` (HR-47 confirms them).
+- **Use cases:** `getDonationTerms`, `startDonation` (anyone signed in or out; a guest only while `donations.allowGuest`; a signed-in minor gets `minor_must_ask_guardian`); `payForDonation`, `confirmDonationCheckout`, `payDonationTestCheckout`, `getDonationOutcome` (whoever holds the checkout token); `getReceiptByToken` (whoever holds the link); `reissueReceiptLink` (the donor's account, emailed; or finance, shown on screen); `requestReceiptLinkByEmail` (anyone; same answer whether it matched; 5 an hour per address, 20 per network); `listDonations`, `getDonation` (finance only); `requestDonationRefund` (finance, staff admin, super admin; another finance user decides it with `approveRefund`); `expirePendingDonations` (worker or CLI).
+- **Settings:** `donations.enabled` (off; seeded on locally), `donations.allowGuest` (on), `donations.minAmountRupees` (100), `donations.maxAmountRupees` (1,00,000), `donations.pendingExpiryHours` (24).
+- **Pages:** `/donate` (the form while open, "not open yet" otherwise), `/donate/checkout/[donationId]?t=` (bearer page: nonce CSP with Razorpay's origins, matched by `src/proxy.ts`), `/donate/thank-you?d=&t=`, `/receipts/[token]`, `/receipts/request`, staff `/admin/donations`, `/admin/donations/[id]`. The bearer pages send `no-store`, `no-referrer` and `noindex`, and `robots.txt` disallows them.
+- **Events and jobs:** `donation.captured` → `donations.send_thank_you` (mints the first receipt link as the email goes) and `ledger.post_donation`; `donation.foreign_payment_received` → `ledger.post_foreign_donation`; `donation.refunded` → `donations.send_refund_notice`; `receipt.link_requested` → `donations.send_receipt_link`; schedule `donations.expire_pending` hourly at :17 IST. Message templates `donation.thank_you`, `donation.receipt_link`, `donation.refunded`, `donation.foreign_refunded` (audience `donor`).
+- **Seams:** #107 and #108 start donations with their own `origin` and number receipts through `receipts/issue.ts`; #108 adds the receipt's tax block and the donor's PAN behind `org.has80G`; #110 reads the 42xx accounts and `donor.disclose_organisation`. **Open:** HR-15 (live keys), HR-47 (chart, receipt layout, FY token, the foreign test), HR-50 (copy), HR-51 (amounts, expiry), HR-16 (80G).
+- **Tests:** `start-donation.test.ts`, `capture-donation.test.ts`, `foreign-donation.test.ts`, `refund-and-expiry.test.ts`, `receipt-links.test.ts`, `admin-and-outcome.test.ts`, `receipt-numbers.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/donations.test.ts`; E2E `106-donate.spec.ts`.
+
 ### entries
 
 An **Entry** is the work one confirmed individual registration submits for a competition: a picture, a video (#86) or an essay, typed or as a PDF (#86). A registration has at most one Entry. Its first completed upload (or typed essay) creates the row and the **Entry ID**. Later submissions retry a failed first file or replace the **live file**. The words travel with the file: there is no draft. Why every status value exists before any judging uses it: ADR 0004.
@@ -933,7 +959,7 @@ FOA's double-entry books (#105).
 - **Pages:** `/admin/ledger`, `/admin/ledger/[seq]`, `/admin/ledger/accounts`, `/admin/ledger/entries/new`.
 - **Money rules:** paise `bigint`; typed rupees parsed digit by digit, never through a float, up to Rs 100 crore per line. Periods are IST calendar months. A capture debits the asset account for its method (gateway → clearing, cash → cash, cheque or transfer → bank) and credits `4100`; a refund mirrors its capture and never exceeds it. One posting per source: a replay returns `duplicate`.
 - **Jobs:** `ledger.post_capture` on `payment.batch_captured`; `ledger.post_refund` on `refund.processed`; nightly `ledger.reconcile_payments` posts anything they missed.
-- **Missing:** period lock (#109), transparency (#110), donation and auction sources.
+- **Missing:** period lock (#109), transparency (#110), auction sources. Donations post as sources `donation` and `foreign_donation` ([`donations`](#donations)).
 - **Tests:** `finance-writes.test.ts`, `payment-postings.test.ts`, `refund-postings.pg.test.ts`, `backfill.test.ts`, `guards.test.ts`; E2E `105-ledger.spec.ts`.
 
 ### notifications
@@ -1021,7 +1047,9 @@ Payment batches, Checkout, the gateway webhook, offline payments, payments needi
 | `failed`               | `retried` → `approved`; `rejected` → `rejected`                              |
 | `refunded`, `rejected` | none                                                                         |
 
-Nobody may decide a refund they requested (`same_person`). Methods: `gateway`, or `manual` for a batch paid offline.
+Nobody may decide a refund they requested (`same_person`). Methods: `gateway`, or `manual` for a batch paid offline. Kind `foreign_payment` (#106) returns a donation's foreign payment at once, approved by the system.
+
+**Purposes** (`purposes.ts`, #106): `syncBatch`, resolving a review case and settling a refund hand a batch whose `purpose` isn't `registration_fee` to that purpose's module, in the same transaction. A new purpose (auctions, #133) adds its handler there.
 
 **Review cases** (`domain/review-case.ts`): reasons, in check order: `already_paid`, `registration_cancelled`, `amount_mismatch`, `registration_closed`, `batch_superseded`, `paid_while_in_review`, `participation_consent_required`. Outcomes `confirm`, `refund` or `keep`; `confirm` only when the reason allows it, the batch wasn't captured, the currency is INR and the amount positive. A resolution reason of 10 to 2,000 graphemes is required.
 
@@ -1221,6 +1249,12 @@ People apply to volunteer, and FOA vets anyone who will work near children (#123
 | `reminders.sync`                                | schedule                                | 5 past every hour                                     | `modules/reminders/schedule.ts`                                       |
 | `notifications.dispatch`                        | outbox                                  | most events                                           | `modules/notifications/dispatch.ts`                                   |
 | `ledger.post_capture`, `ledger.post_refund`     | outbox                                  | `payment.batch_captured`, `refund.processed`          | `modules/ledger/consumers.ts`                                         |
+| `donations.expire_pending`                      | schedule                                | hourly at :17                                         | `modules/donations/expire.ts`                                         |
+| `ledger.post_donation`                          | outbox                                  | `donation.captured`                                   | `modules/ledger/consumers.ts`                                         |
+| `ledger.post_foreign_donation`                  | outbox                                  | `donation.foreign_payment_received`                   | `modules/ledger/consumers.ts`                                         |
+| `donations.send_thank_you`                      | outbox                                  | `donation.captured`                                   | `modules/donations/messages.ts`                                       |
+| `donations.send_receipt_link`                   | outbox                                  | `receipt.link_requested`                              | `modules/donations/messages.ts`                                       |
+| `donations.send_refund_notice`                  | outbox                                  | `donation.refunded`                                   | `modules/donations/messages.ts`                                       |
 | `refunds.send`                                  | outbox                                  | `refund.approved`                                     | `modules/payments/refunds/sync-refund.ts`                             |
 | `files.scan_file`                               | outbox                                  | `files.file_uploaded`                                 | `modules/files/scan-handler.ts`                                       |
 | `files.process_image`                           | outbox, media queue (worker-media only) | `files.processing_requested`                          | `modules/files/process-image.ts`, `src/worker-media/process-media.ts` |

@@ -286,6 +286,40 @@ six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
 Route is free.
 _Avoid_: Entry number, roll number, receipt number
 
+## Donations
+
+**Donation**:
+Money someone gives FOA, once online in INR (#106), and later monthly or
+recorded offline. An online donation is paid through a Payment batch whose
+purpose is the donation, and has exactly one Receipt once captured. Adults
+only; foreign money is returned while FOA isn't registered under FCRA.
+_Avoid_: Contribution, gift record, payment
+
+**Donor**:
+Who gave a Donation, as they gave it: a person, or a company or CSR partner
+with a contact person, which chooses whether its name may be shown in
+public. A guest donor has no account.
+_Avoid_: Supporter, patron, sponsor
+
+**Receipt**:
+The numbered record of a captured Donation: FOA-RCPT, the financial year and
+six digits (FOA-RCPT-2627-000123), gapless within the year. Everything it
+prints is frozen when it is issued; a full refund cancels it, and its number
+is never used again. Never sent as an attachment.
+_Avoid_: Invoice, acknowledgement, 80G certificate
+
+**Receipt link**:
+A link that opens one Receipt for 7 days. A new link is a new token; nothing
+extends an old one. The donor gets one by email, finance can make one to
+pass on by hand.
+_Avoid_: Download link, receipt URL
+
+**Checkout token**:
+The bearer in a Donation's checkout and thank-you links, so whoever started
+it can pay and see what happened without an account. It never opens the
+Receipt.
+_Avoid_: Donation password, access code
+
 ## Site content
 
 **Content document**:

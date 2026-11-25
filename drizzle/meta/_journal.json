@@ -729,6 +729,27 @@
       "when": 1795578498564,
       "tag": "0103_89_school_round_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1795582665421,
+      "tag": "0104_106_pre_enum_donations",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1795582674780,
+      "tag": "0105_106_donations",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1795582680834,
+      "tag": "0106_106_donation_defaults",
+      "breakpoints": true
     }
   ]
 }

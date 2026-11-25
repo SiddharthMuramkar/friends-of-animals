@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -78,6 +78,28 @@
         "maxPerDay": {
           "label": "Sign-in texts per day",
           "description": "The most sign-in codes sent by SMS in one day (midnight to midnight UTC), to everyone together. It caps FOA's SMS bill; once it is reached, people sign in by email until the day ends."
+        }
+      },
+      "donations": {
+        "enabled": {
+          "label": "Online donations",
+          "description": "Lets people give on the donate page. Keep it off until Razorpay's live keys are set and the accountant has confirmed receipts and the chart of accounts; until then the page says donations open soon."
+        },
+        "allowGuest": {
+          "label": "Donations without an account",
+          "description": "Lets someone give without signing in. Their receipt link goes to the email address they type."
+        },
+        "minAmountRupees": {
+          "label": "Smallest donation",
+          "description": "The least one online donation may be, in whole rupees."
+        },
+        "maxAmountRupees": {
+          "label": "Largest donation",
+          "description": "The most one online donation may be, in whole rupees. Larger gifts come by bank transfer, arranged with FOA."
+        },
+        "pendingExpiryHours": {
+          "label": "Time to finish paying",
+          "description": "How long a donation waits for its payment before it expires. Money that arrives later goes to payment review."
         }
       },
       "org": {

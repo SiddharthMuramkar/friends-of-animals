@@ -31,6 +31,7 @@ const payment = (
   status,
   amountMinor: 45_000n,
   currency: "INR",
+  international: false,
   ...overrides,
 });
 

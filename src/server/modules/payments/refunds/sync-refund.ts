@@ -57,6 +57,7 @@ import {
   type RefundForSync,
 } from "../domain/refund-sync";
 import { nextRefundStatus, type RefundEvent } from "../domain/refund-status";
+import { purposeHandler } from "../purposes";
 import { retryLocked } from "./decide-refund";
 import {
   auditRefund,
@@ -549,13 +550,31 @@ export async function settleRefunded(
     actorRole
   );
   const [batch] = await tx
-    .select({ payerUserId: paymentBatch.payerUserId })
+    .select({
+      payerUserId: paymentBatch.payerUserId,
+      purpose: paymentBatch.purpose,
+    })
     .from(paymentBatch)
     .where(eq(paymentBatch.id, row.batchId));
+  const fees = batch?.purpose === "registration_fee";
+  if (batch && batch.purpose !== "registration_fee") {
+    await purposeHandler(batch.purpose).refundSettled(
+      tx,
+      ctx,
+      row.id,
+      actorRole
+    );
+  }
+  // A donor is told in the donations module's own words (#106), so the
+  // fee refund notice names nobody for a donation's batch; the ledger
+  // still posts it.
   await emit(tx, ctx.clock, {
     type: "refund.processed",
     aggregate: { type: "refund", id: row.id },
-    payload: { refundId: row.id, payerUserId: batch?.payerUserId ?? null },
+    payload: {
+      refundId: row.id,
+      payerUserId: fees ? (batch.payerUserId ?? null) : null,
+    },
   });
 }
 

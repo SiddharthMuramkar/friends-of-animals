@@ -381,6 +381,35 @@ export type DomainEvent =
       payload: { batchId: string; payerUserId: string | null };
     }
   | {
+      /** A donation was captured with its receipt (#106): the donor's
+       * thank-you with the first receipt link, and the ledger. */
+      type: "donation.captured";
+      aggregate: { type: "donation"; id: string };
+      payload: { donationId: string };
+    }
+  | {
+      /** Foreign money arrived for a donation while FCRA is off (#106):
+       * it is held as owed back until its refund goes out. */
+      type: "donation.foreign_payment_received";
+      aggregate: { type: "donation"; id: string };
+      /** `refundId`: the system refund returning it. */
+      payload: { donationId: string; refundId: string };
+    }
+  | {
+      /** A refund of a donation's batch was processed (#106): the donor is
+       * told, in words for a foreign payment or a donation refunded. */
+      type: "donation.refunded";
+      aggregate: { type: "donation"; id: string };
+      payload: { donationId: string; refundId: string };
+    }
+  | {
+      /** A donor asked for a new receipt link by email (#106). The token
+       * is minted when the email goes, never stored here. */
+      type: "receipt.link_requested";
+      aggregate: { type: "receipt"; id: string };
+      payload: { receiptId: string };
+    }
+  | {
       /** A guardian invited their 13- to 17-year-old to an own login (#81). */
       type: "guardian.teen_invited";
       aggregate: { type: "guardian_invitation"; id: string };
@@ -696,6 +725,16 @@ export const EVENT_PAYLOADS = {
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
   }),
+  "donation.captured": z.object({ donationId: z.uuid() }),
+  "donation.foreign_payment_received": z.object({
+    donationId: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "donation.refunded": z.object({
+    donationId: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
   "refund.processed": z.object({
@@ -872,6 +911,13 @@ export const SUBSCRIBERS = {
   ],
   // The payer's receipt goes by route row (#77).
   "payment.batch_captured": ["notifications.dispatch", "ledger.post_capture"],
+  // A guest donor has no account, so no route row can name them: the
+  // donations module emails the address they gave, with its route's
+  // template, and minting each receipt link as the message goes (#106).
+  "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
+  "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
+  "donation.refunded": ["donations.send_refund_notice"],
+  "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],

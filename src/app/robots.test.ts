@@ -40,6 +40,17 @@ describe("robots.txt", () => {
     }
   );
 
+  it("keeps a donation's bearer pages out of crawls (#106)", () => {
+    expect(disallowed(robotsFor("production"))).toEqual(
+      expect.arrayContaining([
+        "/donate/checkout",
+        "/donate/thank-you",
+        "/receipts",
+      ])
+    );
+    expect(disallowed(robotsFor("production"))).not.toContain("/donate");
+  });
+
   it("keeps the private areas disallowed everywhere", () => {
     for (const name of ["production", "staging"]) {
       expect(disallowed(robotsFor(name))).toEqual(

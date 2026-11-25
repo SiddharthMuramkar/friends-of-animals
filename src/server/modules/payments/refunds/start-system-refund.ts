@@ -1,6 +1,8 @@
 // The refunds the system approves itself (#80), never through `as(actor)`:
 //
-// - startSystemRefund: a cancellation (80b: the competition was cancelled,
+// - startSystemRefund: a donation's foreign payment (#106) refunds that
+//   payment in full while FCRA is off, with no students and no case;
+//   a cancellation (80b: the competition was cancelled,
 //   so every paid fee goes back) refunds what a batch has left; a duplicate
 //   (a payment in review resolved with a refund, #79) refunds that payment
 //   in full and lists no students. Either is approved at once, with no
@@ -65,6 +67,17 @@ export type SystemRefund =
       reason: string;
       idempotencyKey: string;
       actorRole?: Role | null;
+    }
+  | {
+      /** A donation's foreign payment (#106), refunded in full at once
+       * while FCRA is off. It settles no review case. */
+      kind: "foreign_payment";
+      batchId: string;
+      gatewayPaymentId: string;
+      amountMinor: bigint;
+      reason: string;
+      idempotencyKey: string;
+      actorRole?: Role | null;
     };
 
 export async function startSystemRefund(
@@ -91,7 +104,7 @@ export async function startSystemRefund(
     payableItems: [],
     zeroShareRegistrationIds: [],
   };
-  if (request.kind === "duplicate") {
+  if (request.kind === "duplicate" || request.kind === "foreign_payment") {
     amountMinor = request.amountMinor;
     gatewayPaymentId = request.gatewayPaymentId;
   } else {

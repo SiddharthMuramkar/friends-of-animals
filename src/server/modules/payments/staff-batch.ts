@@ -132,7 +132,9 @@ export async function getPaymentBatchForStaff(
     )
     .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId))
     .where(eq(paymentBatch.id, batchId));
-  if (!row) return { ok: false, error: "not_found" };
+  // A donation's batch (#106) is read on the donation's own page.
+  const route = row?.route ?? null;
+  if (!row || route === null) return { ok: false, error: "not_found" };
 
   const students = await ctx.db
     .select({
@@ -178,6 +180,7 @@ export async function getPaymentBatchForStaff(
     ok: true,
     batch: {
       ...batch,
+      route,
       payer:
         institutionName !== null
           ? { kind: "institution", name: institutionName }

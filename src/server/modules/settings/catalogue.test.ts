@@ -29,6 +29,13 @@ describe("the settings catalogue", () => {
       "org.registrationType": "",
       "org.registrationNumber": "",
       "org.pan": "",
+      // #106: donations off until HR-15 and HR-47; amounts and expiry
+      // wait on HR-51.
+      "donations.enabled": false,
+      "donations.allowGuest": true,
+      "donations.minAmountRupees": 100,
+      "donations.maxAmountRupees": 100_000,
+      "donations.pendingExpiryHours": 24,
       "safeguarding.reportsPerIpPerHour": 10,
       "breach.authorityEmail": "",
       "privacy.requestDueDays": 30,

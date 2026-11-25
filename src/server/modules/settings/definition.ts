@@ -15,7 +15,8 @@ export type SettingUnit =
   | "reports"
   | "days"
   | "months"
-  | "years";
+  | "years"
+  | "rupees";
 
 /** How the settings screen asks for a value. */
 export type SettingInput =

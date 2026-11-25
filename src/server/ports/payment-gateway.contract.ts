@@ -109,6 +109,7 @@ export function paymentGatewayContract(
           status: "captured",
           amountMinor: 2147483649n,
           currency: "INR",
+          international: false,
         },
       ]);
     });

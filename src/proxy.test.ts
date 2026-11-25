@@ -291,6 +291,31 @@ describe("proxy: the signed-in nonce policy", () => {
     );
   });
 
+  it("serves a donation's checkout to a visitor under the nonce policy, with Razorpay's origins (#106)", async () => {
+    vi.stubEnv("APP_ENV", "preview");
+    vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_1DP5mmOlF5G5ag");
+    const path = "/donate/checkout/0193a8f0-0000-7000-8000-000000000001";
+    expect(
+      unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: path })
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: "/donate" })
+    ).toBe(false);
+
+    const checkout = await proxy(request(path));
+
+    expect(checkout.headers.has("location")).toBe(false);
+    const policy = checkout.headers.get("content-security-policy");
+    expect(policy).toMatch(/frame-src https:\/\/api\.razorpay\.com/);
+    expect(getScriptNonceFromHeader(policy ?? "")).toBe(
+      pageHeaders(checkout).get("x-nonce")
+    );
+    const deeper = await proxy(request(`${path}/more`));
+    expect(getRewrittenUrl(deeper)).toBe(
+      "https://foa.example.test/__not-found"
+    );
+  });
+
   it("never runs on the payment gateway's webhook, so nothing sends it to sign in", () => {
     expect(
       unstable_doesMiddlewareMatch({
