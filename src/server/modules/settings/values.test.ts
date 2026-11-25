@@ -177,6 +177,8 @@ describe("resolveAllSettings", () => {
       ["reminders.entrySubmissionDueSecondHours", 24, "default"],
       ["reminders.schoolRoundShortlistDueFirstHours", 72, "default"],
       ["reminders.schoolRoundShortlistDueSecondHours", 24, "default"],
+      ["reminders.eventStartsFirstHours", 24, "default"],
+      ["reminders.eventStartsSecondHours", 2, "default"],
       ["artwork.dispatchDays", 14, "default"],
       ["auctions.enabled", false, "default"],
       ["auctions.minIncrementPaise", 5000, "default"],

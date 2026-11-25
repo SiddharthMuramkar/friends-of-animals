@@ -5,6 +5,8 @@ import type { AppDb } from "../../../db/app-db";
 import {
   campaignRecipient,
   communityMember,
+  event,
+  eventRegistration,
   engagementMilestone,
   cmsPost,
   competition,
@@ -41,6 +43,16 @@ type AggregateSource = {
 // The aggregate links that identify people or institutions in the event.
 // Read them in batches alongside payload subjects, which can outlive the links.
 const aggregateSources = {
+  event: { table: event, subjects: [["user", event.createdByUserId]] },
+  event_registration: {
+    table: eventRegistration,
+    subjects: [
+      ["user", eventRegistration.subjectUserId],
+      ["participant_profile", eventRegistration.subjectProfileId],
+      ["user", eventRegistration.registeredByUserId],
+      ["user", eventRegistration.checkedInByUserId],
+    ],
+  },
   community_member: {
     table: communityMember,
     subjects: [

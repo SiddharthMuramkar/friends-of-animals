@@ -17,6 +17,33 @@
 import type { NonPersonalColumns } from "./domain/coverage";
 
 export const NON_PERSONAL: NonPersonalColumns = {
+  event: [
+    "id",
+    "slug",
+    "kind",
+    "status",
+    "title",
+    "summary",
+    "description",
+    "starts_at",
+    "ends_at",
+    "venue_name",
+    "address",
+    "city",
+    "pin_code",
+    "online_url",
+    "capacity",
+    "audience",
+    "registration_opens_at",
+    "registration_closes_at",
+    "waitlist_enabled",
+    "published_at",
+    "cancelled_at",
+    "completed_at",
+    "created_at",
+    "updated_at",
+  ],
+  event_registration: ["id", "updated_at"],
   community_member: [
     "id",
     "status",

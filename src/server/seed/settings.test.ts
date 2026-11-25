@@ -64,6 +64,8 @@ describe("the settings seed", () => {
       { key: "reminders.entrySubmissionDueSecondHours", value: 24 },
       { key: "reminders.schoolRoundShortlistDueFirstHours", value: 72 },
       { key: "reminders.schoolRoundShortlistDueSecondHours", value: 24 },
+      { key: "reminders.eventStartsFirstHours", value: 24 },
+      { key: "reminders.eventStartsSecondHours", value: 2 },
       { key: "retention.adoptionApplicationsDays", value: 730 },
       { key: "retention.capturedMessagesDays", value: 30 },
       { key: "retention.communityMembersDays", value: 365 },

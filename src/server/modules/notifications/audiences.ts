@@ -1,4 +1,10 @@
 import {
+  eventNoticeRecipients,
+  eventNoticeValues,
+  eventReminderRecipients,
+  EVENT_NOTICE_VARIABLES,
+} from "../events/notices";
+import {
   offeredBuyer,
   offerValues,
   creatorRecipients,
@@ -333,6 +339,14 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "results.release_due":
     case "results.prize_awarded":
     case "stamping.requested":
+    case "event.places_changed":
+    case "event.published":
+    case "event.cancelled":
+    case "event.changed":
+    case "event.end_due":
+    case "event.registration_created":
+    case "event.registration_cancelled":
+    case "event.waitlist_promoted":
     case "community.member_joined":
     case "engagement.milestone_recorded":
     case "certificate.archive_requested":
@@ -452,6 +466,8 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  event_registrants: eventNoticeRecipients,
+  event_reminder_recipients: eventReminderRecipients,
   certificate_reissued_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "certificate.reissued" && cipher
       ? reissueRecipients(db, delivery.payload.certificateId, cipher)
@@ -1088,6 +1104,23 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
+  },
+  "event.places_changed": { names: [], load: async () => ({}) },
+  "event.published": { names: [], load: async () => ({}) },
+  "event.end_due": { names: [], load: async () => ({}) },
+  "event.changed": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.cancelled": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.registration_created": {
+    names: EVENT_NOTICE_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.registration_cancelled": {
+    names: EVENT_NOTICE_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.waitlist_promoted": {
+    names: EVENT_NOTICE_VARIABLES,
+    load: eventNoticeValues,
   },
   "volunteer.guardian_approval_requested": {
     names: APPLICATION_VARIABLES,

@@ -1072,3 +1072,11 @@ The code that names one person who takes part in competitions, such as
 FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
 _Avoid_: Participant number, registration number (that names one
 registration)
+
+### Event and event campaign
+
+A scheduled FOA activity people attend. An event campaign is a community activity, not a Campaign message sent to a Segment. An Organiser (content or community manager) publishes its details and registration window.
+
+### Event registration
+
+A private place on an Event, for the attendee (their own account or a distinct linked participant profile). Registered and Checked in hold a place. Waitlisted waits in booking order; a freed place promotes the next person automatically. Cancelled and No-show are terminal. A Check-in is an organiser's confirmation of actual attendance, which appears on the attendee's Engagement timeline.

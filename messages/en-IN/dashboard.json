@@ -29,7 +29,8 @@
       "privacy": "Your privacy requests: see, correct or erase your data",
       "auctions": "My auction purchases",
       "community": "Your community",
-      "timeline": "Engagement timeline"
+      "timeline": "Engagement timeline",
+      "events": "My event registrations"
     },
     "admin": {
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
@@ -47,7 +48,8 @@
       "privacyRequests": "Privacy requests",
       "judging": "Judging rounds",
       "auctions": "Auction lots",
-      "community": "Community members"
+      "community": "Community members",
+      "events": "Manage events"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."

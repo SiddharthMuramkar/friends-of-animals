@@ -802,13 +802,27 @@ function communityField(
 const INVENTORY_FIELDS: readonly InventoryField[] = [
   // Private community history follows the account/profile; text left after
   // departure is cleared by the configured 365-day policy.
-  ...["community_member", "engagement_milestone", "timeline_entry"].flatMap(
-    (table) => [
-      communitySubjectField(table, "subject_user_id"),
-      communitySubjectField(table, "subject_profile_id"),
-    ]
-  ),
+  ...[
+    "community_member",
+    "engagement_milestone",
+    "timeline_entry",
+    "event_registration",
+  ].flatMap((table) => [
+    communitySubjectField(table, "subject_user_id"),
+    communitySubjectField(table, "subject_profile_id"),
+  ]),
   actorColumn("community_member", "joined_by_user_id", COMMUNITY_HISTORY),
+  actorColumn("event", "created_by_user_id", COMMUNITY_HISTORY),
+  actorColumn("event_registration", "registered_by_user_id", COMMUNITY_HISTORY),
+  actorColumn("event_registration", "checked_in_by_user_id", COMMUNITY_HISTORY),
+  communityField("event_registration", "event_id", "technical"),
+  communityField("event_registration", "status", "content"),
+  communityField("event_registration", "registered_at", "technical"),
+  communityField("event_registration", "waitlist_order", "technical"),
+  communityField("event_registration", "waitlisted_at", "technical"),
+  communityField("event_registration", "promoted_at", "technical"),
+  communityField("event_registration", "cancelled_at", "technical"),
+  communityField("event_registration", "checked_in_at", "technical"),
   communityField(
     "community_member",
     "display_name_ciphertext",

@@ -35,16 +35,16 @@ describe("the reminder registry", () => {
 
   it("has the migrated template and both routes of every reminder", async () => {
     const h = await createHarness();
-    for (const { name, templateKey } of REMINDERS) {
+    for (const { name, templateKey, subjectType } of REMINDERS) {
       const channels = await h.db
         .select({ channel: messageTemplate.channel })
         .from(messageTemplate)
         .where(eq(messageTemplate.key, templateKey));
-      expect(channels.map((row) => row.channel).sort(), name).toEqual([
-        "email",
-        "in_app",
-        "sms",
-      ]);
+      expect(channels.map((row) => row.channel).sort(), name).toEqual(
+        subjectType === "event"
+          ? ["email", "in_app"]
+          : ["email", "in_app", "sms"]
+      );
       const routes = await h.db
         .select({
           audience: messageRoute.audience,
@@ -60,13 +60,22 @@ describe("the reminder registry", () => {
       expect(
         routes.toSorted((a, b) => a.audience.localeCompare(b.audience)),
         name
-      ).toEqual([
-        { audience: "reminder_contacts", channels: ["email", "sms"] },
-        {
-          audience: "reminder_registrants",
-          channels: ["email", "sms", "in_app"],
-        },
-      ]);
+      ).toEqual(
+        subjectType === "event"
+          ? [
+              {
+                audience: "event_reminder_recipients",
+                channels: ["email", "in_app"],
+              },
+            ]
+          : [
+              { audience: "reminder_contacts", channels: ["email", "sms"] },
+              {
+                audience: "reminder_registrants",
+                channels: ["email", "sms", "in_app"],
+              },
+            ]
+      );
     }
   });
 });

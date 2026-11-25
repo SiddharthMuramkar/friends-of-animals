@@ -65,6 +65,14 @@ const DEFINITIONS = {
     footer: "takePart",
     sitemap: { updated: UPDATED, priority: 0.8 },
   },
+  events: {
+    path: "/events",
+    hue: "green",
+    primaryNav: 4.5,
+    footer: "takePart",
+    sitemap: { updated: "2026-11-25", priority: 0.8 },
+  },
+  event: { path: "/events/[slug]", hue: "green" },
   /** The NGO directory's search (#128); listings are /ngos/<slug>. */
   ngos: {
     path: "/ngos",
@@ -210,7 +218,7 @@ export function sitemapRoutes(): (PublicRoute & {
 
 /** Concrete href for a dynamic route, e.g. routeHref("story", "kolam"). */
 export function slugHref(
-  id: "competition" | "competitionResults" | "story" | "adoptable",
+  id: "competition" | "competitionResults" | "story" | "adoptable" | "event",
   slug: string
 ): string {
   return ROUTES[id].path.replace("[slug]", encodeURIComponent(slug));
