@@ -67,11 +67,49 @@ it("requires a reason and competition-manager authority; revocation and reissue 
     ).rejects.toMatchObject({ code: "forbidden" });
   }
   expect(
+    await h
+      .as(participant)
+      .requestCertificateShare({ certificateId: adult!.id })
+  ).toMatchObject({ ok: true });
+  await h.drain();
+  expect(
+    await h.as(participant).getCertificateShareUrl({ certificateId: adult!.id })
+  ).toMatchObject({ ok: true });
+  expect(
     await api.revokeCertificate({
       certificateId: adult!.id,
       reason: "Issued in error",
     })
   ).toMatchObject({ ok: true });
+  expect(
+    await h
+      .as(participant)
+      .requestCertificateShare({ certificateId: adult!.id })
+  ).toMatchObject({ ok: false, error: "not_ready" });
+  expect(
+    await h.as(participant).getCertificateShareUrl({ certificateId: adult!.id })
+  ).toMatchObject({ ok: false, error: "not_ready" });
+  expect(
+    (
+      await h.db.select().from(certificate).where(eq(certificate.id, adult!.id))
+    )[0]
+  ).toMatchObject({ status: "revoked", revokedReason: "Issued in error" });
+  const revocations = await h.db
+    .select()
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.entityId, adult!.id),
+        eq(auditLog.action, "certificate.revoked")
+      )
+    );
+  expect(revocations).toHaveLength(1);
+  expect(revocations[0]).toMatchObject({
+    actorRole: "competition_manager",
+    before: { status: "issued" },
+    after: { status: "revoked", reasonRecorded: true },
+  });
+  expect(JSON.stringify(revocations)).not.toContain("Issued in error");
   expect(await verify.verifyCertificate({ number: adult!.number })).toEqual({
     outcome: "revoked",
     number: adult!.number,
@@ -108,7 +146,7 @@ it("requires a reason and competition-manager authority; revocation and reissue 
   });
   expect(
     await verify.verifyCertificate({ number: corrected.number })
-  ).toMatchObject({ outcome: "valid", type: child.type });
+  ).toMatchObject({ outcome: "valid", type: child.type, credit: null });
   expect(
     await api.reissueCertificate({
       certificateId: child.id,
@@ -177,4 +215,30 @@ it("requires a reason and competition-manager authority; revocation and reissue 
   expect(
     await verify.verifyCertificate({ number: another!.number })
   ).toMatchObject({ outcome: "valid" });
+  const adultReplacement = await api.reissueCertificate({
+    certificateId: another!.id,
+    reason: "Spelling correction",
+    recipientName: "Corrected adult name",
+  });
+  if (!adultReplacement.ok) throw Error("Adult replacement unavailable");
+  await h.drain();
+  expect(h.email.sent).toContainEqual(
+    expect.objectContaining({
+      to: SEED_ACCOUNTS.members[0].email,
+      subject: "Your certificate has been reissued",
+    })
+  );
+  expect(
+    await verify.verifyCertificate({ number: another!.number })
+  ).toMatchObject({ outcome: "revoked" });
+  expect(
+    await verify.verifyCertificate({ number: adultReplacement.number })
+  ).toMatchObject({ outcome: "valid", credit: null });
+  h.clock.advance({ minutes: 11 });
+  await expect(
+    api.revokeCertificate({
+      certificateId: adultReplacement.certificateId,
+      reason: "No fresh factor",
+    })
+  ).rejects.toMatchObject({ code: "step_up_required" });
 });
