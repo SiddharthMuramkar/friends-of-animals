@@ -735,7 +735,51 @@ function entryFile(
   };
 }
 
+const JUDGING_RECORD = {
+  policy: "judgingRecords",
+  periodKey: "judgingRecords",
+  basis:
+    "FOA reviews judge invitations, declarations and conflicts and records their round assignments",
+  toConfirm: true,
+} as const;
+const judgeInvite = rowsOf("judge_invitation", {
+  subject: { kind: "invitee", via: "email_hash" },
+  retention: JUDGING_RECORD,
+  onExpiry: "delete_row",
+});
+const judgeDeclaration = rowsOf("judge_onboarding", {
+  subject: { kind: "user", via: "judge_user_id" },
+  retention: JUDGING_RECORD,
+  onExpiry: "delete_row",
+});
+const judgeConflictRecord = rowsOf("judge_conflict", {
+  subject: { kind: "user", via: "judge_user_id" },
+  retention: JUDGING_RECORD,
+  onExpiry: "delete_row",
+});
 const INVENTORY_FIELDS: readonly InventoryField[] = [
+  ...["created_by_user_id", "opened_by_user_id", "cancelled_by_user_id"].map(
+    (c) => actorColumn("judging_round", c, STAFF_RECORD)
+  ),
+  actorColumn("round_entry", "admitted_by_user_id", STAFF_RECORD),
+  actorColumn("round_assignment", "assigned_by_user_id", STAFF_RECORD),
+  rowsOf("round_assignment", {
+    subject: { kind: "user", via: "judge_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("judge_user_id", "identity"),
+  judgeInvite("email_ciphertext", "contact"),
+  judgeInvite("email_hash", "technical"),
+  judgeInvite("token_ciphertext", "technical", { onExpiry: "set_null" }),
+  actorColumn("judge_invitation", "invited_by_user_id", STAFF_RECORD),
+  judgeInvite("accepted_user_id", "identity"),
+  judgeDeclaration("judge_user_id", "identity"),
+  judgeDeclaration("conflict_statement", "content"),
+  judgeDeclaration("conduct_consent_event_id", "technical"),
+  judgeDeclaration("confidentiality_consent_event_id", "technical"),
+  judgeConflictRecord("judge_user_id", "identity"),
+  judgeConflictRecord("note", "content"),
+  actorColumn("judge_conflict", "created_by_user_id", STAFF_RECORD),
   // Accounts (#57, #58)
   user("name", "identity"),
   user("email", "contact"),

@@ -12,7 +12,8 @@
       "artwork": "Physical artwork",
       "verification": "FOA verification",
       "adoptions": "Adoptions",
-      "privacyRequests": "Privacy requests"
+      "privacyRequests": "Privacy requests",
+      "judging": "Judging rounds"
     },
     "loading": "Loading…",
     "denied": {
@@ -45,11 +46,12 @@
       "global": "Everywhere",
       "institution": "One institution",
       "competition": "One competition",
-      "organisation": "One organisation"
+      "organisation": "One organisation",
+      "round": "One judging round"
     },
     "grant": {
       "global": "{role}, everywhere",
-      "scoped": "{role} for {scope, select, institution {institution} competition {competition} organisation {organisation} other {scope}} {id}"
+      "scoped": "{role} for {scope, select, institution {institution} competition {competition} organisation {organisation} round {judging round} other {scope}} {id}"
     },
     "facts": {
       "title": "Some of FOA's details are still missing",

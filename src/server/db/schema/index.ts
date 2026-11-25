@@ -57,5 +57,7 @@ export * from "./school-round";
 
 export * from "./recurring-donations";
 export * from "./verification";
+export * from "./judging-rounds";
+export * from "./judging-judges";
 
 export * from "./physical-artwork";

@@ -86,6 +86,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "guardians",
   /** Who on staff did something: cleared when their account is deleted. */
   "staffRecords",
+  /** Judge records, scheduled retention awaits results and counsel (HR-31). */
+  "judgingRecords",
   /** The append-only audit log, kept by design (HR-30). */
   "auditLog",
   /** Consent given and withdrawn: proof FOA must keep (HR-30, HR-31). */

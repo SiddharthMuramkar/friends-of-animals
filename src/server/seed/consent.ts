@@ -81,6 +81,33 @@ const SEED_DOCUMENTS: ReadonlyArray<{
     title: draft.title,
     body: { short: draft.short, sections: draft.sections },
   })),
+  ...(["judge_conduct", "judge_confidentiality"] as const).map((purpose) => ({
+    purpose,
+    title:
+      purpose === "judge_conduct"
+        ? "Sample judge code of conduct (HR-39)"
+        : "Sample judge confidentiality terms (HR-39)",
+    body: {
+      short: [
+        ["Preview sample only. FOA must approve the final wording before use."],
+      ],
+      sections: [
+        {
+          id: "sample-terms",
+          title: "Sample terms",
+          blocks: [
+            {
+              p: [
+                purpose === "judge_conduct"
+                  ? "Judge fairly and respectfully. Declare conflicts of interest and follow safeguarding procedures."
+                  : "Keep entries and judging deliberations private. Do not seek or disclose the identity of participants.",
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  })),
   // An adopter's consents (#130), drafts too (HR-61).
   ...Object.entries(ADOPTION_CONSENT_DRAFTS).map(([purpose, draft]) => ({
     purpose: purpose as keyof typeof ADOPTION_CONSENT_DRAFTS,

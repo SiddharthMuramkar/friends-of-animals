@@ -12,6 +12,8 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
   ADMIN_ADOPTIONS,
+  ADMIN_JUDGING_ROUNDS,
+  JUDGE_DASHBOARD,
   ADMIN_VERIFICATION,
   ADMIN_DIRECTORY,
   ADMIN_LEDGER,
@@ -151,7 +153,9 @@ async function Areas() {
               title={name(link)}
               className="min-w-0 wrap-anywhere"
             />
-            <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
+            {link.area !== "judge" ? (
+              <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
+            ) : null}
           </div>
           <AreaBody
             area={link.area}
@@ -227,6 +231,9 @@ async function AreaBody({
             { href: DASHBOARD_DONATIONS, label: t("member.donations") },
           ])
         : null}
+      {area === "judge"
+        ? links([{ href: JUDGE_DASHBOARD, label: t("judge.rounds") }])
+        : null}
       {area === "organisation" && id
         ? links([{ href: myListingPath(id), label: t("organisation.listing") }])
         : null}
@@ -248,6 +255,7 @@ async function AreaBody({
                     href: APP_ROUTES.adminCompetitions,
                     label: t("admin.competitions"),
                   },
+                  { href: ADMIN_JUDGING_ROUNDS, label: t("admin.judging") },
                 ]
               : []),
             ...(lead

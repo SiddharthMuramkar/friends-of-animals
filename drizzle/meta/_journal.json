@@ -897,6 +897,20 @@
       "when": 1795588479170,
       "tag": "0127_93_artwork_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1795588795851,
+      "tag": "0128_95_pre_enum_judging",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1795588806049,
+      "tag": "0129_95_judging_rounds",
+      "breakpoints": true
     }
   ]
 }

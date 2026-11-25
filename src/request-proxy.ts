@@ -10,6 +10,8 @@ import {
   isDonationCheckoutPage,
   isNonProductionPath,
   isSignedInPage,
+  JUDGE_INVITATIONS_PREFIX,
+  isJudgeInvitationPage,
   isSignedInPath,
   isUnderPrefix,
 } from "@/lib/app-routes";
@@ -205,6 +207,11 @@ export function createProxy({
     // Bearer links use the nonce policy and render without sign-in.
     if (isUnderPrefix(pathname, [CONSENT_LINK_PREFIX])) {
       return isConsentLinkPage(pathname)
+        ? withNonceCsp(request)
+        : missingSignedInPage(request);
+    }
+    if (isUnderPrefix(pathname, [JUDGE_INVITATIONS_PREFIX])) {
+      return isJudgeInvitationPage(pathname)
         ? withNonceCsp(request)
         : missingSignedInPage(request);
     }

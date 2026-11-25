@@ -35,6 +35,7 @@ import { seedLedger } from "./ledger";
 import { seedLedgerPeriods } from "./ledger-periods";
 import { seedBudgets } from "./ledger-budgets";
 import { seedIdentity } from "./identity";
+import { seedJudgingRounds } from "./judging-rounds";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
@@ -70,6 +71,7 @@ const seeders: readonly Seeder[] = [
   seedCompetitions,
   seedJudging,
   seedConsent,
+  seedJudgingRounds,
   seedConsentLinkTemplates,
   seedCompetitionTerms,
   seedFiles,
