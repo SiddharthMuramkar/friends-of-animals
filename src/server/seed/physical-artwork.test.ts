@@ -28,37 +28,30 @@ describe("physical artwork preview", () => {
     const school = h.as(await h.signIn(SEED_COORDINATORS.coordinator));
     const schoolArtworks = await school.listMyArtworks();
     if (!schoolArtworks.ok) throw Error("No school artwork");
-    expect({
-      ...schoolArtworks,
-      artworks: schoolArtworks.artworks.filter((a) =>
-        a.artworkCode.startsWith("ORIG27-")
-      ),
-    }).toMatchObject({
+    expect(schoolArtworks).toMatchObject({
       ok: true,
       artworks: [
-        { status: "requested" },
-        { status: "dispatched" },
-        { status: "received" },
-        { status: "verified" },
+        { status: "requested", artworkCode: "ORIG27-A-5EED01" },
+        { status: "dispatched", artworkCode: "ORIG27-A-5EED02" },
+        { status: "received", artworkCode: "ORIG27-A-5EED04" },
+        { status: "verified", artworkCode: "ORIG27-A-5EED07" },
+        { status: "retained", artworkCode: "AUCT27-A-5EED01" },
       ],
     });
     const guardian = h.as(await h.signIn(SEED_GUARDIANS.guardian));
     const guardianArtworks = await guardian.listMyArtworks();
     if (!guardianArtworks.ok) throw Error("No guardian artwork");
-    expect({
-      ...guardianArtworks,
-      artworks: guardianArtworks.artworks.filter((a) =>
-        a.artworkCode.startsWith("ORIG27-")
-      ),
-    }).toMatchObject({
+    expect(guardianArtworks).toMatchObject({
       ok: true,
       artworks: [
         { status: "requested", artworkCode: "ORIG27-A-5EED03" },
+        { status: "verified", artworkCode: "AUCT27-A-5EED04" },
         {
           status: "verified",
           artworkCode: "ORIG27-A-5EED06",
           returnRequested: false,
         },
+        { status: "on_exhibition", artworkCode: "AUCT27-A-5EED02" },
       ],
     });
     const verifier = h.as(await h.signIn(SEED_ARTWORK_VERIFIER));

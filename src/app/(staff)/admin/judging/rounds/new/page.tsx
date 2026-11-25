@@ -43,14 +43,20 @@ async function renderNewRound(
   searchParams: Props["searchParams"]
 ) {
   const t = await getTranslations("adminJudging");
-  const competitions = await api.listCompetitionsForAdmin();
+  const [competitions, rounds] = await Promise.all([
+    api.listCompetitionsForAdmin(),
+    api.listJudgingRounds(),
+  ]);
   return (
     <div className="mt-8 flex flex-col gap-4">
       <ButtonLink variant="quiet" href={ADMIN_JUDGING_ROUNDS}>
         {t("back")}
       </ButtonLink>
       <Outcome query={await searchParams} />
-      <RoundForm competitions={competitions} />
+      <RoundForm
+        competitions={competitions}
+        sources={rounds.ok ? rounds.rounds : []}
+      />
     </div>
   );
 }

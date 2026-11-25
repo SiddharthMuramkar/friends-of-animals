@@ -105,7 +105,7 @@
       "rubric_missing": "Every enabled discipline needs a published rubric before a round can be created or opened.",
       "name_taken": "Another round of this competition already has this name.",
       "round_not_editable": "Only draft rounds can be edited.",
-      "pool_not_empty": "The physical-artwork rule cannot change once entries are admitted.",
+      "pool_not_empty": "The physical-artwork rule and entry source cannot change once entries are admitted.",
       "round_transition_not_allowed": "The round cannot move to that status.",
       "reason_required": "Enter a reason for cancellation.",
       "not_found": "The round or record was not found.",
@@ -122,7 +122,14 @@
       "no_assignments": "Assign and score entries before locking, or ask an admin to override.",
       "unscored_assignments": "The round is not ready to lock. Some assigned sheets are incomplete or no longer eligible.",
       "override_reason_invalid": "Enter an override reason of 10 to 500 characters.",
-      "invalid_outcomes": "Choose a valid outcome and award for a ranked entry."
+      "invalid_outcomes": "Choose a valid outcome and award for a ranked entry.",
+      "source_is_self": "A round cannot take its own finalists.",
+      "source_not_found": "Choose a source round in the same competition.",
+      "source_cancelled": "The source round was cancelled. Choose another source.",
+      "source_not_locked": "Wait for the source round to lock before opening or admitting entries.",
+      "chain_cycle": "That source would create a loop of judging rounds.",
+      "outcome_already_advanced": "This entry has already advanced to another live round. Its advancing outcome cannot be withdrawn.",
+      "results_published": "Judging rounds and outcomes cannot change after results are published."
     },
     "rankings": "Rankings and outcomes",
     "rankingsClosed": "Rankings are available after a round opens for judging.",
@@ -169,6 +176,17 @@
       "grade_a": "A grade",
       "grade_b": "B grade"
     },
-    "resultsRelease": "Results release"
+    "resultsRelease": "Results release",
+    "entrySource": "Entry source",
+    "chooseSource": "Choose an entry source",
+    "verifiedSource": "FOA-verified entries",
+    "sourceHelp": "Choose FOA-verified entries or the advancing outcomes of a round in the same competition. A linked round waits for its source to lock.",
+    "sourceOption": "{name} · {status} {competition}",
+    "sourceLabel": "Finalists of {name} · {status}",
+    "sourceUnavailable": "Source round unavailable",
+    "waitingForSource": "Waiting for the source round to lock. No entries can advance yet.",
+    "advancingCount": "{count, plural, one {# advancing outcome} other {# advancing outcomes}} in the locked source round.",
+    "finalistRule": "Winners, runners-up and finalists can advance. Admit eligible entries to apply this round’s verification and physical-artwork rules.",
+    "refusedFinalists": "{count} not recognised as source finalists"
   }
 }

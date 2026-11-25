@@ -21,14 +21,16 @@ import type { UseCaseContext } from "../../use-cases";
 import { AWARD_SCHEMES } from "../competitions/domain/award-schemes";
 import {
   JUDGING_LEVELS,
+  ROUND_ENTRY_SOURCES,
   roundNameKey,
   roundSettingsSchema,
 } from "./domain/round-settings";
+import { sourceProblem, type ChainRound } from "./domain/chain";
 import { canMoveRound } from "./domain/round-status";
 import { pinRubrics } from "./domain/rubric-pins";
 
 export const roundIdInput = z.object({ roundId: z.uuid() });
-const createInput = roundSettingsSchema.extend({
+const createInput = roundSettingsSchema.safeExtend({
   competitionId: z.uuid(),
   awardScheme: z.enum(AWARD_SCHEMES).optional(),
 });
@@ -37,7 +39,8 @@ const updateInput = z.strictObject({
   name: roundSettingsSchema.shape.name.optional(),
   level: z.enum(JUDGING_LEVELS).optional(),
   judgesPhysical: z.boolean().optional(),
-  entrySource: z.literal("verified_entries").optional(),
+  entrySource: z.enum(ROUND_ENTRY_SOURCES).optional(),
+  sourceRoundId: z.uuid().nullable().optional(),
   awardScheme: z.enum(AWARD_SCHEMES).optional(),
 });
 export function actorId(ctx: UseCaseContext) {
@@ -75,6 +78,35 @@ export async function authorizeRound(
   );
   return { round, role };
 }
+/** Lock graph/release state first, before taking any round row locks. */
+export async function lockRoundCompetition(db: AppDb, competitionId: string) {
+  const [row] = await db
+    .select({ status: competition.status })
+    .from(competition)
+    .where(eq(competition.id, competitionId))
+    .for("update");
+  return row ?? null;
+}
+const released = (status: string) => status === "results_published";
+const resultsPublished = { ok: false, error: "results_published" } as const;
+
+async function checkSource(
+  db: AppDb,
+  target: ChainRound,
+  sourceRoundId: string | null
+) {
+  if (!sourceRoundId) return null;
+  const rounds = await db
+    .select()
+    .from(judgingRound)
+    .where(eq(judgingRound.competitionId, target.competitionId));
+  return sourceProblem(
+    [...rounds.filter((r) => r.id !== target.id), target],
+    target.id,
+    sourceRoundId
+  );
+}
+
 async function pinsFor(db: AppDb, competitionId: string) {
   const [c] = await db
     .select()
@@ -107,6 +139,7 @@ async function snapshot(db: AppDb, round: JudgingRound) {
     judgesPhysical: round.judgesPhysical,
     status: round.status,
     entrySource: round.entrySource,
+    sourceRoundId: round.sourceRoundId,
     pins: await readPins(db, round.id),
   };
 }
@@ -125,6 +158,18 @@ export async function createJudgingRound(
   if (!parsed.success) return invalidInput(parsed.error);
   const { competitionId, awardScheme, ...settings } = parsed.data;
   return ctx.db.transaction(async (tx) => {
+    const parent = await lockRoundCompetition(tx, competitionId);
+    if (!parent) return notFound;
+    if (released(parent.status)) return resultsPublished;
+    const now = ctx.clock.now();
+    const id = uuidv7(now);
+    const sourceRoundId = settings.sourceRoundId ?? null;
+    const problem = await checkSource(
+      tx,
+      { id, competitionId, status: "draft", sourceRoundId },
+      sourceRoundId
+    );
+    if (problem) return { ok: false, error: problem } as const;
     const pins = await pinsFor(tx, competitionId);
     if (!pins) return notFound;
     if (!pins.ok)
@@ -142,13 +187,13 @@ export async function createJudgingRound(
           eq(competitionAwardScheme.round, "foa_final")
         )
       );
-    const now = ctx.clock.now();
     const [row] = await tx
       .insert(judgingRound)
       .values({
-        id: uuidv7(now),
+        id,
         competitionId,
         ...settings,
+        sourceRoundId,
         nameKey: roundNameKey(settings.name),
         awardScheme: awardScheme ?? award?.scheme ?? "ranked_123",
         createdByUserId: actorId(ctx),
@@ -190,17 +235,30 @@ export async function updateJudgingRound(
   if (!parsed.success) return invalidInput(parsed.error);
   if (!round) return notFound;
   return ctx.db.transaction(async (tx) => {
-    // Serialise name changes and creation within this competition.
-    await tx
-      .select({ id: competition.id })
-      .from(competition)
-      .where(eq(competition.id, round.competitionId))
-      .for("update");
+    // Serialise graph and name edits, and results publication.
+    const parent = await lockRoundCompetition(tx, round.competitionId);
+    if (!parent) return notFound;
+    if (released(parent.status)) return resultsPublished;
     const row = await loadRound(tx, round.id, true);
     if (!row) return notFound;
     if (row.status !== "draft")
       return { ok: false, error: "round_not_editable" } as const;
     const { roundId, ...settings } = parsed.data;
+    const entrySource = settings.entrySource ?? row.entrySource;
+    const sourceRoundId =
+      settings.sourceRoundId !== undefined
+        ? settings.sourceRoundId
+        : entrySource === "verified_entries"
+          ? null
+          : row.sourceRoundId;
+    if ((entrySource === "round_finalists") !== (sourceRoundId !== null))
+      return { ok: false, error: "invalid_input" } as const;
+    const changedSource =
+      entrySource !== row.entrySource || sourceRoundId !== row.sourceRoundId;
+    if (changedSource) {
+      const problem = await checkSource(tx, row, sourceRoundId);
+      if (problem) return { ok: false, error: problem } as const;
+    }
     if (settings.name) {
       const [duplicate] = await tx
         .select({ id: judgingRound.id })
@@ -214,8 +272,9 @@ export async function updateJudgingRound(
       if (duplicate && duplicate.id !== roundId) return nameTaken;
     }
     if (
-      settings.judgesPhysical !== undefined &&
-      settings.judgesPhysical !== row.judgesPhysical
+      changedSource ||
+      (settings.judgesPhysical !== undefined &&
+        settings.judgesPhysical !== row.judgesPhysical)
     ) {
       const [existing] = await tx
         .select({ id: roundEntry.entryId })
@@ -229,6 +288,8 @@ export async function updateJudgingRound(
       .update(judgingRound)
       .set({
         ...settings,
+        entrySource,
+        sourceRoundId,
         ...(settings.name ? { nameKey: roundNameKey(settings.name) } : {}),
         updatedAt: ctx.clock.now(),
       })
@@ -262,6 +323,9 @@ async function transitionRound(
     return { ok: false, error: "reason_required" } as const;
   return ctx.db.transaction(async (tx) => {
     // Always acquire competition before round (same order as settings).
+    const parent = await lockRoundCompetition(tx, round.competitionId);
+    if (!parent) return notFound;
+    if (released(parent.status)) return resultsPublished;
     const pins = to === "open" ? await pinsFor(tx, round.competitionId) : null;
     const row = await loadRound(tx, round.id, true);
     if (!row) return notFound;
@@ -270,6 +334,15 @@ async function transitionRound(
     const before = await snapshot(tx, row);
     const now = ctx.clock.now();
     if (to === "open") {
+      if (row.sourceRoundId) {
+        const source = await loadRound(tx, row.sourceRoundId, true);
+        if (!source || source.competitionId !== row.competitionId)
+          return { ok: false, error: "source_not_found" } as const;
+        if (source.status === "cancelled")
+          return { ok: false, error: "source_cancelled" } as const;
+        if (source.status !== "locked")
+          return { ok: false, error: "source_not_locked" } as const;
+      }
       if (!pins?.ok)
         return {
           ok: false,

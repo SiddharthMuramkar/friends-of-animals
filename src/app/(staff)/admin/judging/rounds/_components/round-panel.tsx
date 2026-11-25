@@ -75,6 +75,12 @@ async function renderPanel(
   const result = await api.getJudgingRound({ roundId: id });
   if (!result.ok) return <p>{t("outcomes.not_found")}</p>;
   const { round, pins } = result;
+  const roundList =
+    tab === "settings"
+      ? await api.listJudgingRounds({ competitionId: round.competitionId })
+      : null;
+  const sources = roundList?.ok ? roundList.rounds : [];
+  const source = sources.find((s) => s.id === round.sourceRoundId);
   const access = await api.myAccess();
   const mayManage = access.grants.some(
     (g) =>
@@ -151,6 +157,25 @@ async function renderPanel(
             <dd>{t(`awardSchemes.${round.awardScheme}`)}</dd>
             <dt className="font-semibold">{t("entryRule")}</dt>
             <dd>{t(round.judgesPhysical ? "physical" : "digital")}</dd>
+            <dt className="font-semibold">{t("entrySource")}</dt>
+            <dd>
+              {source ? (
+                <>
+                  <SiteLink href={adminJudgingRoundPath(source.id)}>
+                    {t("sourceLabel", {
+                      name: source.name,
+                      status: t(`statuses.${source.status}`),
+                    })}
+                  </SiteLink>
+                </>
+              ) : (
+                t(
+                  round.entrySource === "round_finalists"
+                    ? "sourceUnavailable"
+                    : "verifiedSource"
+                )
+              )}
+            </dd>
           </dl>
           <section className={CARD}>
             <SectionHeading title={t("rubrics")} />
@@ -164,7 +189,7 @@ async function renderPanel(
           </section>
           {editable && round.status === "draft" ? (
             <>
-              <RoundForm round={round} />
+              <RoundForm round={round} sources={sources} />
               <form
                 action={roundAction}
                 aria-label={t("openForm")}
@@ -295,6 +320,35 @@ async function renderPanel(
             if (!data.ok) return null;
             return (
               <>
+                {round.entrySource === "round_finalists" ? (
+                  <section className={CARD}>
+                    <SectionHeading title={t("entrySource")} />
+                    {data.source ? (
+                      <>
+                        <p>
+                          <SiteLink
+                            href={adminJudgingRoundPath(data.source.id)}
+                          >
+                            {t("sourceLabel", {
+                              name: data.source.name,
+                              status: t(`statuses.${data.source.status}`),
+                            })}
+                          </SiteLink>
+                        </p>
+                        <p>
+                          {data.source.status === "locked"
+                            ? t("advancingCount", {
+                                count: data.source.advancingCount,
+                              })
+                            : t("waitingForSource")}
+                        </p>
+                      </>
+                    ) : (
+                      <p>{t("sourceUnavailable")}</p>
+                    )}
+                    <p>{t("finalistRule")}</p>
+                  </section>
+                ) : null}
                 {editable ? (
                   <form
                     action={roundAction}
