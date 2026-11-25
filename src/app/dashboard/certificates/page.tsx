@@ -42,7 +42,7 @@ export default async function Page({
     <Section hue="green" width="wide" className="pt-10 sm:pt-14">
       <PageHeader title={t("title")} lead={t("myLead")} />
       {query.share === "queued" && (
-        <p role="status" className="mt-4">
+        <output className="mt-4 block">
           {t("shareQueued")}{" "}
           <a
             className="font-semibold text-link underline"
@@ -50,7 +50,7 @@ export default async function Page({
           >
             {t("refresh")}
           </a>
-        </p>
+        </output>
       )}
       {query.share === "unavailable" && (
         <p role="alert" className="mt-4">
