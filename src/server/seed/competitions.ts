@@ -250,7 +250,9 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         participation: "institutions",
         disciplines: ["drawing", "painting", "craft"],
         ageCutoffDate: "2026-08-01",
-        digitalScope: "shortlist_only",
+        // Every participant submitted digitally, so its school round (#89)
+        // has entries to shortlist.
+        digitalScope: "all_participants",
         physicalArtwork: { kind: "top_n", count: 3 },
         publicDisplay: true,
         auctionPermitted: true,

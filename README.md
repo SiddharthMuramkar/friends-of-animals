@@ -572,6 +572,7 @@ Each module lives in `src/server/modules/<name>/` and follows the layout in [Mod
 | [`registration`](#registration)         | An institution registers for a competition and enrols students, one by one or from CSV; confirmation after payment             | #75, #76, #77           |
 | [`reminders`](#reminders)               | Named reminders before a deadline, to whoever still owes it when each one runs                                                 | #84                     |
 | [`safeguarding`](#safeguarding)         | The public "report a concern" form and the safeguarding lead's queue                                                           | #116                    |
+| [`school-round`](#school-round)         | A school's round: judging panel, shortlist and school positions per category, finalising                                       | #89                     |
 | [`second-factor`](#second-factor)       | Staff TOTP and passkeys, step-up, staff session lifetimes                                                                      | #60                     |
 | [`settings`](#settings)                 | Runtime settings a super admin changes without a deploy                                                                        | #62                     |
 | [`volunteers`](#volunteers)             | Volunteer applications: age gate, a teen's guardian approves, community managers vet and grant the volunteer role              | #123                    |
@@ -838,7 +839,7 @@ Any other status returns `entry_locked`. A new upload supersedes any file still 
 | `rejected`, `failed` | `processing` | the participant retries          |
 | new, `processing`    | `submitted`  | a typed essay is saved (#86)     |
 
-The enum already has `school_shortlisted`, `not_shortlisted`, `submitted_to_foa`, `foa_verified` and `sent_back`; no move reaches them yet. Each move writes a history row. Outcomes that arrive late, twice, or for a dropped file change nothing.
+Finalising a school round (#89, [`school-round`](#school-round)) adds `submitted` → `school_shortlisted` → `submitted_to_foa` and `processing`, `rejected`, `failed`, `submitted` → `not_shortlisted`. The enum also has `foa_verified` and `sent_back`; no move reaches them yet. Each move writes a history row. Outcomes that arrive late, twice, or for a dropped file change nothing.
 
 **Who sees what:** `listMyEntries` returns the member's and their wards' entries, newest first, with `checking` while an upload is in flight. `getEntry({ code })` is for the participant, linked teen or guardian; another person's code and an unknown code both throw forbidden. `listCompetitionEntries` (staff) omits `processing`, `rejected` and `failed` and does not include who made the work.
 
@@ -1130,6 +1131,22 @@ The public "report a concern" form and the **safeguarding lead**'s queue.
 - **Events:** `safeguarding.report_submitted`; leads get `safeguarding.report_alert`, which never includes the contents. **Open:** HR-48.
 - **Tests:** `submit.test.ts`, `queue.test.ts`, `policy.test.ts`, `retention-policy.test.ts`; E2E `116-safeguarding-reports.spec.ts`.
 
+### school-round
+
+A school's first Round on the institution route (#89). The words are in `GLOSSARY.md` (School round, Category, Panel, Shortlist, School position, Judging attestation).
+
+- **Tables** (`school-round.ts`): `school_round` (one per institution registration, unique; status `open`, `overdue`, `finalised`, `closed_on_behalf`, all declared now; the attestation and finalise columns; `families_notified_at`), `school_round_panel_member`, `school_round_pick` (a row exists exactly when the entry is shortlisted; `position` nullable; unique position per round and category), `school_round_transition`.
+- **Opening:** `competition.school_judging_started` (emitted by `makeScheduledMoves` when a competition enters school judging) → `school_round.open_rounds`: one open round per active institution registration with at least one confirmed student, even with no entries. Safe to repeat.
+- **Use cases:** `getSchoolRound`, `recordPanel` (1 to 10 members, name and role up to 120 characters; replaces the list), `saveShortlist` (one category at a time over `domain/picks.ts`: only `submitted` entries of that category, up to `shortlist_per_category`, positions 1 to `school_positions`, each once; a refused save names every problem and changes nothing), `finaliseSchoolRound`, `listSchoolRoundOutcomes` (`pending` until finalised, then `shortlisted` with position or `not_shortlisted`; for M4 #100). Changes lock the round row; only an `open` round in a competition in school judging changes (`round_not_editable`).
+- **Finalising** (`domain/finalise.ts` plans it): needs a panel, the conduct certification (#87) and the judging attestation (`finalise_blocked` lists every blocker). In one transaction each pick moves `submitted → school_shortlisted → submitted_to_foa` (all-participants scope; owner decision 2026-11-19) and every other entry of the registration `not_shortlisted`, through `entries/school-round-outcome.ts`; the round records who attested and finalised and the statement version (`domain/judging-statement.ts`, wording HR-36); one audit row `school_round.finalised`; and `school_round.shortlist_finalised`, emitted nowhere else (`only-finalise-emits.test.ts`). The shortlist-only scope answers `shortlist_only` until #91.
+- **Families:** `school_round.queue_family_outcomes` queues one `entry.school_shortlisted` or `entry.not_shortlisted` per entry, once (`families_notified_at`); `school_round.send_family_outcome` emails the family contact (a minor's guardian or the adult student) by the `family_contact` route (`drizzle/0103_89_school_round_messages.sql`). Email only (HR-14).
+- **Who may call:** `school_round.read`, `.manage`, `.finalise`: the institution's coordinators and authorised person. `school_round.outcomes.read`: the platform, a competition manager of the competition (or global), the institution.
+- **Page:** `/institution/registrations/[ref]/school-round` (panel form, a form per category, the finalise checklist and attestation, the finalised shortlist); linked from the submissions roster.
+- **Seed:** `src/server/seed/school-round.ts`: Kinder Skies (SKIES26, now all-participants) has the verified school's open round with three submitted entries, a panel of two and two picks, one placed 1st; conduct not certified.
+- **Migrations:** `0102_89_school_round`, `0103_89_school_round_messages`.
+- **Not yet:** overdue, closing on behalf and reopening (#90); shortlist-only scope (#91).
+- **Tests:** `domain/*.test.ts`, `open-school-rounds.test.ts`, `record-panel.test.ts`, `save-shortlist.test.ts`, `finalise-school-round.test.ts`, `family-outcomes.test.ts`, `list-school-round-outcomes.test.ts`, `only-finalise-emits.test.ts`, `seed/school-round.test.ts`; E2E `89-school-round.spec.ts`.
+
 ### second-factor
 
 Staff TOTP or passkey, step-up, staff session lifetimes. Overview: [Sign-in, sessions and the second factor](#sign-in-sessions-and-the-second-factor).
@@ -1210,6 +1227,9 @@ People apply to volunteer, and FOA vets anyone who will work near children (#123
 | `files.process_video`                           | outbox, media queue, 20-minute lease    | `files.video_processing_requested`                    | `modules/files/process-video.ts`, `ports/media-ffmpeg.ts`             |
 | `entries.apply_file_outcome`                    | outbox                                  | every `files.*` outcome event, `files.file_ready`     | `modules/entries/apply-file-outcome.ts`                               |
 | `entries.send_family_receipt`                   | outbox                                  | `entry.submitted` (school route only)                 | `modules/entries/family-receipt.ts`                                   |
+| `school_round.open_rounds`                      | outbox                                  | `competition.school_judging_started`                  | `modules/school-round/open-school-rounds.ts`                          |
+| `school_round.queue_family_outcomes`            | outbox                                  | `school_round.shortlist_finalised`                    | `modules/school-round/family-outcomes.ts`                             |
+| `school_round.send_family_outcome`              | outbox                                  | `entry.school_shortlisted`, `entry.not_shortlisted`   | `modules/school-round/family-outcomes.ts`                             |
 | `entries.expire_upload_grant`                   | outbox, delayed                         | at grant expiry                                       | `modules/entries/upload-grants.ts`                                    |
 | `entries.sweep_staged_upload`                   | outbox, delayed                         | shortly after expiry                                  | `src/server/outbox/handlers.ts`                                       |
 | `cms.publish_scheduled_post`                    | outbox, delayed                         | at the publish instant                                | `modules/cms/posts/publishing.ts`                                     |

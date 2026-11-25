@@ -302,6 +302,15 @@ export function studentSubmissionPath(
 }
 
 /** Where a coordinator certifies the competition's conduct (#87). */
+/** A registration's school round page (#89), for the institution acting. */
+export function schoolRoundPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/school-round?${query.toString()}`;
+}
+
 export function conductCertificationPath(
   reference: string,
   institutionId: string
@@ -455,6 +464,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/submissions",
   "/institution/registrations/[ref]/submissions/[number]",
   "/institution/registrations/[ref]/conduct",
+  "/institution/registrations/[ref]/school-round",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",

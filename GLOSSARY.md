@@ -509,6 +509,38 @@ round can't be finalised without it.
 _Avoid_: Conduct declaration, sign-off (the participation declaration is the
 institution's consent to take part)
 
+**School round**:
+The first Round on the institution route: one per Institution registration
+with a confirmed student, opened when its competition enters school judging.
+The coordinator records the Panel, picks the Shortlist and finalises it.
+_Avoid_: School judging (the competition's status), first round
+
+**Category**:
+One discipline for one age group of a competition, such as Drawing for
+Group A. Entries are shortlisted and placed within their Category.
+_Avoid_: Section, class
+
+**Panel**:
+The people who judged a School round, each with their full name and role.
+_Avoid_: Jury (FOA's judges), judges (alone)
+
+**Shortlist**:
+The entries a school picks, per Category, to go on to FOA judging, up to the
+competition's shortlist size. It is a draft until the School round is
+finalised; finalising makes each Entry school-shortlisted or not
+shortlisted.
+_Avoid_: Selection, finalists
+
+**School position**:
+A place (1st, 2nd, 3rd...) a school gives a shortlisted Entry in its
+Category, up to the competition's number of positions. Optional.
+_Avoid_: Rank, prize
+
+**Judging attestation**:
+The coordinator's statement, given when finalising, that the Shortlist and
+School positions are the Panel's fair judgement against FOA's Rubric.
+_Avoid_: Judging certificate, sign-off
+
 ## Registration
 
 **Institution registration**:

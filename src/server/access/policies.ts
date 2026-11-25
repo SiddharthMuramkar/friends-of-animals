@@ -35,6 +35,7 @@ import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
+import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
@@ -71,7 +72,8 @@ export const POLICY = composePolicies(
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
   CAMPAIGNS_POLICY,
-  INSTITUTION_SUBMISSIONS_POLICY
+  INSTITUTION_SUBMISSIONS_POLICY,
+  SCHOOL_ROUND_POLICY
 );
 
 export type Action = keyof typeof POLICY;

@@ -27,6 +27,7 @@
         "institution": "Institution",
         "directory_listing": "Organisation or person listed in the directory",
         "invitee": "Person invited",
+        "panel_member": "Member of a school judging panel",
         "participant_profile": "Participant profile",
         "payer": "Payer",
         "recipient": "Recipient",
@@ -461,6 +462,20 @@
           "reporter_name_ciphertext": "Who reported, when they chose not to stay anonymous, to follow up (encrypted)",
           "subject_age": "The child's rough age, to judge urgency and how long to keep the report",
           "subject_details_ciphertext": "Who the concern is about (a name, a school, a username), to find the child (encrypted)"
+        },
+        "school_round": {
+          "judging_attested_by_user_id": "Records which coordinator attested the school judging",
+          "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
+        },
+        "school_round_pick": {
+          "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
+        },
+        "school_round_transition": {
+          "actor_user_id": "Records which user acted when the school round changed status"
+        },
+        "school_round_panel_member": {
+          "full_name": "Names the person on the school judging panel the coordinator recorded",
+          "designation": "Shows the role of the person on the school judging panel"
         },
         "second_factor": {
           "credential_id": "The passkey's id, to find it when the person signs in with it",

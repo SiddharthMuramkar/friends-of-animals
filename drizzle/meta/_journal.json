@@ -715,6 +715,20 @@
       "when": 1795576082755,
       "tag": "0101_86_entry_messages_any_work",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1795578497052,
+      "tag": "0102_89_school_round",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1795578498564,
+      "tag": "0103_89_school_round_messages",
+      "breakpoints": true
     }
   ]
 }

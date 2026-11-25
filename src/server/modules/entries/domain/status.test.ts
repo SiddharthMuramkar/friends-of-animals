@@ -21,6 +21,14 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   ["processing", "failed"],
   ["rejected", "processing"],
   ["failed", "processing"],
+  // The school round is finalised (#89): a picked entry is shortlisted and
+  // goes straight on to FOA; every other entry is not shortlisted.
+  ["submitted", "school_shortlisted"],
+  ["school_shortlisted", "submitted_to_foa"],
+  ["processing", "not_shortlisted"],
+  ["rejected", "not_shortlisted"],
+  ["failed", "not_shortlisted"],
+  ["submitted", "not_shortlisted"],
   // A typed essay (#86).
   [null, "submitted"],
 ];

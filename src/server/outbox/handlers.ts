@@ -55,6 +55,11 @@ import { runExecuteErasure } from "../modules/privacy/requests/subject-data/eras
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
+import { openSchoolRounds } from "../modules/school-round/open-school-rounds";
+import {
+  queueFamilyOutcomes,
+  sendFamilyOutcome,
+} from "../modules/school-round/family-outcomes";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -219,6 +224,15 @@ export const HANDLERS: Handlers = {
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
   // One recipient's campaign message, on the consent it rests on (#126).
   "campaigns.deliver_message": deliverCampaignMessage,
+  // Opens the competition's school rounds (#89). Safe to repeat.
+  "school_round.open_rounds": async (deps, { payload }) => {
+    await openSchoolRounds(deps, payload);
+  },
+  // Queues one outcome message per entry of a finalised round (#89), once.
+  "school_round.queue_family_outcomes": (deps, { payload }) =>
+    queueFamilyOutcomes(deps, payload),
+  // Emails one entry's family its school round outcome (#89).
+  "school_round.send_family_outcome": sendFamilyOutcome,
 };
 
 /** Whether this code has a handler by that name. */
