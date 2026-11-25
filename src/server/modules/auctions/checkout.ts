@@ -154,7 +154,8 @@ export async function payableOffer(
       found.bid.bidderUserId,
       found.bid.placedAt
     )) &&
-    !(await isKnownMinor(ctx.db, ctx.cipher, found.bid.bidderUserId, now))
+    !(await isKnownMinor(ctx.db, ctx.cipher, found.bid.bidderUserId, now)) &&
+    ctx.clock.now() < found.offer.expiresAt
   );
 }
 export async function openAuctionCheckout(

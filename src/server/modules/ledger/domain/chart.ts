@@ -124,13 +124,6 @@ export const SEEDED_ACCOUNTS: readonly SeededAccount[] = [
     publicGroup: null,
   },
   {
-    code: "4300",
-    name: "Auction proceeds",
-    kind: "income",
-    isSystem: true,
-    publicGroup: "income",
-  },
-  {
     code: "3000",
     name: "Accumulated fund",
     kind: "equity",
@@ -161,6 +154,13 @@ export const SEEDED_ACCOUNTS: readonly SeededAccount[] = [
   {
     code: "4220",
     name: "CSR donations",
+    kind: "income",
+    isSystem: true,
+    publicGroup: "income",
+  },
+  {
+    code: "4300",
+    name: "Auction proceeds",
     kind: "income",
     isSystem: true,
     publicGroup: "income",

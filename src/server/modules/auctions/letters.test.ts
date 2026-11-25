@@ -92,14 +92,12 @@ describe("auction thank-you letters", () => {
           .set({ auctionPermitted: true, physicalArtwork: "all_shortlisted" })
           .where(eq(competition.id, id));
         const doc = await publishNextVersion(h, "auction");
-        await h.db
-          .insert(competitionConsentDocument)
-          .values({
-            competitionId: id,
-            purpose: "auction",
-            consentDocumentId: doc.id,
-            attachedAt: h.clock.now(),
-          });
+        await h.db.insert(competitionConsentDocument).values({
+          competitionId: id,
+          purpose: "auction",
+          consentDocumentId: doc.id,
+          attachedAt: h.clock.now(),
+        });
         const [row] = await h.db
           .select({ profileId: registration.participantProfileId })
           .from(registration)

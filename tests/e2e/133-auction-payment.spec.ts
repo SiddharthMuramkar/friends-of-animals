@@ -105,7 +105,7 @@ test("the winning buyer pays, saves a private delivery address and confirms rece
       .getByLabel("Courier", { exact: true })
       .fill("Sample courier");
     await staffPage
-      .getByLabel("Tracking number", { exact: true })
+      .getByRole("textbox", { name: "Tracking number", exact: true })
       .fill("FAKE-133");
     await staffPage.getByRole("button", { name: "Record dispatch" }).click();
     await expect(
@@ -169,10 +169,10 @@ test("finance sees the per-competition proceeds policy and may change it with st
     page.getByRole("heading", { name: "Auction proceeds policies" })
   ).toBeVisible();
   await both(page, "auction proceeds policy");
-  const policy = page
-    .getByRole("form")
-    .filter({ has: page.getByRole("heading", { name: /auction/i }) })
-    .first();
+  const policy = page.getByRole("form", {
+    name: "Art for kindness",
+    exact: true,
+  });
   await policy.getByLabel("Creator share (%)").fill("25.01");
   await policy.getByRole("button", { name: "Save proceeds policy" }).click();
   await expect(page.getByText("Your changes were saved.")).toBeVisible();

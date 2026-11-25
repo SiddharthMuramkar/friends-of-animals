@@ -33,6 +33,15 @@ describe("auction payment", () => {
     const offer = await first.getMyAuctionOffer(code);
     expect(offer).toMatchObject({ amountPaise: 160000n, status: "open" });
     expect(await next.getMyAuctionOffer(code)).toBeNull();
+    expect(await first.listMyAuctionOffers()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: offer!.id })])
+    );
+    await expect(visitor.listMyAuctionOffers()).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    await expect(
+      first.expireAuctionOffer({ offerId: offer!.id })
+    ).rejects.toMatchObject({ code: "forbidden" });
     await expect(visitor.getMyAuctionOffer(code)).rejects.toMatchObject({
       code: "forbidden",
     });
@@ -58,6 +67,14 @@ describe("auction capture and delivery", () => {
     const visitor = h.as(h.visitor());
     const code = { lotCode: SEED_AUCTIONS.open };
     const competitionId = SEED_AUCTION_COMPETITION.id;
+    expect(await finance.listAuctionProceedsPolicies()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ competitionId, creatorShareBps: 0 }),
+      ])
+    );
+    await expect(buyer.listAuctionProceedsPolicies()).rejects.toMatchObject({
+      code: "forbidden",
+    });
     await expect(
       buyer.setAuctionProceedsPolicy({ competitionId, creatorShareBps: 2500 })
     ).rejects.toMatchObject({ code: "forbidden" });
@@ -94,7 +111,7 @@ describe("auction capture and delivery", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
     const checkout = await buyer.openAuctionCheckout({ offerId: offer.id });
     if (!checkout.ok) throw new Error("Checkout refused");
-    h.gateway.capture(checkout.checkout.orderId);
+    const paid = h.gateway.capture(checkout.checkout.orderId);
     const webhook = h.gateway.webhook({
       type: "payment.captured",
       orderId: checkout.checkout.orderId,
@@ -107,6 +124,28 @@ describe("auction capture and delivery", () => {
       ok: true,
       outcome: "duplicate",
     });
+    const confirm = {
+      offerId: offer.id,
+      paymentId: paid.paymentId,
+      signature: paid.signature,
+    };
+    expect(await buyer.confirmAuctionCheckout(confirm)).toMatchObject({
+      ok: true,
+      outcome: "already_captured",
+    });
+    await expect(visitor.confirmAuctionCheckout(confirm)).rejects.toMatchObject(
+      { code: "forbidden" }
+    );
+    expect(await stranger.confirmAuctionCheckout(confirm)).toMatchObject({
+      ok: false,
+      error: "invalid_signature",
+    });
+    expect(
+      await buyer.payAuctionTestCheckout({ offerId: offer.id, outcome: "pay" })
+    ).toMatchObject({ ok: false, error: "unavailable" });
+    await expect(
+      visitor.payAuctionTestCheckout({ offerId: offer.id, outcome: "pay" })
+    ).rejects.toMatchObject({ code: "forbidden" });
     expect(await buyer.getMyAuctionOffer(code)).toMatchObject({
       status: "paid",
       deliveryStatus: "awaiting_address",
@@ -193,6 +232,12 @@ describe("auction capture and delivery", () => {
     )!;
     expect(sold.status).toBe("sold");
     expect(
+      await manager.getAdminAuctionOffer({ lotId: sold.id })
+    ).toMatchObject({ deliveryStatus: "receipt_confirmed", address: null });
+    await expect(
+      buyer.getAdminAuctionOffer({ lotId: sold.id })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
       (await manager.listEligibleArtwork()).some(
         (a) => a.artworkId === sold.artworkId
       )
@@ -250,6 +295,24 @@ describe("auction review and privacy", () => {
       })
     ).toMatchObject({ ok: true });
     await h.drain();
+    const returned = await finance.listRefunds({ state: "done" });
+    if (!returned.ok) throw new Error("Refund queue inaccessible");
+    await expect(buyer.listRefunds({ state: "done" })).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    const returnedOffer = returned.refunds.find(
+      (r) => r.batchId === checkout.batchId
+    )!;
+    expect(returnedOffer).toMatchObject({
+      auctionLotCode: code.lotCode,
+      status: "refunded",
+    });
+    expect(
+      await finance.getRefund({ refundId: returnedOffer.id })
+    ).toMatchObject({
+      ok: true,
+      refund: { auctionLotCode: code.lotCode, status: "refunded" },
+    });
     const ledger = await finance.listPostings({});
     if (!ledger.ok) throw new Error("No ledger");
     const liability = ledger.postings.find(

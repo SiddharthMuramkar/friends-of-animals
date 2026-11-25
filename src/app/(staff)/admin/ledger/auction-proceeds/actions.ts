@@ -5,7 +5,10 @@ import { as, currentActor } from "@/server/app";
 import { parseCreatorSharePercent } from "@/server/modules/auctions/domain/proceeds";
 import { adminCall } from "../../_lib/boundary";
 export async function savePolicy(competitionId: string, form: FormData) {
-  const parsed = parseCreatorSharePercent(String(form.get("share") ?? ""));
+  const share = form.get("share");
+  const parsed = parseCreatorSharePercent(
+    typeof share === "string" ? share : ""
+  );
   if (!parsed.ok) redirect(ADMIN_AUCTION_PROCEEDS + "?result=error");
   const result = await adminCall(
     async () =>

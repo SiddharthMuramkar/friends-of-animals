@@ -84,7 +84,7 @@ export default async function Page({
                       className={inputStyles}
                       inputMode="decimal"
                       required
-                      pattern="[0-9]{1,3}(\\.[0-9]{1,2})?"
+                      pattern="[0-9]{1,3}([.][0-9]{1,2})?"
                       maxLength={6}
                       defaultValue={creatorSharePercentForInput(
                         policy.creatorShareBps

@@ -74,7 +74,10 @@ export async function answerAuctionCheckout(
   }
   return { ok: false, message: await message() };
 }
-const read = (form: FormData, key: string) => String(form.get(key) ?? "");
+const read = (form: FormData, key: string) => {
+  const value = form.get(key);
+  return typeof value === "string" ? value : "";
+};
 export async function saveAuctionAddress(
   code: string,
   offerId: string,
