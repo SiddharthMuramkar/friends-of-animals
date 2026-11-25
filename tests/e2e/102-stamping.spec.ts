@@ -121,6 +121,8 @@ test("only the stamped, no-store artwork is shown on a public lot", async ({
     name: "AI illustration: Artwork with the Friends of Animals logo",
   });
   await expect(image).toBeVisible();
+  await image.scrollIntoViewIfNeeded();
+  await expect(image).toBeInViewport();
   const src = `/media/auctions/${SEED_AUCTIONS.open}`;
   await expect(image).toHaveAttribute("src", src);
   await expect(image).toHaveAttribute("fetchpriority", "high");
