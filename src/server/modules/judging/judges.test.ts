@@ -125,3 +125,113 @@ describe("round judge invitation and onboarding", () => {
     });
   });
 });
+
+describe("invitation lifecycle and scope isolation", () => {
+  it("withdraws superseded invites and enforces expiry, decline and round-specific permission", async () => {
+    const h = await createHarness();
+    const competition = await seedCompetition(h, { disciplines: ["drawing"] });
+    const manager = h.as(await signedInWith(h, managerOf(competition.id)));
+    const rub = await manager.createRubricDraft({
+      competitionId: competition.id,
+      discipline: "drawing",
+    });
+    if (!rub.ok) throw new Error(rub.error);
+    await manager.publishRubric({ rubricId: rub.rubric.id });
+    const a = await manager.createJudgingRound({
+      competitionId: competition.id,
+      name: "A",
+    });
+    const b = await manager.createJudgingRound({
+      competitionId: competition.id,
+      name: "B",
+    });
+    if (!a.ok || !b.ok) throw new Error("Round creation failed");
+    const roundId = a.roundId;
+    const judge = await h.seed.member({ email: "round-judge@example.test" });
+    const invitee = h.as(await h.signIn(judge));
+    const visitor = h.as(h.visitor());
+    const send = async () => {
+      const result = await manager.inviteJudge({ roundId, email: judge.email });
+      if (!result.ok) throw new Error(result.error);
+      await h.drain();
+      const token = /\/judge\/invitations\/([\w-]{43})/.exec(
+        h.email.lastTo(judge.email)?.text ?? ""
+      )?.[1];
+      if (!token) throw new Error("Invitation not delivered");
+      return { ...result, token };
+    };
+    const first = await send();
+    expect(
+      await visitor.viewJudgeInvitation({ token: first.token })
+    ).toMatchObject({ ok: true, status: "pending", signedIn: false });
+    expect(await visitor.viewJudgeInvitation({ token: "bad" })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
+    expect(await visitor.acceptJudgeInvitation({ token: first.token })).toEqual(
+      { ok: false, error: "sign_in_required" }
+    );
+    expect(
+      await visitor.declineJudgeInvitation({ token: first.token })
+    ).toEqual({ ok: false, error: "sign_in_required" });
+    await expect(visitor.myJudgeRounds()).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    const second = await send();
+    expect(await invitee.acceptJudgeInvitation({ token: first.token })).toEqual(
+      { ok: false, error: "revoked" }
+    );
+    expect(
+      await invitee.declineJudgeInvitation({ token: second.token })
+    ).toEqual({ ok: true, roundId });
+    expect(
+      await invitee.acceptJudgeInvitation({ token: second.token })
+    ).toEqual({ ok: false, error: "declined" });
+    const third = await send();
+    expect(
+      await manager.revokeJudgeInvitation({
+        roundId,
+        invitationId: third.invitationId,
+      })
+    ).toMatchObject({ ok: true });
+    expect(await invitee.acceptJudgeInvitation({ token: third.token })).toEqual(
+      { ok: false, error: "revoked" }
+    );
+    const fourth = await send();
+    h.clock.advance({ days: 14 });
+    expect(
+      await invitee.acceptJudgeInvitation({ token: fourth.token })
+    ).toEqual({ ok: false, error: "expired" });
+    // Refresh staff and invitee sessions after the clock advance.
+    const renewed = h.as(await signedInWith(h, managerOf(competition.id)));
+    const result = await renewed.inviteJudge({ roundId, email: judge.email });
+    expect(result).toMatchObject({ ok: true });
+    await h.drain();
+    const token = /\/judge\/invitations\/([\w-]{43})/.exec(
+      h.email.lastTo(judge.email)?.text ?? ""
+    )?.[1];
+    if (!token) throw new Error("Invitation not delivered");
+    const signed = h.as(await h.signIn(judge));
+    expect(await signed.acceptJudgeInvitation({ token })).toEqual({
+      ok: true,
+      roundId,
+    });
+    expect(await renewed.listRoundJudges({ roundId })).toMatchObject({
+      ok: true,
+      judges: [{ userId: judge.id, readiness: { ready: false } }],
+    });
+    await expect(
+      signed.getJudgeOnboarding({ roundId: b.roundId })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    await expect(
+      signed.declareConflicts({
+        roundId: b.roundId,
+        declaration: { none: true },
+      })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(await renewed.inviteJudge({ roundId, email: judge.email })).toEqual({
+      ok: false,
+      error: "already_judge",
+    });
+  });
+});

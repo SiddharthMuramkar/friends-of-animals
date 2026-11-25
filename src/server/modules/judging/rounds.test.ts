@@ -46,7 +46,29 @@ describe("FOA judging rounds", () => {
         judgesPhysical: false,
       })
     ).toMatchObject({ ok: true });
+    const revision = await as.startRubricRevision({
+      rubricId: draft.rubric.id,
+    });
+    if (!revision.ok) throw new Error(revision.error);
+    expect(
+      await as.publishRubric({ rubricId: revision.rubric.id })
+    ).toMatchObject({ ok: true });
     expect(await as.openJudgingRound({ roundId })).toMatchObject({ ok: true });
+    expect(await as.getJudgingRound({ roundId })).toMatchObject({
+      ok: true,
+      pins: [{ rubricId: revision.rubric.id }],
+    });
+    const later = await as.startRubricRevision({
+      rubricId: revision.rubric.id,
+    });
+    if (!later.ok) throw new Error(later.error);
+    expect(await as.publishRubric({ rubricId: later.rubric.id })).toMatchObject(
+      { ok: true }
+    );
+    expect(await as.getJudgingRound({ roundId })).toMatchObject({
+      ok: true,
+      pins: [{ rubricId: revision.rubric.id }],
+    });
     expect(await as.openJudgingRound({ roundId })).toMatchObject({
       ok: false,
       error: "round_transition_not_allowed",
