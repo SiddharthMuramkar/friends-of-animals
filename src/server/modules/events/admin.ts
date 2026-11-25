@@ -18,13 +18,15 @@ import { eventSlugCandidates } from "./domain/slug";
 import { promoteWaitlist } from "./registrations";
 import { eventChanges } from "./domain/changes";
 import { finishEvent, queueEnd } from "./end";
-import { eventRows, lockEvent, placesTaken, publicView } from "./repository";
+import { lockEvent, publicPlaceCount, publicView } from "./repository";
 
 const idSchema = z.object({ eventId: z.uuid() });
 export type EventId = z.input<typeof idSchema>;
 function clean(input: EventDetailsInput) {
+  const bounded = eventDetailsSchema.safeParse(input);
+  if (!bounded.success) return bounded;
   return eventDetailsSchema.safeParse({
-    ...input,
+    ...bounded.data,
     title:
       typeof input.title === "string" ? stripMarkup(input.title) : input.title,
     summary:
@@ -110,7 +112,7 @@ async function view(ctx: UseCaseContext, row: EventRow) {
   return publicView(
     row,
     ctx.clock.now(),
-    placesTaken(await eventRows(ctx.db, row.id))
+    row.capacity === null ? 0 : await publicPlaceCount(ctx.db, row.id)
   );
 }
 export async function listPublishedEvents(ctx: UseCaseContext) {

@@ -153,7 +153,8 @@ export async function eventValues(
     "event.title": stripMarkup(row.title),
     "event.start": formatter.dateTime(row.startsAt, "longDateTime"),
     "event.place":
-      [row.venueName, row.city].filter(Boolean).join(", ") || "Online",
+      [row.venueName, row.city].filter(Boolean).join(", ") ||
+      (row.onlineUrl ? "Online" : "No fixed location"),
   };
 }
 export async function eventNoticeValues(db: AppDb, delivery: Notice) {

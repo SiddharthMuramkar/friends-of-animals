@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import type { AppDb } from "../../db/app-db";
 import {
   event,
@@ -27,6 +27,20 @@ export function eventRows(db: AppDb, eventId: string) {
     .from(eventRegistration)
     .where(eq(eventRegistration.eventId, eventId))
     .orderBy(asc(eventRegistration.registeredAt), asc(eventRegistration.id));
+}
+
+/** Public capacity is an aggregate, never a public roster read. */
+export async function publicPlaceCount(db: AppDb, eventId: string) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(eventRegistration)
+    .where(
+      and(
+        eq(eventRegistration.eventId, eventId),
+        inArray(eventRegistration.status, [...PLACE_HOLDING_STATUSES])
+      )
+    );
+  return row?.n ?? 0;
 }
 
 export const placesTaken = (rows: readonly EventRegistrationRow[]) =>

@@ -197,3 +197,40 @@ it("uses active membership, registration settings, and current cancellation auth
     error: "registration_not_open",
   });
 });
+
+it("capacity reductions preserve confirmed places; freeing a place while the event is running promotes the next waiter", async () => {
+  const h = await createHarness();
+  const staff = h.as(await staffActor(h, "community_manager"));
+  const input = details(h.clock.now(), { audience: "signed_in", capacity: 2 });
+  const made = await staff.createEvent(input);
+  if (!made.ok) throw Error(made.error);
+  const eventId = made.eventId;
+  await staff.publishEvent({ eventId });
+  const ap = h.as(await h.signIn(await h.seed.member())),
+    bp = h.as(await h.signIn(await h.seed.member())),
+    cp = h.as(await h.signIn(await h.seed.member()));
+  const first = await ap.registerForEvent({ eventId });
+  const second = await bp.registerForEvent({ eventId });
+  if (!first.ok || !second.ok) throw Error("Expected confirmed places");
+  expect(await cp.registerForEvent({ eventId })).toMatchObject({
+    status: "waitlisted",
+    position: 1,
+  });
+  await staff.updateEvent({ eventId, ...input, capacity: 1 });
+  expect(await staff.getEventPlaces({ eventId })).toMatchObject({
+    capacity: 1,
+    placesTaken: 2,
+    waiting: 1,
+  });
+  await ap.cancelEventRegistration({ registrationId: first.registrationId });
+  expect(await cp.listMyEventRegistrations()).toMatchObject([
+    { status: "waitlisted", position: 1 },
+  ]);
+  h.clock.set(input.startsAt);
+  await staff.cancelEventRegistration({
+    registrationId: second.registrationId,
+  });
+  expect(await cp.listMyEventRegistrations()).toMatchObject([
+    { status: "registered" },
+  ]);
+});

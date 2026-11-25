@@ -56,8 +56,13 @@ const onlineUrl = z
   .transform((value) => (value === null || value === "" ? null : value))
   .pipe(
     z
-      .url({ protocol: /^https$/ })
-      .refine((value) => safeHref(value) !== null)
+      .string()
+      .refine(
+        (value) =>
+          value.startsWith("https://") &&
+          URL.canParse(value) &&
+          safeHref(value) !== null
+      )
       .nullable()
   );
 

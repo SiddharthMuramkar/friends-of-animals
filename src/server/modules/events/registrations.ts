@@ -157,23 +157,20 @@ export async function registerForEvent(
     if ("refused" in decision)
       return { ok: false, error: decision.refused } as const;
     const registrationId = uuidv7(now);
-    await db
-      .insert(eventRegistration)
-      .values({
-        id: registrationId,
-        eventId: row.id,
-        ...subjectColumns(subject),
-        registeredByUserId: actorId,
-        status: decision.status,
-        registeredAt: now,
-        waitlistedAt: decision.status === "waitlisted" ? now : null,
-        waitlistOrder:
-          decision.status === "waitlisted"
-            ? 1 +
-              rows.reduce((max, r) => Math.max(max, r.waitlistOrder ?? 0), 0)
-            : null,
-        updatedAt: now,
-      });
+    await db.insert(eventRegistration).values({
+      id: registrationId,
+      eventId: row.id,
+      ...subjectColumns(subject),
+      registeredByUserId: actorId,
+      status: decision.status,
+      registeredAt: now,
+      waitlistedAt: decision.status === "waitlisted" ? now : null,
+      waitlistOrder:
+        decision.status === "waitlisted"
+          ? 1 + rows.reduce((max, r) => Math.max(max, r.waitlistOrder ?? 0), 0)
+          : null,
+      updatedAt: now,
+    });
     await recordAudit(db, local, {
       action: "event_registration.created",
       entity: { type: "event_registration", id: registrationId },
@@ -204,9 +201,9 @@ export async function promoteWaitlist(
   row: EventRow
 ) {
   const now = ctx.clock.now();
-  // Registration may have closed earlier, but a place still helps until
-  // the event begins. After it starts nobody is promoted unexpectedly.
-  if (row.status !== "published" || +now >= +row.startsAt) return;
+  // A waiting attendee can still use a freed place while the event runs,
+  // even when applications for new registrations have closed.
+  if (row.status !== "published" || +now >= +row.endsAt) return;
   const rows = await eventRows(db, row.id);
   const promote = planPromotions({
     capacity: row.capacity,

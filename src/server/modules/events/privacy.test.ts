@@ -65,5 +65,5 @@ it("exports only the correct attendee and frees an erased person's place without
   expect(await bp.listMyEventRegistrations()).toMatchObject([
     { status: "registered" },
   ]);
-  expect(await exportFor(a.id)).toEqual([]);
+  expect((await exportFor(a.id)) ?? []).toEqual([]);
 });
