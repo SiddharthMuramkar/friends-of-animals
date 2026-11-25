@@ -757,6 +757,13 @@ const judgeConflictRecord = rowsOf("judge_conflict", {
   retention: JUDGING_RECORD,
   onExpiry: "delete_row",
 });
+const VOLUNTEER_SERVICE = {
+  policy: "volunteerService",
+  periodKey: "volunteerService",
+  basis:
+    "Recognise approved service and preserve the private history of tasks and hours until erasure",
+  toConfirm: true,
+} as const;
 const COMMUNITY_HISTORY = {
   policy: "communityHistory",
   periodKey: "communityHistory",
@@ -834,7 +841,10 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "pdf_file_id",
   ].map((c) =>
     rowsOf("certificate", {
-      subject: { kind: "participant_profile", via: "participant_profile_id" },
+      subject: {
+        kind: "participant_profile",
+        via: "participant_profile_id or recipient_user_id for service certificates",
+      },
       retention: JUDGING_RECORD,
       onExpiry: "delete_row",
     })(
@@ -844,7 +854,54 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
         : "content"
     )
   ),
+  rowsOf("certificate", {
+    subject: { kind: "user", via: "recipient_user_id" },
+    retention: VOLUNTEER_SERVICE,
+    onExpiry: "delete_row",
+  })("recipient_user_id", "identity"),
+  rowsOf("certificate", {
+    subject: {
+      kind: "user",
+      via: "recipient_user_id or participant_profile_id",
+    },
+    retention: VOLUNTEER_SERVICE,
+    onExpiry: "delete_row",
+  })("approved_minutes_snapshot", "content"),
   actorColumn("certificate", "revoked_by_user_id", STAFF_RECORD),
+  ...["title_ciphertext", "description_ciphertext"].map((c) =>
+    rowsOf("volunteer_task", {
+      subject: { kind: "user", via: "created_by_user_id" },
+      retention: VOLUNTEER_SERVICE,
+      onExpiry: "retain",
+    })(c, "content")
+  ),
+  actorColumn("volunteer_task", "created_by_user_id", VOLUNTEER_SERVICE),
+  rowsOf("volunteer_task_assignment", {
+    subject: { kind: "user", via: "volunteer_user_id" },
+    retention: VOLUNTEER_SERVICE,
+    onExpiry: "delete_row",
+  })("volunteer_user_id", "identity"),
+  actorColumn(
+    "volunteer_task_assignment",
+    "assigned_by_user_id",
+    VOLUNTEER_SERVICE
+  ),
+  ...[
+    "minutes",
+    "worked_on",
+    "note_ciphertext",
+    "reject_reason_ciphertext",
+  ].map((c) =>
+    rowsOf("volunteer_hours_entry", {
+      subject: {
+        kind: "user",
+        via: "assignment_id → volunteer_task_assignment.volunteer_user_id",
+      },
+      retention: VOLUNTEER_SERVICE,
+      onExpiry: "delete_row",
+    })(c, "content")
+  ),
+  actorColumn("volunteer_hours_entry", "decided_by_user_id", VOLUNTEER_SERVICE),
   ...["certificate_ids", "profile_ids", "storage_key"].map((c) =>
     rowsOf("certificate_archive", {
       subject: { kind: "participant_profile", via: "profile_ids" },
@@ -1069,7 +1126,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     rowsOf("file_derivative", {
       subject: {
         kind: "user",
-        via: "file_asset_id → file_asset.owner_user_id or certificate.pdf_file_id → certificate.participant_profile_id",
+        via: "file_asset_id → file_asset.owner_user_id or certificate.pdf_file_id → certificate.participant_profile_id or certificate.recipient_user_id",
       },
       retention: WHILE_FILE_KEPT,
       onExpiry: "delete_row",

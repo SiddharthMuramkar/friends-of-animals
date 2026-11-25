@@ -7,6 +7,7 @@ export type CertificateDocument = {
   type: CertificateType;
   awardPosition: number | null;
   awardLabel: string | null;
+  approvedMinutes?: number | null;
   recipientName: string;
   competition: { code: string; name: string } | null;
   issuedOn: { year: number; month: number; day: number };
@@ -23,6 +24,7 @@ export function certificateDocument(
     type: row.type,
     awardPosition: row.awardPosition,
     awardLabel: row.awardLabel,
+    approvedMinutes: row.approvedMinutesSnapshot,
     recipientName: row.nameSnapshot,
     competition,
     issuedOn: indianDateAt(row.issuedAt),

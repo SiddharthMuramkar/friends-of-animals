@@ -9,6 +9,7 @@ import { Chip } from "@/components/site/chip";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
+import { WorkLinks } from "@/components/volunteers/work-ui";
 import { STATUS_TONE } from "@/components/volunteers/application-summary";
 import {
   ADMIN_VOLUNTEERS,
@@ -85,6 +86,9 @@ async function Queue({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
+      <div className="mt-6">
+        <WorkLinks staff />
+      </div>
       <section aria-labelledby="queue-filter" className={`mt-8 ${CARD}`}>
         <SectionHeading id="queue-filter" title={t("filter.title")} />
         <form

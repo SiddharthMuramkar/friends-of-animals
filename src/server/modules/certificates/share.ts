@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
@@ -6,7 +6,7 @@ import { certificate } from "../../db/schema";
 import { DomainError } from "../../errors";
 import type { UseCaseContext } from "../../use-cases";
 import { queueStamp, stampedImageUrl } from "../stamping";
-import { certificateOwner, ownedProfiles } from "./read";
+import { certificateOwner } from "./read";
 
 type ShareInput = { certificateId: string };
 async function withOwnedCertificate<T>(
@@ -15,19 +15,16 @@ async function withOwnedCertificate<T>(
   action: "certificate.request_share" | "certificate.download_share",
   use: (ctx: UseCaseContext, row: typeof certificate.$inferSelect) => Promise<T>
 ) {
-  const ids = await ownedProfiles(ctx);
-  if (!ids.length || !z.uuid().safeParse(input.certificateId).success)
+  if (
+    ctx.actor.kind !== "user" ||
+    !z.uuid().safeParse(input.certificateId).success
+  )
     throw new DomainError("forbidden", "Certificate access denied");
   return ctx.db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(certificate)
-      .where(
-        and(
-          eq(certificate.id, input.certificateId),
-          inArray(certificate.participantProfileId, ids)
-        )
-      )
+      .where(eq(certificate.id, input.certificateId))
       .for("update");
     await authorize({ ...ctx, db: tx }, action, {
       ownerId: row

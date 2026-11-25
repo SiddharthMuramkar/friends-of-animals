@@ -58,6 +58,9 @@
           "community_member": "Joined the FOA community",
           "volunteer": "Became a volunteer",
           "ambassador": "Became an ambassador"
+        },
+        "volunteer": {
+          "hours_approved": "Volunteer hours approved"
         }
       },
       "categories": {
@@ -88,7 +91,10 @@
       "filter": "Filter membership status",
       "apply": "Apply filter",
       "count": "{count, plural, one {# member} other {# members}}",
-      "kind": { "user": "Account", "profile": "Participant profile" },
+      "kind": {
+        "user": "Account",
+        "profile": "Participant profile"
+      },
       "empty": "No members match this filter.",
       "previous": "Previous page",
       "next": "Next page",

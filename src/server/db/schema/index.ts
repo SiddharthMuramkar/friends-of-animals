@@ -72,3 +72,5 @@ export * from "./results";
 
 export * from "./community";
 export * from "./certificates";
+
+export * from "./volunteer-work";

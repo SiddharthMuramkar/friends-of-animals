@@ -110,7 +110,8 @@
         "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)",
         "certificateArchives": "Up to 24 hours after requesting a ZIP, unless held as evidence; a revoked certificate invalidates its ZIP immediately",
         "communityHistory": "Until erasure of the account or participant profile",
-        "communityMembers": "While active, then 365 days after departure"
+        "communityMembers": "While active, then 365 days after departure",
+        "volunteerService": "Until erasure of the account or participant profile; shared task instructions remain as operational records"
       },
       "purposes": {
         "account": {
@@ -734,7 +735,9 @@
           "type": "Type of achievement the certificate recognises.",
           "revoked_reason": "Reason staff revoked or corrected a certificate.",
           "pdf_file_id": "Private PDF generated from the certificate.",
-          "revoked_by_user_id": "Staff member who revoked or corrected the certificate."
+          "revoked_by_user_id": "Staff member who revoked or corrected the certificate.",
+          "recipient_user_id": "Identifies an adult volunteer who earned the service certificate",
+          "approved_minutes_snapshot": "Records the exact approved service minutes at the time of issue"
         },
         "certificate_archive": {
           "certificate_ids": "Private certificates in the institution’s temporary ZIP.",
@@ -786,6 +789,22 @@
           "ref_id": "The activity or record in the person’s journey",
           "source_key": "A stable key that prevents repeated entries for the same activity",
           "milestone_id": "The earned milestone represented by this timeline entry"
+        },
+        "volunteer_task": {
+          "title_ciphertext": "Private title of a work item created by the community team",
+          "description_ciphertext": "Private work instructions",
+          "created_by_user_id": "Records which manager created the task"
+        },
+        "volunteer_task_assignment": {
+          "volunteer_user_id": "Identifies the volunteer assigned to a task",
+          "assigned_by_user_id": "Records which manager assigned the task"
+        },
+        "volunteer_hours_entry": {
+          "minutes": "Service minutes logged by a volunteer",
+          "worked_on": "Date on which the service was performed",
+          "note_ciphertext": "Volunteer’s description of completed work",
+          "reject_reason_ciphertext": "Manager’s explanation for declining logged hours",
+          "decided_by_user_id": "Records which manager reviewed the hours"
         }
       }
     },
@@ -1018,6 +1037,10 @@
         "communityMembers": {
           "name": "Former member profiles",
           "rule": "A departed member’s display name and introduction are removed {days, plural, one {# day} other {# days}} after departure. Earned milestones stay until erasure."
+        },
+        "volunteerService": {
+          "name": "Volunteer service",
+          "rule": "Private task assignments, hours and service certificates remain until subject erasure. Shared task instructions remain operational records."
         }
       }
     },

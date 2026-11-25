@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, or } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { authorize, can } from "../../access/can";
 import { recordAudit } from "../../audit/record";
@@ -38,6 +38,7 @@ const publicFields = {
   awardPosition: certificate.awardPosition,
   awardLabel: certificate.awardLabel,
   issuedAt: certificate.issuedAt,
+  approvedMinutes: certificate.approvedMinutesSnapshot,
 };
 export async function listCertificateCompetitions(ctx: UseCaseContext) {
   const comps = await ctx.db
@@ -91,6 +92,14 @@ export async function listCertificates(
     revokedReason: canCorrect ? revokedReason : null,
   }));
 }
+export async function listVolunteerCertificates(ctx: UseCaseContext) {
+  await authorize(ctx, "certificates.retry_volunteer_render");
+  return ctx.db
+    .select({ ...publicFields, recipientName: certificate.nameSnapshot })
+    .from(certificate)
+    .where(eq(certificate.type, "volunteer_service"))
+    .orderBy(asc(certificate.number));
+}
 export async function retryCertificateRender(
   ctx: UseCaseContext,
   { certificateId }: { certificateId: string }
@@ -105,7 +114,9 @@ export async function retryCertificateRender(
     if (!row) throw invalid();
     const { role } = await authorize(
       { ...ctx, db: tx },
-      "certificates.retry_render",
+      row.type === "volunteer_service"
+        ? "certificates.retry_volunteer_render"
+        : "certificates.retry_render",
       row.competitionId ? scope(row.competitionId) : {}
     );
     if (row.status !== "issued" || row.renderStatus !== "failed")
@@ -152,17 +163,19 @@ export async function ownedProfiles(ctx: Pick<UseCaseContext, "db" | "actor">) {
  * when a volunteer certificate has its own user holder. */
 export async function certificateOwner(
   ctx: Pick<UseCaseContext, "db" | "actor">,
-  row: { participantProfileId: string }
+  row: { participantProfileId: string | null; recipientUserId: string | null }
 ) {
   return ctx.actor.kind === "user" &&
-    (await ownedProfiles(ctx)).includes(row.participantProfileId)
+    (row.recipientUserId === ctx.actor.userId ||
+      (row.participantProfileId !== null &&
+        (await ownedProfiles(ctx)).includes(row.participantProfileId)))
     ? ctx.actor.userId
     : undefined;
 }
 export async function listMyCertificates(ctx: UseCaseContext) {
   await authorize(ctx, "certificates.list_mine");
   const ids = await ownedProfiles(ctx);
-  if (!ids.length) return [];
+  if (ctx.actor.kind !== "user") return [];
   return ctx.db
     .select({
       ...publicFields,
@@ -189,7 +202,12 @@ export async function listMyCertificates(ctx: UseCaseContext) {
         eq(fileDerivative.kind, STAMP_SETTINGS.certificate_share.kind)
       )
     )
-    .where(inArray(certificate.participantProfileId, ids))
+    .where(
+      or(
+        eq(certificate.recipientUserId, ctx.actor.userId),
+        ids.length ? inArray(certificate.participantProfileId, ids) : sql`false`
+      )
+    )
     .orderBy(asc(certificate.nameSnapshot), asc(certificate.number))
     .then((rows) =>
       rows.map(({ pdfFileId, stampId, ...row }) => ({
@@ -211,19 +229,13 @@ export async function getCertificateDownloadUrl(
   { certificateId }: { certificateId: string }
 ) {
   // Missing IDs and a wrong owner are indistinguishable, including staff.
-  const ids = await ownedProfiles(ctx);
-  if (!ids.length || !z.uuid().safeParse(certificateId).success)
+  if (ctx.actor.kind !== "user" || !z.uuid().safeParse(certificateId).success)
     throw invalid();
   return ctx.db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(certificate)
-      .where(
-        and(
-          eq(certificate.id, certificateId),
-          inArray(certificate.participantProfileId, ids)
-        )
-      )
+      .where(eq(certificate.id, certificateId))
       .for("update");
     const ownerId = row
       ? await certificateOwner({ ...ctx, db: tx }, row)
@@ -305,13 +317,14 @@ export async function verifyCertificate(
   if (!row) return { outcome: "unknown" } as const;
   if (row.cert.status !== "issued")
     return { outcome: "revoked", number } as const;
-  const credit = row.cert.competitionId
-    ? await publicUse(ctx, {
-        profileId: row.cert.participantProfileId,
-        competitionId: row.cert.competitionId,
-        use: "results",
-      })
-    : null;
+  const credit =
+    row.cert.competitionId && row.cert.participantProfileId
+      ? await publicUse(ctx, {
+          profileId: row.cert.participantProfileId,
+          competitionId: row.cert.competitionId,
+          use: "results",
+        })
+      : null;
   const snapshot = row.cert.nameSnapshot
     .normalize("NFC")
     .trim()
@@ -329,6 +342,7 @@ export async function verifyCertificate(
     type: row.cert.type,
     awardPosition: row.cert.awardPosition,
     awardLabel: row.cert.awardLabel,
+    approvedMinutes: row.cert.approvedMinutesSnapshot,
     competition: row.competition,
     issuedOn: indianDateAt(row.cert.issuedAt),
     credit: allowedCredit,

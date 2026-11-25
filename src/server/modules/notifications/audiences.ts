@@ -128,6 +128,7 @@ import {
   communityManagers,
   DECLINED_VARIABLES,
   volunteerApplicant,
+  volunteerWorkAudience,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
 import {
@@ -316,7 +317,10 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "volunteer.application_submitted":
     case "volunteer.application_approved":
     case "volunteer.application_declined":
-      // About an application (#123): `volunteer_applicant`,
+    case "volunteer.task_assigned":
+    case "volunteer.hours_approved":
+    case "volunteer.hours_rejected":
+      // About an application or service (#123/#124): `volunteer_applicant`,
       // `volunteer_guardians` and `community_managers` find who hears.
       return null;
     case "campaign.message_due":
@@ -404,6 +408,29 @@ function adoptionApplicationOf(delivery: Delivery): string | null {
   }
 }
 
+function volunteerWorkOf(delivery: Delivery) {
+  switch (delivery.eventType) {
+    case "volunteer.task_assigned":
+      return {
+        type: "assignment",
+        assignmentId: delivery.payload.assignmentId,
+      } as const;
+    case "volunteer.hours_approved":
+      return {
+        type: "hours",
+        entryId: delivery.payload.entryId,
+        status: "approved",
+      } as const;
+    case "volunteer.hours_rejected":
+      return {
+        type: "hours",
+        entryId: delivery.payload.entryId,
+        status: "rejected",
+      } as const;
+    default:
+      return null;
+  }
+}
 /** The volunteer application an event is about (#123). */
 function volunteerApplicationOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
@@ -656,11 +683,15 @@ export const AUDIENCES = {
    * route names, a teen in the inbox only.
    */
   volunteer_applicant: async (db, delivery) => {
+    const work = volunteerWorkOf(delivery);
+    if (work) return volunteerWorkAudience(db, work, false);
     const applicationId = volunteerApplicationOf(delivery);
     return applicationId ? volunteerApplicant(db, applicationId) : [];
   },
   /** A teen applicant's verified guardians (#123); nobody for an adult's. */
   volunteer_guardians: async (db, delivery) => {
+    const work = volunteerWorkOf(delivery);
+    if (work) return volunteerWorkAudience(db, work, true);
     const applicationId = volunteerApplicationOf(delivery);
     return applicationId ? volunteerGuardians(db, applicationId) : [];
   },
@@ -1099,6 +1130,9 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
   },
+  "volunteer.task_assigned": { names: [], load: async () => ({}) },
+  "volunteer.hours_approved": { names: [], load: async () => ({}) },
+  "volunteer.hours_rejected": { names: [], load: async () => ({}) },
   "volunteer.application_approved": {
     names: APPLICATION_VARIABLES,
     load: (db, { payload }, cipher) =>

@@ -63,7 +63,10 @@ export default async function Page({
         Array.from(
           Map.groupBy(rows, (row) => row.participantProfileId),
           ([profileId, certs]) => (
-            <section key={profileId} className="mt-8 grid gap-4">
+            <section
+              key={profileId ?? "self-volunteer"}
+              className="mt-8 grid gap-4"
+            >
               <h2 className="text-h2">
                 {
                   (certs.find((c) => c.status === "issued") ?? certs[0]!)
@@ -77,7 +80,15 @@ export default async function Page({
                     className="grid gap-3 rounded-3xl border-2 border-border bg-surface p-5"
                   >
                     <h3 className="text-h3">{t(`type.${c.type}`)}</h3>
-                    <p>{c.competitionName}</p>
+                    {c.competitionName && <p>{c.competitionName}</p>}
+                    {c.approvedMinutes != null && (
+                      <p>
+                        {t("approvedService", {
+                          hours: Math.floor(c.approvedMinutes / 60),
+                          minutes: c.approvedMinutes % 60,
+                        })}
+                      </p>
+                    )}
                     <p>
                       {t("recipient")}: {c.recipientName}
                     </p>

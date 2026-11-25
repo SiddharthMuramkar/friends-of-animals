@@ -1072,3 +1072,9 @@ The code that names one person who takes part in competitions, such as
 FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
 _Avoid_: Participant number, registration number (that names one
 registration)
+
+**Volunteer task** — A work item the community team drafts, publishes, assigns and follows through to completion. Its assignment history identifies individual volunteers, separately from the task's shared status.
+
+**Volunteer hours entry** — A volunteer's integer minutes of service performed on one Indian calendar date against an actual assignment. Only approved entries count toward service totals and engagement.
+
+**Volunteer service certificate** — A numbered, verifiable certificate snapshot of the volunteer's approved service minutes at the time of issue. Not a competition award.
