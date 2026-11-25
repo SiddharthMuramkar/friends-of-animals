@@ -17,6 +17,7 @@ import { authorize } from "../../access/can";
 import type { Actor } from "../../actor";
 import type { AppDb } from "../../db/app-db";
 import { invalidInput, type InvalidInput } from "../../input";
+import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import { KEY_DATE_KINDS, type KeyDateKind } from "./domain/key-dates";
 import { dueTransitions, planStatusJob } from "./domain/status-schedule";
@@ -102,6 +103,15 @@ export async function advanceCompetitionStatus(
       { id: competitionId, status, disciplines: stored.values.disciplines },
       plan.transitions
     );
+    // Submissions have closed, whether or not a guard holds the move to
+    // school judging back: individual entries go on to FOA (#92).
+    if (kind === "submissions_close") {
+      await emit(tx, ctx.clock, {
+        type: "competition.submissions_closed",
+        aggregate: { type: "competition", id: competitionId },
+        payload: { competitionId },
+      });
+    }
     return { ok: true, outcome: "advanced", status: moved } as const;
   });
 }

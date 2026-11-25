@@ -17,6 +17,7 @@ export const REFUND_KINDS = [
   /** A donation paid from abroad while FOA can't take foreign money (FCRA
    * off, #106): the whole payment goes back at once, with no approval. */
   "foreign_payment",
+  "recurring_after_cancel",
 ] as const;
 
 export type RefundKind = (typeof REFUND_KINDS)[number];

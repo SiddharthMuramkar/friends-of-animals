@@ -4,6 +4,7 @@ import {
   assertSchoolRoundTransition,
   canTransitionSchoolRound,
   isSchoolRoundEditable,
+  isSchoolRoundFinished,
   SCHOOL_ROUND_STATUSES,
   SchoolRoundTransitionError,
   type SchoolRoundStatus,
@@ -19,6 +20,18 @@ const ALLOWED: readonly (readonly [
   [null, "open"],
   // The coordinator attests the judging and finalises the shortlist.
   ["open", "finalised"],
+  // The shortlist deadline passes with the round unfinished (#90).
+  ["open", "overdue"],
+  // The school can still finalise late.
+  ["overdue", "finalised"],
+  // A competition manager closes it on the school's behalf.
+  ["overdue", "closed_on_behalf"],
+  // A competition manager reopens a decided round: open before the
+  // deadline, overdue after it.
+  ["finalised", "open"],
+  ["finalised", "overdue"],
+  ["closed_on_behalf", "open"],
+  ["closed_on_behalf", "overdue"],
 ];
 
 const FROM: readonly (SchoolRoundStatus | null)[] = [
@@ -72,14 +85,14 @@ describe("school round status machine", () => {
 
   it("names both ends of a forbidden transition", () => {
     try {
-      assertSchoolRoundTransition("finalised", "open");
-      expect.unreachable("finalised -> open is forbidden");
+      assertSchoolRoundTransition("finalised", "closed_on_behalf");
+      expect.unreachable("finalised -> closed_on_behalf is forbidden");
     } catch (error) {
       expect(error).toBeInstanceOf(SchoolRoundTransitionError);
       const refused = error as SchoolRoundTransitionError;
       expect(refused.from).toBe("finalised");
-      expect(refused.to).toBe("open");
-      expect(refused.message).toContain("finalised -> open");
+      expect(refused.to).toBe("closed_on_behalf");
+      expect(refused.message).toContain("finalised -> closed_on_behalf");
     }
   });
 });
@@ -89,10 +102,25 @@ describe("isSchoolRoundEditable()", () => {
     expect(isSchoolRoundEditable("open")).toBe(true);
   });
 
-  it.each(["overdue", "finalised", "closed_on_behalf"] as const)(
+  it("lets the school still change and finalise an overdue round", () => {
+    expect(isSchoolRoundEditable("overdue")).toBe(true);
+  });
+
+  it.each(["finalised", "closed_on_behalf"] as const)(
     "keeps a %s round as it is",
     (status) => {
       expect(isSchoolRoundEditable(status)).toBe(false);
     }
   );
+});
+
+describe("isSchoolRoundFinished()", () => {
+  it.each([
+    ["open", false],
+    ["overdue", false],
+    ["finalised", true],
+    ["closed_on_behalf", true],
+  ] as const)("%s is finished: %s", (status, finished) => {
+    expect(isSchoolRoundFinished(status)).toBe(finished);
+  });
 });

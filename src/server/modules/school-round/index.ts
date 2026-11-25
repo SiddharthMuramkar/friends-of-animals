@@ -10,6 +10,13 @@
 // scope with #91. Its use cases join `as(actor)` through
 // `schoolRoundUseCases`.
 
+import {
+  closeSchoolRoundOnBehalf,
+  reopenSchoolRound,
+  listSchoolRoundsForManager,
+  type ManageRoundInput,
+  type CloseSchoolRoundInput,
+} from "./use-cases/manage-round";
 import type { UseCaseContext } from "../../use-cases";
 import {
   finaliseSchoolRound,
@@ -25,6 +32,12 @@ import {
   saveShortlist,
   type SaveShortlistInput,
 } from "./use-cases/save-shortlist";
+import {
+  completeShortlistedEntry,
+  startShortlistedEntry,
+  type CompleteShortlistedEntryInput,
+  type StartShortlistedEntryInput,
+} from "./use-cases/shortlisted-entry";
 
 export type {
   GetSchoolRoundResult,
@@ -43,11 +56,30 @@ export type {
 } from "./use-cases/list-school-round-outcomes";
 export { JUDGING_STATEMENT_VERSION } from "./domain/judging-statement";
 export type { FinaliseBlocker } from "./domain/finalise";
+export {
+  completeShortlistedEntryInput,
+  startShortlistedEntryInput,
+} from "./use-cases/shortlisted-entry";
+export type {
+  CompleteShortlistedEntryInput,
+  CompleteShortlistedEntryResult,
+  StartShortlistedEntryInput,
+  StartShortlistedEntryResult,
+} from "./use-cases/shortlisted-entry";
+export {
+  SHORTLIST_ONLY_DECLARATIONS,
+  SHORTLIST_ONLY_DECLARATIONS_VERSION,
+} from "./domain/shortlist-only";
 export type { SchoolRoundStatus } from "./domain/status";
 
 type RegistrationRef = { institutionId: string; reference: string };
 
 export const schoolRoundUseCases = (ctx: UseCaseContext) => ({
+  listSchoolRoundsForManager: (input: { competitionId: string }) =>
+    listSchoolRoundsForManager(ctx, input),
+  closeSchoolRoundOnBehalf: (input: CloseSchoolRoundInput) =>
+    closeSchoolRoundOnBehalf(ctx, input),
+  reopenSchoolRound: (input: ManageRoundInput) => reopenSchoolRound(ctx, input),
   getSchoolRound: (input: RegistrationRef) => getSchoolRound(ctx, input),
   recordPanel: (input: RecordPanelInput) => recordPanel(ctx, input),
   saveShortlist: (input: SaveShortlistInput) => saveShortlist(ctx, input),
@@ -55,4 +87,8 @@ export const schoolRoundUseCases = (ctx: UseCaseContext) => ({
     finaliseSchoolRound(ctx, input),
   listSchoolRoundOutcomes: (input: ListSchoolRoundOutcomesInput) =>
     listSchoolRoundOutcomes(ctx, input),
+  startShortlistedEntry: (input: StartShortlistedEntryInput) =>
+    startShortlistedEntry(ctx, input),
+  completeShortlistedEntry: (input: CompleteShortlistedEntryInput) =>
+    completeShortlistedEntry(ctx, input),
 });

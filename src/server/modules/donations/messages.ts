@@ -26,6 +26,7 @@ import {
   messageRoute,
   messageTemplate,
   receipt,
+  recurringDonation,
   receiptLink,
   refund,
   type MessageRouteRow,
@@ -58,7 +59,14 @@ const expiryDate = new Intl.DateTimeFormat(LOCALE, {
 type DonorEvent =
   | "donation.captured"
   | "receipt.link_requested"
-  | "donation.refunded";
+  | "donation.refunded"
+  | RecurringNotice;
+
+type RecurringNotice =
+  | "recurring_donation.activated"
+  | "recurring_donation.charge_failed"
+  | "recurring_donation.cancelled"
+  | "recurring_donation.refunded";
 
 /** The event's enabled route to the donor with `templateKey`, if any. */
 async function routeTo(
@@ -155,7 +163,7 @@ async function sendToDonor(
   deps: OutboxDeps,
   delivery: Delivery<DonorEvent>,
   route: MessageRouteRow,
-  giver: Donor,
+  giver: Pick<Donor, "name" | "email" | "userId">,
   values: Record<string, string>
 ): Promise<void> {
   const templates = await templatesOf(deps.db, route.templateKey);
@@ -285,4 +293,25 @@ export async function sendRefundNotice(
     "refund.reference":
       returned.gatewayRefundId ?? returned.manualReference ?? "",
   });
+}
+
+export async function sendRecurringNotice(
+  deps: OutboxDeps,
+  delivery: Delivery<RecurringNotice>
+): Promise<void> {
+  const route = await routeTo(deps.db, delivery.eventType, delivery.eventType);
+  if (!route) return;
+  const [row] = await deps.db
+    .select({ name: donor.name, email: donor.email, userId: donor.userId })
+    .from(recurringDonation)
+    .innerJoin(donor, eq(donor.id, recurringDonation.donorId))
+    .where(eq(recurringDonation.id, delivery.payload.id));
+  if (!row) return;
+  await sendToDonor(
+    deps,
+    delivery,
+    route,
+    { ...row, ...donorContact(deps.cipher, row) },
+    {}
+  );
 }

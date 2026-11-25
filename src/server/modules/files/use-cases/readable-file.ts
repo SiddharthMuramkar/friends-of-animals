@@ -25,7 +25,10 @@ export async function findReadableFile(
   const everyFile = await can(ctx, "file.read");
   const conditions = [
     eq(fileAsset.id, fileId),
-    notInArray(fileAsset.purpose, [...ENTRY_FILE_PURPOSES]),
+    notInArray(fileAsset.purpose, [
+      ...ENTRY_FILE_PURPOSES,
+      "offline_donation_proof",
+    ]),
   ];
   if (!everyFile.allowed) {
     const ownerId = ctx.actor.kind === "user" ? ctx.actor.userId : undefined;

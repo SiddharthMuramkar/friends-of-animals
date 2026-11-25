@@ -28,6 +28,8 @@ export const ROLES = [
   "safeguarding_lead",
   /** FOA's grievance officer (#115): answers privacy rights requests; global only. */
   "grievance_officer",
+  /** Checks entries that reach FOA and verifies them or sends them back (#92); global only. */
+  "foa_verifier",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -76,6 +78,7 @@ export const ROLE_SCOPE_TYPES: Readonly<Record<Role, readonly ScopeType[]>> = {
   adoption_coordinator: ["global", "organisation"],
   safeguarding_lead: ["global"],
   grievance_officer: ["global"],
+  foa_verifier: ["global"],
 };
 
 /** FOA's own people. Staff roles need a second factor (#60). */
@@ -90,6 +93,7 @@ const STAFF_ROLES: ReadonlySet<Role> = new Set<Role>([
   "adoption_coordinator",
   "safeguarding_lead",
   "grievance_officer",
+  "foa_verifier",
 ]);
 
 export function isStaffRole(role: Role): boolean {

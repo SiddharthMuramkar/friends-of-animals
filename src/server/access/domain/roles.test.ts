@@ -6,7 +6,7 @@ const INSTITUTION = "01938a00-0000-7000-8000-00000000a001";
 const COMPETITION = "01938a00-0000-7000-8000-00000000c001";
 
 describe("the role catalogue", () => {
-  it("lists the platform spec's sixteen roles, the safeguarding lead and the grievance officer", () => {
+  it("lists the platform spec's sixteen roles, the safeguarding lead, the grievance officer and the FOA verifier", () => {
     expect([...ROLES].sort()).toEqual([
       "adoption_coordinator",
       "auction_manager",
@@ -14,6 +14,7 @@ describe("the role catalogue", () => {
       "competition_manager",
       "content_manager",
       "finance",
+      "foa_verifier",
       "grievance_officer",
       "guardian",
       "institution_admin",
@@ -38,6 +39,7 @@ describe("the role catalogue", () => {
       "competition_manager",
       "content_manager",
       "finance",
+      "foa_verifier",
       "grievance_officer",
       "safeguarding_lead",
       "staff_admin",

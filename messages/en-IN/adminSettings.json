@@ -81,6 +81,10 @@
         }
       },
       "donations": {
+        "recurringEnabled": {
+          "label": "Monthly donations",
+          "description": "Accept recurring donations once the subscription gateway is configured and approved."
+        },
         "enabled": {
           "label": "Online donations",
           "description": "Lets people give on the donate page. Keep it off until Razorpay's live keys are set and the accountant has confirmed receipts and the chart of accounts; until then the page says donations open soon."
@@ -204,6 +208,20 @@
         "entrySubmissionDueSecondHours": {
           "label": "Second reminder before submissions close",
           "description": "How many hours before the submission deadline the second reminder goes, to whoever still owes an entry then. Use 0 for no second reminder."
+        },
+        "schoolRoundShortlistDueFirstHours": {
+          "label": "First reminder before school shortlists close",
+          "description": "Hours before the shortlist deadline to remind coordinators of unfinished school rounds. Use 0 for no first reminder."
+        },
+        "schoolRoundShortlistDueSecondHours": {
+          "label": "Second reminder before school shortlists close",
+          "description": "Hours before the shortlist deadline for the second reminder, to coordinators whose rounds remain unfinished. Use 0 to turn it off."
+        }
+      },
+      "entries": {
+        "resubmissionDays": {
+          "label": "Days to resubmit a sent-back entry",
+          "description": "When an FOA verifier sends an entry back, the participant, guardian or coordinator has this many days to fix it and resubmit. After that the entry stays sent back. Between 1 and 60; a change applies to entries sent back after it."
         }
       },
       "retention": {

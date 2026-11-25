@@ -38,6 +38,7 @@ import {
   entry,
   entryFile,
   entryTransition,
+  entryVerification,
   fileAsset,
   guardian,
   guardianInvitation,
@@ -281,6 +282,12 @@ export const SECTIONS: readonly Section[] = [
     owners: ["entry_id"],
   },
   {
+    table: entryVerification,
+    where: (scope) => sql`${entryVerification.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
+    withhold: ["decided_by_user_id", "resubmitted_by_user_id"],
+  },
+  {
     table: fileAsset,
     where: (scope) =>
       or(
@@ -389,6 +396,9 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // Which coordinator picked an entry for a school's shortlist (#89): keyed
   // by the entry, with no id of its own to list.
   school_round_pick: "coordinator_pick",
+  // Which coordinator declared a shortlisted entry they created (#91):
+  // keyed by the entry, with no id of its own to list.
+  school_round_declaration: "coordinator_pick",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };

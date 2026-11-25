@@ -8,7 +8,11 @@ import { StatusCountdown } from "@/components/competitions/status-countdown";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { adminCompetitionCancelPath, APP_ROUTES } from "@/lib/app-routes";
+import {
+  adminCompetitionCancelPath,
+  adminSchoolRoundsPath,
+  APP_ROUTES,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -52,14 +56,16 @@ export default async function Page({ params, searchParams }: Props) {
 async function EditCompetition({ params, searchParams }: Props) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [{ id }, { done }, t, callout, terms, cancel] = await Promise.all([
-    params,
-    searchParams,
-    getTranslations("adminCompetitions"),
-    getTranslations("common.callout"),
-    getTranslations("adminCompetitionTerms"),
-    getTranslations("competitionCancel"),
-  ]);
+  const [{ id }, { done }, t, callout, terms, cancel, rounds] =
+    await Promise.all([
+      params,
+      searchParams,
+      getTranslations("adminCompetitions"),
+      getTranslations("common.callout"),
+      getTranslations("adminCompetitionTerms"),
+      getTranslations("competitionCancel"),
+      getTranslations("schoolRound.manager"),
+    ]);
   let result;
   try {
     result = await as(actor).getCompetitionForEdit({ competitionId: id });
@@ -104,6 +110,12 @@ async function EditCompetition({ params, searchParams }: Props) {
         <ButtonLink href={APP_ROUTES.adminCompetitions} variant="quiet">
           <ArrowLeft aria-hidden="true" />
           {t("edit.back")}
+        </ButtonLink>
+        <ButtonLink
+          href={adminSchoolRoundsPath(competition.id)}
+          variant="secondary"
+        >
+          {rounds("title")}
         </ButtonLink>
         {competition.mayCancel ? (
           <ButtonLink

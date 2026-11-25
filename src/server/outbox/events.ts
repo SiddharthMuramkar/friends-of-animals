@@ -48,6 +48,15 @@ type DirectoryListingEvent<T extends `directory.${string}`> = {
   payload: { listingId: string; userId: string };
 };
 
+/** One verification decision on an entry (#92). */
+type EntryVerificationPayload = {
+  entryId: string;
+  registrationId: string;
+  /** The school route's institution registration; null on the individual route. */
+  institutionRegistrationId: string | null;
+  verificationId: string;
+};
+
 export type DomainEvent =
   /** A listing was registered, or renamed and sent back for review. */
   | DirectoryListingEvent<"directory.listing_submitted">
@@ -344,16 +353,96 @@ export type DomainEvent =
       };
     }
   | {
+      /**
+       * A competition manager closed an overdue school round on the
+       * school's behalf (#90), applying its saved picks. Not
+       * shortlist-finalised: only the school finalises. Each family is
+       * told the outcome as after finalising.
+       */
+      type: "school_round.closed_on_behalf";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /**
+       * The shortlist deadline passed with the school round unfinished
+       * (#90): its coordinators are told it is overdue.
+       */
+      type: "school_round.overdue";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /**
+       * A competition's submissions closed (#92): its status job for the
+       * submissions_close key date ran. Individual entries go on to FOA.
+       */
+      type: "competition.submissions_closed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * An FOA verifier verified an entry (#92). The participant or their
+       * guardian is told; on the school route, its coordinators.
+       */
+      type: "entry.foa_verified";
+      aggregate: { type: "entry"; id: string };
+      payload: EntryVerificationPayload;
+    }
+  | {
+      /**
+       * An FOA verifier sent an entry back with a reason (#92); whoever can
+       * resubmit it is told the reason and the deadline.
+       */
+      type: "entry.sent_back";
+      aggregate: { type: "entry"; id: string };
+      payload: EntryVerificationPayload;
+    }
+  | {
+      /**
+       * A replacement file of a sent-back entry went live (#92): the entry
+       * returns to FOA if it was resubmitted with that file.
+       */
+      type: "entry.replacement_live";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; entryFileId: string };
+    }
+  | {
       /** An entry was shortlisted in a finalised school round (#89). */
       type: "entry.school_shortlisted";
       aggregate: { type: "entry"; id: string };
-      payload: { entryId: string; registrationId: string; roundId: string };
+      payload: {
+        entryId: string;
+        registrationId: string;
+        roundId: string;
+        position?: number | null;
+      };
     }
   | {
       /** An entry was not shortlisted in a finalised school round (#89). */
       type: "entry.not_shortlisted";
       aggregate: { type: "entry"; id: string };
-      payload: { entryId: string; registrationId: string; roundId: string };
+      payload: {
+        entryId: string;
+        registrationId: string;
+        roundId: string;
+        position?: number | null;
+      };
+    }
+  | {
+      /** A confirmed student was not shortlisted, and had no entry (#91). */
+      type: "registration.not_shortlisted";
+      aggregate: { type: "registration"; id: string };
+      payload: { registrationId: string; roundId: string };
     }
   | {
       /** An institution registered for a competition (#75). */
@@ -401,6 +490,36 @@ export type DomainEvent =
       type: "donation.refunded";
       aggregate: { type: "donation"; id: string };
       payload: { donationId: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.activated";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.charge_failed";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.cancelled";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.refunded";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.payment_refused";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.cancel_requested";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
     }
   | {
       /** A donor asked for a new receipt link by email (#106). The token
@@ -632,8 +751,15 @@ const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
   entryId: z.uuid(),
   registrationId: z.uuid(),
   roundId: z.uuid(),
+  position: z.int().min(1).nullable().optional(),
 });
 
+const ENTRY_VERIFICATION_EVENT = z.object({
+  entryId: z.uuid(),
+  registrationId: z.uuid(),
+  institutionRegistrationId: z.uuid().nullable(),
+  verificationId: z.uuid(),
+});
 const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
@@ -739,8 +865,29 @@ export const EVENT_PAYLOADS = {
     competitionId: z.uuid(),
     institutionRegistrationId: z.uuid(),
   }),
+  "school_round.closed_on_behalf": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "school_round.overdue": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "competition.submissions_closed": z.object({ competitionId: z.uuid() }),
+  "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
+  "entry.sent_back": ENTRY_VERIFICATION_EVENT,
+  "entry.replacement_live": z.object({
+    entryId: z.uuid(),
+    entryFileId: z.uuid(),
+  }),
   "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
+  "registration.not_shortlisted": z.object({
+    registrationId: z.uuid(),
+    roundId: z.uuid(),
+  }),
   "payment.batch_captured": z.object({
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
@@ -754,6 +901,15 @@ export const EVENT_PAYLOADS = {
     donationId: z.uuid(),
     refundId: z.uuid(),
   }),
+  "recurring_donation.activated": z.object({ id: z.uuid() }),
+  "recurring_donation.charge_failed": z.object({ id: z.uuid() }),
+  "recurring_donation.cancelled": z.object({ id: z.uuid() }),
+  "recurring_donation.refunded": z.object({ id: z.uuid() }),
+  "recurring_donation.payment_refused": z.object({
+    id: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "recurring_donation.cancel_requested": z.object({ id: z.uuid() }),
   "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
@@ -878,7 +1034,13 @@ export const SUBSCRIBERS = {
   // The participant's, or their guardian's, messages go by route row (#85).
   // A school's student's family contact isn't a user: their receipt goes
   // by its own handler (#87).
-  "entry.submitted": ["notifications.dispatch", "entries.send_family_receipt"],
+  // An individual entry submitted after submissions closed goes on to FOA
+  // at once (#92).
+  "entry.submitted": [
+    "notifications.dispatch",
+    "entries.send_family_receipt",
+    "verification.forward_late_entry",
+  ],
   "entry.file_rejected": ["notifications.dispatch"],
   "entry.file_failed": ["notifications.dispatch"],
   // The owner hears FOA's decisions by route row (#127). No route names
@@ -892,7 +1054,11 @@ export const SUBSCRIBERS = {
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
-  "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // The shortlist deadline also makes unfinished school rounds overdue (#90).
+  "competitions.key_date_scheduled": [
+    "competitions.advance_status",
+    "school_round.mark_overdue",
+  ],
   // Each keeps the competition's reminders in step with it (#84).
   "competition.published": ["reminders.schedule"],
   "competition.key_dates_changed": ["reminders.schedule"],
@@ -921,12 +1087,30 @@ export const SUBSCRIBERS = {
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
   // The competition's school rounds open (#89).
   "competition.school_judging_started": ["school_round.open_rounds"],
+  // Individual entries go on to FOA when submissions close (#92).
+  "competition.submissions_closed": ["verification.forward_individual_entries"],
+  // The participant, guardian or coordinators hear by route row (#92).
+  "entry.foa_verified": ["notifications.dispatch"],
+  "entry.sent_back": ["notifications.dispatch"],
+  // A resubmitted file went live: the entry returns to FOA (#92).
+  "entry.replacement_live": ["verification.return_resubmission"],
   // Each family is told the outcome, one event per entry (#89).
-  "school_round.shortlist_finalised": ["school_round.queue_family_outcomes"],
+  // A finished round also retries the refused move to FOA judging (#90).
+  "school_round.shortlist_finalised": [
+    "school_round.queue_family_outcomes",
+    "competitions.retry_blocked_moves",
+  ],
+  "school_round.closed_on_behalf": [
+    "school_round.queue_family_outcomes",
+    "competitions.retry_blocked_moves",
+  ],
+  // Its coordinators hear by route row (`institution_coordinators`, #90).
+  "school_round.overdue": ["notifications.dispatch"],
   // The family contact isn't a user: the message goes by the school
   // round's own handler, by its `family_contact` route (#89).
   "entry.school_shortlisted": ["school_round.send_family_outcome"],
   "entry.not_shortlisted": ["school_round.send_family_outcome"],
+  "registration.not_shortlisted": ["school_round.send_family_outcome"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
@@ -945,6 +1129,12 @@ export const SUBSCRIBERS = {
   "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
   "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
   "donation.refunded": ["donations.send_refund_notice"],
+  "recurring_donation.activated": ["recurring_donations.send_notice"],
+  "recurring_donation.charge_failed": ["recurring_donations.send_notice"],
+  "recurring_donation.cancelled": ["recurring_donations.send_notice"],
+  "recurring_donation.refunded": ["recurring_donations.send_notice"],
+  "recurring_donation.payment_refused": ["ledger.post_foreign_donation"],
+  "recurring_donation.cancel_requested": ["recurring_donations.cancel"],
   "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).

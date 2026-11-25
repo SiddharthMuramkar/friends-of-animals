@@ -320,6 +320,13 @@ purpose is the donation, and has exactly one Receipt once captured. Adults
 only; foreign money is returned while FOA isn't registered under FCRA.
 _Avoid_: Contribution, gift record, payment
 
+**Recurring donation**:
+A signed-in adult's monthly mandate with the payment gateway. Each
+successful charge is a separate Donation with its own Receipt. The donor
+can request immediate cancellation; any captured charge after that
+request is returned and receives no Receipt.
+_Avoid_: Subscription gift, membership fee
+
 **Donor**:
 Who gave a Donation, as they gave it: a person, or a company or CSR partner
 with a contact person, which chooses whether its name may be shown in
@@ -586,8 +593,10 @@ _Avoid_: Jury (FOA's judges), judges (alone)
 **Shortlist**:
 The entries a school picks, per Category, to go on to FOA judging, up to the
 competition's shortlist size. It is a draft until the School round is
-finalised; finalising makes each Entry school-shortlisted or not
-shortlisted.
+finalised. Under the all-participants scope, finalising makes each Entry
+school-shortlisted or not shortlisted. Under shortlist-only scope, the
+coordinator creates an Entry already school-shortlisted for each pick;
+students not picked have no Entry.
 _Avoid_: Selection, finalists
 
 **School position**:
@@ -648,7 +657,7 @@ The work a participant submits for a competition registration; a registration
 has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
-The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
+The reference assigned to an entry when its first upload is confirmed (including a shortlisted entry created by the coordinator during the School round), or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
 
 **Live file**
 The entry’s current work (an image, a video, or an essay typed or as a PDF) after it passes its safety and processing checks. A typed essay has none to pass and is live as soon as it is saved.
@@ -659,7 +668,10 @@ A new upload for a submitted entry. The live file stays in place until the new u
 **Digital submission scope**:
 Which of a competition's school-route participants send their work to FOA as
 a digital upload: all of them (the default), or only the entries on each
-school's shortlist.
+school's shortlist. Under shortlist-only scope, the coordinator creates
+those entries during the School round. Each goes to FOA once both its upload
+passes the checks and the round is finalised; this scope never applies to
+individual registrations.
 _Avoid_: Submission mode, upload policy
 
 **Submission roster**:

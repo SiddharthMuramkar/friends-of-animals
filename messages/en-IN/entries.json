@@ -108,6 +108,7 @@
       "discipline_not_offered": "This competition doesn’t take entries in that discipline.",
       "submission_not_open": "Submissions aren’t open yet.",
       "deadline_passed": "The submission deadline has passed.",
+      "resubmission_closed": "The resubmission deadline has passed.",
       "entry_locked": "This entry can no longer be changed.",
       "upload_limit": "Finish an upload or wait a few minutes before trying again.",
       "file_not_found": "We couldn’t find this upload. Please try again.",
@@ -185,6 +186,44 @@
       "unsupported_type": "The file isn’t a type we can prepare.",
       "image_too_large": "The image has more pixels than we can prepare. Try a smaller copy.",
       "processing_error": "Something went wrong while preparing it. Please try again."
+    },
+    "verification": {
+      "queueTitle": "FOA verification queue",
+      "queueLead": "Entries waiting for a digital verification decision, with the oldest arrivals first.",
+      "empty": "No entries are waiting for verification.",
+      "school": "School route",
+      "individual": "Individual route",
+      "review": "Review entry {code}",
+      "resubmitted": "Resubmitted",
+      "back": "Back to verification queue",
+      "verify": "Mark verified",
+      "sendBack": "Send back for correction",
+      "decision": "Verification decision",
+      "reason": "Reason for sending back (required)",
+      "note": "Additional correction instructions (required for Other)",
+      "reasonCodes": {
+        "file_unreadable": "File unreadable",
+        "wrong_work": "Incorrect work",
+        "missing_declaration": "Missing declaration",
+        "other": "Other"
+      },
+      "decided": "The entry decision was recorded.",
+      "refused": "The decision could not be recorded. Check the entry status or choose a reason and add instructions for Other.",
+      "missing": "This entry is no longer awaiting verification.",
+      "correction": "Correction requested by FOA",
+      "due": "Correct and resubmit by {date}.",
+      "closed": "The resubmission deadline has passed.",
+      "resubmit": "Resubmit corrected details",
+      "description": "Description",
+      "title": "Title",
+      "statement": "Declaration / statement (optional)",
+      "fileHint": "To correct the work itself, use the replacement form below. The new work must pass its checks before it returns to FOA.",
+      "resubmitError": "Could not resubmit the entry. Check the corrections and deadline, and try again.",
+      "openWork": "Open submitted document",
+      "openVideo": "Open submitted video",
+      "workUnavailable": "The live work is unavailable.",
+      "arrival": "Arrived {date}",
+      "done": "Entry resubmitted to FOA."
     }
   }
 }

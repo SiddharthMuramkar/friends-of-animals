@@ -35,7 +35,10 @@ import {
   type Money,
   type PaymentGateway,
 } from "../payment-gateway";
-import { isValidCheckoutSignature } from "./signature";
+import {
+  isValidCheckoutSignature,
+  isValidSubscriptionCheckoutSignature,
+} from "./signature";
 import { readRazorpayWebhook } from "./webhook";
 
 export type RazorpayKeys = {
@@ -194,8 +197,120 @@ export function razorpayGateway({
     return parsed;
   }
 
+  const subscriptionEntity = z.object({
+    id: z.string(),
+    plan_id: z.string(),
+    status: z.string(),
+    current_start: z.number().nullish(),
+    charge_at: z.number().nullish(),
+    ended_at: z.number().nullish(),
+    notes: z
+      .union([z.record(z.string(), z.string()), z.array(z.never())])
+      .optional(),
+  });
+  function subscriptionView(entity: unknown) {
+    const row = subscriptionEntity.parse(entity);
+    const date = (value: number | null | undefined) =>
+      value == null ? null : new Date(value * 1000);
+    return {
+      id: row.id,
+      planId: row.plan_id,
+      status: row.status,
+      currentStart: date(row.current_start),
+      chargeAt: date(row.charge_at),
+      endedAt: date(row.ended_at),
+      notes: Array.isArray(row.notes) ? {} : (row.notes ?? {}),
+    };
+  }
+  const invoiceCollection = z.object({
+    items: z.array(
+      z.object({ id: z.string(), payment_id: z.string().nullish() })
+    ),
+  });
+  const chargeEntity = z.object({
+    id: z.string(),
+    amount: z.number().int().positive(),
+    currency: z.string(),
+    international: z.boolean(),
+    status: z.string(),
+    created_at: z.number(),
+  });
   return {
     name,
+    async createPlan(input) {
+      const row = z.object({ id: z.string() }).parse(
+        await call("POST", "/plans", {
+          period: input.period,
+          interval: input.interval,
+          item: {
+            name: input.name,
+            amount: paiseForJson(input),
+            currency: input.currency,
+          },
+        })
+      );
+      return { planId: row.id };
+    },
+    async createSubscription(input) {
+      return subscriptionView(
+        await call("POST", "/subscriptions", {
+          plan_id: input.planId,
+          total_count: input.totalCount,
+          customer_notify: 0,
+          notes: input.notes,
+        })
+      );
+    },
+    subscriptionCheckout({ subscriptionId, description }) {
+      return { keyId, subscriptionId, description };
+    },
+    verifySubscriptionCheckout(returned) {
+      return isValidSubscriptionCheckoutSignature(returned, keySecret);
+    },
+    async fetchSubscription(id) {
+      return subscriptionView(
+        await call("GET", `/subscriptions/${encodeURIComponent(id)}`)
+      );
+    },
+    async fetchSubscriptionCharges(id, options) {
+      const charges = [];
+      for (let skip = 0; ; skip += 100) {
+        const { items } = invoiceCollection.parse(
+          await call(
+            "GET",
+            `/invoices?subscription_id=${encodeURIComponent(id)}&count=100&skip=${skip}`
+          )
+        );
+        for (const invoice of items) {
+          if (!invoice.payment_id || options?.except?.has(invoice.payment_id))
+            continue;
+          const p = chargeEntity.parse(
+            await call(
+              "GET",
+              `/payments/${encodeURIComponent(invoice.payment_id)}`
+            )
+          );
+          charges.push({
+            paymentId: p.id,
+            invoiceId: invoice.id,
+            captured: p.status === "captured" || p.status === "refunded",
+            amountMinor: BigInt(p.amount),
+            currency: p.currency,
+            international: p.international,
+            createdAt: new Date(p.created_at * 1000),
+          });
+        }
+        if (items.length < 100) break;
+      }
+      return charges;
+    },
+    async cancelSubscription(id) {
+      return subscriptionView(
+        await call("POST", `/subscriptions/${encodeURIComponent(id)}/cancel`, {
+          cancel_at_cycle_end: 0,
+        })
+      );
+    },
 
     async createOrder({ amount, receipt, notes }) {
       const paise = paiseForJson(amount);

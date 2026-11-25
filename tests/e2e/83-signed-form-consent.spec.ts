@@ -1,5 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
+import { readMediaFixture } from "../../src/test/media-fixtures";
 import {
   generateTotpSecret,
   totpCode,
@@ -13,7 +14,8 @@ import {
   expectAccessibleInDark,
   expectRendersAccessibly,
 } from "./support/a11y";
-import { test, type SeedAccount } from "./support/seed-account";
+import type { SeedAccount } from "./support/seed-account";
+import { STUDENT, test } from "./support/seed-consent-student";
 import { signInByCode } from "./support/sign-in";
 import { countViewTransitions } from "./support/view-transitions";
 
@@ -171,6 +173,34 @@ test("a coordinator can find signed-form status and open the upload control", as
   ).toBeVisible();
   await expectAccessible(page, "coordinator signed-form upload");
   await expectAccessibleInDark(page, "coordinator signed-form upload");
+});
+
+test("a coordinator submits a private signed form for review", async ({
+  page,
+  request,
+  consentStudent,
+}) => {
+  await signInByCode(page, request, consentStudent.adminEmail);
+  await expectRendersAccessibly(
+    page,
+    `/institution/registrations/${consentStudent.reference}?institution=${consentStudent.institutionId}`
+  );
+  const student = page.locator("li").filter({
+    has: page.getByRole("heading", { name: STUDENT, exact: true }),
+  });
+  await student.getByText("Upload a signed form", { exact: true }).click();
+  await student.getByLabel("Choose a scan").setInputFiles({
+    name: "signed-form.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from(readMediaFixture("gpsJpeg")),
+  });
+  await student
+    .getByRole("checkbox", { name: /Public gallery and results/ })
+    .check();
+  await student.getByRole("button", { name: "Submit for review" }).click();
+  await expect(
+    student.getByText("Pending review", { exact: true })
+  ).toBeVisible();
 });
 
 test("a signed-in member sees accessible review access denials", async ({
