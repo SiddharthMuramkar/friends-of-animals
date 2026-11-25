@@ -56,73 +56,196 @@ describe("auction reservation concurrency", () => {
 it("serializes a family return and a competing reservation against the actual artwork lock", async () => {
   await world.seed.preview();
   world.clock.set(new Date());
+  const { randomInt } = await import("node:crypto");
   const { eq } = await import("drizzle-orm");
-  const { artworkResultsWindow, artworkReturnRequest, physicalArtwork } =
-    await import("@/server/db/schema");
-  const { SEED_ACCOUNTS } = await import("@/server/seed/accounts");
-  const [artwork] = await world.db
+  const { uuidv7 } = await import("@/server/ids");
+  const {
+    artworkResultsWindow,
+    artworkReturnRequest,
+    artworkVerification,
+    competition,
+    competitionAgeGroup,
+    competitionConsentDocument,
+    consentEvent,
+    entry,
+    participantProfile,
+    physicalArtwork,
+    registration,
+  } = await import("@/server/db/schema");
+  const { SEED_AUCTION_COMPETITION } =
+    await import("@/server/seed/competitions");
+  const { auctionPolicyDocument } = await import("../consent/auction-policy");
+  const { PROFILE_PURPOSE } = await import("../registration/student-profile");
+  const policy = await auctionPolicyDocument(
+    world.db,
+    SEED_AUCTION_COMPETITION.id
+  );
+  if (!policy?.compatible) throw new Error("Seed auction consent missing");
+
+  // Other PG files drain due custody jobs on the shared database. Never
+  // rewind a published window on their historical, possibly retained work.
+  // Make a distinct competition, adult creator, verified original and
+  // current consent; only this untouched window approaches its deadline.
+  const code = `RET${Array.from({ length: 3 }, () => String.fromCharCode(65 + randomInt(26))).join("")}27`;
+  const comp = await world.seed.competition({
+    code,
+    name: `Return race ${code}`,
+    status: "results_published",
+    auctionPermitted: true,
+    physicalArtwork: { kind: "all_shortlisted" },
+    ageGroups: [{ label: "Adults", minAge: 18, maxAge: 99 }],
+  });
+  const [group] = await world.db
     .select()
-    .from(physicalArtwork)
-    .where(eq(physicalArtwork.artworkCode, SEED_AUCTIONS.eligibleArtworkCode));
-  if (!artwork) throw new Error("Seed artwork missing");
-  const [original] = await world.db
-    .select()
-    .from(artworkResultsWindow)
-    .where(eq(artworkResultsWindow.competitionId, artwork.competitionId));
-  if (!original) throw new Error("Results window fixture missing");
-  const family = world.as(await world.signedIn(SEED_ACCOUNTS.members[1]));
+    .from(competitionAgeGroup)
+    .where(eq(competitionAgeGroup.competitionId, comp.id));
+  if (!group) throw new Error("Adult age group fixture missing");
+  const member = await world.seed.member({
+    email: world.uniqueEmail(),
+    name: "Return race creator",
+  });
+  const now = world.clock.now();
+  const beforeResults = new Date(+now - 31 * 86400000);
+  const deadline = new Date(+now + 60000);
+  const profileId = uuidv7(beforeResults),
+    registrationId = uuidv7(beforeResults),
+    entryId = uuidv7(beforeResults),
+    artworkId = uuidv7(beforeResults);
+  await world.db.transaction(async (tx) => {
+    await tx
+      .update(competition)
+      .set({ auctionCreatorShareBps: policy.share })
+      .where(eq(competition.id, comp.id));
+    await tx.insert(competitionConsentDocument).values({
+      competitionId: comp.id,
+      purpose: "auction",
+      consentDocumentId: policy.document.id,
+      attachedAt: beforeResults,
+    });
+    await tx.insert(participantProfile).values({
+      id: profileId,
+      ownerKind: "self",
+      ownerUserId: member.id,
+      fullName: member.name,
+      dobCiphertext: world.deps.cipher.encrypt(
+        PROFILE_PURPOSE.dob,
+        "1990-01-01"
+      ),
+      identityHash: profileId,
+      createdAt: beforeResults,
+      updatedAt: beforeResults,
+    });
+    await tx.insert(registration).values({
+      id: registrationId,
+      participantProfileId: profileId,
+      competitionId: comp.id,
+      route: "individual",
+      ageGroupId: group.id,
+      status: "confirmed",
+      registrationNumber: `${comp.code}-R-5EED01`,
+      createdAt: beforeResults,
+      updatedAt: beforeResults,
+    });
+    await tx.insert(entry).values({
+      id: entryId,
+      code: `${comp.code}-E-5EED01`,
+      competitionId: comp.id,
+      registrationId,
+      participantProfileId: profileId,
+      discipline: "drawing",
+      title: "Return race original",
+      description: "A verified original in custody",
+      status: "foa_verified",
+      submittedAt: beforeResults,
+      createdAt: beforeResults,
+      updatedAt: beforeResults,
+    });
+    await tx.insert(physicalArtwork).values({
+      id: artworkId,
+      entryId,
+      registrationId,
+      competitionId: comp.id,
+      artworkCode: `${comp.code}-A-5EED01`,
+      status: "verified",
+      requestedAt: beforeResults,
+      dispatchDeadline: beforeResults,
+      packagingInstructions: "Protect the original artwork",
+      shippingPayer: "sender",
+      facilityAddress: "Sample FOA address",
+      receivedAt: beforeResults,
+      storageLocation: "Return race shelf",
+      retainedAt: null,
+    });
+    await tx.insert(artworkVerification).values({
+      artworkId,
+      verifiedAt: beforeResults,
+      codeMatchesLabel: true,
+      creatorConfirmed: true,
+      matchesDigital: true,
+      consentDocumentsOk: true,
+      condition: "good",
+      widthMm: 297,
+      heightMm: 420,
+      material: "Paper",
+    });
+    await tx.insert(consentEvent).values({
+      id: uuidv7(beforeResults),
+      subjectType: "user",
+      subjectId: member.id,
+      giverUserId: member.id,
+      purpose: "auction",
+      competitionId: comp.id,
+      documentId: policy.document.id,
+      action: "given",
+      method: "web_form",
+      occurredAt: beforeResults,
+    });
+    await tx.insert(artworkResultsWindow).values({
+      competitionId: comp.id,
+      releaseId: uuidv7(beforeResults),
+      resultsPublishedAt: new Date(+deadline - 30 * 86400000),
+      closesAt: deadline,
+    });
+  });
+  const family = world.as(await world.signedIn(member));
   const manager = world.as(
     await world.signedIn(SEED_AUCTIONS.manager, { secondFactor: true })
   );
-  const now = world.clock.now();
-  // A throwaway fixture, isolated from other tests by restoring the window.
-  await world.db
-    .update(artworkResultsWindow)
-    .set({
-      resultsPublishedAt: new Date(+now - 30 * 86400000 + 60000),
-      closesAt: new Date(+now + 60000),
-    })
-    .where(eq(artworkResultsWindow.competitionId, original.competitionId));
   const input = {
-    artworkId: artwork.id,
+    artworkId,
     story: "A reserved original",
     basePricePaise: 10000n,
     reservePricePaise: 20000n,
     opensAt: new Date(+now + 3600000),
     closesAt: new Date(+now + 7200000),
   };
-  try {
-    let returning!: ReturnType<typeof family.requestArtworkReturn>;
-    let reserving!: ReturnType<typeof manager.createLot>;
-    await world.sql.begin(async (tx) => {
-      await tx`select id from physical_artwork where id=${artwork.id} for update`;
-      returning = family.requestArtworkReturn({ artworkId: artwork.id });
-      await world.waitForLockWaiters(1);
-      reserving = manager.createLot(input);
-      await world.waitForLockWaiters(2);
-    });
-    expect(await returning).toMatchObject({ ok: true });
-    expect(await reserving).toMatchObject({
-      ok: false,
-      reasons: ["return_requested", "return_window_pending"],
-    });
-    world.clock.set(new Date(+now + 60000));
-    expect(await manager.createLot(input)).toMatchObject({
-      ok: false,
-      reasons: ["return_requested"],
-    });
-  } finally {
+
+  let returning!: ReturnType<typeof family.requestArtworkReturn>;
+  let reserving!: ReturnType<typeof manager.createLot>;
+  await world.sql.begin(async (tx) => {
+    await tx`select id from physical_artwork where id=${artworkId} for update`;
+    returning = family.requestArtworkReturn({ artworkId });
+    await world.waitForLockWaiters(1);
+    reserving = manager.createLot(input);
+    await world.waitForLockWaiters(2);
+  });
+  const returned = await returning;
+  expect(returned, JSON.stringify(returned)).toMatchObject({ ok: true });
+  expect(await reserving).toMatchObject({
+    ok: false,
+    reasons: ["return_requested", "return_window_pending"],
+  });
+  world.clock.set(deadline);
+  expect(await manager.createLot(input)).toMatchObject({
+    ok: false,
+    reasons: ["return_requested"],
+  });
+  expect(
     await world.db
-      .delete(artworkReturnRequest)
-      .where(eq(artworkReturnRequest.artworkId, artwork.id));
-    await world.db
-      .update(artworkResultsWindow)
-      .set({
-        resultsPublishedAt: original.resultsPublishedAt,
-        closesAt: original.closesAt,
-      })
-      .where(eq(artworkResultsWindow.competitionId, original.competitionId));
-  }
+      .select()
+      .from(artworkReturnRequest)
+      .where(eq(artworkReturnRequest.artworkId, artworkId))
+  ).toMatchObject([{ artworkId, requestedBy: member.id, fulfilledAt: null }]);
 });
 
 it("serializes a consent re-pin and lot creation on the competition lock", async () => {
