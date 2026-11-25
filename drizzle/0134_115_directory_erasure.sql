@@ -1,0 +1,2 @@
+ALTER TABLE "directory_listing" ALTER COLUMN "owner_user_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "directory_listing" ADD CONSTRAINT "directory_listing_open_owner_present" CHECK ("directory_listing"."owner_user_id" IS NOT NULL OR "directory_listing"."status" IN ('withdrawn', 'rejected'));

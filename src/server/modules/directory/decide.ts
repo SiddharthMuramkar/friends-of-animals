@@ -17,6 +17,8 @@ import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import { emit } from "../../outbox";
 import type { UseCaseContext } from "../../use-cases";
+import { TOMBSTONE } from "../privacy/domain/anonymise";
+import { LISTING_CONTACT_PHONE } from "./stored-listing";
 import {
   decideListingStatus,
   type ListingOutcome,
@@ -94,14 +96,28 @@ async function decideListing(
         statusReason: directoryListing.statusReason,
         verifiedAt: directoryListing.verifiedAt,
         ownerUserId: directoryListing.ownerUserId,
+        contactPhoneCiphertext: directoryListing.contactPhoneCiphertext,
       })
       .from(directoryListing)
       .where(eq(directoryListing.id, listingId))
       .for("update");
     if (!row) return { ok: false, error: "not_found" } as const;
+    // Erasure detaches only closed listings, with no further decisions.
+    if (row.ownerUserId === null) {
+      return { ok: false, error: "transition_not_allowed" } as const;
+    }
 
     const change = decideListingStatus({ from: row.status, action, reason });
     if (!change.ok) return change;
+    // After a privacy handover, the representative must supply new
+    // details before staff can publish them.
+    if (
+      action === "verify" &&
+      ctx.cipher.decrypt(LISTING_CONTACT_PHONE, row.contactPhoneCiphertext) ===
+        TOMBSTONE
+    ) {
+      return { ok: false, error: "transition_not_allowed" } as const;
+    }
     const now = ctx.clock.now();
     // Only the first verification grants the role: a listing sent back to
     // review and verified again keeps the representatives it has.
