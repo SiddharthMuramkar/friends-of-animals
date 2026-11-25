@@ -1,0 +1,228 @@
+{
+  "adminGrievance": {
+    "meta": {
+      "title": "Privacy requests",
+      "description": "FOA's grievance officer answers people's requests to see, correct or erase their data."
+    },
+    "eyebrow": "Admin",
+    "title": "Privacy requests",
+    "lead": "Requests to see, correct or erase personal data, earliest due first. Each needs an answer by its due date.",
+    "loading": "Loading privacy requests…",
+    "denied": {
+      "title": "Only the grievance officer can open this",
+      "body": "Your account doesn't have the grievance officer role. Privacy requests are answered by FOA's grievance officer.",
+      "back": "Go to your dashboard"
+    },
+    "views": {
+      "label": "Show requests",
+      "open": "Open",
+      "mine": "Assigned to me",
+      "unassigned": "Unassigned",
+      "closed": "Closed"
+    },
+    "empty": {
+      "open": "No open requests.",
+      "mine": "No open requests are assigned to you.",
+      "unassigned": "Every open request is assigned.",
+      "closed": "No closed requests yet."
+    },
+    "more": "Showing the first {count} requests.",
+    "table": {
+      "caption": "Privacy requests: {view, select, open {open} mine {assigned to you} unassigned {unassigned} other {closed}}",
+      "reference": "Reference",
+      "type": "Request",
+      "relation": "Filed by",
+      "status": "Status",
+      "due": "Due",
+      "assignee": "Assigned to",
+      "closed": "Closed on"
+    },
+    "types": {
+      "access": "Copy of data",
+      "correction": "Correction",
+      "erasure": "Erasure"
+    },
+    "relations": {
+      "self": "The person themselves",
+      "guardian": "A guardian, for a child"
+    },
+    "statuses": {
+      "submitted": "New",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "partially_completed": "Partly completed",
+      "rejected": "Refused",
+      "cancelled": "Cancelled"
+    },
+    "due": {
+      "overdue": "Overdue",
+      "daysLeft": "{days, plural, =0 {Due today} one {# day left} other {# days left}}",
+      "late": "{days, plural, one {# day late} other {# days late}}"
+    },
+    "nobody": "Nobody",
+    "request": {
+      "meta": {
+        "title": "Privacy request",
+        "description": "One privacy request, for the grievance officer."
+      },
+      "back": "Back to privacy requests",
+      "title": "Request {reference}",
+      "notFound": {
+        "title": "There is no such request",
+        "body": "It may have been deleted after its retention period.",
+        "back": "Back to privacy requests"
+      },
+      "facts": {
+        "label": "The request",
+        "type": "Request",
+        "relation": "Filed by",
+        "subject": "About",
+        "requester": "Requester",
+        "requesterGone": "Their account is gone",
+        "subjectGone": "Erased",
+        "filed": "Filed",
+        "due": "Due",
+        "started": "Started",
+        "closed": "Closed",
+        "assignee": "Assigned to",
+        "requesterContact": "{name}, {email}"
+      },
+      "correction": "What they asked us to correct",
+      "rejection": "Why it was refused",
+      "resolution": "What was corrected",
+      "retained": "What the erasure kept",
+      "retainedItem": "{category}: {basis}"
+    },
+    "actions": {
+      "title": "Next step",
+      "none": "This request is closed, so it can't move on. Notes can still be added.",
+      "pending": "Working…",
+      "start": {
+        "title": "Start",
+        "body": "Take this request yourself. The requester can't cancel it after this.",
+        "submit": "Start this request"
+      },
+      "reject": {
+        "title": "Refuse",
+        "reason": "Why it can't be carried out",
+        "hint": "The requester reads this. Up to 1,000 characters. Don't name anyone else.",
+        "submit": "Refuse request"
+      },
+      "complete": {
+        "title": "Complete the correction",
+        "resolution": "What was corrected",
+        "hint": "Correct the record on its own admin page first, then say what you changed. The requester reads this. Up to 2,000 characters.",
+        "submit": "Mark corrected"
+      }
+    },
+    "assign": {
+      "title": "Assign",
+      "label": "Grievance officer",
+      "placeholder": "Choose an officer",
+      "submit": "Assign"
+    },
+    "notes": {
+      "title": "Internal notes",
+      "lead": "Only grievance officers see these. They can't be edited.",
+      "empty": "No notes yet.",
+      "label": "Add a note",
+      "hint": "Up to 2,000 characters.",
+      "submit": "Add note",
+      "by": "{name}, {date}",
+      "byNobody": "A former officer, {date}"
+    },
+    "export": {
+      "title": "Copy of the data",
+      "lead": "Builds a file of everything FOA keeps about the person. Only the requester can download it; you never see it.",
+      "build": "Prepare the copy",
+      "notStarted": "Start the request first.",
+      "preparing": "The copy is being prepared. The request completes when it's ready.",
+      "ready": "The copy is ready for the requester.",
+      "expired": "The copy's download has expired and the copy is deleted."
+    },
+    "erasure": {
+      "title": "Erasure",
+      "lead": "Check what erasing would delete, anonymise and keep. Carrying it out can't be undone.",
+      "caption": "What erasure would do with each kind of record",
+      "category": "Records",
+      "action": "What happens",
+      "basis": "Why it stays",
+      "until": "Until",
+      "count": "How many",
+      "actions": {
+        "withdraw": "Withdrawn",
+        "delete": "Deleted",
+        "anonymise": "Anonymised",
+        "retain": "Kept"
+      },
+      "noEnd": "No end date",
+      "noBasis": "–",
+      "disabled": "Carrying out erasures is switched off until FOA's lawyer confirms what an erasure must keep (setting “Erase data on request”).",
+      "notStarted": "Start the request before carrying out the erasure.",
+      "approved": "Approved. The erasure runs in the background; this page shows the result when it's done.",
+      "submit": "Carry out this erasure",
+      "pending": "Erasing…",
+      "failures": {
+        "plan_changed": "The records changed after the erasure was approved, so it didn't run. Check the plan again and approve it.",
+        "erasure_disabled": "Erasures were switched off before this one ran. It didn't run."
+      }
+    },
+    "categories": {
+      "consents": "Consents still given",
+      "sign_in": "Sessions and sign-in methods",
+      "roles": "Roles",
+      "messages": "Messages and message choices",
+      "guardian_record": "Guardian record",
+      "uploads": "Own uploads",
+      "entries": "Entries and their pictures",
+      "registrations": "Unpaid registrations",
+      "guardian_links": "Guardian links and invitations",
+      "profile": "Participant profile",
+      "account": "Account",
+      "kept_profile": "Participant profile with a paid registration",
+      "paid_registrations": "Paid registrations",
+      "payments": "Payments",
+      "children": "Children they look after",
+      "consent_records": "Consent log and evidence",
+      "audit_log": "Audit log entries",
+      "privacy_requests": "Privacy requests"
+    },
+    "bases": {
+      "financial_floor": "Financial records: 8 years after the financial year",
+      "financial_record": "Kept with a payment record",
+      "consent_proof": "Proof of consent",
+      "audit_log": "Append-only audit log",
+      "legal_hold": "Legal hold",
+      "linked_records": "Other records still name the account",
+      "institution_record": "An institution they registered",
+      "separate_subject": "Each child is a separate person",
+      "rights_record": "Record of their requests"
+    },
+    "results": {
+      "started": "You started the request.",
+      "assigned": "The request is assigned.",
+      "unchanged": "It was already assigned to them.",
+      "noted": "Your note is saved.",
+      "rejected": "The request is refused. The requester has been told.",
+      "completed": "The correction is recorded. The requester has been told.",
+      "export": "The copy is being prepared.",
+      "erasure": "The erasure is approved and will run shortly."
+    },
+    "errors": {
+      "invalid_input": "Fill in the form: a reason, a note or a description can't be empty or too long.",
+      "not_found": "There is no such request.",
+      "request_closed": "This request is closed.",
+      "already_started": "Someone already started this request.",
+      "already_in_progress": "This request is already in progress.",
+      "not_started": "Start the request first.",
+      "not_erasure": "This isn't an erasure request.",
+      "assignee_not_officer": "Only a grievance officer can be assigned.",
+      "completed_by_export_or_erasure": "This request completes by its copy of the data or its erasure.",
+      "not_access": "This isn't a request for a copy of the data.",
+      "already_requested": "The copy has already been asked for.",
+      "erasure_disabled": "Carrying out erasures is switched off.",
+      "plan_changed": "The records changed since you looked. Check the plan again.",
+      "already_approved": "This erasure is already approved."
+    }
+  }
+}

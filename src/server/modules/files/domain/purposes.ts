@@ -17,6 +17,7 @@ export const FILE_PURPOSES = [
   "consent_form",
   "entry_image",
   "directory_document",
+  "adoption_photo",
   "entry_video",
   "entry_document",
 ] as const;
@@ -183,6 +184,25 @@ export const PURPOSE_RULES = {
   directory_document: {
     contentTypes: ["application/pdf", "image/jpeg", "image/png"],
     maxBytes: 10 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /**
+   * A photo of an animal listed for adoption (#129). Only
+   * `requestAdoptionPhotoUpload` presigns one, after the adoption listing's
+   * own authorization. The original stays private: the public sees only
+   * its resized copies (./media-work.ts), and only while the animal is
+   * public.
+   */
+  adoption_photo: {
+    contentTypes: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+    ],
+    maxBytes: 15 * MiB,
     environments: "all",
     directUpload: false,
   },

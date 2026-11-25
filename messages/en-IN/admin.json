@@ -8,7 +8,8 @@
       "campaigns": "Campaigns",
       "consentForms": "Signed forms",
       "privacy": "Data inventory",
-      "volunteers": "Volunteers"
+      "volunteers": "Volunteers",
+      "privacyRequests": "Privacy requests"
     },
     "loading": "Loading…",
     "denied": {
@@ -33,7 +34,8 @@
       "finance": "Finance",
       "auction_manager": "Auction manager",
       "adoption_coordinator": "Adoption coordinator",
-      "safeguarding_lead": "Safeguarding lead"
+      "safeguarding_lead": "Safeguarding lead",
+      "grievance_officer": "Grievance officer"
     },
     "scopes": {
       "global": "Everywhere",

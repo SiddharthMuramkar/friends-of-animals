@@ -33,6 +33,12 @@ export const IMAGE_DERIVATIVES: {
    * pages, the large copy for staff, verifiers and judges.
    */
   entry_image: ["thumb_320", "display_1600"],
+  /**
+   * An adoptable animal's photo (#129): cards, the animal's page on a
+   * phone and on a wide screen. Only these copies are ever public, through
+   * /media/adoption/<photoId>/<kind>.
+   */
+  adoption_photo: ["thumb_320", "display_800", "display_1600"],
 };
 
 /** The derived copies each purpose's videos get (#86). */

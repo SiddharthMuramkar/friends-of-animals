@@ -20,6 +20,7 @@ import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
 import { seedDirectory } from "./directory";
+import { seedAdoption } from "./adoption";
 import { seedEntries } from "./entries";
 import { seedInstitutionSubmissions } from "./institution-submissions";
 import { seedFiles } from "./files";
@@ -51,6 +52,7 @@ export { SEED_ACCOUNTS } from "./accounts";
 export { SEED_SCOPES } from "./scopes";
 export { SEED_COMPETITION_MANAGER } from "./competitions";
 export { SEED_DIRECTORY } from "./directory";
+export { SEED_ADOPTION } from "./adoption";
 
 const seeders: readonly Seeder[] = [
   // One line per module (.gitattributes merges this file with union).
@@ -70,6 +72,8 @@ const seeders: readonly Seeder[] = [
   seedInstitutions,
   // After the identity and access seeds: its own seeded members (#127).
   seedDirectory,
+  // After the directory seed: its listings offer the animals (#129).
+  seedAdoption,
   seedPrivacy,
   // After the institutions seed: it needs the verified institution.
   seedCoordinators,

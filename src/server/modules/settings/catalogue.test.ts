@@ -31,6 +31,11 @@ describe("the settings catalogue", () => {
       "org.pan": "",
       "safeguarding.reportsPerIpPerHour": 10,
       "breach.authorityEmail": "",
+      "privacy.requestDueDays": 30,
+      "privacy.erasureDueDays": 30,
+      "privacy.exportLinkHours": 72,
+      "privacy.erasureEnabled": false,
+      "privacy.erasureKeepsPayerAccount": true,
       "volunteers.applicationsOpen": false,
       "volunteers.minAgeYears": 14,
       "volunteers.guardianApprovalBelowAgeYears": 18,
@@ -52,6 +57,7 @@ describe("the settings catalogue", () => {
       "retention.volunteerApplicationsDays": 365,
       "retention.releasedLegalHoldsDays": 365,
       "retention.financialRecordsDays": 2922,
+      "retention.privacyRequestsDays": 1095,
     });
   });
 
