@@ -6,6 +6,7 @@ import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import { AWARD_SCHEMES } from "@/server/modules/competitions/domain/award-schemes";
+import { ROUND_OUTCOMES } from "@/server/modules/judging/domain/outcomes";
 import { JUDGING_LEVELS } from "@/server/modules/judging/domain/round-settings";
 const text = (form: FormData, key: string) => {
   const v = form.get(key);
@@ -61,6 +62,33 @@ export async function roundAction(form: FormData) {
     } else if (operation === "open") {
       const result = await api.openJudgingRound({ roundId });
       done = result.ok ? "opened" : result.error;
+    } else if (operation === "lock" || operation === "override-lock") {
+      target = `${base}/rankings`;
+      const result = await api.lockJudgingRound({
+        roundId,
+        ...(operation === "override-lock"
+          ? { overrideReason: text(form, "overrideReason") }
+          : {}),
+      });
+      done = result.ok ? "locked" : result.error;
+    } else if (operation === "tag") {
+      target = `${base}/rankings`;
+      const [outcome, position] = text(form, "recognition").split(":");
+      const parsed = z.enum(ROUND_OUTCOMES).safeParse(outcome);
+      if (parsed.success) {
+        const result = await api.tagRoundOutcomes({
+          roundId,
+          tags: [
+            {
+              entryId: text(form, "entryId"),
+              outcome: parsed.data,
+              awardPosition: position ? Number(position) : null,
+              suitableForAuction: form.get("suitableForAuction") === "on",
+            },
+          ],
+        });
+        done = result.ok ? "tagged" : result.error;
+      }
     } else if (operation === "cancel") {
       const result = await api.cancelJudgingRound({
         roundId,

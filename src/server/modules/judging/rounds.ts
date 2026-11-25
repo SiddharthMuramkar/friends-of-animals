@@ -60,7 +60,12 @@ export async function loadRound(db: AppDb, id: unknown, lock = false) {
 export async function authorizeRound(
   ctx: UseCaseContext,
   id: unknown,
-  action: "judging.round.manage" | "judging.round.read"
+  action:
+    | "judging.round.manage"
+    | "judging.round.read"
+    | "judging.round.lock"
+    | "judging.round.override"
+    | "judging.round.tag"
 ) {
   const round = await loadRound(ctx.db, id);
   const { role } = await authorize(

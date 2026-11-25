@@ -159,7 +159,10 @@ completion and later changes are audited, but free-text comments are not
 copied to the append-only audit log.
 
 The scoring view never returns personal metadata or the original upload.
-Private judging assessments are excluded from automated rights exports until
+The locked ranking and outcome snapshot is linked to the entry; it follows
+the judging-record lifecycle and is erased with its owning pool row. Lock
+override reasons must not contain participant details. Private judging
+assessments, including unpublished rankings, are excluded from automated rights exports until
 FOA can review the confidential material without exposing another person or
 unfinished results. A privacy officer handles those requests. The derivative
 worker strips file metadata; any name the participant includes within the

@@ -63,6 +63,10 @@ export const judgingRound = pgTable(
     cancelledByUserId: actor("cancelled_by_user_id"),
     cancelledAt: at("cancelled_at"),
     cancelReason: text("cancel_reason"),
+    lockedAt: at("locked_at"),
+    lockedByUserId: actor("locked_by_user_id"),
+    lockOverrideReason: text("lock_override_reason"),
+    tieBreakRule: text("tie_break_rule"),
   },
   (t) => [
     unique("judging_round_name_unique").on(t.competitionId, t.nameKey),
@@ -79,6 +83,11 @@ export const judgingRound = pgTable(
       "judging_round_cancel_reason",
       sql`(${t.status} = 'cancelled') = (${t.cancelledAt} IS NOT NULL AND ${t.cancelReason} IS NOT NULL)`
     ),
+    check(
+      "judging_round_lock_metadata",
+      sql`(${t.status} = 'locked') = (${t.lockedAt} IS NOT NULL AND ${t.tieBreakRule} IS NOT NULL) AND (${t.lockOverrideReason} IS NULL OR ${t.status} = 'locked')`
+    ),
+    index("judging_round_locked_by_idx").on(t.lockedByUserId),
     index("judging_round_created_by_idx").on(t.createdByUserId),
     index("judging_round_opened_by_idx").on(t.openedByUserId),
     index("judging_round_cancelled_by_idx").on(t.cancelledByUserId),

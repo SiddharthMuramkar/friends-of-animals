@@ -19,6 +19,7 @@ import { DomainError } from "@/server/errors";
 import { acceptsJudges } from "@/server/modules/judging/domain/round-status";
 import { AdminDenied } from "../../../_components/admin-denied";
 import { CARD, RoundForm } from "./round-form";
+import { RankingsPanel } from "./rankings-panel";
 import { Outcome, type Query } from "./outcome";
 import { roundAction } from "../_lib/actions";
 const tabs = [
@@ -27,6 +28,7 @@ const tabs = [
   "pool",
   "assignments",
   "conflicts",
+  "rankings",
 ] as const;
 type Tab = (typeof tabs)[number];
 type Props = {
@@ -76,6 +78,12 @@ async function renderPanel(
       (g.scope.type === "global" ||
         (g.scope.type === "competition" && g.scope.id === round.competitionId))
   );
+  const mayOverride = access.grants.some(
+    (g) =>
+      (g.role === "staff_admin" || g.role === "super_admin") &&
+      (g.scope.type === "global" ||
+        (g.scope.type === "competition" && g.scope.id === round.competitionId))
+  );
   const editable = mayManage && acceptsJudges(round.status);
   const base = adminJudgingRoundPath(round.id);
   const fields = (operation: string) => (
@@ -114,6 +122,14 @@ async function renderPanel(
       </nav>
       <Outcome query={query} />
       <SectionHeading title={t(tab)} />
+      {tab === "rankings" ? (
+        <RankingsPanel
+          api={api}
+          roundId={id}
+          mayManage={mayManage}
+          mayOverride={mayOverride}
+        />
+      ) : null}
       {tab === "settings" ? (
         <>
           <dl className={CARD}>
