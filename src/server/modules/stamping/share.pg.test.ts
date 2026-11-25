@@ -44,7 +44,7 @@ it("serializes simultaneous certificate share requests and duplicate media deliv
     competitionId: competition.id,
     registrationId: registered.registrationId,
     participantProfileId: holder!.profileId,
-    nameSnapshot: adultForm(competition).fullName,
+    nameSnapshot: adultForm(competition).fullName!,
   });
   const certificateId = issued.id;
   expect(await api.listMyCertificates()).toMatchObject([
