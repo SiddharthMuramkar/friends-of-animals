@@ -2,7 +2,7 @@ import { randomInt } from "node:crypto";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { createPgWorld, type PgWorld } from "@/test/pg";
-import { certificate, registration } from "../../db/schema";
+import { certificate, participantProfile, registration } from "../../db/schema";
 import { insertCertificate } from "../certificates/issue";
 import { adultForm, openToIndividuals } from "../participants/testing";
 import { renderStamp } from ".";
@@ -36,15 +36,22 @@ it("serializes simultaneous certificate share requests and duplicate media deliv
     })
   ).toMatchObject({ ok: true });
   const [holder] = await world.db
-    .select({ profileId: registration.participantProfileId })
+    .select({
+      profileId: participantProfile.id,
+      name: participantProfile.fullName,
+    })
     .from(registration)
+    .innerJoin(
+      participantProfile,
+      eq(registration.participantProfileId, participantProfile.id)
+    )
     .where(eq(registration.id, registered.registrationId));
   const issued = await insertCertificate(world.db, world.clock, {
     type: "participation",
     competitionId: competition.id,
     registrationId: registered.registrationId,
     participantProfileId: holder!.profileId,
-    nameSnapshot: adultForm(competition).fullName,
+    nameSnapshot: holder!.name,
   });
   const certificateId = issued.id;
   expect(await api.listMyCertificates()).toMatchObject([
