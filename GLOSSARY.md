@@ -736,6 +736,18 @@ position belongs to the round's award scheme; suitability for auction is a
 separate flag and never a substitute for auction consent. Winners,
 runners-up and finalists can advance to a subsequent Judging round.
 
+**Results release**:
+An immutable recognition snapshot from an explicitly selected locked final
+Judging round, including prize and delivery instructions. A Competition manager
+prepares it for a different authorised Staff member to approve with Step-up.
+Only the worker publishes the approved release at or after its scheduled instant.
+
+**Public results**:
+The recognition from a published Results release for which the participant's or
+guardian's current public-display consent allows a public credit. No assessment,
+entry code or original work is published here; withdrawn credit disappears on
+subsequent reads.
+
 ## Physical artwork
 
 **Physical artwork**:

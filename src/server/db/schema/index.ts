@@ -67,3 +67,5 @@ export * from "./artwork-custody";
 export * from "./auctions";
 
 export * from "./round-results";
+
+export * from "./results";

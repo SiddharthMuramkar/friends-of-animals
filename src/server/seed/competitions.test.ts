@@ -58,7 +58,7 @@ describe("the competitions seed", () => {
         code: "AUCT27",
         slug: "art-for-kindness",
         participation: "individuals",
-        status: "foa_judging",
+        status: "results_published",
       },
       {
         code: "SKIES26",
@@ -138,12 +138,12 @@ describe("the competitions seed", () => {
       "draft",
       "foa_judging",
       "foa_judging",
-      "foa_judging",
       "published",
       "registration_closed",
       "registration_closed",
       "registration_closed",
       "registration_open",
+      "results_published",
       "school_judging",
     ]);
     expect(
@@ -183,7 +183,7 @@ describe("the competitions seed", () => {
           submissionsClosed: true,
         },
         {
-          status: "foa_judging",
+          status: "results_published",
           openingPassed: true,
           closingPassed: true,
           submissionsClosed: true,

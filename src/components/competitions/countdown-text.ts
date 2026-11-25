@@ -32,7 +32,10 @@ export type CountdownIntl = {
 
 /** The messages for each status the schedule can move a competition to. */
 const KEYS: Record<
-  Exclude<CompetitionStatus, "draft" | "published" | "cancelled">,
+  Exclude<
+    CompetitionStatus,
+    "draft" | "published" | "cancelled" | "results_published"
+  >,
   { scheduled: CountdownKey; due: CountdownKey }
 > = {
   registration_open: { scheduled: "opens", due: "opensDue" },
@@ -51,7 +54,8 @@ export function countdownText(
     !change ||
     change.to === "draft" ||
     change.to === "published" ||
-    change.to === "cancelled"
+    change.to === "cancelled" ||
+    change.to === "results_published"
   ) {
     return null;
   }

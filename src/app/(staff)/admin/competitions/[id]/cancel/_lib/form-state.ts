@@ -10,7 +10,11 @@ export type CancelFormState = {
   attempt: number;
   reason: string;
   error?: "reason_required" | "reason_too_long" | "reason_invalid";
-  alert?: "already_cancelled" | "not_found" | "unexpected";
+  alert?:
+    | "already_cancelled"
+    | "results_published"
+    | "not_found"
+    | "unexpected";
 };
 
 export const CANCEL_START: CancelFormState = { attempt: 0, reason: "" };
@@ -31,6 +35,7 @@ export function afterCancel(
     case "reason_required":
     case "reason_too_long":
       return { ...next, error: result.error };
+    case "results_published":
     case "already_cancelled":
     case "not_found":
       return { ...next, alert: result.error };

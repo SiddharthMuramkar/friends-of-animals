@@ -7,7 +7,7 @@ import { emit } from "../../outbox/emit";
 import { returnWindowFor } from "./domain/custody";
 
 export async function openArtworkResultsWindow(
-  deps: OutboxDeps,
+  deps: Pick<OutboxDeps, "db" | "clock" | "settings">,
   input: { competitionId: string; releaseId: string; publishedAt: string }
 ) {
   const publishedAt = new Date(input.publishedAt);

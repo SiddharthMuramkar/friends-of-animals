@@ -108,7 +108,9 @@ async function Cancel({ params, searchParams }: Props) {
           {t("back")}
         </ButtonLink>
       </div>
-      {effects ? (
+      {competition.status === "results_published" ? (
+        <p className={CARD}>{t("publishedRefusal")}</p>
+      ) : effects ? (
         <>
           <Effects effects={effects} />
           <CancelSection competition={competition} />
@@ -183,6 +185,7 @@ async function CancelSection({
             },
             alerts: {
               already_cancelled: t("alerts.already_cancelled"),
+              results_published: t("alerts.results_published"),
               not_found: t("alerts.not_found"),
               unexpected: t("alerts.unexpected"),
             },

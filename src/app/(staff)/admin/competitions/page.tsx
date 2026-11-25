@@ -175,7 +175,9 @@ async function CompetitionList() {
                       </ButtonLink>
                     </>
                   ) : null}
-                  {mayCancel && competition.status !== "cancelled" ? (
+                  {mayCancel &&
+                  competition.status !== "cancelled" &&
+                  competition.status !== "results_published" ? (
                     <ButtonLink
                       href={adminCompetitionCancelPath(competition.id)}
                       variant="secondary"

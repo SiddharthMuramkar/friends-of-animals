@@ -967,6 +967,20 @@
       "when": 1795593032375,
       "tag": "0137_131_auction_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1795593633311,
+      "tag": "0138_99_pre_results_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1795593945437,
+      "tag": "0139_99_result_releases",
+      "breakpoints": true
     }
   ]
 }

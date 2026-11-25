@@ -248,6 +248,7 @@ export async function getCompetitionForEdit(
   const { row, values } = stored;
   const mayCancel =
     row.status !== "cancelled" &&
+    row.status !== "results_published" &&
     (
       await can(
         ctx,

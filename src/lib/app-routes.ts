@@ -337,6 +337,10 @@ export function adminSchoolRoundsPath(competitionId: string): string {
   return `/admin/competitions/${encodeURIComponent(competitionId)}/school-rounds`;
 }
 
+export function adminCompetitionResultsPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/results`;
+}
+
 export function adminCompetitionCancelPath(competitionId: string): string {
   return `/admin/competitions/${encodeURIComponent(competitionId)}/cancel`;
 }
@@ -591,6 +595,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
+  "/admin/competitions/[id]/results",
   "/admin/competitions/[id]/preview",
   "/admin/competitions/[id]/terms",
   "/admin/competitions/[id]/announcements",
