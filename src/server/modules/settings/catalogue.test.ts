@@ -20,6 +20,9 @@ describe("the settings catalogue", () => {
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
       )
     ).toEqual({
+      "ambassadors.minMembershipDays": 90,
+      "ambassadors.minAgeYears": 18,
+      "ambassadors.qualifyingMilestones": "foa_finalist,volunteer",
       "auth.staffSessionHours": 12,
       "auth.emailSignIn": true,
       "sms.enabled": false,
@@ -88,6 +91,7 @@ describe("the settings catalogue", () => {
       "retention.guardianInvitationsDays": 30,
       "retention.contactMessagesMonths": 24,
       "retention.volunteerApplicationsDays": 365,
+      "retention.ambassadorApplicationsDays": 365,
       "retention.communityMembersDays": 365,
       "retention.adoptionApplicationsDays": 730,
       "retention.releasedLegalHoldsDays": 365,

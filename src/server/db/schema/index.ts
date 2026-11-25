@@ -78,3 +78,5 @@ export * from "./events";
 export * from "./gallery";
 
 export * from "./social-export";
+
+export * from "./ambassadors";

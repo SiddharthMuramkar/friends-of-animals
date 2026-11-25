@@ -173,6 +173,12 @@ const BREACH_RECORD = {
  * A volunteer application (#123): a closed one that wasn't approved goes a
  * year after it closed; an approved one stays while the person volunteers.
  */
+const AMBASSADOR_APPLICATION_RECORD = {
+  policy: "ambassadorApplications",
+  periodKey: "ambassadorApplications",
+  basis: "Private evidence of an ambassador application and its decision; approved decisions support an earned milestone (HR-31 and HR-57).",
+  toConfirm: true,
+} as const;
 const VOLUNTEER_APPLICATION_RECORD = {
   policy: "volunteerApplications",
   periodKey: "volunteerApplications",
@@ -642,6 +648,11 @@ const GUARDIAN_INVITATION_RECIPIENT = {
   via: "kind + contact_hash",
 } as const;
 
+const ambassadorApplication = rowsOf("ambassador_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: AMBASSADOR_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
 const volunteerApplication = rowsOf("volunteer_application", {
   subject: { kind: "user", via: "applicant_user_id" },
   retention: VOLUNTEER_APPLICATION_RECORD,
@@ -1985,6 +1996,9 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   // Volunteer applications (#123): the applicant's answers and the record
   // of who vetted them.
+  ambassadorApplication("applicant_user_id", "identity"),
+  ambassadorApplication("decline_reason_ciphertext", "content"),
+  actorColumn("ambassador_application", "decided_by_user_id", AMBASSADOR_APPLICATION_RECORD, "delete_row"),
   volunteerApplication("applicant_user_id", "identity"),
   volunteerApplication("participant_profile_id", "identity"),
   volunteerApplication("date_of_birth_ciphertext", "demographic"),

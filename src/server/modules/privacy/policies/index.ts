@@ -14,6 +14,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { AMBASSADOR_APPLICATIONS } from "./ambassadors";
 import { COMMUNITY_MEMBERS } from "./community";
 import { CONTACT_MESSAGES } from "./contact";
 import { FINANCIAL_RECORDS } from "./financial";
@@ -60,6 +61,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   BREACH_RECORDS,
   VOLUNTEER_APPLICATIONS,
   COMMUNITY_MEMBERS,
+  AMBASSADOR_APPLICATIONS,
   ADOPTION_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,

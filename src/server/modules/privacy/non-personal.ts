@@ -73,6 +73,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "attempts",
     "overdue_alerted",
   ],
+  ambassador_application: ["id", "status", "submitted_at", "decided_at"],
   community_member: [
     "id",
     "status",

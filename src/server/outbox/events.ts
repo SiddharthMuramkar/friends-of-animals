@@ -966,6 +966,9 @@ export type DomainEvent =
   // guardians are asked; an application reached the community team; a
   // community manager approved it (the volunteer role is granted) or
   // declined it with a reason.
+  | AmbassadorApplicationEvent<"ambassador.application_submitted">
+  | AmbassadorApplicationEvent<"ambassador.application_approved">
+  | AmbassadorApplicationEvent<"ambassador.application_declined">
   | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
@@ -996,6 +999,12 @@ export type DomainEvent =
   | AdoptionApplicationEvent<"adoption.application_declined">
   | AdoptionApplicationEvent<"adoption.application_withdrawn">
   | AdoptionApplicationEvent<"adoption.application_listing_closed">;
+
+type AmbassadorApplicationEvent<T extends `ambassador.${string}`> = {
+  type: T;
+  aggregate: { type: "ambassador_application"; id: string };
+  payload: { applicationId: string };
+};
 
 /** Something happened to a volunteer application (#123). Ids only. */
 type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
@@ -1062,6 +1071,9 @@ export const EVENT_PAYLOADS = {
   }),
   "event.waitlist_promoted": z.object({ registrationId: z.uuid() }),
   "event.registration_cancelled": z.object({ registrationId: z.uuid() }),
+  "ambassador.application_submitted": z.object({ applicationId: z.uuid() }),
+  "ambassador.application_approved": z.object({ applicationId: z.uuid() }),
+  "ambassador.application_declined": z.object({ applicationId: z.uuid() }),
   "community.member_joined": z.object({ memberId: z.uuid() }),
   "engagement.milestone_recorded": z.object({ milestoneId: z.uuid() }),
   "consent.form_reviewed": z.object({
@@ -1362,6 +1374,9 @@ export const SUBSCRIBERS = {
   "event.waitlist_promoted": ["notifications.dispatch"],
   "event.registration_cancelled": ["notifications.dispatch"],
   // No route sends a message for these yet; the domain facts are durable.
+  "ambassador.application_submitted": ["notifications.dispatch"],
+  "ambassador.application_approved": ["notifications.dispatch"],
+  "ambassador.application_declined": ["notifications.dispatch"],
   "community.member_joined": ["notifications.dispatch"],
   "engagement.milestone_recorded": ["notifications.dispatch"],
   "consent.form_reviewed": ["notifications.dispatch"],
