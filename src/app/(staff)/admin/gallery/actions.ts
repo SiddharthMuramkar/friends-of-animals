@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { as, currentActor } from "@/server/app";
 import { adminCall } from "../_lib/boundary";
 import { APP_ROUTES } from "@/lib/app-routes";
-const text = (form: FormData, key: string) => String(form.get(key) ?? "");
+const text = (form: FormData, key: string) => {
+  const value = form.get(key);
+  return typeof value === "string" ? value : "";
+};
 export async function galleryAction(
   command: "pick" | "edit" | "publish" | "hide" | "restore" | "dismiss",
   id: string,

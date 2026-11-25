@@ -41,9 +41,9 @@ export default async function Page({
             {t("title")}
           </ButtonLink>
           {query.result ? (
-            <p role="status" className="mt-3">
+            <output className="block mt-3">
               {t(query.result === "ok" ? "saved" : "error")}
-            </p>
+            </output>
           ) : null}
           {loaded.value.length === 0 ? (
             <p className="mt-5">{t("empty")}</p>
@@ -52,6 +52,7 @@ export default async function Page({
             {loaded.value.map((report) => (
               <li
                 key={report.reportId}
+                id={`report-${report.reportId}`}
                 className="rounded-2xl border-2 border-border bg-surface p-5 min-w-0 wrap-anywhere"
               >
                 <h2 className="text-h4 text-ink">{report.title}</h2>

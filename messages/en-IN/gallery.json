@@ -27,6 +27,7 @@
     "report": "Report this artwork",
     "reportTitle": "Report gallery artwork",
     "reportLead": "Tell FOA if an artwork, its story or credit worries you. You don’t have to give your name.",
+    "website": "Website (leave blank)",
     "reportReason": "What is the concern?",
     "reasons": {
       "identifies_child": "Could identify a child",

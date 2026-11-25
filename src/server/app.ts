@@ -63,7 +63,9 @@ import { verificationUseCases } from "./modules/verification";
 import { reportsUseCases } from "./modules/reports";
 import { composeUseCases } from "./use-cases";
 
-const useCases = composeUseCases(
+// Keep each composition shallow enough for TypeScript's instantiation
+// ceiling; composing the groups still checks duplicate names across them.
+const coreUseCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
@@ -87,7 +89,9 @@ const useCases = composeUseCases(
   certificateUseCases,
   competitionTermsUseCases,
   registrationUseCases,
-  paymentsUseCases,
+  paymentsUseCases
+);
+const operationUseCases = composeUseCases(
   participantsUseCases,
   guardiansUseCases,
   ledgerUseCases,
@@ -112,6 +116,7 @@ const useCases = composeUseCases(
   galleryUseCases,
   reportsUseCases
 );
+const useCases = composeUseCases(coreUseCases, operationUseCases);
 
 /** Every use case, by name, bound to one actor. */
 export type UseCases = ReturnType<typeof useCases>;

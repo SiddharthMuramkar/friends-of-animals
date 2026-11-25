@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 export async function reportLabels() {
   const t = await getTranslations("gallery");
   return {
+    website: t("website"),
     reason: t("reportReason"),
     details: t("details"),
     contact: t("contact"),

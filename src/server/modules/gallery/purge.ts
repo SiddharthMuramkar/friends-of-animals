@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { recordAudit } from "../../audit/record";
 import { consentEvent, galleryItem, galleryPurge } from "../../db/schema";
@@ -13,11 +14,20 @@ const actor = { kind: "system", process: "worker" } as const;
 export async function requestGalleryPurge(
   ctx: Pick<OutboxDeps, "db" | "clock">,
   itemId: string,
-  requestedAt: Date
+  requestedAt: Date,
+  consentEventId?: string
 ) {
-  const id = uuidv7(ctx.clock.now());
+  // One durable purge per item and withdrawal, even when the consumer
+  // is delivered twice while the public item stays published (credit only).
+  const id = consentEventId
+    ? uuidv7(requestedAt, () =>
+        createHash("sha256")
+          .update(`gallery-purge:${itemId}:${consentEventId}`)
+          .digest()
+      )
+    : uuidv7(ctx.clock.now());
   const duration = await readSetting(ctx.db, "gallery.withdrawalPurgeMinutes");
-  await ctx.db
+  const [inserted] = await ctx.db
     .insert(galleryPurge)
     .values({
       id,
@@ -25,7 +35,10 @@ export async function requestGalleryPurge(
       status: "pending",
       requestedAt,
       deadlineAt: new Date(requestedAt.getTime() + duration * minute),
-    });
+    })
+    .onConflictDoNothing()
+    .returning({ id: galleryPurge.id });
+  if (!inserted) return;
   await emit(ctx.db, ctx.clock, {
     type: "gallery.purge_requested",
     aggregate: { type: "gallery_purge", id },
@@ -38,7 +51,7 @@ export async function withdrawGalleryConsent(
   deps: OutboxDeps,
   delivery: Delivery<"consent.withdrawn">
 ) {
-  const { payload, occurredAt } = delivery;
+  const { payload } = delivery;
   const competitionId = payload.competitionId;
   if (
     !competitionId ||
@@ -92,10 +105,15 @@ export async function withdrawGalleryConsent(
           "unpublished",
           "consent_withdrawn",
           null,
-          occurredAt
+          withdrawal.occurredAt
         );
       else if (item.status === "published")
-        await requestGalleryPurge({ ...deps, db: tx }, item.id, occurredAt);
+        await requestGalleryPurge(
+          { ...deps, db: tx },
+          item.id,
+          withdrawal.occurredAt,
+          withdrawal.id
+        );
     }
   });
 }

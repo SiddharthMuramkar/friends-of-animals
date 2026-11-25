@@ -35,9 +35,7 @@ export default async function Page({
     <Section hue="pink" tone="tint" className="pt-10 sm:pt-14">
       <PageHeader title={t("reportTitle")} lead={t("reportLead")} />
       {query.result === "sent" ? (
-        <p role="status" className="mt-6 text-lead text-ink">
-          {t("sent")}
-        </p>
+        <output className="block mt-6 text-lead text-ink">{t("sent")}</output>
       ) : (
         <>
           <h2 className="mt-6 text-h3">{item.title}</h2>

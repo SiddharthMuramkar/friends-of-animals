@@ -1,11 +1,16 @@
+import { emit } from "@/server/outbox/emit";
+import { EVENT_PAYLOADS } from "@/server/outbox/events";
 import { solvedHumanCheck } from "@/test/human-check";
 import {
   auditLog,
   fileAsset,
   fileDerivative,
   galleryPurge,
+  galleryReport,
+  participantProfile,
+  outbox,
 } from "@/server/db/schema";
-import { like } from "drizzle-orm";
+import { desc, eq, like } from "drizzle-orm";
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { consentCompetition } from "../consent/testing";
@@ -44,6 +49,15 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
   await expect(
     manager.listGalleryCandidates({ competitionId: competition.id })
   ).rejects.toMatchObject({ code: "forbidden" });
+  expect(await curator.pickGalleryEntry({ entryId })).toMatchObject({
+    ok: false,
+    error: "no_public_display_consent",
+  });
+  expect(await curator.listGalleryItemsForAdmin()).toEqual([]);
+  await h.db
+    .update(participantProfile)
+    .set({ schoolName: "Sample Learning School", city: "Nagpur" })
+    .where(eq(participantProfile.id, family.childId));
   expect(
     await guardian.giveChildConsent({
       childId: family.childId,
@@ -101,6 +115,54 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
     ok: true,
     contentType: "image/webp",
   });
+  expect((await visitor.getPublicGalleryItem(ref))?.credit).toEqual({
+    name: "Isha D.",
+  });
+  const creditTarget = {
+    childId: family.childId,
+    competitionId: competition.id,
+  };
+  for (const purpose of ["display_school", "display_city"] as const) {
+    expect(
+      await guardian.giveChildConsent({
+        ...creditTarget,
+        purpose,
+        documentId: competition.guardianDocuments.public_display!,
+      })
+    ).toMatchObject({ ok: true });
+  }
+  expect((await visitor.getPublicGalleryItem(ref))?.credit).toEqual({
+    name: "Isha D.",
+    school: "Sample Learning School",
+    city: "Nagpur",
+  });
+  expect(
+    await guardian.withdrawChildConsent({
+      ...creditTarget,
+      purpose: "display_school",
+    })
+  ).toMatchObject({ ok: true });
+  expect((await visitor.getPublicGalleryItem(ref))?.credit).toEqual({
+    name: "Isha D.",
+    city: "Nagpur",
+  });
+  const [creditEvent] = await h.db
+    .select()
+    .from(outbox)
+    .where(eq(outbox.handler, "gallery.withdraw_consent"));
+  await h.drain();
+  await h.db.transaction((tx) =>
+    emit(tx, h.clock, {
+      type: "consent.withdrawn",
+      aggregate: { type: "consent_event", id: creditEvent!.aggregateId },
+      payload: EVENT_PAYLOADS["consent.withdrawn"].parse(creditEvent!.payload),
+    })
+  );
+  await h.drain();
+  expect(await h.db.select().from(galleryPurge)).toHaveLength(1);
+  expect((await curator.listGalleryItemsForAdmin())[0]?.status).toBe(
+    "published"
+  );
   expect(await visitor.featuredGalleryItems()).toHaveLength(1);
   const allFiles = [
     ...(await h.db.select({ key: fileAsset.storageKey }).from(fileAsset)),
@@ -145,7 +207,7 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
     { status: "actioned" },
   ]);
   await h.drain();
-  expect(h.cdn.purges).toEqual([
+  expect(h.cdn.purges.slice(1)).toEqual([
     [
       "/",
       "/gallery",
@@ -165,6 +227,13 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
     })
   ).toMatchObject({ ok: true });
   expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: true });
+  await expect(visitor.readGalleryDraftImage(ref)).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  expect(await curator.readGalleryDraftImage(ref)).toMatchObject({
+    ok: true,
+    contentType: "image/webp",
+  });
   const audits = await h.db
     .select()
     .from(auditLog)
@@ -190,7 +259,7 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
   expect(await curator.listGalleryItemsForAdmin()).toMatchObject([
     { status: "unpublished" },
   ]);
-  expect(await h.db.select().from(galleryPurge)).toHaveLength(2);
+  expect(await h.db.select().from(galleryPurge)).toHaveLength(3);
   h.clock.advance({ minutes: 1 });
   await h.drain();
   const purges = await h.db.select().from(galleryPurge);
@@ -199,4 +268,161 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
       (p) => p.status === "completed" && p.completedAt! <= p.deadlineAt
     )
   ).toBe(true);
+  // Regranting does not resurrect an earlier item. A fresh explicit pick,
+  // review and publish binds the new grant. Old withdrawal replay is inert.
+  const [withdrawal] = await h.db
+    .select()
+    .from(outbox)
+    .where(eq(outbox.handler, "gallery.withdraw_consent"))
+    .orderBy(desc(outbox.occurredAt));
+  expect(
+    await guardian.giveChildConsent({
+      ...creditTarget,
+      purpose: "public_display",
+      documentId: competition.guardianDocuments.public_display!,
+    })
+  ).toMatchObject({ ok: true });
+  expect(await visitor.getPublicGalleryItem(ref)).toBeNull();
+  expect(await curator.pickGalleryEntry({ entryId })).toMatchObject({
+    ok: true,
+    itemId: ref.itemId,
+  });
+  expect(
+    await curator.editGalleryItem({
+      ...ref,
+      title: "A dog and a cup of tea",
+      story: "Kindness can be quiet.",
+      featured: true,
+    })
+  ).toMatchObject({ ok: true });
+  expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: true });
+  await h.db.transaction((tx) =>
+    emit(tx, h.clock, {
+      type: "consent.withdrawn",
+      aggregate: { type: "consent_event", id: withdrawal!.aggregateId },
+      payload: EVENT_PAYLOADS["consent.withdrawn"].parse(withdrawal!.payload),
+    })
+  );
+  await h.drain();
+  expect(await visitor.getPublicGalleryItem(ref)).not.toBeNull();
+  expect(await h.db.select().from(galleryPurge)).toHaveLength(3);
+});
+
+it("guards public reports and keeps a durable overdue purge visible without exposing the artist", async () => {
+  const h = await createHarness();
+  await h.seed.preview();
+  const { SEED_GALLERY } = await import("../../seed/gallery");
+  const itemId = SEED_GALLERY.items[0];
+  const actor = h.visitor();
+  const visitor = h.as(actor);
+  const curator = h.as(
+    await signedInWith(h, {
+      role: "content_manager",
+      scope: { type: "global" },
+    })
+  );
+  const worker = h.as({ kind: "system", process: "worker" });
+  const input = {
+    itemId,
+    reason: "other",
+    details: "A concern from this test",
+  };
+  await expect(worker.reportGalleryItem(input)).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(worker.issueGalleryPlainProof()).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(worker.listPublicGallery()).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  const plain = await visitor.issueGalleryPlainProof();
+  expect(plain).not.toBeNull();
+  expect(await visitor.reportGalleryItem(input)).toMatchObject({
+    ok: false,
+    error: "human_check_failed",
+  });
+  await h.settings.set("gallery.reportsPerIpPerHour", 1);
+  expect(
+    await visitor.reportGalleryItem({
+      ...input,
+      website: "bot",
+      humanCheck: await solvedHumanCheck(h, actor),
+    })
+  ).toEqual({ ok: true });
+  const initial = await h.db.select().from(galleryReport);
+  expect(
+    await visitor.reportGalleryItem({
+      ...input,
+      humanCheck: await solvedHumanCheck(h, actor),
+    })
+  ).toEqual({ ok: true });
+  expect(
+    await visitor.reportGalleryItem({
+      ...input,
+      humanCheck: await solvedHumanCheck(h, actor),
+    })
+  ).toMatchObject({ ok: false, error: "rate_limited" });
+  const other = h.visitor({ ip: "198.51.100.43" });
+  expect(
+    await h.as(other).reportGalleryItem({
+      ...input,
+      humanCheck: await solvedHumanCheck(h, other),
+    })
+  ).toMatchObject({ ok: true });
+  expect(await h.db.select().from(galleryReport)).toHaveLength(
+    initial.length + 2
+  );
+  const report = (await curator.listGalleryReports()).find(
+    (r) => r.details === input.details
+  )!;
+  await expect(
+    visitor.dismissGalleryReport({ reportId: report.reportId })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await curator.dismissGalleryReport({ reportId: report.reportId })
+  ).toMatchObject({ ok: true });
+  expect(
+    await curator.dismissGalleryReport({ reportId: report.reportId })
+  ).toMatchObject({ ok: false, error: "invalid_transition" });
+  await h.settings.set("gallery.withdrawalPurgeMinutes", 1);
+  h.cdn.failNext(2);
+  expect(
+    await curator.hideGalleryItem({ itemId, reason: "moderator" })
+  ).toMatchObject({ ok: true });
+  expect(await visitor.readGalleryImage({ itemId })).toMatchObject({
+    ok: false,
+  });
+  await h.drain();
+  h.clock.advance({ minutes: 1 });
+  await h.drain();
+  const [pending] = await h.db
+    .select()
+    .from(galleryPurge)
+    .where(eq(galleryPurge.itemId, itemId));
+  expect(pending).toMatchObject({
+    status: "pending",
+    attempts: 2,
+    overdueAlerted: true,
+  });
+  expect(await visitor.getPublicGalleryItem({ itemId })).toBeNull();
+  h.clock.advance({ minutes: 10 });
+  await h.drain();
+  expect(
+    await h.db
+      .select()
+      .from(galleryPurge)
+      .where(eq(galleryPurge.itemId, itemId))
+  ).toMatchObject([{ status: "completed", attempts: 3, overdueAlerted: true }]);
+  expect(
+    await h.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, "gallery.purge_overdue"))
+  ).toHaveLength(1);
+  expect(await curator.listInbox()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ title: "Gallery purge overdue" }),
+    ])
+  );
 });

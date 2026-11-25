@@ -1,3 +1,4 @@
+import { SiteLink } from "@/components/site/site-link";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { buttonStyles } from "@/components/site/button-link";
@@ -76,7 +77,8 @@ export async function ArtworkCards({
         >
           <h3 className="text-h4 text-ink wrap-anywhere">{item.title}</h3>
           <ArtworkDetails item={item} priority={priority && index === 0} />
-          <a
+          <SiteLink
+            prefetch={false}
             className={buttonStyles({
               variant: "secondary",
               className: "mt-5",
@@ -84,7 +86,7 @@ export async function ArtworkCards({
             href={`/gallery/${item.itemId}`}
           >
             {t("view", { title: item.title })}
-          </a>
+          </SiteLink>
         </li>
       ))}
     </ul>

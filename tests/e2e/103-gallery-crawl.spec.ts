@@ -1,34 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { SEED_GALLERY } from "../../src/server/seed/gallery";
+import { SEED_GALLERY } from "../../src/server/seed/gallery-samples";
 
-/** Deliberately independent from the gallery projection or storage helper.
- * Recognise only the site's own concrete media routes and bundled assets. */
-function classify(
-  raw: string,
-  origin: string
-): "site" | "stamp" | "private" | "unknown" {
-  const url = new URL(raw, origin);
-  if (
-    url.origin !== origin ||
-    /(?:X-Amz-|signature=|presign)/i.test(url.href) ||
-    /\/api\/files\/|\/entry_image\/|\/file_derivative\//.test(url.pathname)
-  )
-    return "private";
-  if (url.pathname === "/_next/image")
-    return classify(url.searchParams.get("url") ?? "/unknown", origin) ===
-      "site"
-      ? "site"
-      : "private";
-  if (/^\/media\/gallery\/[a-f0-9-]{36}$/i.test(url.pathname) && !url.search)
-    return "stamp";
-  if (
-    /^\/(?:_next\/static\/|brand\/|images\/|favicon\.ico$|apple-touch-icon)/.test(
-      url.pathname
-    )
-  )
-    return "site";
-  return "unknown";
-}
+import {
+  classifyGalleryMedia as classify,
+  srcsetUrls,
+} from "./support/gallery-media-urls";
+
 test("crawl public gallery and result pages; only same-origin stamped gallery copies can serve art", async ({
   page,
   request,
@@ -66,13 +43,7 @@ test("crawl public gallery and result pages; only same-origin stamped gallery co
           "img[src],img[srcset],source[srcset],meta[property='og:image'],meta[name='twitter:image']"
         )
       )
-        .flatMap((el) => [
-          el.getAttribute("src"),
-          el.getAttribute("content"),
-          ...(el.getAttribute("srcset") ?? "")
-            .split(",")
-            .map((src) => src.trim().split(/\s+/)[0]),
-        ])
+        .flatMap((el) => [el.getAttribute("src"), el.getAttribute("content")])
         .filter((v): v is string => !!v && !v.startsWith("data:"));
       const links = Array.from(
         document.querySelectorAll<HTMLAnchorElement>("a[href]")
@@ -83,7 +54,7 @@ test("crawl public gallery and result pages; only same-origin stamped gallery co
         .flatMap((el) =>
           Array.from(
             (el.getAttribute("style") ?? "").matchAll(
-              /url\(['"]?([^'"\)]+)['"]?\)/g
+              /url\(['"]?([^'")]+)['"]?\)/g
             )
           ).map((m) => m[1]!)
         )
@@ -99,9 +70,12 @@ test("crawl public gallery and result pages; only same-origin stamped gallery co
           ),
         ],
         links,
+        srcsets: Array.from(document.querySelectorAll("[srcset]")).map(
+          (el) => el.getAttribute("srcset") ?? ""
+        ),
       };
     });
-    for (const src of refs.sources) {
+    for (const src of [...refs.sources, ...refs.srcsets.flatMap(srcsetUrls)]) {
       const c = classify(src, origin);
       expect(["site", "stamp"], `${path}: ${src}`).toContain(c);
       if (c === "stamp") stamps.add(new URL(src, origin).pathname);

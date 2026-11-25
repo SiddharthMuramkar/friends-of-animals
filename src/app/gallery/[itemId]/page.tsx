@@ -1,3 +1,4 @@
+import { SiteLink } from "@/components/site/site-link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
@@ -27,12 +28,13 @@ async function Item({ params }: PageProps<"/gallery/[itemId]">) {
     <article className="mt-8 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5 sm:p-6">
       <h2 className="text-h3 text-ink wrap-anywhere">{item.title}</h2>
       <ArtworkDetails item={item} priority />
-      <a
+      <SiteLink
+        prefetch={false}
         className={buttonStyles({ variant: "quiet", className: "mt-4" })}
         href={`/gallery/${itemId}/report`}
       >
         {t("report")}
-      </a>
+      </SiteLink>
     </article>
   );
 }
@@ -40,9 +42,13 @@ export default async function Page(props: PageProps<"/gallery/[itemId]">) {
   const t = await getTranslations("gallery");
   return (
     <Section hue="pink" tone="tint" className="min-h-svh pt-10 sm:pt-14">
-      <a href="/gallery" className={buttonStyles({ variant: "quiet" })}>
+      <SiteLink
+        prefetch={false}
+        href="/gallery"
+        className={buttonStyles({ variant: "quiet" })}
+      >
         {t("back")}
-      </a>
+      </SiteLink>
       <PageHeader
         className="mt-5"
         title={t("displayTitle")}

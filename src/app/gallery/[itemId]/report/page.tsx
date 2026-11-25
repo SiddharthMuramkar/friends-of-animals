@@ -1,3 +1,4 @@
+import { SiteLink } from "@/components/site/site-link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
@@ -31,9 +32,7 @@ async function Report({
   if (!item) notFound();
   if (query.result === "sent")
     return (
-      <p role="status" className="mt-6 text-lead text-ink">
-        {t("sent")}
-      </p>
+      <output className="block mt-6 text-lead text-ink">{t("sent")}</output>
     );
   return (
     <>
@@ -44,12 +43,13 @@ async function Report({
         </p>
       ) : null}
       <ReportForm itemId={itemId} labels={labels} />
-      <a
+      <SiteLink
+        prefetch={false}
         className={buttonStyles({ variant: "quiet", className: "mt-5" })}
         href={`/gallery/${itemId}`}
       >
         {t("back")}
-      </a>
+      </SiteLink>
     </>
   );
 }
@@ -63,12 +63,13 @@ export default async function Page(
       <Suspense fallback={<p className="mt-5">{t("loading")}</p>}>
         <Report {...props} />
       </Suspense>
-      <a
+      <SiteLink
+        prefetch={false}
         className={buttonStyles({ variant: "quiet", className: "mt-4" })}
         href="report/plain"
       >
         {t("simple")}
-      </a>
+      </SiteLink>
     </Section>
   );
 }

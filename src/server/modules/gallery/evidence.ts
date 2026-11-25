@@ -17,7 +17,11 @@ import { lockProfileSubject, lockUserSubject } from "../consent/repository";
 import { childDateOfBirth } from "../guardians/child-view";
 import { activeLinkOf, verifiedLink } from "../guardians/child-access";
 import { isAdultAt } from "../participants/domain/age";
-import { liveEntryStampSource, stampedImage } from "../stamping";
+import {
+  liveEntryStampSource,
+  stampSourceAvailable,
+  stampedImage,
+} from "../stamping";
 import { publishedRecognitionForEntry } from "../results/read-published";
 
 type Context = Pick<UseCaseContext, "db" | "cipher">;
@@ -140,7 +144,11 @@ export async function eligibleEntry(
   )
     return { eligible: false, reason: "no_public_display_consent" } as const;
   const fileId = await liveEntryStampSource(ctx.db, entryId);
-  if (!fileId) return { eligible: false, reason: "no_safe_image" } as const;
+  if (
+    !fileId ||
+    !(await stampSourceAvailable(ctx.db, { fileId, variant: "gallery" }))
+  )
+    return { eligible: false, reason: "no_safe_image" } as const;
   const image = await stampedImage(ctx, { fileId, variant: "gallery" });
   const award = await publishedRecognitionForEntry(ctx.db, entryId);
   return {

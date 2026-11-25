@@ -7,6 +7,7 @@ import { solveProofOfWork } from "@/lib/proof-of-work";
 import { sendGalleryReport } from "./actions";
 type Labels = {
   reason: string;
+  website: string;
   details: string;
   contact: string;
   send: string;
@@ -16,11 +17,23 @@ type Labels = {
 };
 export const reportInputStyles =
   "min-h-12 w-full min-w-0 rounded-xl border-2 border-border-strong bg-background p-3 text-ink";
-export function ReportFields({ labels }: { labels: Labels }) {
+export function ReportFields({
+  labels,
+  warm,
+}: {
+  labels: Labels;
+  warm?: () => void;
+}) {
   return (
     <>
       <label htmlFor="reason">{labels.reason}</label>
-      <select name="reason" id="reason" required className={reportInputStyles}>
+      <select
+        name="reason"
+        id="reason"
+        onFocus={warm}
+        required
+        className={reportInputStyles}
+      >
         {labels.reasons.map((r) => (
           <option value={r.value} key={r.value}>
             {r.label}
@@ -31,6 +44,7 @@ export function ReportFields({ labels }: { labels: Labels }) {
       <textarea
         name="details"
         id="details"
+        onFocus={warm}
         maxLength={1000}
         rows={5}
         className={reportInputStyles}
@@ -41,11 +55,12 @@ export function ReportFields({ labels }: { labels: Labels }) {
         autoComplete="email"
         name="contact"
         id="contact"
+        onFocus={warm}
         className={reportInputStyles}
         maxLength={254}
       />
       <div hidden aria-hidden="true">
-        <label htmlFor="website">Website</label>
+        <label htmlFor="website">{labels.website}</label>
         <input name="website" id="website" autoComplete="off" tabIndex={-1} />
       </div>
     </>
@@ -85,12 +100,8 @@ export function ReportForm({
     }
   }
   return (
-    <form
-      onSubmit={submit}
-      onFocus={() => void keeper.warm()}
-      className="mt-6 grid max-w-xl gap-3"
-    >
-      <ReportFields labels={labels} />
+    <form onSubmit={submit} className="mt-6 grid max-w-xl gap-3">
+      <ReportFields labels={labels} warm={() => void keeper.warm()} />
       {failed ? <p role="alert">{labels.invalid}</p> : null}
       <button disabled={sending} className={buttonStyles()}>
         {sending ? labels.sending : labels.send}

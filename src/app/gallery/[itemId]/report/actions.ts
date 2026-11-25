@@ -1,7 +1,10 @@
 "use server";
 import { redirect } from "next/navigation";
 import { as, currentActor } from "@/server/app";
-const text = (form: FormData, key: string) => String(form.get(key) ?? "");
+const text = (form: FormData, key: string) => {
+  const value = form.get(key);
+  return typeof value === "string" ? value : "";
+};
 export async function sendGalleryReport(itemId: string, form: FormData) {
   const result = await as(await currentActor()).reportGalleryItem({
     itemId,

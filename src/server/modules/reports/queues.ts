@@ -4,6 +4,9 @@ import { authorize } from "../../access/can";
 import type { Action } from "../../access/policies";
 import {
   competition,
+  entry,
+  galleryItem,
+  galleryReport,
   institution,
   paymentBatch,
   physicalArtwork,
@@ -173,6 +176,29 @@ export const QUEUES = {
         code: row.id,
         mine: ctx.actor.kind === "user" && requestedBy === ctx.actor.userId,
         href: `/admin/refunds/${row.id}`,
+      }));
+    },
+  },
+  reports_to_review: {
+    read: "gallery.curate",
+    work: "gallery.curate",
+    workHref: "/admin/gallery/reports",
+    async rows(ctx) {
+      const rows = await ctx.db
+        .select({
+          id: galleryReport.id,
+          competitionCode: competition.code,
+          waitingSince: galleryReport.createdAt,
+        })
+        .from(galleryReport)
+        .innerJoin(galleryItem, eq(galleryReport.itemId, galleryItem.id))
+        .innerJoin(entry, eq(galleryItem.entryId, entry.id))
+        .innerJoin(competition, eq(entry.competitionId, competition.id))
+        .where(eq(galleryReport.status, "open"));
+      return rows.map((row) => ({
+        ...row,
+        code: row.id,
+        href: `/admin/gallery/reports#report-${row.id}`,
       }));
     },
   },

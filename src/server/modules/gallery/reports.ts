@@ -89,21 +89,19 @@ export async function reportGalleryItem(
       if (!row || !(await liveGallerySource({ ...ctx, db: tx }, row)))
         throw new Answer(refusal("not_found"));
       const id = uuidv7(now);
-      await tx
-        .insert(galleryReport)
-        .values({
-          id,
-          itemId: row.id,
-          reason: fields.data.reason,
-          detailsCiphertext: fields.data.details
-            ? ctx.cipher.encrypt("gallery_report.details", fields.data.details)
-            : null,
-          contactCiphertext: fields.data.contact
-            ? ctx.cipher.encrypt("gallery_report.contact", fields.data.contact)
-            : null,
-          status: "open",
-          createdAt: now,
-        });
+      await tx.insert(galleryReport).values({
+        id,
+        itemId: row.id,
+        reason: fields.data.reason,
+        detailsCiphertext: fields.data.details
+          ? ctx.cipher.encrypt("gallery_report.details", fields.data.details)
+          : null,
+        contactCiphertext: fields.data.contact
+          ? ctx.cipher.encrypt("gallery_report.contact", fields.data.contact)
+          : null,
+        status: "open",
+        createdAt: now,
+      });
       await recordAudit(
         tx,
         { clock: ctx.clock, actor: { kind: "visitor", meta: sender } },

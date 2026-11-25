@@ -32,16 +32,8 @@ import { resizedArt } from "./resized-art";
 import { SEED_AUCTION_COMPETITION } from "./competitions";
 import { SEED_GUARDIANS } from "./guardians";
 import type { Seeder } from "./types";
-const id = (n: number) =>
-  `01938a00-0000-7000-8000-000000103${String(n).padStart(3, "0")}`;
-const auctionAsset = (n: number) =>
-  `01938a00-0000-7000-8000-000000131${String(70 + n).padStart(3, "0")}`;
-export const SEED_GALLERY = {
-  items: [id(1), id(2), id(3), id(4)],
-  originalFileIds: [auctionAsset(1), auctionAsset(2), id(103), id(104)],
-  featured: [id(1), id(2)],
-  report: id(201),
-} as const;
+import { SEED_GALLERY, gallerySeedId as id } from "./gallery-samples";
+export { SEED_GALLERY } from "./gallery-samples";
 const examples = [
   {
     n: 1,
@@ -243,7 +235,7 @@ export const seedGallery: Seeder = async (deps) => {
         {
           db,
           clock,
-          storage: storage as import("../ports/storage").ObjectStorage,
+          storage,
           media: { ...unconfiguredMedia, ...stampProcessor() },
         },
         { fileId, variant: "gallery" }

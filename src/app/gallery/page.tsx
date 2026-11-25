@@ -1,3 +1,4 @@
+import { SiteLink } from "@/components/site/site-link";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -114,19 +115,24 @@ async function Gallery({
           >
             {t("filter")}
           </button>
-          <a href="/gallery" className={buttonStyles({ variant: "quiet" })}>
+          <SiteLink
+            prefetch={false}
+            href="/gallery"
+            className={buttonStyles({ variant: "quiet" })}
+          >
             {t("clear")}
-          </a>
+          </SiteLink>
         </form>
       </details>
       <ArtworkCards items={page.items} />
       {more ? (
-        <a
+        <SiteLink
+          prefetch={false}
           className={buttonStyles({ variant: "secondary", className: "mt-6" })}
           href={`/gallery?${more}`}
         >
           {t("next")}
-        </a>
+        </SiteLink>
       ) : null}
     </section>
   );

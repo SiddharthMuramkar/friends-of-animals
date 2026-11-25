@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { SEED_GALLERY } from "../../src/server/seed/gallery";
+import { SEED_GALLERY } from "../../src/server/seed/gallery-samples";
 import {
   generateTotpSecret,
   totpCode,
@@ -11,9 +11,7 @@ import { drainOutbox } from "./support/mailbox";
 
 test("consented gallery, stamped image and anonymous report forms", async ({
   page,
-  browser,
   request,
-  baseURL,
 }, info) => {
   const index = info.project.name === "mobile" ? 1 : 0;
   const id = SEED_GALLERY.items[index]!;
@@ -57,6 +55,19 @@ test("consented gallery, stamped image and anonymous report forms", async ({
     page.getByText("Thank you. FOA will review your report.")
   ).toBeVisible();
   await expectAccessible(page, "gallery report sent");
+});
+
+test("the native report form is accessible and works with scripts disabled", async ({
+  page,
+  browser,
+  baseURL,
+}, info) => {
+  const id = SEED_GALLERY.items[info.project.name === "mobile" ? 1 : 0]!;
+  await page.goto(`/gallery-report/${id}`);
+  await expect(page.getByLabel("What is the concern?")).toBeVisible();
+  await expectAccessible(page, "native gallery report");
+  await expectAccessibleInDark(page, "native gallery report");
+  await expectNoSidewaysScrollAt320(page, "native gallery report");
   // The separate native fallback works with JS disabled; it uses the same
   // proof redemption and hourly rate limit. Its issue time is server-signed.
   const plain = await browser.newContext({ baseURL, javaScriptEnabled: false });
@@ -70,7 +81,6 @@ test("consented gallery, stamped image and anonymous report forms", async ({
       .fill(`Plain ${info.project.name}`);
     // The signed challenge is intentionally too young to redeem until 3s.
     // Wait through actual form completion time, not an arbitrary test retry.
-    await expectAccessible(native, "native gallery report");
     const at = Date.now();
     await native
       .getByLabel("Your email (optional)")
@@ -152,6 +162,12 @@ test("content manager reviews reports and hides or restores the artwork immediat
   await draft.getByRole("button", { name: "Publish artwork" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Gallery change saved." })
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("heading", { name: title, exact: true }) })
+      .filter({ hasText: "Published" })
   ).toBeVisible();
   expect((await request.get(path)).status()).toBe(200);
 });

@@ -42,9 +42,9 @@ export default async function Page({
             {t("reports")}
           </ButtonLink>
           {query.result ? (
-            <p role="status" className="mt-4 text-ink">
+            <output className="block mt-4 text-ink">
               {t(query.result === "ok" ? "saved" : "error")}
-            </p>
+            </output>
           ) : null}
           <h2 className="mt-8 text-h3 text-ink">{t("items")}</h2>
           {loaded.value[1].length === 0 ? (
