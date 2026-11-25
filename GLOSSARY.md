@@ -748,6 +748,18 @@ guardian's current public-display consent allows a public credit. No assessment,
 entry code or original work is published here; withdrawn credit disappears on
 subsequent reads.
 
+**Certificate**:
+A numbered recognition of a participant's eligible participation, school merit,
+finalist status, winning or runner-up award (or later volunteer service).
+Its validity begins at issuance, independently of PDF readiness. The private PDF
+carries a QR linking to public verification; its number is never a credential.
+A revoked or replaced number never becomes valid again.
+
+**Certificate number**:
+A unique random `FOA-C-{YY}-{10}` code, dated by India's calendar at issue time.
+Anyone may check its validity; a PDF download needs the participant's or a
+verified linked guardian's own session.
+
 ## Physical artwork
 
 **Physical artwork**:

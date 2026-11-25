@@ -13,6 +13,10 @@ import {
 import type { UseCaseContext } from "../../use-cases";
 import { verifiedLink } from "../guardians/child-access";
 import { publicUse } from "../consent";
+import {
+  firstNameAndInitial,
+  nameParts,
+} from "../consent/domain/public-credit";
 import { takeFormAllowance } from "../public-forms/rate-limit";
 import { normaliseCertificateNumber } from "./domain/number";
 import { indianDateAt } from "../registration/domain/calendar-date";
@@ -262,6 +266,17 @@ export async function verifyCertificate(
         use: "results",
       })
     : null;
+  const snapshot = row.cert.nameSnapshot
+    .normalize("NFC")
+    .trim()
+    .replace(/\s+/gu, " ");
+  const { firstName, lastName } = nameParts(snapshot);
+  const allowedCredit =
+    credit &&
+    (credit.name === snapshot ||
+      credit.name === firstNameAndInitial(firstName, lastName))
+      ? { name: credit.name }
+      : null;
   return {
     outcome: "valid",
     number,
@@ -270,6 +285,6 @@ export async function verifyCertificate(
     awardLabel: row.cert.awardLabel,
     competition: row.competition,
     issuedOn: indianDateAt(row.cert.issuedAt),
-    credit: credit ? { name: credit.name } : null,
+    credit: allowedCredit,
   } as const;
 }

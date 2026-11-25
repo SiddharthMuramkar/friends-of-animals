@@ -8,6 +8,7 @@ import {
   fileAsset,
   guardianLink,
   outbox,
+  participantProfile,
   resultRelease,
 } from "../../db/schema";
 import { SEED_RESULTS } from "../../seed/results";
@@ -213,7 +214,19 @@ it("separates validity from PDF failure, retries through staff, and limits publi
   const valid = await visitor.verifyCertificate({
     number: c.number.toLowerCase().replaceAll("-", " "),
   });
-  expect(valid).toMatchObject({ outcome: "valid", number: c.number });
+  expect(valid).toMatchObject({
+    outcome: "valid",
+    number: c.number,
+    credit: { name: "Asha Rao" },
+  });
+  await h.db
+    .update(participantProfile)
+    .set({ fullName: "Corrected private name" })
+    .where(eq(participantProfile.id, c.participantProfileId));
+  expect(await visitor.verifyCertificate({ number: c.number })).toMatchObject({
+    outcome: "valid",
+    credit: null,
+  });
   expect(JSON.stringify(valid)).not.toContain(c.participantProfileId);
   for (const forbidden of [
     "dateOfBirth",
