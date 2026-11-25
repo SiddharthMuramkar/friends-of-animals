@@ -1,5 +1,4 @@
 CREATE TYPE "public"."recurring_donation_status" AS ENUM('pending_authorisation', 'active', 'past_due', 'halted', 'cancelled', 'completed');--> statement-breakpoint
-ALTER TYPE "public"."refund_kind" ADD VALUE 'recurring_after_cancel';--> statement-breakpoint
 CREATE TABLE "gateway_plan" (
 	"gateway" text NOT NULL,
 	"amount_minor" bigint NOT NULL,
