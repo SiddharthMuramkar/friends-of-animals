@@ -52,6 +52,7 @@ import { seedSecondFactor } from "./second-factor";
 import { seedAuctions } from "./auctions";
 import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
+import { seedScoring } from "./scoring";
 import { seedSettings } from "./settings";
 import { seedVolunteers } from "./volunteers";
 import type { Seeder } from "./types";
@@ -127,6 +128,7 @@ const seeders: readonly Seeder[] = [
   seedChildConsents,
   seedPhysicalArtwork,
   seedAuctions,
+  seedScoring,
   seedJudgingRounds,
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).

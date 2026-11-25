@@ -25,6 +25,7 @@ describe("the settings seed", () => {
         value:
           "Protect the original work with suitable packaging and mark it with the Artwork ID.",
       },
+      { key: "artwork.returnWindowDays", value: 30 },
       { key: "artwork.shippingPayer", value: false },
       { key: "auctions.enabled", value: true },
       { key: "auth.emailSignIn", value: true },

@@ -1,6 +1,6 @@
 // Public addresses for listings: /ngos/<slug>. The slug is made once, from
-// the name at registration, and never changes, so links people share keep
-// working after a rename. The unique index decides collisions: the caller
+// the name at registration, and stays stable after edits; only privacy
+// erasure removes that identifying address. The unique index decides collisions: the caller
 // retries with the next candidate inside a savepoint.
 //
 // Loads under plain Node: no "server-only", no `@/` imports.

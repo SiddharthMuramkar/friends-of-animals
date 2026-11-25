@@ -61,5 +61,7 @@ export * from "./judging-rounds";
 export * from "./judging-judges";
 
 export * from "./physical-artwork";
+
+export * from "./scoring";
 export * from "./artwork-custody";
 export * from "./auctions";

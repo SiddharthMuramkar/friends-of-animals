@@ -120,9 +120,15 @@ export type DomainEvent =
       payload: { fileId: string };
     }
   | {
+      /** A clean essay PDF needs a safe blind-judging copy (#96). */
+      type: "files.pdf_processing_requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
       /**
        * The scan passed a file that gets no derivatives: it is ready as
-       * stored (an essay's PDF, #86).
+       * stored (a payment proof, for example).
        */
       type: "files.file_ready";
       aggregate: { type: "file_asset"; id: string };
@@ -896,6 +902,7 @@ export const EVENT_PAYLOADS = {
   }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
   "files.video_processing_requested": z.object({ fileId: z.uuid() }),
+  "files.pdf_processing_requested": z.object({ fileId: z.uuid() }),
   "files.file_ready": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),
   "files.file_processing_failed": z.object({
@@ -1149,6 +1156,11 @@ export const SUBSCRIBERS = {
   // files.process_video runs in worker-media only, like process_image (#86).
   "files.video_processing_requested": [
     "files.process_video",
+    "entries.apply_file_outcome",
+  ],
+  // Essay PDF rasterisation also runs only in worker-media (#96).
+  "files.pdf_processing_requested": [
+    "files.process_pdf",
     "entries.apply_file_outcome",
   ],
   // A file that needs no derivatives is ready once its scan passes (#86).

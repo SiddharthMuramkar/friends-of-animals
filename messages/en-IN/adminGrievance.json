@@ -177,6 +177,8 @@
       "entries": "Entries and their pictures",
       "registrations": "Unpaid registrations",
       "guardian_links": "Guardian links and invitations",
+      "directory_listings": "Directory listings owned by the subject",
+      "directory_publication": "Public disclosure of directory listings",
       "profile": "Participant profile",
       "account": "Account",
       "kept_profile": "Participant profile with a paid registration",

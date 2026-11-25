@@ -26,6 +26,7 @@ import { deliverConsentLink } from "../modules/consent-links/delivery";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { uploadKeyFor } from "../modules/files/domain/storage-key";
 import { processImageAsset } from "../modules/files/process-image";
+import { processPdfAsset } from "../modules/files/process-pdf";
 import { processVideoAsset } from "../modules/files/process-video";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
@@ -183,6 +184,7 @@ export const HANDLERS: Handlers = {
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "files.process_video": (deps, delivery) => processVideoAsset(deps, delivery),
+  "files.process_pdf": (deps, delivery) => processPdfAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
   "judging.send_invitation": (deps, { payload }) =>

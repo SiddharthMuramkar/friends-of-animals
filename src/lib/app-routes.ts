@@ -254,6 +254,10 @@ export const adminJudgingRoundPath = (id: string) =>
   `${ADMIN_JUDGING_ROUNDS}/${encodeURIComponent(id)}`;
 export const judgeInvitationPath = (token: string) =>
   `${JUDGE_INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+export const judgeRoundPath = (id: string) =>
+  `${JUDGE_DASHBOARD}/rounds/${encodeURIComponent(id)}`;
+export const judgeEntryPath = (id: string, entryCode: string) =>
+  `${judgeRoundPath(id)}/entries/${encodeURIComponent(entryCode)}`;
 export const judgeOnboardingPath = (id: string) =>
   `${JUDGE_DASHBOARD}/rounds/${encodeURIComponent(id)}/onboarding`;
 export const isJudgeInvitationPage = (path: string) =>
@@ -571,6 +575,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/judging/rounds/[id]/conflicts",
   JUDGE_DASHBOARD,
   "/judge/rounds/[id]/onboarding",
+  "/judge/rounds/[id]",
+  "/judge/rounds/[id]/entries/[entryCode]",
 
   ADMIN_ARTWORK,
   "/admin/artwork/[artworkCode]",

@@ -41,6 +41,7 @@ import {
   consentForm,
   consentFormUpload,
   consentLink,
+  directoryListing,
   entry,
   entryFile,
   entryUploadGrant,
@@ -90,6 +91,7 @@ import {
   lockUserSubject,
   type ConsentSubject,
 } from "../../../consent/repository";
+import { eraseOwnedListings } from "../../../directory/erase-owner";
 import {
   renderEmailHtml,
   renderTemplate,
@@ -368,7 +370,7 @@ export async function gatherErasure(
       .where(
         and(
           within(fileAsset.ownerUserId, users),
-          eq(fileAsset.purpose, "test_upload")
+          inArray(fileAsset.purpose, ["test_upload", "directory_document"])
         )
       )
   ).map((row) => row.id);
@@ -529,6 +531,27 @@ export async function gatherErasure(
           .from(guardianInvitation)
           .where(within(guardianInvitation.participantProfileId, profileIds))
       )),
+    directoryListings: await n(
+      db
+        .select({ n: count() })
+        .from(directoryListing)
+        .where(within(directoryListing.ownerUserId, users))
+    ),
+    directoryPublications: await n(
+      db
+        .select({ n: count() })
+        .from(directoryListing)
+        .where(
+          and(
+            within(directoryListing.ownerUserId, users),
+            inArray(directoryListing.status, [
+              "pending_verification",
+              "verified",
+              "suspended",
+            ])
+          )
+        )
+    ),
     deletableProfiles: deletableProfiles.length,
     keptProfiles: keptProfiles.length,
     keptProfileBasis: keptProfiles.some((id) => paidProfiles.has(id))
@@ -654,6 +677,7 @@ async function eraseRecords(
       actorRole: null,
     });
   }
+  await eraseOwnedListings(tx, deps, targets.users, targets.facts.onLegalHold);
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;

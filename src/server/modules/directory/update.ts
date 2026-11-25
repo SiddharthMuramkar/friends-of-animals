@@ -103,7 +103,7 @@ export async function updateListing(
       },
       actorRole: role,
     });
-    if (plan.event) {
+    if (plan.event && row.ownerUserId !== null) {
       await emit(tx, ctx.clock, {
         type: plan.event,
         aggregate: { type: "directory_listing", id: listingId },

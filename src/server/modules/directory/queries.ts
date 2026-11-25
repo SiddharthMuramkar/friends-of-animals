@@ -264,7 +264,7 @@ export async function listListingsForReview(
 
 /** Everything staff need to decide, including who registered it. */
 export type ListingForReview = MyListing & {
-  owner: { id: string; name: string; email: string | null };
+  owner: { id: string; name: string; email: string | null } | null;
   checklist: ChecklistItem[];
   allowedActions: StaffListingAction[];
 };
@@ -287,7 +287,7 @@ export async function getListingForReview(
       owner: { id: user.id, name: user.name, email: user.email },
     })
     .from(directoryListing)
-    .innerJoin(user, eq(user.id, directoryListing.ownerUserId))
+    .leftJoin(user, eq(user.id, directoryListing.ownerUserId))
     .where(eq(directoryListing.id, parsed.data.listingId));
   if (!found) return { ok: false, error: "not_found" };
   const { row } = found;

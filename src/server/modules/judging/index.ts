@@ -2,6 +2,7 @@
 // keeps a competition out of school judging until they are published. Its
 // use cases join `as(actor)` through `judgingUseCases`.
 
+import { blindJudgingUseCases } from "./blind";
 import { assignmentUseCases } from "./assignment";
 import { judgeUseCases } from "./judges";
 import { roundUseCases } from "./rounds";
@@ -49,6 +50,7 @@ export const judgingUseCases = (ctx: UseCaseContext) => ({
   ...roundUseCases(ctx),
   ...judgeUseCases(ctx),
   ...assignmentUseCases(ctx),
+  ...blindJudgingUseCases(ctx),
   createRubricDraft: (input: {
     competitionId: string;
     discipline: Discipline;

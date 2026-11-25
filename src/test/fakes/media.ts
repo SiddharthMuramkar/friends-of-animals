@@ -14,6 +14,7 @@
 //   media.nextVideo({ durationMs: 181_001 }); // what the next video probes as
 //   media.processed;                          // every image input, oldest first
 //   media.videos;                             // every video call, oldest first
+//   media.pdfs;                               // every PDF input, oldest first
 
 import {
   planImageDerivatives,
@@ -35,9 +36,12 @@ import {
   type MediaInput,
   type MediaProcessor,
   type MediaResult,
+  type PdfDerivative,
   type VideoInput,
   type VideoResult,
 } from "@/server/ports/media";
+import { sniffContentType } from "@/server/modules/files/domain/sniff";
+import { fakeRasterPdf } from "@/test/pdf-fixtures";
 import { minimalWebp } from "@/test/webp";
 
 type Source = MediaResult["source"];
@@ -262,10 +266,12 @@ export class FakeMediaProcessor implements MediaProcessor {
   readonly processed: MediaInput[] = [];
   /** Every video call, oldest first, failed ones included. */
   readonly videos: { sizeBytes: number; maxDurationMs: number }[] = [];
+  /** Every PDF call, oldest first, failed ones included. */
+  readonly pdfs: Uint8Array[] = [];
   private failures: MediaErrorCode[] = [];
   private probes: (Partial<VideoProbe> | "no_video_stream")[] = [];
 
-  /** The next `times` calls, image or video, reject with `code`. */
+  /** The next `times` calls, image, video or PDF, reject with `code`. */
   failNext(times: number, code: MediaErrorCode = "media_decode_failed") {
     this.failures.push(...Array.from({ length: times }, () => code));
   }
@@ -315,6 +321,26 @@ export class FakeMediaProcessor implements MediaProcessor {
           bytes: bareJpeg(plan.posterWidth, plan.posterHeight),
         },
       ],
+    };
+  }
+
+  async processPdf({ bytes }: { bytes: Uint8Array }): Promise<PdfDerivative> {
+    this.pdfs.push(bytes);
+    const failure = this.failures.shift();
+    if (failure) throw new MediaError(failure);
+    if (sniffContentType(bytes) !== "application/pdf") {
+      throw new MediaError("unsupported_type");
+    }
+    if (!new TextDecoder().decode(bytes).trimEnd().endsWith("%%EOF")) {
+      throw new MediaError("media_decode_failed");
+    }
+    return {
+      kind: "pdf_clean",
+      contentType: "application/pdf",
+      width: null,
+      height: null,
+      durationMs: null,
+      bytes: fakeRasterPdf(),
     };
   }
 

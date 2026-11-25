@@ -72,7 +72,7 @@ export const directoryListing = pgTable(
   {
     /** UUIDv7; also the scope id of the listing's representatives. */
     id: uuid().primaryKey(),
-    /** The public address, /ngos/<slug>. Made once, never changed. */
+    /** The public address, /ngos/<slug>. Stable except when erased. */
     slug: text().notNull(),
     type: directoryListingType().notNull(),
     name: text().notNull(),
@@ -108,12 +108,12 @@ export const directoryListing = pgTable(
      */
     verifiedAt: timestamptz("verified_at"),
     /**
-     * Who registered it. No ON DELETE: erasing an account must deal with
-     * its listings first (#115).
+     * Who registered it (or the representative it was handed to at erasure).
+     * Closed listings may lose this reference at erasure; live listings
+     * always have an accountable person. No ON DELETE, so erasure must
+     * explicitly deal with the listing first (#115).
      */
-    ownerUserId: uuid("owner_user_id")
-      .notNull()
-      .references(() => user.id),
+    ownerUserId: uuid("owner_user_id").references(() => user.id),
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
@@ -139,6 +139,10 @@ export const directoryListing = pgTable(
     check(
       "directory_listing_verified_at_matches_status",
       sql`${table.status} NOT IN ('verified', 'suspended') OR ${table.verifiedAt} IS NOT NULL`
+    ),
+    check(
+      "directory_listing_open_owner_present",
+      sql`${table.ownerUserId} IS NOT NULL OR ${table.status} IN ('withdrawn', 'rejected')`
     ),
     // One open listing per person who registers: after a rejection or a
     // withdrawal they may register again.

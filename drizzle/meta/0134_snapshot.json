@@ -1,6 +1,6 @@
 {
-  "id": "ea9f6298-05d7-4da3-ade2-4b468a11d413",
-  "prevId": "5a5991e7-40fa-4d17-bc3a-be7f9472e9c1",
+  "id": "4d766779-42b7-4a3a-ab6e-1e37c84e8533",
+  "prevId": "f11a2975-d7a5-4a41-b1bc-0e400818ce9f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14043,7 +14043,7 @@
           "name": "owner_user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -14214,6 +14214,10 @@
         "directory_listing_verified_at_matches_status": {
           "name": "directory_listing_verified_at_matches_status",
           "value": "\"directory_listing\".\"status\" NOT IN ('verified', 'suspended') OR \"directory_listing\".\"verified_at\" IS NOT NULL"
+        },
+        "directory_listing_open_owner_present": {
+          "name": "directory_listing_open_owner_present",
+          "value": "\"directory_listing\".\"owner_user_id\" IS NOT NULL OR \"directory_listing\".\"status\" IN ('withdrawn', 'rejected')"
         }
       },
       "isRLSEnabled": false
@@ -18891,6 +18895,227 @@
       },
       "isRLSEnabled": false
     },
+    "public.criterion_score": {
+      "name": "criterion_score",
+      "schema": "",
+      "columns": {
+        "score_sheet_id": {
+          "name": "score_sheet_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criterion_id": {
+          "name": "criterion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_at_version": {
+          "name": "changed_at_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "criterion_score_criterion_idx": {
+          "name": "criterion_score_criterion_idx",
+          "columns": [
+            {
+              "expression": "criterion_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "criterion_score_score_sheet_id_score_sheet_id_fk": {
+          "name": "criterion_score_score_sheet_id_score_sheet_id_fk",
+          "tableFrom": "criterion_score",
+          "tableTo": "score_sheet",
+          "columnsFrom": [
+            "score_sheet_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "criterion_score_criterion_id_rubric_criterion_id_fk": {
+          "name": "criterion_score_criterion_id_rubric_criterion_id_fk",
+          "tableFrom": "criterion_score",
+          "tableTo": "rubric_criterion",
+          "columnsFrom": [
+            "criterion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "criterion_score_score_sheet_id_criterion_id_pk": {
+          "name": "criterion_score_score_sheet_id_criterion_id_pk",
+          "columns": [
+            "score_sheet_id",
+            "criterion_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "criterion_score_range": {
+          "name": "criterion_score_range",
+          "value": "\"criterion_score\".\"value\" BETWEEN 0 AND 100"
+        },
+        "criterion_score_version": {
+          "name": "criterion_score_version",
+          "value": "\"criterion_score\".\"changed_at_version\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.score_sheet": {
+      "name": "score_sheet",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "judge_user_id": {
+          "name": "judge_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "comment_version": {
+          "name": "comment_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "complete": {
+          "name": "complete",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "score_sheet_round_id_entry_id_judge_user_id_round_assignment_round_id_entry_id_judge_user_id_fk": {
+          "name": "score_sheet_round_id_entry_id_judge_user_id_round_assignment_round_id_entry_id_judge_user_id_fk",
+          "tableFrom": "score_sheet",
+          "tableTo": "round_assignment",
+          "columnsFrom": [
+            "round_id",
+            "entry_id",
+            "judge_user_id"
+          ],
+          "columnsTo": [
+            "round_id",
+            "entry_id",
+            "judge_user_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "score_sheet_assignment_unique": {
+          "name": "score_sheet_assignment_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "round_id",
+            "entry_id",
+            "judge_user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "score_sheet_version": {
+          "name": "score_sheet_version",
+          "value": "\"score_sheet\".\"version\" >= 0 AND \"score_sheet\".\"comment_version\" BETWEEN 0 AND \"score_sheet\".\"version\""
+        },
+        "score_sheet_comment_length": {
+          "name": "score_sheet_comment_length",
+          "value": "char_length(\"score_sheet\".\"comment\") <= 2000"
+        },
+        "score_sheet_completed": {
+          "name": "score_sheet_completed",
+          "value": "NOT \"score_sheet\".\"complete\" OR \"score_sheet\".\"completed_at\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.artwork_custody_event": {
       "name": "artwork_custody_event",
       "schema": "",
@@ -19493,235 +19718,6 @@
         "artwork_verification_passed": {
           "name": "artwork_verification_passed",
           "value": "\"artwork_verification\".\"code_matches_label\" AND \"artwork_verification\".\"creator_confirmed\" AND \"artwork_verification\".\"matches_digital\" AND \"artwork_verification\".\"consent_documents_ok\""
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.auction_lot": {
-      "name": "auction_lot",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "lot_code": {
-          "name": "lot_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "artwork_id": {
-          "name": "artwork_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "consent_event_id": {
-          "name": "consent_event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "artwork_status_before_listing": {
-          "name": "artwork_status_before_listing",
-          "type": "physical_artwork_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "auction_lot_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "story": {
-          "name": "story",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "base_price_paise": {
-          "name": "base_price_paise",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reserve_price_paise": {
-          "name": "reserve_price_paise",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opens_at": {
-          "name": "opens_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "closes_at": {
-          "name": "closes_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cancellation_reason": {
-          "name": "cancellation_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "auction_lot_one_active_artwork": {
-          "name": "auction_lot_one_active_artwork",
-          "columns": [
-            {
-              "expression": "artwork_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"auction_lot\".\"status\" IN ('draft', 'scheduled', 'open', 'closed', 'awaiting_payment', 'relisted')",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "auction_lot_artwork_idx": {
-          "name": "auction_lot_artwork_idx",
-          "columns": [
-            {
-              "expression": "artwork_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "auction_lot_status_dates_idx": {
-          "name": "auction_lot_status_dates_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "opens_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "closes_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "auction_lot_artwork_id_physical_artwork_id_fk": {
-          "name": "auction_lot_artwork_id_physical_artwork_id_fk",
-          "tableFrom": "auction_lot",
-          "tableTo": "physical_artwork",
-          "columnsFrom": [
-            "artwork_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "auction_lot_consent_event_id_consent_event_id_fk": {
-          "name": "auction_lot_consent_event_id_consent_event_id_fk",
-          "tableFrom": "auction_lot",
-          "tableTo": "consent_event",
-          "columnsFrom": [
-            "consent_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "auction_lot_created_by_user_id_fk": {
-          "name": "auction_lot_created_by_user_id_fk",
-          "tableFrom": "auction_lot",
-          "tableTo": "user",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "auction_lot_lot_code_unique": {
-          "name": "auction_lot_lot_code_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "lot_code"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "auction_lot_terms": {
-          "name": "auction_lot_terms",
-          "value": "\"auction_lot\".\"base_price_paise\" > 0 AND \"auction_lot\".\"reserve_price_paise\" >= \"auction_lot\".\"base_price_paise\" AND \"auction_lot\".\"closes_at\" > \"auction_lot\".\"opens_at\""
-        },
-        "auction_lot_previous_status": {
-          "name": "auction_lot_previous_status",
-          "value": "\"auction_lot\".\"artwork_status_before_listing\" IN ('verified','on_exhibition','retained')"
-        },
-        "auction_lot_code_format": {
-          "name": "auction_lot_code_format",
-          "value": "\"auction_lot\".\"lot_code\" ~ '^LOT-[0-9]{2}-[0-9A-HJKMNP-TV-Z]{5}$'"
-        },
-        "auction_lot_story_length": {
-          "name": "auction_lot_story_length",
-          "value": "char_length(\"auction_lot\".\"story\") BETWEEN 1 AND 2000"
         }
       },
       "isRLSEnabled": false
@@ -20847,9 +20843,7 @@
         "exhibited",
         "moved",
         "retained",
-        "returned",
-        "auction_reserved",
-        "auction_released"
+        "returned"
       ]
     },
     "public.artwork_photo_kind": {
@@ -20859,21 +20853,6 @@
         "front",
         "back",
         "detail"
-      ]
-    },
-    "public.auction_lot_status": {
-      "name": "auction_lot_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "scheduled",
-        "open",
-        "closed",
-        "awaiting_payment",
-        "sold",
-        "unsold",
-        "relisted",
-        "cancelled"
       ]
     }
   },
