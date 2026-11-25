@@ -40,6 +40,9 @@ import {
   entryTransition,
   entryVerification,
   physicalArtwork,
+  roundEntry,
+  roundAssignment,
+  judgeOnboarding,
   artworkPhoto,
   artworkCustodyEvent,
   artworkDiscrepancy,
@@ -291,6 +294,33 @@ export const SECTIONS: readonly Section[] = [
     table: physicalArtwork,
     where: (scope) => sql`${physicalArtwork.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id", "registration_id"],
+  },
+  {
+    table: roundEntry,
+    where: (scope) =>
+      or(
+        sql`${roundEntry.entryId} IN ${entryIdsOf(scope)}`,
+        within(roundEntry.admittedByUserId, users(scope))
+      )!,
+    owners: ["entry_id", "admitted_by_user_id"],
+    withhold: ["admitted_by_user_id"],
+  },
+  {
+    table: roundAssignment,
+    // A judge's assignments belong in their rights export, but the private
+    // source-entry and other staff identities must never pierce blind judging.
+    where: (scope) =>
+      or(
+        within(roundAssignment.judgeUserId, users(scope)),
+        within(roundAssignment.assignedByUserId, users(scope))
+      )!,
+    owners: ["judge_user_id", "assigned_by_user_id"],
+    withhold: ["entry_id", "judge_user_id", "assigned_by_user_id"],
+  },
+  {
+    table: judgeOnboarding,
+    where: (scope) => within(judgeOnboarding.judgeUserId, users(scope)),
+    owners: ["judge_user_id"],
   },
   {
     table: artworkVerification,

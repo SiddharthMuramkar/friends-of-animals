@@ -33,6 +33,9 @@ import {
   auditLog,
   artworkPhoto,
   physicalArtwork,
+  roundEntry,
+  roundAssignment,
+  judgeConflict,
   consentDocument,
   consentEvent,
   consentForm,
@@ -658,6 +661,13 @@ async function eraseRecords(
   await tx
     .delete(entryUploadGrant)
     .where(within(entryUploadGrant.registrationId, registrationIds));
+  // Judging (#95) references the entry with composite foreign keys.
+  // Remove its assignments and conflict flags before the pool row and entry.
+  await tx
+    .delete(roundAssignment)
+    .where(within(roundAssignment.entryId, entryIds));
+  await tx.delete(judgeConflict).where(within(judgeConflict.entryId, entryIds));
+  await tx.delete(roundEntry).where(within(roundEntry.entryId, entryIds));
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx
