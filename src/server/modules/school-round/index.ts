@@ -10,6 +10,13 @@
 // scope with #91. Its use cases join `as(actor)` through
 // `schoolRoundUseCases`.
 
+import {
+  closeSchoolRoundOnBehalf,
+  reopenSchoolRound,
+  listSchoolRoundsForManager,
+  type ManageRoundInput,
+  type CloseSchoolRoundInput,
+} from "./use-cases/manage-round";
 import type { UseCaseContext } from "../../use-cases";
 import {
   finaliseSchoolRound,
@@ -48,6 +55,11 @@ export type { SchoolRoundStatus } from "./domain/status";
 type RegistrationRef = { institutionId: string; reference: string };
 
 export const schoolRoundUseCases = (ctx: UseCaseContext) => ({
+  listSchoolRoundsForManager: (input: { competitionId: string }) =>
+    listSchoolRoundsForManager(ctx, input),
+  closeSchoolRoundOnBehalf: (input: CloseSchoolRoundInput) =>
+    closeSchoolRoundOnBehalf(ctx, input),
+  reopenSchoolRound: (input: ManageRoundInput) => reopenSchoolRound(ctx, input),
   getSchoolRound: (input: RegistrationRef) => getSchoolRound(ctx, input),
   recordPanel: (input: RecordPanelInput) => recordPanel(ctx, input),
   saveShortlist: (input: SaveShortlistInput) => saveShortlist(ctx, input),

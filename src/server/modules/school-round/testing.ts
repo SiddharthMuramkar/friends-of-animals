@@ -6,7 +6,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Actor } from "@/server/actor";
-import { competition, entry } from "@/server/db/schema";
+import { competition, entry, user } from "@/server/db/schema";
 import { submittedImage } from "@/server/modules/entries/testing";
 import {
   confirmedSchool,
@@ -188,4 +188,44 @@ export async function setShortlistLimits(
         : { schoolPositions: limits.positions }),
     })
     .where(eq(competition.id, competitionId));
+}
+
+const PANEL = [{ fullName: "Lata Kulkarni", designation: "Art teacher" }];
+
+/** Panel recorded, conduct certified, students 1 (1st) and 2 picked. */
+export async function readyRound(h: Harness, world: RoundWorld) {
+  const coordinator = h.as(world.coordinator.actor);
+  await coordinator.recordPanel({ ...world.ref, members: PANEL });
+  const certified = await coordinator.certifyConduct(world.ref);
+  if (!certified.ok) throw new Error(JSON.stringify(certified));
+  const categoryId = await categoryOf(h, world, "photography");
+  const saved = await coordinator.saveShortlist({
+    ...world.ref,
+    categoryId,
+    picks: [
+      { entryId: world.entryIds[1]!, position: 1 },
+      { entryId: world.entryIds[2]!, position: null },
+    ],
+  });
+  if (!saved.ok) throw new Error(JSON.stringify(saved));
+  return categoryId;
+}
+
+/**
+ * Moves the clock past the seed competition's shortlist deadline (90 days
+ * from the start, 23:59 IST; school judging began at day 81) and lets the
+ * jobs run.
+ */
+export async function pastShortlistDeadline(h: Harness): Promise<void> {
+  h.clock.advance({ days: 10 });
+  await h.drain();
+}
+
+/** A user's email address. */
+export async function emailOf(h: Harness, userId: string): Promise<string> {
+  const [row] = await h.db
+    .select({ email: user.email })
+    .from(user)
+    .where(eq(user.id, userId));
+  return row!.email!;
 }

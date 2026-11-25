@@ -6,7 +6,7 @@
 // sends are claimed under its id, so each person gets one copy.
 
 import { randomInt } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { reminderJob } from "@/server/db/schema";
@@ -82,7 +82,12 @@ function rowsOf(competitionId: string) {
   return world.db
     .select()
     .from(reminderJob)
-    .where(eq(reminderJob.subjectId, competitionId));
+    .where(
+      and(
+        eq(reminderJob.subjectId, competitionId),
+        eq(reminderJob.reminderName, "entry_submission_due")
+      )
+    );
 }
 
 describe("reminders under concurrency", () => {
@@ -110,7 +115,7 @@ describe("reminders under concurrency", () => {
       results
         .map((result) => (result.ok ? result.scheduled : -1))
         .toSorted((a, b) => a - b)
-    ).toEqual([0, 2]);
+    ).toEqual([0, 4]);
     expect(await rowsOf(competition.id)).toHaveLength(2);
   });
 

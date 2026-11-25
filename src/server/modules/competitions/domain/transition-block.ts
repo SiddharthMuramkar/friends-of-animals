@@ -2,7 +2,7 @@
 // status machine (../transition-guards.ts) refuses with one reason here
 // and the details that go with it; the refusal is stored as a
 // competition_transition_block row and named in the managers' notice.
-// A later guard (#90: no unfinished school round) adds its reason.
+// #90 added `school_rounds_unfinished`.
 //
 // Plain TypeScript and zod, no I/O: loads under plain Node (the worker).
 
@@ -21,6 +21,16 @@ export const TRANSITION_BLOCK = z.discriminatedUnion("reason", [
     /** These enabled disciplines have no published rubric, in their order. */
     reason: z.literal("rubrics_missing"),
     missingDisciplines: z.array(z.enum(DISCIPLINES)).min(1),
+  }),
+  z.object({
+    /**
+     * School rounds not finished yet (#90): confirmed schools whose round
+     * never opened, rounds still open, and overdue rounds.
+     */
+    reason: z.literal("school_rounds_unfinished"),
+    missing: z.int().min(0),
+    open: z.int().min(0),
+    overdue: z.int().min(0),
   }),
 ]);
 

@@ -287,6 +287,10 @@ export function adminBatchRefundPath(batchId: string): string {
  * Where a super admin cancels a competition (#80). Listed with
  * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
  */
+export function adminSchoolRoundsPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/school-rounds`;
+}
+
 export function adminCompetitionCancelPath(competitionId: string): string {
   return `/admin/competitions/${encodeURIComponent(competitionId)}/cancel`;
 }
@@ -529,6 +533,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/safeguarding/[id]",
   "/admin/blog/[id]",
   "/admin/competitions/[id]/rubrics",
+  "/admin/competitions/[id]/school-rounds",
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,

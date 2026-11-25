@@ -16,6 +16,11 @@ export const COMPETITION_STATUSES = [
   "registration_open",
   "registration_closed",
   "school_judging",
+  /**
+   * FOA verifies and judges what the schools sent on (#90 makes the move,
+   * at the shortlist deadline, once every school round is finished).
+   */
+  "foa_judging",
   /** Called off by a super admin (#80): every paid fee goes back. Final. */
   "cancelled",
 ] as const;
@@ -50,7 +55,9 @@ const TRANSITIONS: {
     school_judging: "schedule",
     cancelled: "cancellation",
   },
-  school_judging: { cancelled: "cancellation" },
+  // Guarded (#90): no school round may be unfinished.
+  school_judging: { foa_judging: "schedule", cancelled: "cancellation" },
+  foa_judging: { cancelled: "cancellation" },
   cancelled: {},
 };
 

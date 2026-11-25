@@ -43,6 +43,13 @@ const RULES: readonly {
     to: "school_judging",
     keyDate: "submissions_close",
   },
+  // At the shortlist deadline the competition moves on to FOA judging; a
+  // guard holds the move while any school round is unfinished (#90).
+  {
+    from: "school_judging",
+    to: "foa_judging",
+    keyDate: "school_round_closes",
+  },
 ];
 
 for (const rule of RULES) {

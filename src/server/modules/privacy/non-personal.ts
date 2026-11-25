@@ -846,6 +846,10 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "updated_at",
   ],
   school_round: [
+    // Why a competition manager closed the round for the school (#90):
+    // about the school's round, like the transition's reason.
+    "close_reason",
+    "closed_at",
     "competition_id",
     "created_at",
     "families_notified_at",
@@ -857,6 +861,13 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "opened_at",
     "status",
     "updated_at",
+  ],
+  school_round_family_notice: [
+    "entry_id",
+    "outcome",
+    "position",
+    "round_id",
+    "told_at",
   ],
   school_round_panel_member: ["id", "round_id", "sort_order"],
   school_round_pick: [

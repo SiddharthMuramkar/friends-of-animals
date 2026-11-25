@@ -221,6 +221,8 @@ export const SETTINGS = {
   // and the hourly reminder sync plans any new time.
   "reminders.entrySubmissionDueFirstHours": reminderHours(72),
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
+  "reminders.schoolRoundShortlistDueFirstHours": reminderHours(72),
+  "reminders.schoolRoundShortlistDueSecondHours": reminderHours(24),
   // FOA verification (#92): how long a sent-back entry stays open for its
   // resubmission, counted from the send-back. The owner's default is 7
   // days (2026-11-19); FOA confirms it (HR-37).

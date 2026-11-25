@@ -21,6 +21,7 @@
 import type { AppDb } from "../../db/app-db";
 import type { Recipient } from "../announcements/domain/audience";
 import type { SettingKey } from "../settings/catalogue";
+import { schoolRoundShortlistDue } from "./definitions/school-round-shortlist-due";
 import { entrySubmissionDue } from "./definitions/entry-submission-due";
 import type { Deadline } from "./domain/schedule";
 
@@ -71,7 +72,10 @@ export type ReminderDefinition = {
   values(db: AppDb, subjectId: string): Promise<Record<string, string>>;
 };
 
-export const REMINDERS: readonly ReminderDefinition[] = [entrySubmissionDue];
+export const REMINDERS: readonly ReminderDefinition[] = [
+  entrySubmissionDue,
+  schoolRoundShortlistDue,
+];
 
 /** The reminder stored under `name`, if this code still has it. */
 export function reminderNamed(name: string): ReminderDefinition | undefined {

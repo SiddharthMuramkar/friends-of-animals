@@ -22,6 +22,7 @@ import { uuidv7 } from "../../ids";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import { schoolJudgingNeedsPublishedRubrics } from "../judging/guards";
+import { foaJudgingNeedsFinishedSchoolRounds } from "../school-round/rounds-finished-guard";
 import type { ScheduledTransition } from "./domain/status-schedule";
 import { transitionCause } from "./domain/status-machine";
 import type {
@@ -34,6 +35,7 @@ import type { CompetitionStatus } from "./domain/vocabulary";
 /** Every guard, whatever move it is on. A later ticket adds its line. */
 export const TRANSITION_GUARDS: readonly CompetitionTransitionGuard[] = [
   schoolJudgingNeedsPublishedRubrics,
+  foaJudgingNeedsFinishedSchoolRounds,
 ];
 
 for (const guard of TRANSITION_GUARDS) {

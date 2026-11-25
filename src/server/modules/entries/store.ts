@@ -99,6 +99,7 @@ const AUDIT_ACTION: Record<EntryTrigger, string> = {
   sent_to_foa: "entry.submitted_to_foa",
   not_shortlisted: "entry.not_shortlisted",
   essay_typed: "entry.submitted",
+  school_round_reopened: "entry.school_round_reopened",
   forwarded_to_foa: "entry.submitted_to_foa",
   foa_verified: "entry.foa_verified",
   sent_back: "entry.sent_back",
