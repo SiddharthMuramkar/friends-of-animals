@@ -7,7 +7,8 @@
       "registration_closed": "Registration closed",
       "school_judging": "School judging",
       "foa_judging": "FOA judging",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "results_published": "Results published"
     },
     "inSentence": {
       "draft": "draft",
@@ -16,7 +17,8 @@
       "registration_closed": "registration closed",
       "school_judging": "school judging",
       "foa_judging": "FOA judging",
-      "cancelled": "cancelled"
+      "cancelled": "cancelled",
+      "results_published": "results published"
     },
     "countdown": {
       "opens": "Registration opens {at} ({relative})",

@@ -5,8 +5,6 @@ import {
   artworkCustodyEvent,
   artworkDiscrepancy,
   artworkPhoto,
-  artworkResultsWindow,
-  artworkReturnRequest,
   artworkVerification,
   competitionAgeGroup,
   entry,
@@ -361,23 +359,6 @@ export const seedPhysicalArtwork: Seeder = async (deps) => {
             selectedAt: now,
           });
         }
-        // This preview-only synthetic release demonstrates an open return request
-        // before the real results module exists. Production never seeds it.
-        await tx
-          .insert(artworkResultsWindow)
-          .values({
-            competitionId,
-            releaseId: ID(150),
-            resultsPublishedAt: days(-1),
-            closesAt: days(29),
-          })
-          .onConflictDoNothing();
-        if (n === 6)
-          await tx.insert(artworkReturnRequest).values({
-            artworkId,
-            requestedBy: SEED_GUARDIANS.guardian.id,
-            requestedAt: now,
-          });
       }
     });
     if (storage)

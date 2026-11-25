@@ -11,6 +11,7 @@ import {
 // Every ordered pair of statuses, with who may make the move. A pair that
 // is not listed here is forbidden for everyone.
 const ALLOWED: Record<string, TransitionCause> = {
+  "foa_judging->results_published": "results",
   "draft->published": "manager",
   "published->registration_open": "schedule",
   "registration_open->registration_closed": "schedule",
@@ -30,7 +31,7 @@ const ALLOWED: Record<string, TransitionCause> = {
   "foa_judging->cancelled": "cancellation",
 };
 
-const CAUSES = ["manager", "schedule", "cancellation"] as const;
+const CAUSES = ["manager", "schedule", "cancellation", "results"] as const;
 
 const PAIRS = COMPETITION_STATUSES.flatMap((from) =>
   COMPETITION_STATUSES.map((to) => [from, to] as const)
@@ -45,6 +46,7 @@ describe("the competition status machine", () => {
       "registration_closed",
       "school_judging",
       "foa_judging",
+      "results_published",
       "cancelled",
     ]);
   });
@@ -78,7 +80,7 @@ describe("the competition status machine", () => {
 
   it("reaches cancelled only by a cancellation, and never leaves it", () => {
     for (const from of COMPETITION_STATUSES) {
-      if (from === "cancelled") continue;
+      if (from === "cancelled" || from === "results_published") continue;
       expect(transitionCause(from, "cancelled")).toBe("cancellation");
       expect(canTransition(from, "cancelled", "manager")).toBe(false);
       expect(canTransition(from, "cancelled", "schedule")).toBe(false);

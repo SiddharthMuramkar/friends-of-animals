@@ -719,6 +719,17 @@
           "outcome": "Records the recognition awarded to the participant’s entry",
           "award_position": "Records the position within the round’s award scheme",
           "suitable_for_auction": "Records the manager’s assessment of the work’s auction suitability, independently of consent"
+        },
+        "result_release": {
+          "prepared_by_user_id": "Staff member who prepared the competition results release.",
+          "approved_by_user_id": "Second staff member who approved the competition results release."
+        },
+        "result_award": {
+          "outcome": "Recognition in the prepared or published results.",
+          "award_position": "Award place in the locked final round results.",
+          "suitable_for_auction": "Recognition suitable for auction, separate from consent.",
+          "award_band": "Award band in the results release.",
+          "prize": "Prize attached to the awarded recognition."
         }
       }
     },

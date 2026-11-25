@@ -764,6 +764,21 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "cancelled_by_user_id",
     "locked_by_user_id",
   ].map((c) => actorColumn("judging_round", c, STAFF_RECORD)),
+  actorColumn("result_release", "prepared_by_user_id", STAFF_RECORD),
+  actorColumn("result_release", "approved_by_user_id", STAFF_RECORD),
+  ...[
+    "outcome",
+    "award_position",
+    "award_band",
+    "prize",
+    "suitable_for_auction",
+  ].map((c) =>
+    rowsOf("result_award", {
+      subject: ENTRY_PARTICIPANT,
+      retention: JUDGING_RECORD,
+      onExpiry: "delete_row",
+    })(c, "content")
+  ),
   actorColumn("round_entry", "admitted_by_user_id", STAFF_RECORD),
   ...[
     "code",

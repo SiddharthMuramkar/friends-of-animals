@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import {
   adminCompetitionCancelPath,
+  adminCompetitionResultsPath,
   adminSchoolRoundsPath,
   APP_ROUTES,
 } from "@/lib/app-routes";
@@ -116,6 +117,12 @@ async function EditCompetition({ params, searchParams }: Props) {
           variant="secondary"
         >
           {rounds("title")}
+        </ButtonLink>
+        <ButtonLink
+          href={adminCompetitionResultsPath(competition.id)}
+          variant="secondary"
+        >
+          {t("edit.resultsRelease")}
         </ButtonLink>
         {competition.mayCancel ? (
           <ButtonLink

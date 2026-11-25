@@ -1,5 +1,5 @@
 {
-  "id": "c3864b7e-0825-4a03-ad39-1c5c7429550b",
+  "id": "850cd0ac-7c0a-4315-8551-5b92c951fc5d",
   "prevId": "44ddf319-6a84-4d9c-aaf9-0eb59aa1f1b4",
   "version": "7",
   "dialect": "postgresql",
@@ -19778,124 +19778,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.auction_bid": {
-      "name": "auction_bid",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "lot_id": {
-          "name": "lot_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bidder_user_id": {
-          "name": "bidder_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_paise": {
-          "name": "amount_paise",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "declaration_version": {
-          "name": "declaration_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "placed_at": {
-          "name": "placed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "auction_bid_lot_amount_unique": {
-          "name": "auction_bid_lot_amount_unique",
-          "columns": [
-            {
-              "expression": "lot_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "amount_paise",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "auction_bid_bidder_idx": {
-          "name": "auction_bid_bidder_idx",
-          "columns": [
-            {
-              "expression": "bidder_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "auction_bid_lot_id_auction_lot_id_fk": {
-          "name": "auction_bid_lot_id_auction_lot_id_fk",
-          "tableFrom": "auction_bid",
-          "tableTo": "auction_lot",
-          "columnsFrom": [
-            "lot_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "auction_bid_bidder_user_id_user_id_fk": {
-          "name": "auction_bid_bidder_user_id_user_id_fk",
-          "tableFrom": "auction_bid",
-          "tableTo": "user",
-          "columnsFrom": [
-            "bidder_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "auction_bid_positive_amount": {
-          "name": "auction_bid_positive_amount",
-          "value": "\"auction_bid\".\"amount_paise\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.auction_lot": {
       "name": "auction_lot",
       "schema": "",
@@ -20608,6 +20490,7 @@
         "registration_closed",
         "school_judging",
         "foa_judging",
+        "results_published",
         "cancelled"
       ]
     },

@@ -12,7 +12,11 @@ import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { ADMIN_JUDGING_ROUNDS, adminJudgingRoundPath } from "@/lib/app-routes";
+import {
+  ADMIN_JUDGING_ROUNDS,
+  adminJudgingRoundPath,
+  adminCompetitionResultsPath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -111,6 +115,14 @@ async function renderPanel(
       <ButtonLink variant="quiet" href={ADMIN_JUDGING_ROUNDS}>
         {t("back")}
       </ButtonLink>
+      {round.status === "locked" && (
+        <ButtonLink
+          variant="secondary"
+          href={adminCompetitionResultsPath(round.competitionId)}
+        >
+          {t("resultsRelease")}
+        </ButtonLink>
+      )}
       <nav aria-label={t("tabs")}>
         <ul className="flex flex-wrap gap-2">
           {tabs.map((item) => (

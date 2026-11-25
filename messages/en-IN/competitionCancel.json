@@ -48,7 +48,8 @@
       "alerts": {
         "already_cancelled": "This competition was cancelled already. The page now shows when and why.",
         "not_found": "This competition no longer exists.",
-        "unexpected": "Something went wrong on our side. Nothing was cancelled. Please try again in a few minutes."
+        "unexpected": "Something went wrong on our side. Nothing was cancelled. Please try again in a few minutes.",
+        "results_published": "This competition cannot be cancelled after publication of results."
       }
     },
     "cancelled": {
@@ -66,6 +67,7 @@
         "dashboard": "Finance refunds the fee through the payment gateway in the original currency. Whoever paid it gets an email when it is refunded.",
         "none": "Nothing was paid for this registration, so there is nothing to refund."
       }
-    }
+    },
+    "publishedRefusal": "This competition cannot be cancelled because results have been published."
   }
 }

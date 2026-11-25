@@ -81,6 +81,7 @@ export type CancelCompetitionResult =
       error:
         | "not_found"
         | "already_cancelled"
+        | "results_published"
         | "reason_required"
         | "reason_too_long";
     };
@@ -400,7 +401,7 @@ export async function getCompetitionCancellation(
       cancelReason: row.cancelReason,
     },
     effects:
-      row.status === "cancelled"
+      row.status === "cancelled" || row.status === "results_published"
         ? null
         : effectsOf(planCancellation(loaded.input)),
   };
@@ -432,6 +433,8 @@ export async function cancelCompetition(
     if (row.status === "cancelled") {
       return { ok: false, error: "already_cancelled" };
     }
+    if (row.status === "results_published")
+      return { ok: false, error: "results_published" };
     if (!canTransition(row.status, "cancelled", "cancellation")) {
       throw new Error(`Competition ${competitionId} can't be cancelled`);
     }

@@ -52,6 +52,14 @@ const id = (n: number) =>
 
 /** In order: a revision comes after the version it replaces. */
 const SEED_RUBRICS: readonly SeedRubric[] = [
+  {
+    id: id(92),
+    competitionCode: "AUCT27",
+    discipline: "drawing",
+    version: 1,
+    published: true,
+    criteria: defaultRubricCriteria,
+  },
   ...(["drawing", "videography", "essay"] as const).map(
     (discipline, index) => ({
       id: id(81 + index),

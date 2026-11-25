@@ -176,6 +176,7 @@
       "grade_a": "A grade",
       "grade_b": "B grade"
     },
+    "resultsRelease": "Results release",
     "entrySource": "Entry source",
     "chooseSource": "Choose an entry source",
     "verifiedSource": "FOA-verified entries",
