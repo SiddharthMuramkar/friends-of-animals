@@ -1,4 +1,3 @@
-import { FakeCdnPurger } from "../../../src/test/fakes/cdn-purger";
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { eq } from "drizzle-orm";
@@ -14,6 +13,12 @@ import {
   CODE_REQUEST_LIMITS,
 } from "../../../src/server/identity/settings";
 import { CONTACT_RATE_LIMITS } from "../../../src/server/modules/contact/domain/submission";
+import { latestDocument } from "../../../src/server/modules/consent/repository";
+import {
+  admitToPool,
+  assignEntries,
+} from "../../../src/server/modules/judging/assignment";
+import { blindJudgingUseCases } from "../../../src/server/modules/judging/blind";
 import {
   acceptJudgeInvitation,
   acceptJudgeTerms,
@@ -24,12 +29,13 @@ import {
   createJudgingRound,
   openJudgingRound,
 } from "../../../src/server/modules/judging/rounds";
-import { latestDocument } from "../../../src/server/modules/consent/repository";
+import { roundResultUseCases } from "../../../src/server/modules/judging/results";
 import { proofOfWorkHumanCheck } from "../../../src/server/modules/public-forms/proof-of-work-check";
 import { generateTotpSecret } from "../../../src/server/modules/second-factor/domain/totp";
 import { stampSession } from "../../../src/server/modules/second-factor/session-factor";
 import { databaseSettings } from "../../../src/server/modules/settings/read";
 import type { UseCaseContext } from "../../../src/server/use-cases";
+import { FakeCdnPurger } from "../../../src/test/fakes/cdn-purger";
 import { FakeClock } from "../../../src/test/fakes/clock";
 import { FakeCookieJar } from "../../../src/test/fakes/cookies";
 import { FakeEmail } from "../../../src/test/fakes/email";
@@ -49,10 +55,21 @@ type JudgingSetup = {
     email: string;
   }): Promise<void>;
   onboard(email: string, token: string): Promise<void>;
+  lockedChain(input: {
+    manager: string;
+    competitionId: string;
+    sourceName: string;
+    targetName: string;
+    entryCode: string;
+  }): Promise<{ sourceRoundId: string; targetRoundId: string }>;
+};
+
+type UserContext = UseCaseContext & {
+  actor: Extract<UseCaseContext["actor"], { kind: "user" }>;
 };
 
 /**
- * A test-local seam for the other actor's prior actions: real judging use
+ * A test-local seam for a journey's prior actions: real judging use
  * cases on the guarded local database, with the server's field keys and the
  * usual provider fakes. An invitation still emits its outbox event and is
  * delivered by the app's capture adapter, not fabricated by this fixture.
@@ -73,10 +90,7 @@ export const test = base.extend<{ judgingSetup: JudgingSetup }>({
     const secret = process.env.BETTER_AUTH_SECRET || DEVELOPMENT_AUTH_SECRET;
     // Like createPgWorld.signedIn, create a real session for fixture actors;
     // the user-facing sign-in and second-factor journey is tested separately.
-    async function context(
-      email: string,
-      staff = false
-    ): Promise<UseCaseContext> {
+    async function context(email: string, staff = false): Promise<UserContext> {
       const [account] = await db
         .select({ id: schema.user.id })
         .from(schema.user)
@@ -128,6 +142,22 @@ export const test = base.extend<{ judgingSetup: JudgingSetup }>({
         payments: new FakePaymentGateway(randomUUID(), clock),
       };
     }
+    async function completeOnboarding(ctx: UserContext, roundId: string) {
+      const conduct = await latestDocument(db, "judge_conduct");
+      const confidentiality = await latestDocument(db, "judge_confidentiality");
+      if (!conduct || !confidentiality)
+        throw new Error("Seed judge terms are missing.");
+      expect(
+        await acceptJudgeTerms(ctx, {
+          roundId,
+          conductDocumentId: conduct.id,
+          confidentialityDocumentId: confidentiality.id,
+        })
+      ).toMatchObject({ ok: true });
+      expect(
+        await declareConflicts(ctx, { roundId, declaration: { none: true } })
+      ).toMatchObject({ ok: true });
+    }
     try {
       await use({
         async invite({ competitionId, name, email }) {
@@ -163,27 +193,84 @@ export const test = base.extend<{ judgingSetup: JudgingSetup }>({
             throw new Error(
               `Could not accept fixture invitation: ${accepted.error}`
             );
-          const { roundId } = accepted;
-          const conduct = await latestDocument(db, "judge_conduct");
-          const confidentiality = await latestDocument(
-            db,
-            "judge_confidentiality"
-          );
-          if (!conduct || !confidentiality)
-            throw new Error("Seed judge terms are missing.");
+          await completeOnboarding(ctx, accepted.roundId);
+        },
+        // Recreate the state at the previous journey's boundary without
+        // depending on that test or manufacturing locked results/score rows.
+        async lockedChain({
+          manager,
+          competitionId,
+          sourceName,
+          targetName,
+          entryCode,
+        }) {
+          const ctx = await context(manager, true);
+          const source = await createJudgingRound(ctx, {
+            competitionId,
+            name: sourceName,
+            level: "state",
+            awardScheme: "grades_ab",
+            judgesPhysical: false,
+          });
+          if (!source.ok)
+            throw new Error(`Could not create source round: ${source.error}`);
+          const sourceRoundId = source.roundId;
           expect(
-            await acceptJudgeTerms(ctx, {
-              roundId,
-              conductDocumentId: conduct.id,
-              confidentialityDocumentId: confidentiality.id,
-            })
+            await openJudgingRound(ctx, { roundId: sourceRoundId })
           ).toMatchObject({ ok: true });
+          const target = await createJudgingRound(ctx, {
+            competitionId,
+            name: targetName,
+            entrySource: "round_finalists",
+            sourceRoundId,
+          });
+          if (!target.ok)
+            throw new Error(`Could not create target round: ${target.error}`);
+          const targetRoundId = target.roundId;
+          const judgeEmail = await seedAccount({
+            name: "State round judge",
+            grants: [
+              { role: "judge", scope: { type: "round", id: sourceRoundId } },
+            ],
+          });
+          const judge = await context(judgeEmail);
+          await completeOnboarding(judge, sourceRoundId);
+          const [work] = await db
+            .select({ id: schema.entry.id })
+            .from(schema.entry)
+            .where(eq(schema.entry.code, entryCode));
+          if (!work) throw new Error("Missing seeded scoring entry.");
+          const roundId = sourceRoundId;
+          expect(await admitToPool(ctx, { roundId })).toMatchObject({
+            ok: true,
+          });
           expect(
-            await declareConflicts(ctx, {
+            await assignEntries(ctx, {
               roundId,
-              declaration: { none: true },
+              judgeUserId: judge.actor.userId,
+              entryIds: [work.id],
             })
-          ).toMatchObject({ ok: true });
+          ).toMatchObject({ ok: true, assigned: 1 });
+          const scoring = blindJudgingUseCases(judge);
+          const detail = await scoring.getBlindEntry({ roundId, entryCode });
+          if (!detail.ok)
+            throw new Error(
+              `Could not read seeded blind assignment: ${detail.error}`
+            );
+          expect(
+            await scoring.saveScoreSheet({
+              roundId,
+              entryCode,
+              baseVersion: detail.sheet.version,
+              scores: Object.fromEntries(
+                detail.criteria.map((criterion) => [criterion.id, 8])
+              ),
+            })
+          ).toMatchObject({ ok: true, progress: "complete" });
+          expect(
+            await roundResultUseCases(ctx).lockJudgingRound({ roundId })
+          ).toMatchObject({ ok: true, mode: "complete", rankedCount: 1 });
+          return { sourceRoundId, targetRoundId };
         },
       });
     } finally {

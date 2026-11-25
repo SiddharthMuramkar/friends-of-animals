@@ -9,7 +9,7 @@ import {
   expectRendersAccessibly,
 } from "./support/a11y";
 import { drainOutbox, readCode, readEmail } from "./support/mailbox";
-import { test } from "./support/seed-judge-invitation";
+import { test } from "./support/seed-judging";
 import { signInByCode } from "./support/sign-in";
 const NEIGH27 = "01938a00-0000-7000-8000-000000002101";
 const WATER27 = "01938a00-0000-7000-8000-000000002102";
