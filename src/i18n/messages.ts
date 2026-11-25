@@ -1,3 +1,4 @@
+import socialExport from "../../messages/en-IN/socialExport.json";
 import gallery from "../../messages/en-IN/gallery.json";
 import certificatePdf from "../../messages/en-IN/certificatePdf.json";
 import certificates from "../../messages/en-IN/certificates.json";
@@ -185,6 +186,7 @@ export const NAMESPACES = [
   "artworkCustody",
   "auctions",
   "gallery",
+  "socialExport",
   "error",
   "files",
   "footer",
@@ -297,6 +299,7 @@ export const messages = {
   ...artworkCustody,
   ...auctions,
   ...gallery,
+  ...socialExport,
   ...error,
   ...files,
   ...footer,

@@ -346,7 +346,13 @@ async function AreaBody({
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
               : []),
             ...(gallery
-              ? [{ href: APP_ROUTES.adminGallery, label: t("admin.gallery") }]
+              ? [
+                  { href: APP_ROUTES.adminGallery, label: t("admin.gallery") },
+                  {
+                    href: APP_ROUTES.adminSocialExport,
+                    label: t("admin.socialExport"),
+                  },
+                ]
               : []),
             ...(auction
               ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]

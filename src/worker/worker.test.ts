@@ -50,7 +50,8 @@ import { createHarness, type Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
 import { seedInstitution } from "@/test/institutions";
 
-import type { WorkerConfig } from "./config";
+import { workerConfig, type WorkerConfig } from "./config";
+import { FakeSes } from "@/test/fakes/ses";
 import type { WorkerLogEntry } from "./log";
 import type { ListedDatabase } from "./preview-databases";
 import { workerStorage } from "./runtime";
@@ -465,6 +466,64 @@ async function welcomeBySms(h: Harness) {
 }
 
 describe("a worker's messages by SMS", () => {
+  it.each(["production", "staging"] as const)(
+    "dispatches configured notifications through the correct provider in %s",
+    async (appEnv) => {
+      const h = await createHarness();
+      const member = await welcomeBySms(h);
+      const { io } = fakeIo({ foa: h.db });
+      const ses = new FakeSes(h.clock);
+      const msg91 = vi.fn(
+        async (_url: string | URL | Request, _options?: RequestInit) =>
+          Response.json({ type: "success" })
+      );
+      const config = workerConfig({
+        APP_ENV: appEnv,
+        WORKER_DATABASE_URL: DB_URL,
+        ...DEVELOPMENT_FIELD_KEYS,
+        SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE",
+        SES_SECRET_ACCESS_KEY: "synthetic-ses-secret",
+        SES_FROM: "FOA <sender@example.test>",
+        SES_PRODUCTION_ACCESS: "true",
+        MSG91_AUTH_KEY: "synthetic-msg91-key",
+        MSG91_OTP_TEMPLATE_ID: "otp-test",
+      });
+      const worker = createWorker(config, {
+        ...io,
+        sesTransport: ses.handler,
+        msg91Fetch: msg91,
+      });
+      await worker.start();
+      try {
+        await worker.tick();
+        const captured = await h.db.select().from(capturedMessage);
+        if (appEnv === "production") {
+          expect(ses.inbox(member.email).map((m) => m.subject)).toEqual([
+            "Welcome to Friends of Animals",
+          ]);
+          expect(msg91).toHaveBeenCalledTimes(1);
+          const body = msg91.mock.calls[0]?.[1]?.body;
+          if (typeof body !== "string") throw new Error("Expected JSON body");
+          expect(JSON.parse(body)).toMatchObject({
+            template_id: "1107170000000000001",
+            recipients: [{ mobiles: PHONE.slice(1) }],
+          });
+          expect(captured).toEqual([]);
+        } else {
+          expect(ses.requests).toEqual([]);
+          expect(msg91).not.toHaveBeenCalled();
+          expect(captured.map((m) => m.toAddress).sort()).toEqual(
+            [member.email, PHONE].sort()
+          );
+        }
+        const [delivery] = await h.db.select().from(outbox);
+        expect(delivery).toMatchObject({ status: "dispatched" });
+      } finally {
+        await worker.stop();
+      }
+    }
+  );
+
   it("texts a member while the database's settings switch SMS on", async () => {
     const h = await createHarness();
     const member = await welcomeBySms(h);

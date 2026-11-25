@@ -14,6 +14,7 @@ import type { Role } from "../../access/domain/roles";
 import { uuidv7 } from "../../ids";
 import { queueStamp } from "../stamping";
 import { eligibleEntry } from "./evidence";
+import { retireHiddenGalleryExport } from "../social-export/withdrawal";
 import { requestGalleryPurge } from "./purge";
 
 const missing = { ok: false, error: "not_found" } as const;
@@ -197,6 +198,7 @@ export async function retireGalleryItem(
     .update(galleryItem)
     .set({ status, reason, updatedAt: now })
     .where(eq(galleryItem.id, row.id));
+  if (status === "hidden") await retireHiddenGalleryExport(ctx, row.id, role);
   if (row.status === "published")
     await requestGalleryPurge(ctx, row.id, requestedAt);
   await recordAudit(ctx.db, ctx, {

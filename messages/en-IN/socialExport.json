@@ -1,0 +1,26 @@
+{
+  "socialExport": {
+    "title": "Social media export",
+    "lead": "Download stamped artwork and reviewed captions to post by hand. Only items with separate, current social-media consent appear here.",
+    "gallery": "Back to gallery curation",
+    "queue": "Export queue",
+    "candidates": "Gallery items eligible to queue",
+    "queueEmpty": "There are no active social exports.",
+    "candidateEmpty": "There are no more gallery items with social-media consent to queue.",
+    "sample": "AI illustration — sample artwork, not a participant’s submission.",
+    "credit": "Consented credit: {name}",
+    "creditDownload": "Credit: {name}",
+    "captionLabel": "Caption (required)",
+    "captionHint": "Review the wording for public use. Keep names, schools and locations out of the caption; the current consented credit is added separately.",
+    "saveCaption": "Save caption",
+    "queueItem": "Queue for social export",
+    "stampPending": "Preparing the social image. Refresh this page once processing has finished.",
+    "retry": "Request image preparation again",
+    "imageDownload": "Download stamped image (PNG)",
+    "captionDownload": "Download caption and credit",
+    "markPosted": "Mark as posted",
+    "saved": "Social export saved.",
+    "error": "That change could not be saved. The artwork or its consent may no longer be available.",
+    "status": { "pending": "Pending", "posted": "Posted" }
+  }
+}

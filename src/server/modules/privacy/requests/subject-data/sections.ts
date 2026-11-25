@@ -418,6 +418,18 @@ export const SECTIONS: readonly Section[] = [
     withhold: ["file_id", "consent_event_id"],
   },
   {
+    table: schema.socialExport,
+    where: (scope) =>
+      sql`${schema.socialExport.galleryItemId} IN (SELECT ${schema.galleryItem.id} FROM ${schema.galleryItem} WHERE ${schema.galleryItem.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["gallery_item_id"],
+    decrypt: { caption_ciphertext: "social_export.caption" },
+    withhold: [
+      "file_id",
+      "gallery_consent_event_id",
+      "social_consent_event_id",
+    ],
+  },
+  {
     table: schema.certificate,
     where: (scope) =>
       or(

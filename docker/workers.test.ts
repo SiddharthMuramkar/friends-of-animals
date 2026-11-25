@@ -62,6 +62,7 @@ function inCidr(address: string, cidr: string): boolean {
 const SENTRY_FILE = "/etc/foa/secrets/worker_sentry.env";
 /** The production app's field keys, for worker-prod alone (#74). */
 const FIELD_KEYS_FILE = "/etc/foa/secrets/worker_prod_field_keys.env";
+const NOTIFICATIONS_FILE = "/etc/foa/secrets/worker_prod_notifications.env";
 
 /** A service's `env_file:` entries, in order. */
 function envFiles(own: string): { path: string; required: boolean }[] {
@@ -151,7 +152,11 @@ describe("docker/workers.yml", () => {
   });
 
   it.each([
-    ["worker-prod", "/etc/foa/secrets/worker_prod_r2.env", [FIELD_KEYS_FILE]],
+    [
+      "worker-prod",
+      "/etc/foa/secrets/worker_prod_r2.env",
+      [FIELD_KEYS_FILE, NOTIFICATIONS_FILE],
+    ],
     ["worker-staging", "/etc/foa/preview-files.env", []],
     ["worker-preview", "/etc/foa/preview-files.env", []],
   ])(
@@ -211,6 +216,19 @@ describe("docker/workers.yml", () => {
         })
       ).not.toThrow();
     });
+  });
+
+  it("gives approved notification credentials only to the production default worker", () => {
+    expect(envFiles(service("worker-prod"))).toContainEqual({
+      path: NOTIFICATIONS_FILE,
+      required: false,
+    });
+    for (const name of ["worker-staging", "worker-preview", "worker-media"]) {
+      expect(service(name)).not.toContain(NOTIFICATIONS_FILE);
+    }
+    expect(shared()).not.toContain(NOTIFICATIONS_FILE);
+    expect(TEXT.split(NOTIFICATIONS_FILE)).toHaveLength(2);
+    expect(TEXT).not.toMatch(/(?:SES_SECRET_ACCESS_KEY|MSG91_AUTH_KEY):/);
   });
 
   it("shares no env file through the worker anchor, so production's R2 key stays with worker-prod", () => {

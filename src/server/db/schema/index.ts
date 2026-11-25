@@ -77,3 +77,5 @@ export * from "./volunteer-work";
 export * from "./events";
 export * from "./gallery";
 export * from "./surveys";
+
+export * from "./social-export";
