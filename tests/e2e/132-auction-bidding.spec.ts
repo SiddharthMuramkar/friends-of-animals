@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { SEED_AUCTIONS } from "../../src/server/seed/auctions";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
-import { readCode } from "./support/mailbox";
+import { drainOutbox, readCode, readEmail } from "./support/mailbox";
 import { test } from "./support/seed-account";
 import { newDevice, signInByCode } from "./support/sign-in";
 
@@ -89,19 +89,16 @@ test("adults compete for a lot, see the new price without navigation, and get an
   } finally {
     await next.context().close();
   }
-  await expect
-    .poll(
-      async () => {
-        await page.goto("/account/inbox");
-        return await page
-          .getByText(`You have been outbid on ${SEED_AUCTIONS.open}`, {
-            exact: true,
-          })
-          .count();
-      },
-      { timeout: 15000 }
-    )
-    .toBe(1);
+  // Local/preview journeys use the platform's own outbox drain instead of
+  // waiting for a separate worker; its email is sent before the inbox item.
+  await drainOutbox(request);
+  const title = `You have been outbid on ${SEED_AUCTIONS.open}`;
+  const alert = await readEmail(request, first, title);
+  expect(alert.text).not.toContain(`Second bidder ${info.project.name}`);
+  await page.goto("/account/inbox");
+  await expect(
+    page.getByRole("heading", { name: title, exact: true })
+  ).toBeVisible();
   await expectAccessible(page, "outbid inbox");
   await expectAccessibleInDark(page, "outbid inbox");
 });
