@@ -134,6 +134,39 @@ export const SETTINGS = {
   // Empty until FOA's counsel names the channel (HR-49); staff then file
   // the notice by hand and record the authority's reference.
   "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Privacy rights requests (#115): how many days the grievance officer
+  // has to answer. Access and correction requests use requestDueDays; an
+  // erasure, which withdraws the person's consents, uses erasureDueDays
+  // (the withdrawal SLA). Both wait for counsel's DPDP ruling (HR-30).
+  "privacy.requestDueDays": integerSetting({
+    default: 30,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  "privacy.erasureDueDays": integerSetting({
+    default: 30,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  // How long the requester's download link to their data export works;
+  // the export is deleted when it stops (#115b).
+  "privacy.exportLinkHours": integerSetting({
+    default: 72,
+    min: 1,
+    max: 168,
+    unit: "hours",
+  }),
+  // Erasing data can't be undone. Off until counsel rules on what erasure
+  // must keep (HR-30): the officer can preview an erasure, not run it.
+  // Seeded on for local runs and previews.
+  "privacy.erasureEnabled": booleanSetting({ default: false }),
+  // While a payment the person made is under its 8-year floor, erasure
+  // keeps their account (name and contact, nothing else) so the payment
+  // still names its payer. Off deletes the account; the payment rows stay
+  // either way (HR-30, HR-47).
+  "privacy.erasureKeepsPayerAccount": booleanSetting({ default: true }),
   // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
   // and counsel sign M6 off (HR-55) and police checks are in place
   // (HR-38); local runs and previews are seeded open. The age rules are
@@ -206,6 +239,9 @@ export const SETTINGS = {
   ),
   "retention.financialRecordsDays": retentionDays(
     RETENTION_PERIODS.financialRecords
+  ),
+  "retention.privacyRequestsDays": retentionDays(
+    RETENTION_PERIODS.privacyRequests
   ),
 } satisfies Record<string, SettingDefinition<unknown>>;
 

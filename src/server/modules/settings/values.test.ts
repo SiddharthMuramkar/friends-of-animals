@@ -160,6 +160,11 @@ describe("resolveAllSettings", () => {
       ["donations.pendingExpiryHours", 24, "default"],
       ["safeguarding.reportsPerIpPerHour", 10, "default"],
       ["breach.authorityEmail", "", "default"],
+      ["privacy.requestDueDays", 30, "default"],
+      ["privacy.erasureDueDays", 30, "default"],
+      ["privacy.exportLinkHours", 72, "default"],
+      ["privacy.erasureEnabled", false, "default"],
+      ["privacy.erasureKeepsPayerAccount", true, "default"],
       ["volunteers.applicationsOpen", false, "default"],
       ["volunteers.minAgeYears", 14, "default"],
       ["volunteers.guardianApprovalBelowAgeYears", 18, "default"],
@@ -181,6 +186,7 @@ describe("resolveAllSettings", () => {
       ["retention.volunteerApplicationsDays", 365, "default"],
       ["retention.releasedLegalHoldsDays", 365, "default"],
       ["retention.financialRecordsDays", 2922, "default"],
+      ["retention.privacyRequestsDays", 1095, "default"],
     ]);
   });
 });

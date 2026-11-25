@@ -35,7 +35,7 @@ import {
   type Delivery,
   type OutboxDeps,
 } from "./handlers";
-import { handlersInQueue, type QueueName } from "./queues";
+import { HANDLER_LEASE_MS, handlersInQueue, type QueueName } from "./queues";
 import {
   DEFAULT_RETRY_POLICY,
   claimUntil,
@@ -127,6 +127,19 @@ async function failLostClaims(
 }
 
 /**
+ * When a claim made at `now` runs out: the policy's lease, or the longer one
+ * a slow handler has (HANDLER_LEASE_MS, ./queues.ts).
+ */
+function leaseUntil(now: Date) {
+  const at = (until: Date) => sql`${until.toISOString()}::timestamptz`;
+  const longer = Object.entries(HANDLER_LEASE_MS).map(
+    ([handler, ms]) =>
+      sql`WHEN ${handler} THEN ${at(new Date(now.getTime() + (ms ?? 0)))}`
+  );
+  return sql`CASE ${outbox.handler} ${sql.join(longer, sql` `)} ELSE ${at(claimUntil(now, POLICY))} END`;
+}
+
+/**
  * Claims up to `limit` due deliveries in one statement: each gets one more
  * attempt and a lease. SKIP LOCKED keeps two relays on one database from
  * claiming the same row. A delivery that has used all its tries is never
@@ -155,7 +168,7 @@ async function claim(
     .update(outbox)
     .set({
       attempts: sql`${outbox.attempts} + 1`,
-      lockedUntil: claimUntil(now, POLICY),
+      lockedUntil: leaseUntil(now),
     })
     .where(inArray(outbox.id, ids))
     .returning();

@@ -235,6 +235,7 @@ describe("the media job", () => {
     const { fileId } = await upload(h, "image/jpeg", JPEG);
     const media = h.deps.media;
     h.deps.media = {
+      processVideo: (input) => media.processVideo(input),
       async processImage(input) {
         const result = await media.processImage(input);
         // Clean only ever leaves for deleted (domain/file-status.ts).
@@ -277,6 +278,7 @@ describe("the media job", () => {
     const h = await world();
     const { fileId } = await upload(h, "image/jpeg", JPEG);
     h.deps.media = {
+      processVideo: () => Promise.reject(new Error("unused")),
       processImage: () =>
         Promise.reject(new Error("worker-media ran out of memory")),
     };

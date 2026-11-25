@@ -14,7 +14,7 @@ import type { SeedDeps } from "./types";
 /**
  * Where the seed differs from the defaults. Only local runs and previews
  * are seeded, and they capture every text (smsSenderFor), so sign-in by
- * phone is on there: #58's journey uses it. Staging and production are
+ * phone is on there: #58's journey uses it. So is erasure, on fake data. Staging and production are
  * never seeded and keep the default, off, until DLT approval (HR-14).
  * Donations are on there too (#106); production keeps them off until
  * HR-15 and HR-47.
@@ -23,6 +23,9 @@ const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "sms.enabled": true,
   // Local runs and previews pay through the test checkout (#106).
   "donations.enabled": true,
+  // Erasure (#115b) waits for counsel in production (HR-30); seeded data
+  // is fake, so a local run or preview can try it end to end.
+  "privacy.erasureEnabled": true,
   // Volunteer applications (#123) open where nothing is real; production
   // keeps them closed until HR-55 and HR-38.
   "volunteers.applicationsOpen": true,

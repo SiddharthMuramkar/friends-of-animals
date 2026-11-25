@@ -31,7 +31,7 @@ import { sniffImageType } from "../modules/files/domain/image-type";
 import {
   DEFAULT_MAX_INPUT_PIXELS,
   MediaError,
-  type MediaProcessor,
+  type ImageProcessor,
   type MediaResult,
 } from "./media";
 
@@ -131,7 +131,7 @@ async function encode(
 
 export function sharpMediaProcessor(
   options: SharpMediaOptions = {}
-): MediaProcessor {
+): ImageProcessor {
   const maxInputPixels = options.maxInputPixels ?? DEFAULT_MAX_INPUT_PIXELS;
   const timeoutSeconds = options.timeoutSeconds ?? DEFAULT_TIMEOUT_SECONDS;
   return {

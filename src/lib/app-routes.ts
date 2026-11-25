@@ -69,6 +69,23 @@ export const ADMIN_PAYMENTS_REVIEW = "/admin/payments/review";
 /** The staff data inventory (#114). */
 export const ADMIN_PRIVACY = "/admin/privacy";
 
+/** The grievance officer's queue of privacy requests (#115). */
+export const ADMIN_PRIVACY_REQUESTS = "/admin/privacy/requests";
+
+/** One privacy request, for the grievance officer (#115). */
+export function adminPrivacyRequestPath(requestId: string): string {
+  return `${ADMIN_PRIVACY_REQUESTS}/${encodeURIComponent(requestId)}`;
+}
+
+/** A user's own privacy requests, and where they make one (#115). */
+export const MY_PRIVACY_REQUESTS = "/dashboard/privacy";
+export const NEW_PRIVACY_REQUEST = "/dashboard/privacy/new";
+
+/** One of a user's privacy requests (#115). */
+export function myPrivacyRequestPath(requestId: string): string {
+  return `${MY_PRIVACY_REQUESTS}/${encodeURIComponent(requestId)}`;
+}
+
 /** One payment batch in the admin area (#79): record an offline payment. */
 export function adminPaymentBatchPath(batchId: string): string {
   return `/admin/payments/batches/${encodeURIComponent(batchId)}`;
@@ -174,6 +191,38 @@ export function publicListingPath(slug: string): string {
   return `/ngos/${encodeURIComponent(slug)}`;
 }
 
+/**
+ * A directory listing's animals for adoption (#129), managed by its
+ * representatives. Listed with APP_ROUTE_TEMPLATES. The public pages,
+ * /adopt and /adopt/<slug>, are in src/lib/routes.ts.
+ */
+export function adoptionsPath(listingId: string): string {
+  return `${myListingPath(listingId)}/adoptions`;
+}
+
+/** Where a representative adds an animal. */
+export function newAdoptionPath(listingId: string): string {
+  return `${adoptionsPath(listingId)}/new`;
+}
+
+/** One animal's photos, publishing and details. */
+export function adoptionPath(listingId: string, adoptionId: string): string {
+  return `${adoptionsPath(listingId)}/${encodeURIComponent(adoptionId)}`;
+}
+
+/** Where a representative edits an animal's details. */
+export function editAdoptionPath(
+  listingId: string,
+  adoptionId: string
+): string {
+  return `${adoptionPath(listingId, adoptionId)}/edit`;
+}
+
+/** An adoptable animal's public page. */
+export function adoptableAnimalPath(slug: string): string {
+  return `/adopt/${encodeURIComponent(slug)}`;
+}
+
 /** Campaigns to consented segments (#126): the list, the composer, each one. */
 export const ADMIN_CAMPAIGNS = "/admin/campaigns";
 export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
@@ -260,6 +309,15 @@ export function studentSubmissionPath(
 }
 
 /** Where a coordinator certifies the competition's conduct (#87). */
+/** A registration's school round page (#89), for the institution acting. */
+export function schoolRoundPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/school-round?${query.toString()}`;
+}
+
 export function conductCertificationPath(
   reference: string,
   institutionId: string
@@ -425,6 +483,11 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,
+  ADMIN_PRIVACY_REQUESTS,
+  "/admin/privacy/requests/[id]",
+  MY_PRIVACY_REQUESTS,
+  NEW_PRIVACY_REQUEST,
+  "/dashboard/privacy/[id]",
   "/admin/payments/batches/[id]",
   "/admin/payments/review/[id]",
   ADMIN_REFUNDS,
@@ -448,6 +511,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/submissions",
   "/institution/registrations/[ref]/submissions/[number]",
   "/institution/registrations/[ref]/conduct",
+  "/institution/registrations/[ref]/school-round",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",
@@ -472,6 +536,10 @@ export const APP_ROUTE_TEMPLATES = [
   "/organisation/[id]/edit",
   ADMIN_DIRECTORY,
   "/admin/directory/[id]",
+  "/organisation/[id]/adoptions",
+  "/organisation/[id]/adoptions/new",
+  "/organisation/[id]/adoptions/[adoptionId]",
+  "/organisation/[id]/adoptions/[adoptionId]/edit",
 ] as const;
 
 /**

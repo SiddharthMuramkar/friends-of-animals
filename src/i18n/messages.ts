@@ -26,6 +26,8 @@ import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
 import adminBreaches from "../../messages/en-IN/adminBreaches.json";
+import adminGrievance from "../../messages/en-IN/adminGrievance.json";
+import privacyRequests from "../../messages/en-IN/privacyRequests.json";
 import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
@@ -43,6 +45,7 @@ import competitionCancel from "../../messages/en-IN/competitionCancel.json";
 import contact from "../../messages/en-IN/contact.json";
 import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
 import institutionSubmissions from "../../messages/en-IN/institutionSubmissions.json";
+import schoolRound from "../../messages/en-IN/schoolRound.json";
 import guardianConsent from "../../messages/en-IN/guardianConsent.json";
 import guardianConsentDelivery from "../../messages/en-IN/guardianConsentDelivery.json";
 import coordinators from "../../messages/en-IN/coordinators.json";
@@ -50,6 +53,7 @@ import contactForm from "../../messages/en-IN/contactForm.json";
 import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
+import adoption from "../../messages/en-IN/adoption.json";
 import donate from "../../messages/en-IN/donate.json";
 import donationCheckout from "../../messages/en-IN/donationCheckout.json";
 import donations from "../../messages/en-IN/donations.json";
@@ -110,6 +114,8 @@ export const NAMESPACES = [
   "adminAnnouncements",
   "art",
   "adminBreaches",
+  "adminGrievance",
+  "privacyRequests",
   "adminDirectory",
   "adminVolunteers",
   "campaigns",
@@ -128,12 +134,14 @@ export const NAMESPACES = [
   "coordinators",
   "coordinatorConsents",
   "institutionSubmissions",
+  "schoolRound",
   "guardianConsent",
   "guardianConsentDelivery",
   "contactForm",
   "credits",
   "dashboard",
   "directory",
+  "adoption",
   "donate",
   "donationCheckout",
   "donations",
@@ -198,6 +206,8 @@ export const messages = {
   ...adminAnnouncements,
   ...art,
   ...adminBreaches,
+  ...adminGrievance,
+  ...privacyRequests,
   ...adminDirectory,
   ...adminVolunteers,
   ...campaigns,
@@ -216,12 +226,14 @@ export const messages = {
   ...coordinators,
   ...coordinatorConsents,
   ...institutionSubmissions,
+  ...schoolRound,
   ...guardianConsent,
   ...guardianConsentDelivery,
   ...contactForm,
   ...credits,
   ...dashboard,
   ...directory,
+  ...adoption,
   ...donate,
   ...donationCheckout,
   ...donations,

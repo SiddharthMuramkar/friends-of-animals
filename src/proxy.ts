@@ -1,5 +1,6 @@
 import type { NextRequest, NextResponse } from "next/server";
 
+import { adoptableSlugLookup } from "@/app/adopt/_lib/public-slugs";
 import { publicPostSlugLookup } from "@/app/blog/_lib/public-slugs";
 import { publishedSlugLookup } from "@/app/competitions/_lib/public-reader";
 import { publicListingSlugLookup } from "@/app/ngos/_lib/public-slugs";
@@ -11,6 +12,7 @@ const handle = createProxy({
   isPublishedCompetitionSlug: publishedSlugLookup,
   isPublicPostSlug: publicPostSlugLookup,
   isPublicListingSlug: publicListingSlugLookup,
+  isAdoptableSlug: adoptableSlugLookup,
 });
 
 export function proxy(request: NextRequest): Promise<NextResponse> {
@@ -38,6 +40,7 @@ export const config = {
     "/guardian",
     "/guardian/:path*",
     "/ngos/:slug",
+    "/adopt/:slug",
     "/ngos/register/:path*",
     "/organisation",
     "/organisation/:path*",

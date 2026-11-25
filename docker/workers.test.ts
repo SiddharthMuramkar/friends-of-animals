@@ -325,6 +325,12 @@ describe("docker/workers.yml", () => {
     // A file over clamd's scan limits is only partly scanned; without this
     // it would still come back `stream: OK` and count as clean.
     expect(clamd).toMatch(/^AlertExceedsMax yes$/m);
+    // A 200 MB entry video (#86) fits under every limit, so none is
+    // flagged for its size alone.
+    expect(clamd).toMatch(/^StreamMaxLength 210M$/m);
+    expect(clamd).toMatch(/^MaxFileSize 210M$/m);
+    expect(clamd).toMatch(/^MaxScanSize 420M$/m);
+    expect(clamd).toMatch(/^MaxScanTime 300000$/m);
     expect(clamav).toContain(
       "./clamav/freshclam.conf:/etc/clamav/freshclam.conf:ro"
     );
@@ -498,6 +504,18 @@ describe("docker/workers.yml", () => {
       "utf8"
     );
     expect(dockerfile).toMatch(/^FROM worker AS worker-media$/m);
+    // ffmpeg for video entries (#86), in this image only.
+    const mediaStage = dockerfile.slice(
+      dockerfile.indexOf("FROM worker AS worker-media"),
+      dockerfile.indexOf("FROM ${NODE_IMAGE} AS runner")
+    );
+    expect(mediaStage).toMatch(
+      /apt-get install -y --no-install-recommends ffmpeg/
+    );
+    expect(mediaStage).toMatch(/^USER node$/m);
+    expect(dockerfile.match(/install[^\n]*ffmpeg/g)).toHaveLength(1);
+    // A bounded scratch folder for ffmpeg.
+    expect(media).toMatch(/^ {4}tmpfs:\n(?: {6}#.*\n)* {6}- \/tmp:size=1g$/m);
     expect(shared()).toContain("read_only: true");
     expect(shared()).toMatch(/^ {4}- \/tmp$/m);
     expect(healthCommand()).toContain("/tmp/foa-worker-heartbeat");

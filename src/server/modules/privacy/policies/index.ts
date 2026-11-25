@@ -31,6 +31,7 @@ import {
   READ_INBOX_ITEMS,
 } from "./messages";
 import { BREACH_RECORDS, SAFEGUARDING_REPORTS } from "./module-owned";
+import { PRIVACY_REQUESTS } from "./privacy-requests";
 import { ORPHANED_PROFILES } from "./profiles";
 import { EXPIRED_SESSIONS, EXPIRED_VERIFICATIONS } from "./sign-in";
 import { VOLUNTEER_APPLICATIONS } from "./volunteers";
@@ -58,6 +59,7 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   VOLUNTEER_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
+  PRIVACY_REQUESTS,
 ];
 
 /** Data the sweep never touches, and what governs it instead. */
@@ -118,6 +120,8 @@ export const LIFECYCLE_POLICY_KEYS = [
    * (a statutory floor, HR-31, HR-47); no job yet. A receipt is frozen.
    */
   "donationRecords",
+  /** Erasure records (#115b): kept as the proof of an erasure (HR-30). */
+  "erasureRecords",
   /** Campaigns (#126): kept with the campaign's record. */
   "campaigns",
 ] as const;

@@ -1083,18 +1083,21 @@ site's `APP_URL`, and staging its keys, if one comes back.
 
 ### Scan, PDF and media sidecars
 
-| Service         | Connection and health check                                                                                            | Memory |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
-| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. The health check sends `PING` to `127.0.0.1:3310`. | 2 GiB  |
-| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.                | 1 GiB  |
-| `worker-media`  | Runs the media entry point with a read-only root and `/tmp` tmpfs. Health requires a heartbeat under 120 s old.        | 2 GiB  |
+| Service         | Connection and health check                                                                                             | Memory |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
+| `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. The health check sends `PING` to `127.0.0.1:3310`.  | 2 GiB  |
+| `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.                 | 1 GiB  |
+| `worker-media`  | Runs the media entry point with a read-only root and a 1 GiB `/tmp` tmpfs. Health requires a heartbeat under 120 s old. | 2 GiB  |
 
 All three log to journald and use private networks. Clamd listens on the
 internal `scan` bridge and loopback. FreshClam uses a separate bridge to
 reach the signature mirror and keeps its databases in `foa-clamav-db`.
 Allow ten minutes for the initial signature load. Scans wait during a
 signature reload so ClamAV can stay within its memory limit. Check the
-journal for signature-load failures.
+journal for signature-load failures. `clamav/clamd.conf` raises clamd's
+stream, file and scan limits (210M, 420M, 5 minutes) so a 200 MB entry
+video (#86) is scanned whole rather than flagged for its size; recreate
+`foa-clamav` after changing them.
 
 The upload scan also reads each file from its environment's R2 bucket, so a
 database worker scans only with all four `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
@@ -1140,10 +1143,13 @@ write `/etc/foa/secrets/worker_media_r2.env` (root, mode 0600) with the four
 above. Only `worker-media` reads it. Its token must allow reads and writes in
 that bucket, because the media worker stores the derivatives there.
 
-The default worker scans uploads and queues image derivatives. The media worker
-connects directly to the same database (on `db`, which also routes to R2) and
-drains only those deliveries, one image at a time. `MEDIA_TIMEOUT_SECONDS`
-defaults to 60 seconds for image processing. It uses the container heartbeat
+The default worker scans uploads and queues image derivatives and video
+transcodes. The media worker connects directly to the same database (on `db`,
+which also routes to R2) and drains only those deliveries, one at a time.
+`MEDIA_TIMEOUT_SECONDS` defaults to 60 seconds for image processing. A video
+(#86) is transcoded by the image's own ffmpeg, with a deadline from its
+length (up to 13 minutes for a 3-minute clip) and a 20-minute relay lease;
+`pnpm test:media` runs the ffmpeg adapter's contract inside the image. It uses the container heartbeat
 file for health checks. The database heartbeat read by `/api/health/worker`
 continues to track the default worker. The PDF adapter in #100 uses the
 Gotenberg endpoint.

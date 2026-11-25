@@ -21,6 +21,7 @@ import { deliverConsentLink } from "../modules/consent-links/delivery";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { uploadKeyFor } from "../modules/files/domain/storage-key";
 import { processImageAsset } from "../modules/files/process-image";
+import { processVideoAsset } from "../modules/files/process-video";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import { publishPostImage } from "../modules/cms/posts/images";
@@ -53,9 +54,19 @@ import { sendEntryReceiptToFamily } from "../modules/entries/family-receipt";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import { fanOutBreachNotices } from "../modules/breaches/fan-out";
 import { sendAuthorityNotice } from "../modules/breaches/authority-message";
+import {
+  runBuildExport,
+  runExpireExport,
+} from "../modules/privacy/requests/subject-data/export";
+import { runExecuteErasure } from "../modules/privacy/requests/subject-data/erasure";
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
+import { openSchoolRounds } from "../modules/school-round/open-school-rounds";
+import {
+  queueFamilyOutcomes,
+  sendFamilyOutcome,
+} from "../modules/school-round/family-outcomes";
 import type { Clock } from "../ports/clock";
 import type { EmailSender } from "../ports/email";
 import type { MalwareScanner } from "../ports/malware-scanner";
@@ -146,6 +157,7 @@ export const HANDLERS: Handlers = {
     deliverConsentLink(deps, payload),
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
+  "files.process_video": (deps, delivery) => processVideoAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
   "institutions.send_coordinator_invitation": (deps, { payload }) =>
@@ -201,6 +213,16 @@ export const HANDLERS: Handlers = {
   // Emails the authority about a breach, once (#116).
   "breaches.send_authority_notice": (deps, { payload }) =>
     sendAuthorityNotice(deps, payload),
+  // Builds and stores an access request's data export (#115b). Safe to
+  // repeat: a request no longer waiting for its export is left alone.
+  "privacy.build_export": (deps, { payload }) => runBuildExport(deps, payload),
+  // Deletes an export once its link has expired (#115b).
+  "privacy.expire_export": (deps, { payload }) =>
+    runExpireExport(deps, payload),
+  // Carries out an approved erasure (#115b). Safe to repeat: a closed
+  // request is left alone, and a changed plan is refused.
+  "privacy.execute_erasure": (deps, { payload }) =>
+    runExecuteErasure(deps, payload),
   // Brings a competition's reminders in step after it is published, its
   // key dates change or it is cancelled (#84). Safe to repeat.
   "reminders.schedule": async (deps, { payload }) => {
@@ -219,6 +241,15 @@ export const HANDLERS: Handlers = {
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
   // One recipient's campaign message, on the consent it rests on (#126).
   "campaigns.deliver_message": deliverCampaignMessage,
+  // Opens the competition's school rounds (#89). Safe to repeat.
+  "school_round.open_rounds": async (deps, { payload }) => {
+    await openSchoolRounds(deps, payload);
+  },
+  // Queues one outcome message per entry of a finalised round (#89), once.
+  "school_round.queue_family_outcomes": (deps, { payload }) =>
+    queueFamilyOutcomes(deps, payload),
+  // Emails one entry's family its school round outcome (#89).
+  "school_round.send_family_outcome": sendFamilyOutcome,
 };
 
 /** Whether this code has a handler by that name. */

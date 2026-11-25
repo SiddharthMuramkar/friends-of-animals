@@ -52,6 +52,14 @@ import {
 import { CAMPAIGN_VARIABLES, campaignEventValues } from "../campaigns/render";
 import { guardianOfParticipant } from "../guardians/participant-audience";
 import { safeguardingLeads } from "../safeguarding/leads";
+import { grievanceOfficers } from "../privacy/requests/people";
+import {
+  DIGEST_VARIABLES,
+  digestValues,
+  REQUEST_VARIABLES,
+  requesterOf,
+  requestValues,
+} from "../privacy/requests/messages";
 import {
   AUTHORITY_NOTICE_VARIABLES,
   PRINCIPAL_NOTICE_VARIABLES,
@@ -91,6 +99,10 @@ import {
   volunteerApplicant,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
+import {
+  outcomeValues,
+  SCHOOL_ROUND_OUTCOME_VARIABLES,
+} from "../school-round/family-outcomes";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -117,6 +129,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "files.file_uploaded":
     case "files.processing_requested":
+    case "files.video_processing_requested":
+    case "files.file_ready":
     case "files.file_processed":
     case "files.file_processing_failed":
     case "files.file_quarantined":
@@ -234,6 +248,18 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "institution_registration.competition_cancelled":
       // For its coordinators (`institution_coordinators`, #80).
       return null;
+    case "privacy_request.submitted":
+    case "privacy_request.rejected":
+    case "privacy_request.completed":
+    case "privacy_request.overdue_digest":
+      // A request's requester (`privacy_requester`), the grievance
+      // officers (`grievance_officers`, `grievance_digest`), #115.
+      return null;
+    case "privacy_request.export_requested":
+    case "privacy_request.export_expired":
+    case "privacy_request.erasure_approved":
+      // The export and erasure jobs (#115b); no route row names them.
+      return null;
     case "volunteer.guardian_approval_requested":
     case "volunteer.application_submitted":
     case "volunteer.application_approved":
@@ -243,6 +269,16 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
+      return null;
+    case "competition.school_judging_started":
+    case "school_round.shortlist_finalised":
+      // Open the rounds and queue the families' messages (#89); no route
+      // row names them.
+      return null;
+    case "entry.school_shortlisted":
+    case "entry.not_shortlisted":
+      // The family contact isn't a user: their message goes by the school
+      // round's own handler (#89), not by a route row.
       return null;
   }
 }
@@ -404,6 +440,25 @@ export const AUDIENCES = {
   /** The announcements handler resolves both audiences from one roster. */
   announcement_registrants: async () => [],
   announcement_contacts: async () => [],
+  /** Whoever filed a privacy request (#115): its receipt and outcome. */
+  privacy_requester: async (db, delivery) => {
+    switch (delivery.eventType) {
+      case "privacy_request.submitted":
+      case "privacy_request.rejected":
+      case "privacy_request.completed":
+        return requesterOf(db, delivery.payload.requestId);
+      default:
+        return [];
+    }
+  },
+  /** Every grievance officer (#115), whatever the event. */
+  grievance_officers: async (db) =>
+    (await grievanceOfficers(db)).map((officer) => officer.id),
+  /** The grievance officer one overdue digest is for (#115). */
+  grievance_digest: async (_db, delivery) =>
+    delivery.eventType === "privacy_request.overdue_digest"
+      ? [delivery.payload.officerUserId]
+      : [],
   /**
    * The reminders handler resolves both from who owes the deadline when it
    * runs (#84): accounts, and roster contacts without one.
@@ -557,6 +612,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "consent.link_sent": { names: [], load: async () => ({}) },
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
+  "files.video_processing_requested": { names: [], load: async () => ({}) },
+  "files.file_ready": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
   "files.file_quarantined": { names: [], load: async () => ({}) },
@@ -710,6 +767,35 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ENTRY_ATTEMPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload),
   },
+  "competition.school_judging_started": { names: [], load: async () => ({}) },
+  "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "entry.school_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "entry.not_shortlisted": {
+    names: SCHOOL_ROUND_OUTCOME_VARIABLES,
+    load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "privacy_request.submitted": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.rejected": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.completed": {
+    names: REQUEST_VARIABLES,
+    load: (db, { payload }) => requestValues(db, payload.requestId),
+  },
+  "privacy_request.overdue_digest": {
+    names: DIGEST_VARIABLES,
+    load: async (_db, { payload }) => digestValues(payload),
+  },
+  "privacy_request.export_requested": { names: [], load: async () => ({}) },
+  "privacy_request.export_expired": { names: [], load: async () => ({}) },
+  "privacy_request.erasure_approved": { names: [], load: async () => ({}) },
   "competition.announcement_sent": {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>

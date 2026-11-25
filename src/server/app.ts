@@ -43,11 +43,14 @@ import { announcementsUseCases } from "./modules/announcements";
 import { privacyUseCases } from "./modules/privacy";
 import { breachesUseCases } from "./modules/breaches";
 import { donationsUseCases } from "./modules/donations";
+import { privacyRequestUseCases } from "./modules/privacy/requests";
 import { institutionSubmissionsUseCases } from "./modules/institution-submissions";
 import { directoryUseCases } from "./modules/directory";
+import { adoptionUseCases } from "./modules/adoption";
 import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
+import { schoolRoundUseCases } from "./modules/school-round";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -80,11 +83,14 @@ const useCases = composeUseCases(
   privacyUseCases,
   breachesUseCases,
   donationsUseCases,
+  privacyRequestUseCases,
   directoryUseCases,
+  adoptionUseCases,
   volunteersUseCases,
   remindersUseCases,
   campaignsUseCases,
-  institutionSubmissionsUseCases
+  institutionSubmissionsUseCases,
+  schoolRoundUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

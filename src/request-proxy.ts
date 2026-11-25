@@ -20,6 +20,7 @@ import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
+import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
 import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
@@ -96,6 +97,12 @@ export type RequestProxyDeps = {
    * one, every listing slug is the 404.
    */
   isPublicListingSlug?: SlugLookup;
+  /**
+   * Whether an adoptable animal (#129) has a public page at this slug:
+   * the adoption module, through a memo (src/app/adopt/_lib/public-slugs.ts).
+   * Without one, every animal slug is the 404.
+   */
+  isAdoptableSlug?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -104,6 +111,7 @@ export function createProxy({
   isPublishedCompetitionSlug,
   isPublicPostSlug,
   isPublicListingSlug = async () => false,
+  isAdoptableSlug = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -161,6 +169,25 @@ export function createProxy({
     }
   }
 
+  /**
+   * Whether /adopt/<raw> has a public page: published, on hold or adopted,
+   * under a verified directory listing. If the database can't answer, the
+   * request goes through and the page answers for itself.
+   */
+  async function isAdoptable(raw: string): Promise<boolean> {
+    const slug = decodedSlug(raw);
+    if (!ADOPTION_SLUG_PATTERN.test(slug)) return false;
+    try {
+      return await isAdoptableSlug(slug);
+    } catch (error) {
+      console.error(
+        "Proxy: could not check an adoption slug against the database.",
+        error instanceof Error ? error.message : error
+      );
+      return true;
+    }
+  }
+
   // Unlisted slugs render at request time, and the header's <Suspense>
   // starts streaming before the page's notFound() runs, so they would keep
   // a 200 status (cacheComponents rules out dynamicParams = false).
@@ -211,7 +238,9 @@ export function createProxy({
         ? await isPublicPost(raw)
         : section === "ngos"
           ? await isPublicListing(raw)
-          : await isPublishedCompetition(raw);
+          : section === "adopt"
+            ? await isAdoptable(raw)
+            : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };

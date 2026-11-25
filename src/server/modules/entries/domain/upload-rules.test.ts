@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   acceptAttribute,
   checkUpload,
+  DEFAULT_DOCUMENT_RULE,
   DEFAULT_IMAGE_RULE,
+  DEFAULT_VIDEO_RULE,
   uploadTypeOf,
 } from "./upload-rules";
 
@@ -111,5 +113,129 @@ describe("acceptAttribute", () => {
     expect(acceptAttribute(DEFAULT_IMAGE_RULE)).toBe(
       "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
     );
+  });
+});
+
+describe("checkUpload with the default video rule (#86)", () => {
+  const clip = (
+    overrides: Partial<Parameters<typeof checkUpload>[0]> = {}
+  ) => ({
+    name: "IMG_0042.MOV",
+    type: "video/quicktime",
+    size: 48 * MB,
+    durationMs: 40_000,
+    ...overrides,
+  });
+
+  it("reads phone video types, by their extension when the browser says nothing", () => {
+    expect(
+      uploadTypeOf({ name: "a.mp4", type: "Video/MP4; codecs=avc1" })
+    ).toBe("video/mp4");
+    expect(uploadTypeOf({ name: "a.m4v", type: "video/x-m4v" })).toBe(
+      "video/mp4"
+    );
+    expect(uploadTypeOf({ name: "IMG_0042.MOV", type: "" })).toBe(
+      "video/quicktime"
+    );
+    expect(
+      uploadTypeOf({ name: "VID.3gp", type: "application/octet-stream" })
+    ).toBe("video/3gpp");
+    expect(uploadTypeOf({ name: "clip.webm", type: "" })).toBe("video/webm");
+  });
+
+  it("accepts a phone clip within the limits, and one exactly at both", () => {
+    expect(checkUpload(clip(), DEFAULT_VIDEO_RULE)).toEqual({
+      ok: true,
+      contentType: "video/quicktime",
+    });
+    expect(
+      checkUpload(
+        clip({ size: 200 * MB, durationMs: 181_000 }),
+        DEFAULT_VIDEO_RULE
+      )
+    ).toEqual({ ok: true, contentType: "video/quicktime" });
+  });
+
+  it("refuses an empty file, then a type phones don't record, then the size", () => {
+    expect(checkUpload(clip({ size: 0 }), DEFAULT_VIDEO_RULE)).toEqual({
+      ok: false,
+      reason: "empty",
+    });
+    for (const file of [
+      { name: "clip.avi", type: "video/x-msvideo" },
+      { name: "clip.mkv", type: "video/x-matroska" },
+      { name: "photo.jpg", type: "image/jpeg" },
+    ]) {
+      expect(checkUpload(clip(file), DEFAULT_VIDEO_RULE)).toEqual({
+        ok: false,
+        reason: "wrong_type",
+      });
+    }
+    expect(
+      checkUpload(clip({ size: 200 * MB + 1 }), DEFAULT_VIDEO_RULE)
+    ).toEqual({ ok: false, reason: "too_large" });
+  });
+
+  it("refuses a clip over the length limit, with a second of slack", () => {
+    expect(
+      checkUpload(clip({ durationMs: 181_001 }), DEFAULT_VIDEO_RULE)
+    ).toEqual({ ok: false, reason: "too_long" });
+  });
+
+  it("leaves the length to worker-media when the browser can't read it", () => {
+    for (const durationMs of [null, undefined, Number.NaN, Infinity]) {
+      expect(checkUpload(clip({ durationMs }), DEFAULT_VIDEO_RULE)).toEqual({
+        ok: true,
+        contentType: "video/quicktime",
+      });
+    }
+  });
+
+  it("lists the video types, then their extensions", () => {
+    expect(acceptAttribute(DEFAULT_VIDEO_RULE)).toBe(
+      "video/mp4,video/quicktime,video/3gpp,video/webm,.mp4,.m4v,.mov,.3gp,.webm"
+    );
+  });
+});
+
+describe("checkUpload with the default document rule (#86)", () => {
+  it("takes a PDF up to 10 MB, and nothing else", () => {
+    expect(
+      checkUpload(
+        { name: "essay.pdf", type: "application/pdf", size: 10 * MB },
+        DEFAULT_DOCUMENT_RULE
+      )
+    ).toEqual({ ok: true, contentType: "application/pdf" });
+    expect(
+      checkUpload(
+        { name: "essay.pdf", type: "application/pdf", size: 10 * MB + 1 },
+        DEFAULT_DOCUMENT_RULE
+      )
+    ).toEqual({ ok: false, reason: "too_large" });
+    expect(
+      checkUpload(
+        {
+          name: "essay.docx",
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          size: 1000,
+        },
+        DEFAULT_DOCUMENT_RULE
+      )
+    ).toEqual({ ok: false, reason: "wrong_type" });
+    expect(
+      checkUpload(
+        { name: "essay.pdf", type: "", size: 1000 },
+        DEFAULT_DOCUMENT_RULE
+      )
+    ).toEqual({ ok: true, contentType: "application/pdf" });
+  });
+
+  it("never applies a length to a picture or a document", () => {
+    expect(
+      checkUpload(
+        { name: "a.png", type: "image/png", size: 10, durationMs: 1e9 },
+        DEFAULT_IMAGE_RULE
+      )
+    ).toEqual({ ok: true, contentType: "image/png" });
   });
 });

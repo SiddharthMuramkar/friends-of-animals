@@ -105,6 +105,21 @@ export type DomainEvent =
       payload: { fileId: string };
     }
   | {
+      /** A clean video has a copy and a poster to make: worker-media's job (#86). */
+      type: "files.video_processing_requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
+      /**
+       * The scan passed a file that gets no derivatives: it is ready as
+       * stored (an essay's PDF, #86).
+       */
+      type: "files.file_ready";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
       /** Every derivative of the file is stored. */
       type: "files.file_processed";
       aggregate: { type: "file_asset"; id: string };
@@ -305,6 +320,42 @@ export type DomainEvent =
       payload: { competitionId: string };
     }
   | {
+      /**
+       * A competition entered school judging (#89): its school rounds
+       * open.
+       */
+      type: "competition.school_judging_started";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A coordinator finalised their school round (#89). The only
+       * producer is finaliseSchoolRound: each entry of the round is now
+       * school-shortlisted (and, under all-participants scope, submitted to
+       * FOA) or not shortlisted, and its family is told which.
+       */
+      type: "school_round.shortlist_finalised";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /** An entry was shortlisted in a finalised school round (#89). */
+      type: "entry.school_shortlisted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; registrationId: string; roundId: string };
+    }
+  | {
+      /** An entry was not shortlisted in a finalised school round (#89). */
+      type: "entry.not_shortlisted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; registrationId: string; roundId: string };
+    }
+  | {
       /** An institution registered for a competition (#75). */
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
@@ -448,6 +499,59 @@ export type DomainEvent =
     }
   | {
       /**
+       * A privacy rights request was filed (#115): the requester's receipt
+       * and the grievance officers' in-app note go by route row.
+       */
+      type: "privacy_request.submitted";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** The grievance officer refused a request; the requester is told. */
+      type: "privacy_request.rejected";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** A request is done (in full or in part); the requester is told. */
+      type: "privacy_request.completed";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** The grievance officer asked for an access request's export (#115b). */
+      type: "privacy_request.export_requested";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** Delayed to when an export's link stops: its object is deleted. */
+      type: "privacy_request.export_expired";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /** The grievance officer approved an erasure's plan (#115b). */
+      type: "privacy_request.erasure_approved";
+      aggregate: { type: "privacy_request"; id: string };
+      payload: { requestId: string };
+    }
+  | {
+      /**
+       * The daily overdue digest for one grievance officer (#115): counts
+       * only, never who a request is about.
+       */
+      type: "privacy_request.overdue_digest";
+      aggregate: { type: "privacy_overdue_digest"; id: string };
+      payload: {
+        officerUserId: string;
+        day: string;
+        overdue: number;
+        assignedToYou: number;
+      };
+    }
+  | {
+      /**
        * One recipient's message of a sent campaign (#126) is due. The
        * handler checks the consent it rests on again before it goes.
        */
@@ -506,6 +610,11 @@ const DIRECTORY_LISTING_EVENT = z.object({
   userId: z.uuid(),
 });
 const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
+const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
+  entryId: z.uuid(),
+  registrationId: z.uuid(),
+  roundId: z.uuid(),
+});
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -535,6 +644,8 @@ export const EVENT_PAYLOADS = {
     competitionId: z.uuid().nullable(),
   }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
+  "files.video_processing_requested": z.object({ fileId: z.uuid() }),
+  "files.file_ready": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),
   "files.file_processing_failed": z.object({
     fileId: z.uuid(),
@@ -602,6 +713,14 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
   }),
   "registration.confirmed": z.object({ registrationId: z.uuid() }),
+  "competition.school_judging_started": z.object({ competitionId: z.uuid() }),
+  "school_round.shortlist_finalised": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
+  "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "payment.batch_captured": z.object({
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
@@ -642,6 +761,18 @@ export const EVENT_PAYLOADS = {
     pageSize: z.int().min(1).max(BREACH_FAN_OUT_PAGE_SIZE),
   }),
   "breach.authority_notice": z.object({ breachId: z.uuid() }),
+  "privacy_request.submitted": z.object({ requestId: z.uuid() }),
+  "privacy_request.rejected": z.object({ requestId: z.uuid() }),
+  "privacy_request.completed": z.object({ requestId: z.uuid() }),
+  "privacy_request.export_requested": z.object({ requestId: z.uuid() }),
+  "privacy_request.export_expired": z.object({ requestId: z.uuid() }),
+  "privacy_request.erasure_approved": z.object({ requestId: z.uuid() }),
+  "privacy_request.overdue_digest": z.object({
+    officerUserId: z.uuid(),
+    day: z.iso.date(),
+    overdue: z.int().min(1),
+    assignedToYou: z.int().min(0),
+  }),
   "campaign.message_due": z.object({
     campaignId: z.uuid(),
     recipientId: z.uuid(),
@@ -699,6 +830,13 @@ export const SUBSCRIBERS = {
     "files.process_image",
     "entries.apply_file_outcome",
   ],
+  // files.process_video runs in worker-media only, like process_image (#86).
+  "files.video_processing_requested": [
+    "files.process_video",
+    "entries.apply_file_outcome",
+  ],
+  // A file that needs no derivatives is ready once its scan passes (#86).
+  "files.file_ready": ["entries.apply_file_outcome"],
   // A post image's public copies follow its derivatives (#112).
   "files.file_processed": [
     "cms.publish_post_image",
@@ -753,6 +891,14 @@ export const SUBSCRIBERS = {
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
+  // The competition's school rounds open (#89).
+  "competition.school_judging_started": ["school_round.open_rounds"],
+  // Each family is told the outcome, one event per entry (#89).
+  "school_round.shortlist_finalised": ["school_round.queue_family_outcomes"],
+  // The family contact isn't a user: the message goes by the school
+  // round's own handler, by its `family_contact` route (#89).
+  "entry.school_shortlisted": ["school_round.send_family_outcome"],
+  "entry.not_shortlisted": ["school_round.send_family_outcome"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
@@ -793,6 +939,17 @@ export const SUBSCRIBERS = {
   // The authority is an address, not a user, so no route row can name it:
   // the email goes by its own handler, with its route's template (#116).
   "breach.authority_notice": ["breaches.send_authority_notice"],
+  // The requester's receipt and outcome, and the grievance officers'
+  // notes, go by route row (#115).
+  "privacy_request.submitted": ["notifications.dispatch"],
+  "privacy_request.rejected": ["notifications.dispatch"],
+  "privacy_request.completed": ["notifications.dispatch"],
+  "privacy_request.overdue_digest": ["notifications.dispatch"],
+  // The export and erasure jobs, in the worker (#115b). Each is safe to
+  // repeat: a finished export or erasure is left alone.
+  "privacy_request.export_requested": ["privacy.build_export"],
+  "privacy_request.export_expired": ["privacy.expire_export"],
+  "privacy_request.erasure_approved": ["privacy.execute_erasure"],
   // The campaigns module plans its own channels on the consent each
   // message rests on, with its route's template (#126).
   "campaign.message_due": ["campaigns.deliver_message"],

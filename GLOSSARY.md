@@ -98,6 +98,31 @@ A keyed fingerprint kept beside an Encrypted field, so the platform can find a
 record by that value (a User by phone at sign-in) without storing it readably.
 _Avoid_: Phone hash, lookup hash
 
+**Rights request**:
+A request under India's data protection law, by a User about their own data
+or by a Guardian about a linked child's: for a copy of it (access), to
+correct it, or to erase it. Each has a reference, a due date and a status
+the requester follows.
+_Avoid_: DSAR, privacy ticket, data request
+
+**Grievance officer**:
+The Role held by FOA's grievance officer: the only people who answer Rights
+requests, in the grievance queue. No other Role can, super admins included.
+_Avoid_: DPO, privacy admin
+
+**Data export**:
+The file of everything FOA keeps about one person, prepared for an access
+request. Only the person who made the request can download it, for a
+limited time; staff never see it.
+_Avoid_: Data dump, takeout
+
+**Erasure**:
+Carrying out an erasure request: the person's consents are withdrawn, and
+their records deleted or anonymised, except what the law makes FOA keep
+(payments under their floor, proof of consent, the Audit log) or a legal
+hold stops. What was kept, why and until when is recorded and told to them.
+_Avoid_: Deletion (for the whole process), right to be forgotten
+
 ## Safeguarding
 
 **Safeguarding report**:
@@ -438,8 +463,9 @@ dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
 **Derivative**:
-A copy the platform makes of an uploaded picture, such as a thumbnail or a
-display copy: upright, resized and stripped of location and camera details.
+A copy the platform makes of an uploaded picture or video, such as a
+thumbnail, a display copy, or a video's playable copy and its poster:
+upright, resized and stripped of location and camera details.
 Whoever may see the original may see its derivatives, once its scan passes.
 _Avoid_: Rendition, variant, thumbnail (one kind of derivative)
 
@@ -517,6 +543,38 @@ round can't be finalised without it.
 _Avoid_: Conduct declaration, sign-off (the participation declaration is the
 institution's consent to take part)
 
+**School round**:
+The first Round on the institution route: one per Institution registration
+with a confirmed student, opened when its competition enters school judging.
+The coordinator records the Panel, picks the Shortlist and finalises it.
+_Avoid_: School judging (the competition's status), first round
+
+**Category**:
+One discipline for one age group of a competition, such as Drawing for
+Group A. Entries are shortlisted and placed within their Category.
+_Avoid_: Section, class
+
+**Panel**:
+The people who judged a School round, each with their full name and role.
+_Avoid_: Jury (FOA's judges), judges (alone)
+
+**Shortlist**:
+The entries a school picks, per Category, to go on to FOA judging, up to the
+competition's shortlist size. It is a draft until the School round is
+finalised; finalising makes each Entry school-shortlisted or not
+shortlisted.
+_Avoid_: Selection, finalists
+
+**School position**:
+A place (1st, 2nd, 3rd...) a school gives a shortlisted Entry in its
+Category, up to the competition's number of positions. Optional.
+_Avoid_: Rank, prize
+
+**Judging attestation**:
+The coordinator's statement, given when finalising, that the Shortlist and
+School positions are the Panel's fair judgement against FOA's Rubric.
+_Avoid_: Judging certificate, sign-off
+
 ## Registration
 
 **Institution registration**:
@@ -565,10 +623,10 @@ The work a participant submits for a competition registration; a registration
 has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
-The reference assigned to an entry when its first upload is confirmed, such as `NEIGH27-E-7K3QZ9`.
+The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
 
 **Live file**
-The entry’s current image after it passes its safety and processing checks.
+The entry’s current work (an image, a video, or an essay typed or as a PDF) after it passes its safety and processing checks. A typed essay has none to pass and is live as soon as it is saved.
 
 **Pending replacement**
 A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.
@@ -668,6 +726,21 @@ from India Post's open pin-code directory. A Directory listing is found by
 distance from its pin-code centre, never from its address, so distances are
 approximate.
 _Avoid_: Geocode, listing location
+
+## Adoption
+
+**Adoption listing**:
+One animal a Directory listing offers for adoption: who it is, its health
+and vaccination notes, the adoption conditions and where it is. It stays a
+private draft until a representative publishes it with a photo, and it is
+public only while its Directory listing is verified. FOA facilitates; the
+listing organisation is responsible for the animal.
+_Avoid_: Pet listing, animal profile, adoption post
+
+**Adoptable animal**:
+What the public sees of a published Adoption listing on /adopt and its own
+page.
+_Avoid_: Pet, available animal
 
 ## Engineering
 

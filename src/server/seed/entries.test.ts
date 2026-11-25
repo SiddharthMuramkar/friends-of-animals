@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { entryFile, fileDerivative } from "@/server/db/schema";
@@ -75,7 +75,7 @@ describe("the entries seed", () => {
     const [live] = await h.db
       .select({ assetId: entryFile.fileAssetId })
       .from(entryFile)
-      .where(eq(entryFile.status, "live"));
+      .where(and(eq(entryFile.status, "live"), eq(entryFile.kind, "image")));
     const assetId = live!.assetId!;
     await h.db
       .delete(fileDerivative)
@@ -100,5 +100,56 @@ describe("the entries seed", () => {
         .map(({ kind }) => kind)
         .toSorted()
     ).toEqual(["display_1600", "thumb_320"]);
+  });
+
+  it("shows Ravi a submitted video, playing from its copy and poster, and a typed essay (#86)", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    await h.seed.preview();
+    const ravi = h.as(
+      await h.signIn(SEED_ACCOUNTS.members[1], undefined, {
+        secondFactor: false,
+      })
+    );
+
+    const entries = await ravi.listMyEntries();
+    expect(entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "ROOF27-E-5EEDB1",
+          status: "submitted",
+        }),
+        expect.objectContaining({
+          code: "BIRDS27-E-5EEDB2",
+          status: "submitted",
+        }),
+      ])
+    );
+    expect(entries).toHaveLength(2);
+    const video = await ravi.getEntry({ code: "ROOF27-E-5EEDB1" });
+    if (!video.ok) throw new Error("Missing seeded video");
+    expect(video.entry).toMatchObject({
+      format: "video",
+      discipline: "videography",
+      video: { width: 640, height: 360, durationMs: 4_000 },
+      uploadRule: { kind: "video" },
+    });
+    expect(await h.storage.get(video.entry.video!.url)).toMatchObject({
+      ok: true,
+      contentType: "video/mp4",
+    });
+    expect(await h.storage.get(video.entry.video!.posterUrl!)).toMatchObject({
+      ok: true,
+      contentType: "image/jpeg",
+    });
+
+    const essay = await ravi.getEntry({ code: "BIRDS27-E-5EEDB2" });
+    if (!essay.ok) throw new Error("Missing seeded essay");
+    expect(essay.entry).toMatchObject({
+      format: "essay",
+      essay: { kind: "text", wordCount: 75 },
+    });
+    if (essay.entry.essay?.kind !== "text") throw new Error("no text");
+    expect(essay.entry.essay.body.paragraphs).toHaveLength(3);
   });
 });

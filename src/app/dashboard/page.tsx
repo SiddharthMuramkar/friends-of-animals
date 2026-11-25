@@ -12,9 +12,11 @@ import {
   ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
+  ADMIN_PRIVACY_REQUESTS,
   ADMIN_REFUNDS,
   ADMIN_VOLUNTEERS,
   APP_ROUTES,
+  MY_PRIVACY_REQUESTS,
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -72,6 +74,8 @@ async function Areas() {
   ]);
   // Only a safeguarding lead is pointed at the reports (#116).
   const lead = grants.some((grant) => grant.role === "safeguarding_lead");
+  // Only the grievance officer is pointed at privacy requests (#115).
+  const officer = grants.some((grant) => grant.role === "grievance_officer");
   // Finance, staff admins and super admins look after payments (#79).
   const money = grants.some((grant) =>
     (["finance", "staff_admin", "super_admin"] as const).some(
@@ -136,6 +140,7 @@ async function Areas() {
             area={link.area}
             id={link.id}
             lead={lead}
+            officer={officer}
             money={money}
             finance={finance}
             directory={directory}
@@ -153,6 +158,7 @@ async function AreaBody({
   area,
   id,
   lead,
+  officer,
   money,
   finance,
   directory,
@@ -162,6 +168,7 @@ async function AreaBody({
   area: DashboardLink["area"];
   id?: string;
   lead: boolean;
+  officer: boolean;
   money: boolean;
   finance: boolean;
   directory: boolean;
@@ -190,6 +197,7 @@ async function AreaBody({
         ? links([
             { href: APP_ROUTES.accountSessions, label: t("member.sessions") },
             { href: APP_ROUTES.guardian, label: t("member.children") },
+            { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
           ])
@@ -222,6 +230,14 @@ async function AreaBody({
                   {
                     href: APP_ROUTES.adminSafeguarding,
                     label: t("admin.safeguarding"),
+                  },
+                ]
+              : []),
+            ...(officer
+              ? [
+                  {
+                    href: ADMIN_PRIVACY_REQUESTS,
+                    label: t("admin.privacyRequests"),
                   },
                 ]
               : []),

@@ -487,10 +487,11 @@ describe("startEntryUpload and completeEntryUpload", () => {
     expect(await h.db.select().from(entry)).toEqual([]);
   });
 
-  it("takes a discipline the competition holds whose work is a picture, and only that", async () => {
+  it("takes a discipline the competition holds, by the rule of its kind of work", async () => {
     const h = await createHarness();
     const asha = await confirmedAdult(h, { disciplines: ["drawing", "essay"] });
 
+    // An essay takes a PDF, not a picture (#86).
     const essay = await h.as(asha.actor).startEntryUpload({
       registrationId: asha.registrationId,
       discipline: "essay",
@@ -502,7 +503,7 @@ describe("startEntryUpload and completeEntryUpload", () => {
       file: { name: "work.jpg", type: "image/jpeg", size: 1000 },
     });
 
-    expect(essay).toEqual({ ok: false, error: "discipline_not_offered" });
+    expect(essay).toEqual({ ok: false, error: "wrong_type" });
     expect(craft).toEqual({ ok: false, error: "discipline_not_offered" });
   });
 

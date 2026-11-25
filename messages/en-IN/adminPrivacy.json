@@ -28,6 +28,7 @@
         "institution": "Institution",
         "directory_listing": "Organisation or person listed in the directory",
         "invitee": "Person invited",
+        "panel_member": "Member of a school judging panel",
         "participant_profile": "Participant profile",
         "payer": "Payer",
         "recipient": "Recipient",
@@ -99,7 +100,9 @@
         "donationRecords": "8 years after the end of the financial year of the donation",
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
-        "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers"
+        "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
+        "privacyRequests": "While the request is open, then 3 years after it is closed",
+        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
       },
       "purposes": {
         "account": {
@@ -262,7 +265,8 @@
           "file_asset_id": "Links to privately stored artwork and the safe copies made from it",
           "uploaded_by_user_id": "Records who uploaded each version of the work",
           "pending_text": "Keeps a replacement's proposed text with the image being checked",
-          "receipt_title": "Keeps the adult participant's receipt tied to the submitted title"
+          "receipt_title": "Keeps the adult participant's receipt tied to the submitted title",
+          "essay_body": "Keeps the essay a participant typed as their entry, for review and judging"
         },
         "entry_transition": {
           "entry_id": "Associates a change in status with the participant's entry",
@@ -341,6 +345,13 @@
           "status_reason": "Records the reason for the listing's latest status change",
           "owner_user_id": "Links the listing to the person who registered it, its first representative",
           "status_changed_by_user_id": "Records who last changed the listing's status"
+        },
+        "adoption_listing": {
+          "state": "Shows people roughly where an animal for adoption is, and lets them filter by it",
+          "city": "Shows people roughly where an animal for adoption is, and lets them filter by it",
+          "city_key": "Matches the city filter without regard to case",
+          "pin_code": "Shows people roughly where an animal for adoption is, and lets them filter by it",
+          "created_by_user_id": "Records which representative wrote the adoption listing"
         },
         "institution_invitation": {
           "accepted_by_user_id": "Records which account accepted the invitation",
@@ -470,6 +481,20 @@
           "subject_age": "The child's rough age, to judge urgency and how long to keep the report",
           "subject_details_ciphertext": "Who the concern is about (a name, a school, a username), to find the child (encrypted)"
         },
+        "school_round": {
+          "judging_attested_by_user_id": "Records which coordinator attested the school judging",
+          "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
+        },
+        "school_round_pick": {
+          "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
+        },
+        "school_round_transition": {
+          "actor_user_id": "Records which user acted when the school round changed status"
+        },
+        "school_round_panel_member": {
+          "full_name": "Names the person on the school judging panel the coordinator recorded",
+          "designation": "Shows the role of the person on the school judging panel"
+        },
         "second_factor": {
           "credential_id": "The passkey's id, to find it when the person signs in with it",
           "label": "The name the person gave their authenticator or passkey, which may name them or their device",
@@ -521,6 +546,24 @@
           "conduct_consent_id": "The code of conduct acceptance the approval rested on",
           "decline_reason_ciphertext": "Why a community manager declined, as the applicant was told (encrypted)",
           "decided_by_user_id": "The community manager who approved or declined the application"
+        },
+        "privacy_request": {
+          "subject_id": "Names the account or child's profile the request is about",
+          "requested_by_user_id": "Records who filed the request, so they can follow it and are told the outcome",
+          "correction_details_ciphertext": "What the person says is wrong and should be corrected, in their words",
+          "assigned_to_user_id": "Records which grievance officer is answering the request",
+          "rejection_reason_ciphertext": "Why the grievance officer refused the request, as the person is told",
+          "resolution_ciphertext": "What the grievance officer corrected, as the person is told",
+          "erasure_approved_by_user_id": "Records which grievance officer approved the erasure"
+        },
+        "privacy_request_note": {
+          "body_ciphertext": "The grievance officer's internal notes on the request",
+          "author_user_id": "Records which grievance officer wrote the note"
+        },
+        "erasure_record": {
+          "subject_id": "Names the account or child's profile that was erased",
+          "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
+          "profile_ids": "Names every participant profile the erasure covered, for the same reason"
         }
       }
     },
@@ -725,6 +768,14 @@
         "campaigns": {
           "name": "Campaigns",
           "rule": "While the campaign's records are kept. No daily job yet."
+        },
+        "privacyRequests": {
+          "name": "Closed privacy requests",
+          "rule": "Kept while the request is open, then deleted with the grievance officer's notes {days, plural, one {# day} other {# days}} after it closes."
+        },
+        "erasureRecords": {
+          "name": "Erasure records",
+          "rule": "Kept as the proof of each erasure. They hold ids only, never a name or a contact."
         }
       }
     },
