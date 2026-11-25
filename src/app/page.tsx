@@ -427,8 +427,15 @@ async function Stories() {
 async function Seasonal() {
   const t = await getTranslations("home.seasonal");
   return (
-    <Section width="wide" hue="teal" className="py-10 sm:py-14">
-      <SeasonalCard id="home-seasonal" headingLevel={2} />
+    <Section labelledBy="home-seasonal-title" width="wide" hue="teal">
+      <SectionHeading
+        id="home-seasonal-title"
+        eyebrow={t("eyebrow")}
+        tile="teal"
+        title={t("title")}
+        lead={t("lead")}
+      />
+      <SeasonalCard id="home-seasonal" headingLevel={3} className="mt-10" />
       <MoreLink href={ROUTES.awareness.path}>{t("more")}</MoreLink>
     </Section>
   );

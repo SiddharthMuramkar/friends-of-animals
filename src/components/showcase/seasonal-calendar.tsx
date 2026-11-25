@@ -3,7 +3,6 @@
 import { useState, type ReactNode } from "react";
 
 type Month = {
-  name: string;
   title: string;
   titleId: string;
   copy: ReactNode;
@@ -11,11 +10,13 @@ type Month = {
 };
 
 export function SeasonalCalendar({
+  id,
   months,
   initialMonth,
   picker,
   className,
 }: {
+  id: string;
   months: readonly Month[];
   initialMonth: number;
   picker: ReactNode;
@@ -25,30 +26,22 @@ export function SeasonalCalendar({
   const selected = months[month - 1]!;
 
   return (
-    <article aria-labelledby={selected.titleId} className={className}>
-      <div className="@container/seasonal-month rounded-3xl bg-section-teal p-[min(1.5rem,8%)] sm:p-8 lg:col-start-2 lg:row-start-1">
-        <p className="font-display text-h2 leading-none font-bold wrap-anywhere text-(--section-heading)">
-          {selected.name}
-        </p>
-        <div
-          onChange={(event) => {
-            if (event.target instanceof HTMLInputElement) {
-              setMonth(Number(event.target.value));
-            }
-          }}
-        >
-          {picker}
-        </div>
+    <article id={id} aria-labelledby={selected.titleId} className={className}>
+      <div
+        onChange={(event) => {
+          if (event.target instanceof HTMLInputElement) {
+            setMonth(Number(event.target.value));
+          }
+        }}
+      >
+        {picker}
       </div>
       <output className="sr-only">{selected.title}</output>
-      <div
-        key={month}
-        className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1"
-      >
-        {selected.copy}
-      </div>
-      <div className="min-w-0 lg:col-start-2 lg:row-start-2">
-        {selected.media}
+      <div className="mt-8 grid min-w-0 grid-cols-1 items-start gap-8 @min-[48rem]/seasonal:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] @min-[48rem]/seasonal:gap-10">
+        <div key={month} className="min-w-0">
+          {selected.copy}
+        </div>
+        <div className="min-w-0">{selected.media}</div>
       </div>
     </article>
   );
