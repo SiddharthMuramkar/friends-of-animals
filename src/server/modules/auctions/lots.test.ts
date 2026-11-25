@@ -75,7 +75,10 @@ describe("auction lots", () => {
 });
 
 import { eq } from "drizzle-orm";
-import { guardianLink } from "@/server/db/schema";
+import { competition, guardianLink } from "@/server/db/schema";
+import { SEED_AUCTIONS } from "@/server/seed/auctions";
+import { SEED_GUARDIANS } from "@/server/seed/guardians";
+import { SEED_AUCTION_COMPETITION } from "@/server/seed/competitions";
 import { auctionArtwork } from "./testing";
 import { emit } from "@/server/outbox";
 import { uuidv7 } from "@/server/ids";
@@ -342,5 +345,106 @@ describe("auction lot lifecycle", () => {
       error: "ineligible",
       reasons: ["auction_consent_missing"],
     });
+  });
+});
+
+describe("auction eligibility boundaries", () => {
+  it("refuses invalid terms, a disabled competition and an outstanding return request", async () => {
+    const h = await createHarness();
+    const w = await auctionArtwork(h);
+    const staff = h.as(w.auctioneer);
+    expect(
+      await staff.createLot({ ...w.input(), reservePricePaise: 1n })
+    ).toMatchObject({
+      ok: false,
+      error: "invalid_terms",
+      errors: ["reserve_below_base"],
+    });
+    expect(
+      await staff.createLot({ ...w.input(), opensAt: h.clock.now() })
+    ).toMatchObject({
+      ok: false,
+      error: "invalid_terms",
+      errors: ["opens_in_past"],
+    });
+    await h.db
+      .update(competition)
+      .set({ auctionPermitted: false })
+      .where(eq(competition.id, w.competition.id));
+    expect(await staff.createLot(w.input())).toMatchObject({
+      ok: false,
+      error: "ineligible",
+      reasons: ["competition_not_auctionable", "auction_consent_missing"],
+    });
+    await h.db
+      .update(competition)
+      .set({ auctionPermitted: true })
+      .where(eq(competition.id, w.competition.id));
+    await emit(h.db, h.clock, {
+      type: "results.published",
+      aggregate: { type: "competition", id: w.competition.id },
+      payload: {
+        competitionId: w.competition.id,
+        releaseId: uuidv7(h.clock.now()),
+        publishedAt: h.clock.now().toISOString(),
+      },
+    });
+    await h.drain();
+    expect(
+      await h
+        .as(w.artist.actor)
+        .requestArtworkReturn({ artworkId: w.artworkId })
+    ).toMatchObject({ ok: true });
+    expect(await staff.createLot(w.input())).toMatchObject({
+      ok: false,
+      error: "ineligible",
+      reasons: ["return_requested"],
+    });
+    expect(await staff.listEligibleArtwork()).toEqual([]);
+  });
+  it("a withdrawal cancels only its existing lot even if consent is regranted before the worker runs", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const staff = h.as(await h.signIn(SEED_AUCTIONS.manager));
+    const guardian = h.as(await h.signIn(SEED_GUARDIANS.guardian));
+    const visitor = h.as(h.visitor());
+    const childId = SEED_GUARDIANS.children.teen.profileId;
+    const target = {
+      childId,
+      competitionId: SEED_AUCTION_COMPETITION.id,
+      purpose: "auction" as const,
+    };
+    const before = await guardian.childConsents({ childId });
+    if (!before.ok) throw new Error("Guardian not ready");
+    const documentId = before.competitions
+      .find((c) => c.id === target.competitionId)
+      ?.purposes.find((p) => p.purpose === "auction")?.document?.id;
+    if (!documentId) throw new Error("Missing auction document");
+    expect(await guardian.withdrawChildConsent(target)).toMatchObject({
+      ok: true,
+      changed: true,
+    });
+    expect(
+      await guardian.giveChildConsent({ ...target, documentId })
+    ).toMatchObject({ ok: true, changed: true });
+    expect(
+      await visitor.getLot({ lotCode: SEED_AUCTIONS.scheduled })
+    ).toBeNull();
+    await h.drain();
+    expect(await staff.listLotsForAdmin()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          lotCode: SEED_AUCTIONS.scheduled,
+          status: "cancelled",
+        }),
+        expect.objectContaining({
+          lotCode: SEED_AUCTIONS.open,
+          status: "open",
+        }),
+      ])
+    );
+    expect(await visitor.getLot({ lotCode: SEED_AUCTIONS.open })).toMatchObject(
+      { creatorCredit: "Asha Rao" }
+    );
   });
 });

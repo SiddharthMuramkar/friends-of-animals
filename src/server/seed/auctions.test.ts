@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
-import { auctionLot } from "../db/schema";
+import { auctionLot, fileAsset, fileDerivative } from "../db/schema";
 import { SEED_AUCTIONS } from "./auctions";
 import { eq } from "drizzle-orm";
 
@@ -31,6 +31,19 @@ describe("preview auction lots", () => {
       await visitor.getLot({ lotCode: SEED_AUCTIONS.cancelled })
     ).toBeNull();
     expect(await manager.listEligibleArtwork()).toHaveLength(2);
+    const publicJson = JSON.stringify(
+      await visitor.browseLots(),
+      (_key, value) => (typeof value === "bigint" ? value.toString() : value)
+    );
+    const privateKeys = [
+      ...(await h.db.select({ key: fileAsset.storageKey }).from(fileAsset)),
+      ...(await h.db
+        .select({ key: fileDerivative.storageKey })
+        .from(fileDerivative)),
+    ];
+    for (const { key } of privateKeys) expect(publicJson).not.toContain(key);
+    expect(publicJson).not.toContain("Rohan Desai");
+    expect(publicJson).not.toContain("reservePricePaise");
     await h.seed.preview();
     expect(
       await h.db
