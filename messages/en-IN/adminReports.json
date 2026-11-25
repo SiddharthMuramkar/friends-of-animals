@@ -8,7 +8,7 @@
     "downloadHint": "The CSV contains aggregate totals only, not participant details.",
     "reportTitle": "{name} — competition report",
     "metricsTitle": "Participation by route and age group",
-    "metricsHint": "Registrations are confirmed registrations; entries have live work; shortlisted counts current school picks; verified entries have passed FOA verification; certificates are currently issued, whether or not their PDFs are ready.",
+    "metricsHint": "Registrations are confirmed registrations; entries reached submission; shortlisted counts current school picks; verified entries have passed FOA verification; certificates are currently issued, whether or not their PDFs are ready.",
     "notApplicable": "— means not applicable: the individual route has no school shortlist.",
     "route": "Route",
     "ageGroup": "Age group",

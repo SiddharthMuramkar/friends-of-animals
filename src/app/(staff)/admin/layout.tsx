@@ -86,12 +86,22 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
   const actor = await currentActor();
   const access = actor.kind === "user" ? await as(actor).myAccess() : null;
-  const reports = access?.grants.some(g => ["super_admin", "staff_admin", "finance", "competition_manager"].includes(g.role));
+  const reports = access?.grants.some((g) =>
+    ["super_admin", "staff_admin", "finance", "competition_manager"].includes(
+      g.role
+    )
+  );
   const tNav = await getTranslations("admin.nav");
   const links = reports
-    ? [nav.links[0]!, { href: ADMIN_REPORTS, label: tNav("reports") }, ...nav.links.slice(1)]
+    ? [
+        nav.links[0]!,
+        { href: ADMIN_REPORTS, label: tNav("reports") },
+        ...nav.links.slice(1),
+      ]
     : nav.links;
-  const finance = actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
+  const finance =
+    access !== null &&
+    (await showLedgerNavigation(() => Promise.resolve(access)));
   if (!finance) return <AdminNav {...nav} links={links} />;
 
   const [t, donations] = await Promise.all([

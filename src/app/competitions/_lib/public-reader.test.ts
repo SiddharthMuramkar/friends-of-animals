@@ -20,6 +20,8 @@ describe("the public pages' reader", () => {
       ["originals-for-animals", "FOA_JUDGING", false],
       ["kindness-in-art", "FOA_JUDGING", false],
       ["art-for-kindness", "RESULTS_PUBLISHED", false],
+      ["kindness-in-words", "FOA_JUDGING", false],
+      ["stories-for-animals", "FOA_JUDGING", false],
       ["kinder-skies", "SCHOOL_JUDGING", false],
       // Open for the school's submissions (#87).
       ["trees-for-birds", "REGISTRATION_CLOSED", false],

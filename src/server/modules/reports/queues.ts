@@ -2,7 +2,15 @@ import { and, eq, inArray, ne, type AnyColumn } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
 import type { Action } from "../../access/policies";
-import { competition, institution, paymentBatch, physicalArtwork, refund, resultRelease, safeguardingReport } from "../../db/schema";
+import {
+  competition,
+  institution,
+  paymentBatch,
+  physicalArtwork,
+  refund,
+  resultRelease,
+  safeguardingReport,
+} from "../../db/schema";
 import { DomainError } from "../../errors";
 import { invalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
@@ -42,12 +50,19 @@ export const QUEUES = {
     work: "institution.decide",
     workHref: "/admin/institutions?status=pending_verification",
     async rows(ctx) {
-      const rows = await ctx.db.select({
-        id: institution.id,
-        code: institution.name,
-        waitingSince: institution.createdAt,
-      }).from(institution).where(eq(institution.status, "pending_verification"));
-      return rows.map(row => ({ ...row, competitionCode: null, href: `/admin/institutions/${row.id}` }));
+      const rows = await ctx.db
+        .select({
+          id: institution.id,
+          code: institution.name,
+          waitingSince: institution.createdAt,
+        })
+        .from(institution)
+        .where(eq(institution.status, "pending_verification"));
+      return rows.map((row) => ({
+        ...row,
+        competitionCode: null,
+        href: `/admin/institutions/${row.id}`,
+      }));
     },
   },
   entries_to_verify: {
@@ -59,9 +74,12 @@ export const QUEUES = {
       // registrations, pending replacement files and entries with no arrival.
       const result = await listVerificationQueue(ctx, {});
       if (!result.ok) throw new Error("Invalid verification queue");
-      return result.items.map(row => ({
-        id: row.entryId, code: row.code, competitionCode: row.competition.code,
-        waitingSince: row.arrivedAt, href: `/admin/verification/${row.entryId}`,
+      return result.items.map((row) => ({
+        id: row.entryId,
+        code: row.code,
+        competitionCode: row.competition.code,
+        waitingSince: row.arrivedAt,
+        href: `/admin/verification/${row.entryId}`,
       }));
     },
   },
@@ -71,15 +89,30 @@ export const QUEUES = {
     scoped: true,
     workHref: "/admin/artwork",
     async rows(ctx, scope) {
-      const rows = await ctx.db.select({
-        id: physicalArtwork.id, code: physicalArtwork.artworkCode, competitionCode: competition.code,
-        waitingSince: physicalArtwork.requestedAt, status: physicalArtwork.status,
-        dispatchDeadline: physicalArtwork.dispatchDeadline,
-      }).from(physicalArtwork).innerJoin(competition, eq(competition.id, physicalArtwork.competitionId))
-        .where(and(inArray(physicalArtwork.status, ["requested", "dispatched"]), restrict(physicalArtwork.competitionId, scope)));
+      const rows = await ctx.db
+        .select({
+          id: physicalArtwork.id,
+          code: physicalArtwork.artworkCode,
+          competitionCode: competition.code,
+          waitingSince: physicalArtwork.requestedAt,
+          status: physicalArtwork.status,
+          dispatchDeadline: physicalArtwork.dispatchDeadline,
+        })
+        .from(physicalArtwork)
+        .innerJoin(
+          competition,
+          eq(competition.id, physicalArtwork.competitionId)
+        )
+        .where(
+          and(
+            inArray(physicalArtwork.status, ["requested", "dispatched"]),
+            restrict(physicalArtwork.competitionId, scope)
+          )
+        );
       const now = ctx.clock.now();
-      return rows.map(({status, dispatchDeadline, ...row}) => ({
-        ...row, overdue: status === "requested" && now > dispatchDeadline,
+      return rows.map(({ status, dispatchDeadline, ...row }) => ({
+        ...row,
+        overdue: status === "requested" && now > dispatchDeadline,
         href: `/admin/artwork/${row.code}`,
       }));
     },
@@ -90,13 +123,26 @@ export const QUEUES = {
     scoped: true,
     workHref: "/admin/competitions",
     async rows(ctx, scope) {
-      const rows = await ctx.db.select({
-        id: resultRelease.id, code: competition.code, competitionId: competition.id,
-        waitingSince: resultRelease.preparedAt, preparedBy: resultRelease.preparedByUserId,
-      }).from(resultRelease).innerJoin(competition, eq(competition.id, resultRelease.competitionId))
-        .where(and(eq(resultRelease.status, "pending_approval"), restrict(resultRelease.competitionId, scope)));
-      return rows.map(({competitionId, preparedBy, ...row}) => ({
-        ...row, competitionCode: row.code, mine: ctx.actor.kind === "user" && preparedBy === ctx.actor.userId,
+      const rows = await ctx.db
+        .select({
+          id: resultRelease.id,
+          code: competition.code,
+          competitionId: competition.id,
+          waitingSince: resultRelease.preparedAt,
+          preparedBy: resultRelease.preparedByUserId,
+        })
+        .from(resultRelease)
+        .innerJoin(competition, eq(competition.id, resultRelease.competitionId))
+        .where(
+          and(
+            eq(resultRelease.status, "pending_approval"),
+            restrict(resultRelease.competitionId, scope)
+          )
+        );
+      return rows.map(({ competitionId, preparedBy, ...row }) => ({
+        ...row,
+        competitionCode: row.code,
+        mine: ctx.actor.kind === "user" && preparedBy === ctx.actor.userId,
         href: `/admin/competitions/${competitionId}/results`,
       }));
     },
@@ -106,13 +152,27 @@ export const QUEUES = {
     work: "refunds.decide",
     workHref: "/admin/refunds?state=waiting",
     async rows(ctx) {
-      const rows = await ctx.db.select({
-        id: refund.id, competitionCode: competition.code, waitingSince: refund.requestedAt, requestedBy: refund.requestedBy,
-      }).from(refund).innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
+      const rows = await ctx.db
+        .select({
+          id: refund.id,
+          competitionCode: competition.code,
+          waitingSince: refund.requestedAt,
+          requestedBy: refund.requestedBy,
+        })
+        .from(refund)
+        .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
         .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
-        .where(and(eq(refund.status, "requested"), inArray(paymentBatch.purpose, ["registration_fee", "auction_sale"])));
-      return rows.map(({requestedBy, ...row}) => ({
-        ...row, code: row.id, mine: ctx.actor.kind === "user" && requestedBy === ctx.actor.userId, href: `/admin/refunds/${row.id}`,
+        .where(
+          and(
+            eq(refund.status, "requested"),
+            inArray(paymentBatch.purpose, ["registration_fee", "auction_sale"])
+          )
+        );
+      return rows.map(({ requestedBy, ...row }) => ({
+        ...row,
+        code: row.id,
+        mine: ctx.actor.kind === "user" && requestedBy === ctx.actor.userId,
+        href: `/admin/refunds/${row.id}`,
       }));
     },
   },
@@ -124,12 +184,26 @@ export const QUEUES = {
       // Even a read of report references/counts is restricted and audited
       // through the safeguarding module itself.
       return withLead(ctx, "safeguarding.list", async (tx) => {
-        const rows = await tx.select({
-          id: safeguardingReport.id, code: safeguardingReport.reference, waitingSince: safeguardingReport.createdAt,
-        }).from(safeguardingReport).where(ne(safeguardingReport.status, "resolved"));
+        const rows = await tx
+          .select({
+            id: safeguardingReport.id,
+            code: safeguardingReport.reference,
+            waitingSince: safeguardingReport.createdAt,
+          })
+          .from(safeguardingReport)
+          .where(ne(safeguardingReport.status, "resolved"));
         return {
-          result: rows.map(row => ({ ...row, competitionCode: null, href: `/admin/safeguarding/${row.id}` })),
-          audit: { action: "safeguarding.queue_viewed", entity: {type: "safeguarding_queue", id: "open"}, before: null, after: queueViewAuditSnapshot(rows.length) },
+          result: rows.map((row) => ({
+            ...row,
+            competitionCode: null,
+            href: `/admin/safeguarding/${row.id}`,
+          })),
+          audit: {
+            action: "safeguarding.queue_viewed",
+            entity: { type: "safeguarding_queue", id: "open" },
+            before: null,
+            after: queueViewAuditSnapshot(rows.length),
+          },
         };
       });
     },
@@ -144,8 +218,14 @@ async function visibleScope(ctx: UseCaseContext, def: QueueDefinition) {
   return reportScope(ctx, def.read, def.work, def.scoped ?? false);
 }
 
-function order(a: Pick<QueueItem, "waitingSince" | "id">, b: Pick<QueueItem, "waitingSince" | "id">) {
-  return a.waitingSince.getTime() - b.waitingSince.getTime() || a.id.localeCompare(b.id);
+function order(
+  a: Pick<QueueItem, "waitingSince" | "id">,
+  b: Pick<QueueItem, "waitingSince" | "id">
+) {
+  return (
+    a.waitingSince.getTime() - b.waitingSince.getTime() ||
+    a.id.localeCompare(b.id)
+  );
 }
 
 export async function getAdminHome(ctx: UseCaseContext) {
@@ -157,9 +237,14 @@ export async function getAdminHome(ctx: UseCaseContext) {
     if (scope !== "all" && scope.length === 0) continue;
     const items = (await def.rows(ctx, scope)).sort(order);
     queues.push({
-      key, count: items.length, oldestWaitingSince: items[0]?.waitingSince ?? null,
-      ...(key === "artwork_arriving" ? { overdue: items.filter(i => i.overdue).length } : {}),
-      href: `/admin/queues/${key}`, workHref: def.workHref,
+      key,
+      count: items.length,
+      oldestWaitingSince: items[0]?.waitingSince ?? null,
+      ...(key === "artwork_arriving"
+        ? { overdue: items.filter((i) => i.overdue).length }
+        : {}),
+      href: `/admin/queues/${key}`,
+      workHref: def.workHref,
     });
   }
   return { queues };
@@ -173,29 +258,44 @@ const listInput = z.object({
 });
 export type ListQueueItemsInput = z.input<typeof listInput>;
 
-export async function listQueueItems(ctx: UseCaseContext, input: ListQueueItemsInput) {
+export async function listQueueItems(
+  ctx: UseCaseContext,
+  input: ListQueueItemsInput
+) {
   await authorize(ctx, "admin_home.view");
   const parsed = listInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
-  const {key, cursor, limit} = parsed.data;
+  const { key, cursor, limit } = parsed.data;
   const def = queueDefinition(key);
   const scope = await visibleScope(ctx, def);
-  if (scope !== "all" && scope.length === 0) throw new DomainError("forbidden", "Queue is not available to this actor");
+  if (scope !== "all" && scope.length === 0)
+    throw new DomainError("forbidden", "Queue is not available to this actor");
   let after: Pick<QueueItem, "waitingSince" | "id"> | undefined;
   if (cursor) {
     try {
-      const [date, id] = cursorSchema.parse(JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")));
-      after = {waitingSince: new Date(date), id};
+      const [date, id] = cursorSchema.parse(
+        JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))
+      );
+      after = { waitingSince: new Date(date), id };
     } catch {
-      return {ok: false, error: "invalid_input", fields: ["cursor"]} as const;
+      return { ok: false, error: "invalid_input", fields: ["cursor"] } as const;
     }
   }
   const all = (await def.rows(ctx, scope)).sort(order);
-  const matching = after ? all.filter(row => order(row, after!) > 0) : all;
+  const matching = after ? all.filter((row) => order(row, after!) > 0) : all;
   const items = matching.slice(0, limit);
   const last = items.at(-1);
-  const nextCursor = matching.length > limit && last
-    ? Buffer.from(JSON.stringify([last.waitingSince.toISOString(),last.id])).toString("base64url")
-    : null;
-  return {ok: true, items, nextCursor, count: all.length, workHref: def.workHref} as const;
+  const nextCursor =
+    matching.length > limit && last
+      ? Buffer.from(
+          JSON.stringify([last.waitingSince.toISOString(), last.id])
+        ).toString("base64url")
+      : null;
+  return {
+    ok: true,
+    items,
+    nextCursor,
+    count: all.length,
+    workHref: def.workHref,
+  } as const;
 }

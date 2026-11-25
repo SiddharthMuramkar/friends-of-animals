@@ -104,9 +104,12 @@ export function adminPaymentReviewCasePath(caseId: string): string {
 /** Role-scoped home and aggregate competition reports (#117). */
 export const ADMIN_HOME = "/admin";
 export const ADMIN_REPORTS = "/admin/reports";
-export const adminQueuePath = (key: string) => `/admin/queues/${encodeURIComponent(key)}`;
-export const adminCompetitionReportPath = (code: string) => `${ADMIN_REPORTS}/competitions/${encodeURIComponent(code)}`;
-export const adminCompetitionReportCsvPath = (code: string) => `${adminCompetitionReportPath(code)}/export.csv`;
+export const adminQueuePath = (key: string) =>
+  `/admin/queues/${encodeURIComponent(key)}`;
+export const adminCompetitionReportPath = (code: string) =>
+  `${ADMIN_REPORTS}/competitions/${encodeURIComponent(code)}`;
+export const adminCompetitionReportCsvPath = (code: string) =>
+  `${adminCompetitionReportPath(code)}/export.csv`;
 
 export const ADMIN_REFUNDS = "/admin/refunds";
 

@@ -53,6 +53,14 @@ const id = (n: number) =>
 /** In order: a revision comes after the version it replaces. */
 const SEED_RUBRICS: readonly SeedRubric[] = [
   {
+    id: "01938a00-0000-7000-8000-000000117050",
+    competitionCode: "RSLT27",
+    discipline: "essay",
+    version: 1,
+    published: true,
+    criteria: defaultRubricCriteria,
+  },
+  {
     id: id(92),
     competitionCode: "AUCT27",
     discipline: "drawing",
