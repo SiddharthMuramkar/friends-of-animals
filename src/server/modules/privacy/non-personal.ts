@@ -17,6 +17,34 @@
 import type { NonPersonalColumns } from "./domain/coverage";
 
 export const NON_PERSONAL: NonPersonalColumns = {
+  gallery_item: [
+    "id",
+    "status",
+    "reviewed",
+    "featured",
+    "published_at",
+    "reason",
+    "created_at",
+    "updated_at",
+  ],
+  gallery_report: [
+    "id",
+    "item_id",
+    "reason",
+    "status",
+    "created_at",
+    "handled_at",
+  ],
+  gallery_purge: [
+    "id",
+    "item_id",
+    "status",
+    "requested_at",
+    "deadline_at",
+    "completed_at",
+    "attempts",
+    "overdue_alerted",
+  ],
   community_member: [
     "id",
     "status",

@@ -786,6 +786,18 @@
           "ref_id": "The activity or record in the person’s journey",
           "source_key": "A stable key that prevents repeated entries for the same activity",
           "milestone_id": "The earned milestone represented by this timeline entry"
+        },
+        "gallery_item": {
+          "entry_id": "Links the curated item to the participant’s submitted work",
+          "consent_event_id": "Records the public-display permission used to curate the item",
+          "file_id": "Identifies the approved private source of the public stamped copy",
+          "title": "Reviewed public title or draft title before publication",
+          "story": "Reviewed public story before publication"
+        },
+        "gallery_report": {
+          "details_ciphertext": "Stores the reporter’s concern about a gallery item securely",
+          "contact_ciphertext": "Lets the content manager contact the reporter if they supplied an address",
+          "handled_by_user_id": "Records which staff member handled the report"
         }
       }
     },

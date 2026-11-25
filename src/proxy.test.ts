@@ -549,3 +549,30 @@ describe("private auction checkout link", () => {
     ).toEqual(expect.any(String));
   });
 });
+
+it("preloads only a freshly visible gallery stamp, with no cache or original URL", async () => {
+  const id = "01938a00-0000-7000-8000-000000103001";
+  let visible = true;
+  const gallery = createProxy({
+    isPublishedCompetitionSlug: async () => false,
+    isPublicPostSlug: async () => false,
+    isPublicGalleryItem: async (itemId) => visible && itemId === id,
+  });
+  const path = `/gallery/${id}`;
+  expect(
+    unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: path })
+  ).toBe(true);
+  const response = await gallery(request(path));
+  expect(response.headers.get("Link")).toBe(
+    `</media/gallery/${id}?size=thumb>; rel=preload; as=image; media="(max-width: 639px)"; fetchpriority=high, </media/gallery/${id}>; rel=preload; as=image; media="(min-width: 640px)"; fetchpriority=high`
+  );
+  expect(response.headers.get("Cache-Control")).toContain("no-store");
+  const list = await gallery(request("/gallery"));
+  expect(list.headers.get("Link")).toBeNull();
+  visible = false;
+  const withdrawn = await gallery(request(path));
+  expect(getRewrittenUrl(withdrawn)).toBe(
+    "https://foa.example.test/__not-found"
+  );
+  expect(withdrawn.headers.get("Link")).toBeNull();
+});

@@ -32,6 +32,7 @@
       "timeline": "Engagement timeline"
     },
     "admin": {
+      "gallery": "Gallery curation",
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
       "roles": "Roles",
       "audit": "Audit log",

@@ -58,6 +58,8 @@ describe("the settings catalogue", () => {
       "reminders.schoolRoundShortlistDueFirstHours": 72,
       "reminders.schoolRoundShortlistDueSecondHours": 24,
       "artwork.dispatchDays": 14,
+      "gallery.withdrawalPurgeMinutes": 15,
+      "gallery.reportsPerIpPerHour": 10,
       "auctions.enabled": false,
       "auctions.minIncrementPaise": 5000,
       "auctions.antiSnipingWindowMinutes": 5,

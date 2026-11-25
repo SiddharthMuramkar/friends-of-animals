@@ -345,6 +345,13 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: schema.galleryItem,
+    where: (scope) =>
+      sql`${schema.galleryItem.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
+    withhold: ["file_id", "consent_event_id"],
+  },
+  {
     table: schema.certificate,
     where: (scope) =>
       within(schema.certificate.participantProfileId, profiles(scope)),
@@ -639,6 +646,7 @@ export const SECTIONS: readonly Section[] = [
 
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
+  gallery_report: "third_party_confidential_report",
   certificate_ready_notice: "background_job",
   certificate_archive: "mixed_subject_temporary_archive",
   verification: "sign_in_secret",

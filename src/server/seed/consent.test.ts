@@ -138,9 +138,18 @@ describe("the guardian consents seed (#82)", () => {
       })
     ).toEqual({ ok: true, changed: true });
     await seedAuctions(h.deps);
+    const prior = await guardian.childConsentHistory({
+      childId: child.profileId,
+    });
+    // A first full preview now also supplies gallery-specific sample grants;
+    // the previously recorded communication/auction history must survive.
+    await h.seed.preview();
     const history = await guardian.childConsentHistory({
       childId: child.profileId,
     });
+    if (!prior.ok || !history.ok)
+      throw new Error("Missing child consent history");
+    expect(history.events).toEqual(expect.arrayContaining(prior.events));
 
     for (let run = 0; run < 2; run++) {
       await h.seed.preview();

@@ -20,6 +20,8 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { retireGalleryItem } from "../../../gallery/curation";
+import { galleryItem } from "../../../../db/schema";
 import { and, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -832,6 +834,14 @@ async function eraseRecords(
   await tx
     .delete(certificate)
     .where(within(certificate.participantProfileId, scope.profileIds));
+  // The entry cascade deletes the item and its reports. Queue the public
+  // route purge first in the same transaction so it survives erasure.
+  for (const row of await tx
+    .select()
+    .from(galleryItem)
+    .where(within(galleryItem.entryId, entryIds))
+    .for("update"))
+    await retireGalleryItem(ctx, row, "unpublished", "erasure", null);
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx

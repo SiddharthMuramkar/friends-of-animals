@@ -73,6 +73,17 @@ it("makes a bounded clean WebP gallery copy from a resized GPS photo, not from i
   });
   expect(webpMetadata(image.bytes)).toEqual([]);
   expect((await sharp(image.bytes).metadata()).format).toBe("webp");
+  const thumb = await stampProcessor().stampImage({
+    bytes: display!.bytes,
+    variant: "gallery_thumb",
+  });
+  expect(thumb).toMatchObject({
+    width: 480,
+    height: 360,
+    contentType: "image/webp",
+  });
+  expect(webpMetadata(thumb.bytes)).toEqual([]);
+  expect(thumb.bytes.length).toBeLessThan(image.bytes.length);
 });
 
 it("uses the exact approved tiles-only icon at a small placement rather than cropping the full mark", async () => {

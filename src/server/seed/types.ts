@@ -17,7 +17,7 @@ export type SeedDeps = DbWithClock & {
    * Where seeded media is written (#85's entry pictures): the local disk
    * store or the preview's bucket. Without it, seeders skip their media.
    */
-  storage?: Pick<ObjectStorage, "write">;
+  storage?: Pick<ObjectStorage, "write" | "read">;
 };
 
 /** Seeds one module's preview data. Must be safe to run again. */

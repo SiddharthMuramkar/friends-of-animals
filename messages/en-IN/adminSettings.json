@@ -328,6 +328,16 @@
           "description": "When off, the sender pays shipping."
         }
       },
+      "gallery": {
+        "withdrawalPurgeMinutes": {
+          "label": "Gallery withdrawal purge deadline",
+          "description": "Minutes from a guardian’s public-display withdrawal to confirmed cache purge. The gallery immediately refuses the item before this deadline."
+        },
+        "reportsPerIpPerHour": {
+          "label": "Gallery reports per hour",
+          "description": "Maximum gallery reports from one network each hour."
+        }
+      },
       "auctions": {
         "minIncrementPaise": {
           "label": "Minimum bid increment",

@@ -1,3 +1,8 @@
+import type { CdnPurger } from "../ports/cdn-purger";
+import {
+  runGalleryPurge,
+  withdrawGalleryConsent,
+} from "../modules/gallery/purge";
 import { renderStamp } from "../modules/stamping";
 import { sendSaleFamilyLetter } from "../modules/auctions/messages";
 import { expireAuctionOffer } from "../modules/auctions/offers";
@@ -111,6 +116,7 @@ import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
+  cdn?: CdnPurger;
   appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
@@ -180,6 +186,9 @@ export const HANDLERS: Handlers = {
       payload
     );
   },
+  "gallery.withdraw_consent": withdrawGalleryConsent,
+  "gallery.purge": (deps, { payload }) =>
+    runGalleryPurge(deps, payload.purgeId),
   "certificates.build_archive": (deps, delivery) =>
     buildInstitutionCertificateArchive(
       { ...deps, actor: { kind: "system", process: "worker" } },

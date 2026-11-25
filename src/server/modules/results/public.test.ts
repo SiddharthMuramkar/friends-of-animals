@@ -37,7 +37,9 @@ describe("the public results read", () => {
     const { slug, competitionId } = SEED_RESULTS;
     const api = h.as(h.visitor());
     const before = await api.getPublicResults({ slug });
-    expect(before?.awards).toHaveLength(2);
+    // The gallery preview now has two further explicitly consented
+    // synthetic artists. The other AUCT27 award holders stay withheld.
+    expect(before?.awards).toHaveLength(4);
     expect(before?.awards).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ credit: { name: "Asha Rao" } }),
@@ -70,13 +72,13 @@ describe("the public results read", () => {
     // fixture facts make independent opt-ins observable at the public seam.
     await h.db
       .update(participantProfile)
-      .set({ schoolName: "Sample learning centre", city: "Pune" })
+      .set({ schoolName: "Sample learning centre", city: "Nagpur" })
       .where(eq(participantProfile.id, childId));
     expect(JSON.stringify(await api.getPublicResults({ slug }))).not.toContain(
       "Sample learning centre"
     );
     expect(JSON.stringify(await api.getPublicResults({ slug }))).not.toContain(
-      "Pune"
+      "Nagpur"
     );
     expect(
       await guardian.giveChildConsent({
@@ -89,7 +91,7 @@ describe("the public results read", () => {
       "Sample learning centre"
     );
     expect(JSON.stringify(await api.getPublicResults({ slug }))).not.toContain(
-      "Pune"
+      "Nagpur"
     );
     expect(
       await guardian.giveChildConsent({
@@ -99,7 +101,7 @@ describe("the public results read", () => {
       })
     ).toMatchObject({ ok: true });
     expect(JSON.stringify(await api.getPublicResults({ slug }))).toContain(
-      "Pune"
+      "Nagpur"
     );
     expect(
       await guardian.withdrawChildConsent({
@@ -111,7 +113,7 @@ describe("the public results read", () => {
       "Sample learning centre"
     );
     expect(JSON.stringify(await api.getPublicResults({ slug }))).toContain(
-      "Pune"
+      "Nagpur"
     );
     expect(
       await guardian.withdrawChildConsent({
@@ -120,7 +122,7 @@ describe("the public results read", () => {
       })
     ).toMatchObject({ ok: true });
     expect(JSON.stringify(await api.getPublicResults({ slug }))).not.toContain(
-      "Pune"
+      "Nagpur"
     );
     expect(
       await guardian.withdrawChildConsent({
@@ -128,9 +130,14 @@ describe("the public results read", () => {
         purpose: "public_display",
       })
     ).toMatchObject({ ok: true });
-    expect(await api.getPublicResults({ slug })).toMatchObject({
-      awards: [expect.objectContaining({ credit: { name: "Asha Rao" } })],
-    });
+    const after = await api.getPublicResults({ slug });
+    expect(after?.awards).toHaveLength(3);
+    expect(after?.awards).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ credit: { name: "Asha Rao" } }),
+      ])
+    );
+    expect(after?.awards.some((a) => a.credit.name === "Rohan D.")).toBe(false);
     await expect(
       h.as({ kind: "system", process: "worker" }).getPublicResults({ slug })
     ).rejects.toMatchObject({ code: "forbidden" });

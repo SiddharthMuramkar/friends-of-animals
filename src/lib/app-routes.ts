@@ -27,6 +27,8 @@ export const APP_ROUTES = {
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
+  adminGallery: "/admin/gallery",
+  adminGalleryReports: "/admin/gallery/reports",
   adminTemplates: "/admin/templates",
   institutionRegister: "/institutions/register",
   myInstitution: "/institution",
@@ -284,6 +286,7 @@ export const isJudgeInvitationPage = (path: string) =>
 
 /** Public request-time verification, never signed in or cached. */
 export const CERTIFICATE_VERIFY_PREFIX = "/verify";
+export const GALLERY_REPORT_PREFIX = "/gallery-report";
 export const ADMIN_CERTIFICATES = "/admin/certificates";
 export const MY_CERTIFICATES = "/dashboard/certificates";
 export const ADMIN_ARTWORK = "/admin/artwork";

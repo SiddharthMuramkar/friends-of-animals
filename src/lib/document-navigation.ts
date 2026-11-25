@@ -19,10 +19,16 @@ export function crossesDirectoryBoundary(from: string, to: string): boolean {
  * rather than caching a factor refusal in the client route tree; the
  * successful gate then returns directly to the requested home.
  */
+/** Galleries carry revocable personal credits: navigate with a fresh
+ * document instead of restoring a cached App Router payload. */
+export const isGalleryPath = (path: string) =>
+  /^\/gallery(?:\/|\?|$)|^\/gallery-report(?:\/|\?|$)/.test(path);
 export function requiresDocumentNavigation(from: string, to: string): boolean {
   const inAdmin = from === "/admin" || from.startsWith("/admin/");
   return (
     crossesDirectoryBoundary(from, to) ||
+    isGalleryPath(from) ||
+    isGalleryPath(to) ||
     (!inAdmin && to.replace(/\/$/, "") === "/admin")
   );
 }

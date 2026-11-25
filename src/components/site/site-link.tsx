@@ -4,7 +4,10 @@ import Link from "next/link";
 import { type ComponentProps, useSyncExternalStore } from "react";
 
 import { type ConnectionHints, shouldSkipPrefetch } from "@/lib/connection";
-import { requiresDocumentNavigation } from "@/lib/document-navigation";
+import {
+  isGalleryPath,
+  requiresDocumentNavigation,
+} from "@/lib/document-navigation";
 import { isModifiedClick } from "@/lib/in-page";
 import { PAGE_NAVIGATION } from "@/lib/page-transition";
 
@@ -44,7 +47,11 @@ export function SiteLink({
   );
   return (
     <Link
-      prefetch={skip ? false : prefetch}
+      prefetch={
+        skip || (typeof props.href === "string" && isGalleryPath(props.href))
+          ? false
+          : prefetch
+      }
       transitionTypes={[PAGE_NAVIGATION, ...(transitionTypes ?? [])]}
       {...props}
       onClick={(event) => {
