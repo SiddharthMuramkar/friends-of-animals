@@ -38,12 +38,13 @@ import {
   derivativeKeyFor,
   derivativeKindsFor,
 } from "../modules/files/domain/media-work";
+import type { DerivativeKind } from "../modules/files/domain/derivatives";
 import { storageKeyFor } from "../modules/files/domain/storage-key";
-import { sharpMediaProcessor } from "../ports/media-sharp";
 import type { ObjectStorage } from "../ports/storage";
 import { SEED_ENTRY_COMPETITIONS } from "./competitions";
 import { seedFilesLocation } from "./files";
 import { SEED_PARTICIPANTS } from "./participants";
+import { resizedArt } from "./resized-art";
 import type { Seeder } from "./types";
 
 const ASHA = SEED_PARTICIPANTS.confirmed;
@@ -80,34 +81,18 @@ const EXAMPLES = [
   },
 ] as const;
 
-type SampleDerivatives = Awaited<
-  ReturnType<ReturnType<typeof sharpMediaProcessor>["processImage"]>
->["derivatives"];
-
 /**
- * The sample illustration's derivatives, made once per process: every
- * seeded live entry (#85, #87) shows the same picture, and decoding and
- * resizing it again would only slow each seed.
+ * The sample illustration's derivatives: every seeded live entry (#85,
+ * #87) shows the same picture, resized once (see ./resized-art).
  */
-let sample: Promise<SampleDerivatives> | undefined;
-
-function sampleDerivatives(
-  kinds: Parameters<
-    ReturnType<typeof sharpMediaProcessor>["processImage"]
-  >[0]["kinds"]
-): Promise<SampleDerivatives> {
-  sample ??= (async () => {
-    const source = new URL(
+function sampleDerivatives(kinds: readonly DerivativeKind[]) {
+  return resizedArt(
+    new URL(
       "../../assets/site-art/scenes/scene-street-neighbours.webp",
       import.meta.url
-    );
-    const { derivatives } = await sharpMediaProcessor().processImage({
-      bytes: await readFile(source),
-      kinds,
-    });
-    return derivatives;
-  })();
-  return sample;
+    ),
+    kinds
+  );
 }
 
 /** Writes a live entry file's derivatives from an FOA sample illustration. */
