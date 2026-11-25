@@ -124,6 +124,12 @@ test("links rounds and admits only eligible locked finalists", async ({
     await judge.goto(judgePath);
     await expectAccessible(judge, "assignments");
     await judge.getByRole("link", { name: code }).click();
+    // Wait for the destination heading and metadata; the preceding page's
+    // nonempty title can otherwise be replaced during the axe scan.
+    await expect(
+      judge.getByRole("heading", { level: 1, name: code })
+    ).toBeVisible();
+    await expect(judge).toHaveTitle(/Score this entry/);
     await expectAccessible(judge, "blind score");
     for (const box of await judge.getByRole("spinbutton").all())
       await box.fill("8");
