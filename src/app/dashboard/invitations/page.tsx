@@ -55,7 +55,7 @@ async function Content({ searchParams }: PageProps<"/dashboard/invitations">) {
       {invitations.length === 0 ? (
         <p className="text-ink">{t("empty")}</p>
       ) : (
-        <ul role="list" className="space-y-6">
+        <ul className="list-disc space-y-6 pl-4 marker:text-ink-muted">
           {invitations.map((invitation) => {
             const headingId = `invitation-${invitation.id}`;
             const title = t("invitedFor", {

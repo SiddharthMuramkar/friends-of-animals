@@ -86,7 +86,7 @@ it("serializes the live publication and pilot backfill at the durable invitation
       results
         .filter((r) => r.ok)
         .map((r) => r.invited)
-        .sort()
+        .sort((a, b) => a - b)
     ).toEqual([0, 0, 1]);
     const [invite] = await world.db
       .select()
@@ -112,7 +112,9 @@ it("serializes the live publication and pilot backfill at the durable invitation
     ]);
     expect(accepts.every((r) => r.ok)).toBe(true);
     expect(
-      (await participant.myCompetitionInvitations())[0]?.acceptedActions.sort()
+      (await participant.myCompetitionInvitations())[0]?.acceptedActions.sort(
+        (a, b) => a.localeCompare(b)
+      )
     ).toEqual(["attend_events", "volunteer"]);
   } finally {
     await world.close();

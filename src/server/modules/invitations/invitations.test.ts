@@ -302,7 +302,7 @@ it("routes linked minors and unknown ages only to verified guardians, skips nonc
   expect(
     emails(h)
       .map((m) => m.to)
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
   ).toEqual(
     [
       (
@@ -317,7 +317,7 @@ it("routes linked minors and unknown ages only to verified guardians, skips nonc
           .from(user)
           .where(eq(user.id, unknown.userId))
       )[0]!.email,
-    ].sort()
+    ].sort((a, b) => String(a).localeCompare(String(b)))
   );
   expect(await h.as(teen.actor).myCompetitionInvitations()).toEqual([]);
   const parent = h.as(child.actor);
