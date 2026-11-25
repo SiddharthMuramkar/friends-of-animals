@@ -188,10 +188,21 @@ describe("isSignedInPage", () => {
     ).toBe(true);
   });
 
+  it("recognises admin home, queues and report downloads", () => {
+    for (const path of [
+      "/admin",
+      "/admin/queues/results_to_approve",
+      "/admin/reports",
+      "/admin/reports/competitions/SKIES26",
+      "/admin/reports/competitions/SKIES26/export.csv",
+    ]) {
+      expect(isSignedInPage(path), path).toBe(true);
+    }
+  });
+
   it("knows no other path, so the proxy answers it with the 404", () => {
     for (const path of [
       "/account",
-      "/admin",
       `/admin/competitions/${COMPETITION_ID}`,
       `/admin/competitions/${COMPETITION_ID}/delete`,
       `/admin/competitions/${COMPETITION_ID}/edit/more`,

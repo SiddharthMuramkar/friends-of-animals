@@ -60,6 +60,7 @@ import { galleryUseCases } from "./modules/gallery";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
+import { reportsUseCases } from "./modules/reports";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -108,7 +109,8 @@ const useCases = composeUseCases(
   verificationUseCases,
   physicalArtworkUseCases,
   auctionsUseCases,
-  galleryUseCases
+  galleryUseCases,
+  reportsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

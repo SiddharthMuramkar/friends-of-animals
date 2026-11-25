@@ -26,7 +26,15 @@ export function AdminNavView({
       <ul className="flex flex-wrap items-center gap-1 py-2">
         {links.map((link) => (
           <li key={link.href}>
-            <NavLink href={link.href} pathname={pathname} className={LINK}>
+            <NavLink
+              href={link.href}
+              pathname={
+                link.href === "/admin" && pathname !== "/admin"
+                  ? null
+                  : pathname
+              }
+              className={LINK}
+            >
               {link.label}
             </NavLink>
           </li>
