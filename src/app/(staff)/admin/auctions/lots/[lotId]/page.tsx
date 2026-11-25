@@ -23,17 +23,20 @@ export default async function Page({
 }: PageProps<"/admin/auctions/lots/[lotId]">) {
   const actor = await currentActor();
   const { lotId } = await params;
-  const [t, pub, words, format, query, loaded] = await Promise.all([
-    getTranslations("auctions.admin"),
-    getTranslations("auctions"),
-    getTranslations("auctions.status"),
-    getFormatter(),
-    searchParams,
-    adminCall(
-      () => as(actor).getLotForAdmin({ lotId }),
-      adminAuctionLotPath(lotId)
-    ),
-  ]);
+  const [t, pub, words, recognition, format, query, loaded] = await Promise.all(
+    [
+      getTranslations("auctions.admin"),
+      getTranslations("auctions"),
+      getTranslations("auctions.status"),
+      getTranslations("results"),
+      getFormatter(),
+      searchParams,
+      adminCall(
+        () => as(actor).getLotForAdmin({ lotId }),
+        adminAuctionLotPath(lotId)
+      ),
+    ]
+  );
   if (loaded.ok && !loaded.value) notFound();
   const lot = loaded.ok ? loaded.value : null;
   const when = (value: Date) =>
@@ -96,7 +99,13 @@ export default async function Page({
               </div>
               <div>
                 <dt className="font-semibold">{pub("award")}</dt>
-                <dd>{lot.award ?? t("noAward")}</dd>
+                <dd>
+                  {lot.award
+                    ? lot.award.kind === "band"
+                      ? recognition(`bands.${lot.award.value}`)
+                      : recognition(`outcomes.${lot.award.value}`)
+                    : t("noAward")}
+                </dd>
               </div>
             </dl>
           </article>

@@ -147,6 +147,7 @@ describe("auction lot lifecycle", () => {
       }),
     ]);
     const publicLot = await visitor.getLot(code);
+    expect(publicLot?.award).toBeNull();
     expect(publicLot).not.toHaveProperty("reservePricePaise");
     expect(publicLot).not.toHaveProperty("artworkId");
     expect(publicLot).not.toHaveProperty("consentEventId");
@@ -345,6 +346,19 @@ describe("auction lot lifecycle", () => {
       error: "ineligible",
       reasons: ["auction_consent_missing"],
     });
+  });
+});
+
+describe("published auction recognition", () => {
+  it("projects only the sealed award on consented lots, without any score, category or prize details", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const visitor = h.as(h.visitor());
+    const adult = await visitor.getLot({ lotCode: SEED_AUCTIONS.open });
+    const minor = await visitor.getLot({ lotCode: SEED_AUCTIONS.scheduled });
+    expect(adult?.award).toEqual({ kind: "band", value: "first" });
+    expect(minor?.award).toEqual({ kind: "band", value: "first" });
+    expect(minor?.creatorCredit).toBe("Rohan D.");
   });
 });
 

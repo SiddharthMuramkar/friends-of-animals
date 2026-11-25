@@ -45,6 +45,7 @@ export async function currentLotConsent(
   const [artwork] = await ctx.db
     .select({
       registrationId: physicalArtwork.registrationId,
+      entryId: physicalArtwork.entryId,
       status: physicalArtwork.status,
     })
     .from(physicalArtwork)
@@ -52,7 +53,9 @@ export async function currentLotConsent(
   if (!artwork || artwork.status !== lot.artworkStatusBeforeListing)
     return null;
   const consent = await auctionConsentCredit(ctx, artwork.registrationId, lock);
-  return consent?.consentEventId === lot.consentEventId ? consent : null;
+  return consent?.consentEventId === lot.consentEventId
+    ? { ...consent, entryId: artwork.entryId }
+    : null;
 }
 
 export async function auctionsEnabled(ctx: Pick<UseCaseContext, "settings">) {

@@ -10,9 +10,10 @@ export function formatPaise(value: bigint): string {
   );
 }
 export async function LotDetails({ lot }: { lot: PublicLot }) {
-  const [t, format] = await Promise.all([
+  const [t, format, recognition] = await Promise.all([
     getTranslations("auctions"),
     getFormatter(),
+    getTranslations("results"),
   ]);
   const when = (date: Date) =>
     format.dateTime(date, {
@@ -67,7 +68,11 @@ export async function LotDetails({ lot }: { lot: PublicLot }) {
         {lot.award ? (
           <div>
             <dt className="text-sm font-semibold">{t("award")}</dt>
-            <dd>{lot.award}</dd>
+            <dd>
+              {lot.award.kind === "band"
+                ? recognition(`bands.${lot.award.value}`)
+                : recognition(`outcomes.${lot.award.value}`)}
+            </dd>
           </div>
         ) : null}
       </dl>
