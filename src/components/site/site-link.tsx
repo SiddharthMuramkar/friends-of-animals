@@ -4,7 +4,7 @@ import Link from "next/link";
 import { type ComponentProps, useSyncExternalStore } from "react";
 
 import { type ConnectionHints, shouldSkipPrefetch } from "@/lib/connection";
-import { crossesDirectoryBoundary } from "@/lib/document-navigation";
+import { requiresDocumentNavigation } from "@/lib/document-navigation";
 import { isModifiedClick } from "@/lib/in-page";
 import { PAGE_NAVIGATION } from "@/lib/page-transition";
 
@@ -55,11 +55,11 @@ export function SiteLink({
           (link.target && link.target !== "_self") ||
           link.hasAttribute("download") ||
           link.origin !== window.location.origin ||
-          !crossesDirectoryBoundary(window.location.pathname, link.pathname)
+          !requiresDocumentNavigation(window.location.pathname, link.pathname)
         )
           return;
         // Keep the link's ordinary browser navigation semantics, replacing
-        // Next's client transition only across the permission boundary.
+        // Next's client transition only across the document boundary.
         event.preventDefault();
         window.location.assign(link.href);
       }}

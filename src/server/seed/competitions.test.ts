@@ -61,6 +61,18 @@ describe("the competitions seed", () => {
         status: "results_published",
       },
       {
+        code: "RSLT27",
+        slug: "kindness-in-words",
+        participation: "individuals",
+        status: "foa_judging",
+      },
+      {
+        code: "CHECK27",
+        slug: "stories-for-animals",
+        participation: "individuals",
+        status: "foa_judging",
+      },
+      {
         code: "SKIES26",
         slug: "kinder-skies",
         participation: "institutions",
@@ -126,7 +138,7 @@ describe("the competitions seed", () => {
     ).toBeNull();
   });
 
-  it("seeds a global competition manager who sees all eleven", async () => {
+  it("seeds a global competition manager who sees all thirteen", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = await h.signIn(SEED_COMPETITION_MANAGER);
@@ -136,6 +148,8 @@ describe("the competitions seed", () => {
     expect(listed.map((c) => c.status).sort()).toEqual([
       "cancelled",
       "draft",
+      "foa_judging",
+      "foa_judging",
       "foa_judging",
       "foa_judging",
       "published",
@@ -184,6 +198,18 @@ describe("the competitions seed", () => {
         },
         {
           status: "results_published",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "foa_judging",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "foa_judging",
           openingPassed: true,
           closingPassed: true,
           submissionsClosed: true,
@@ -298,7 +324,7 @@ describe("the competitions seed", () => {
         await h.as(manager).verifySecondFactor({ code: h.totpCode() }),
         account.email
       ).toEqual({ ok: true });
-      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(11);
+      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(13);
     }
   });
 
@@ -314,7 +340,7 @@ describe("the competitions seed", () => {
     expect(await h.db.select({ id: competition.id }).from(competition)).toEqual(
       ids
     );
-    expect(once).toMatchObject({ competitions: 11 });
+    expect(once).toMatchObject({ competitions: 13 });
   });
 });
 

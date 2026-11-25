@@ -152,6 +152,22 @@ export const SEED_AUCTION_COMPETITION = {
   name: "Art for kindness",
 } as const;
 
+/** Dedicated work-queue examples; never alter active judging demos. */
+export const SEED_REPORT_COMPETITIONS = [
+  {
+    id: "01938a00-0000-7000-8000-000000117001",
+    code: "RSLT27",
+    slug: "kindness-in-words",
+    name: "Kindness in Words",
+  },
+  {
+    id: "01938a00-0000-7000-8000-000000117002",
+    code: "CHECK27",
+    slug: "stories-for-animals",
+    name: "Stories for Animals",
+  },
+] as const;
+
 /**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
@@ -266,6 +282,30 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         },
       },
     },
+    ...SEED_REPORT_COMPETITIONS.map((seed, index): SeedCompetition => ({
+      ...seed,
+      status: "foa_judging",
+      publishedAt: daysAgo(225 - index),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: seed.code,
+        name: seed.name,
+        theme:
+          "Write about one kind act for the animals in your neighbourhood.",
+        participation: "individuals",
+        disciplines: ["essay"],
+        ageGroups: [ADULT_AGE_GROUP],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "not_required" },
+        keyDates: {
+          registration_opens: ist(-190 + index, "09:00"),
+          registration_closes: ist(-120 + index, "23:59"),
+          submissions_close: ist(-45 + index, "23:59"),
+          school_round_closes: ist(-20 + index, "23:59"),
+        },
+      },
+    })),
     ...SEED_ENTRY_COMPETITIONS.map(
       ({ id, slug, ...fields }, index): SeedCompetition => ({
         id,

@@ -59,6 +59,7 @@ import { schoolRoundUseCases } from "./modules/school-round";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
+import { reportsUseCases } from "./modules/reports";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -106,7 +107,8 @@ const useCases = composeUseCases(
   schoolRoundUseCases,
   verificationUseCases,
   physicalArtworkUseCases,
-  auctionsUseCases
+  auctionsUseCases,
+  reportsUseCases
 );
 
 /** Every use case, by name, bound to one actor. */
