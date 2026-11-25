@@ -23,7 +23,10 @@ describe("auction bid row-lock concurrency", () => {
         await world.seed.member({ email: world.uniqueEmail() })
       )
     );
-    const visitor = world.as({ kind: "visitor", meta: {} });
+    const visitor = world.as({
+      kind: "visitor",
+      meta: { ip: "203.0.113.20", userAgent: "pg concurrency test" },
+    });
     const code = { lotCode: SEED_AUCTIONS.open };
     await world.deps.settings.set("auctions.antiSnipingWindowMinutes", 7);
     await world.deps.settings.set("auctions.minIncrementPaise", 5000);
