@@ -53,3 +53,30 @@ export async function publishedResults(db: AppDb, competitionId: string) {
     );
   return { ...release, publishedAt: release.publishedAt, lines };
 }
+
+/** One immutable published recognition label, without scores, prize or category. */
+export async function publishedRecognitionForEntry(db: AppDb, entryId: string) {
+  const [recognition] = await db
+    .select({ outcome: resultAward.outcome, awardBand: resultAward.awardBand })
+    .from(resultAward)
+    .innerJoin(entry, eq(entry.id, resultAward.entryId))
+    .innerJoin(
+      resultRelease,
+      and(
+        eq(resultRelease.id, resultAward.releaseId),
+        eq(resultRelease.competitionId, entry.competitionId)
+      )
+    )
+    .innerJoin(competition, eq(competition.id, resultRelease.competitionId))
+    .where(
+      and(
+        eq(entry.id, entryId),
+        eq(resultRelease.status, "published"),
+        eq(competition.status, "results_published")
+      )
+    );
+  if (!recognition || recognition.outcome === "none") return null;
+  return recognition.awardBand
+    ? { kind: "band" as const, value: recognition.awardBand }
+    : { kind: "outcome" as const, value: recognition.outcome };
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { auctionLot, fileAsset, fileDerivative } from "../db/schema";
+import { SEED_ACCOUNTS } from "./accounts";
 import { SEED_AUCTIONS } from "./auctions";
 import { eq } from "drizzle-orm";
 
@@ -25,7 +26,7 @@ describe("preview auction lots", () => {
       await visitor.getLot({ lotCode: SEED_AUCTIONS.scheduled })
     ).toMatchObject({ creatorCredit: "Rohan D." });
     expect(await visitor.getLot({ lotCode: SEED_AUCTIONS.open })).toMatchObject(
-      { creatorCredit: "Asha Rao" }
+      { creatorCredit: "Asha Rao", currentBidPaise: SEED_AUCTIONS.openBidPaise }
     );
     expect(
       await visitor.getLot({ lotCode: SEED_AUCTIONS.cancelled })
@@ -44,7 +45,12 @@ describe("preview auction lots", () => {
     for (const { key } of privateKeys) expect(publicJson).not.toContain(key);
     expect(publicJson).not.toContain("Rohan Desai");
     expect(publicJson).not.toContain("reservePricePaise");
+    expect(publicJson).not.toContain(SEED_ACCOUNTS.members[1].id);
+    expect(publicJson).not.toContain(SEED_ACCOUNTS.members[1].name);
     await h.seed.preview();
+    expect(await visitor.getLot({ lotCode: SEED_AUCTIONS.open })).toMatchObject(
+      { currentBidPaise: SEED_AUCTIONS.openBidPaise }
+    );
     expect(
       await h.db
         .select()

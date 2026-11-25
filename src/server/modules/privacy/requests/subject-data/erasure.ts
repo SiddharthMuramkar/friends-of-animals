@@ -45,6 +45,7 @@ import {
   consentLink,
   directoryListing,
   entry,
+  auctionBid,
   entryFile,
   entryUploadGrant,
   erasureRecord,
@@ -545,6 +546,12 @@ export async function gatherErasure(
       )),
     uploads: uploadIds.length,
     entries: entryIds.length,
+    auctionBids: await n(
+      db
+        .select({ n: count() })
+        .from(auctionBid)
+        .where(within(auctionBid.bidderUserId, users))
+    ),
     freeRegistrations: freeRegistrations.length,
     keptRegistrations: keptRegistrations.length,
     guardianLinks:
@@ -715,6 +722,12 @@ async function eraseRecords(
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
+  // Preserve accepted amounts and deadlines, even for an account retained
+  // only for other financial records. Erasure never lowers the lot's price.
+  await tx
+    .update(auctionBid)
+    .set({ bidderUserId: null })
+    .where(within(auctionBid.bidderUserId, users));
   const registrationIds = [...registrations.free, ...registrations.kept];
   await tx
     .delete(entryUploadGrant)

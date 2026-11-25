@@ -794,6 +794,23 @@ An active Auction lot's exclusive hold on its original. It prevents another
 lot and conflicting custody moves without changing the physical status.
 Cancelling or settling an unsold lot releases the original.
 
+**Bid**:
+A signed-in adult Buyer's binding offer of an exact INR amount on an open
+Auction lot. The first bid is at least its starting price; every later bid
+raises the highest accepted bid by at least the minimum increment.
+_Avoid_: Cart, order, pledge
+
+**Buyer**:
+An adult User who bids on an Auction lot. A Buyer whose bid meets reserve
+and wins the lot is offered payment; a bid itself is not a payment.
+_Avoid_: Donor, bidder profile
+
+**Anti-sniping window**:
+The final interval of an open Auction lot in which an accepted Bid extends
+its closing time by the interval's full duration, giving other Buyers a
+chance to respond.
+_Avoid_: Grace period, overtime
+
 ## Files
 
 **File**:

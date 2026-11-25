@@ -83,6 +83,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "token_hash",
     "withdrawn_at",
   ],
+  auction_bid: ["id", "placed_at"],
   auction_lot: [
     "id",
     "artwork_status_before_listing",

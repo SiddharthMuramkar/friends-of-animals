@@ -48,6 +48,7 @@ import type { AppDb } from "../../db/app-db";
 import {
   competition,
   competitionTransitionBlock,
+  auctionBid,
   institution,
   userRole,
 } from "../../db/schema";
@@ -330,6 +331,7 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "auction.lot.close":
     case "auction.lot_opened":
     case "auction.lot_closed":
+    case "auction.bid_outbid":
     case "auction.lot_cancelled":
     case "artwork.retain_unrequested":
     case "artwork.requested":
@@ -458,6 +460,16 @@ export const AUDIENCES = {
     }
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
+  },
+  /** The displaced bidder, not the new leader. Resolve at delivery time so
+   * an erased bid's former account cannot receive anything. */
+  outbid_bidder: async (db, delivery) => {
+    if (delivery.eventType !== "auction.bid_outbid") return [];
+    const [bid] = await db
+      .select({ userId: auctionBid.bidderUserId })
+      .from(auctionBid)
+      .where(eq(auctionBid.id, delivery.payload.previousBidId));
+    return bid?.userId ? [bid.userId] : [];
   },
   /** Whoever paid for their own registration (#78): their receipt. */
   individual_payer: async (db, delivery) =>
@@ -951,6 +963,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "auction.lot.close": { names: [], load: async () => ({}) },
   "auction.lot_opened": { names: [], load: async () => ({}) },
   "auction.lot_closed": { names: [], load: async () => ({}) },
+  "auction.bid_outbid": {
+    names: ["lot.code"],
+    load: async (_db, { payload }) => ({ "lot.code": payload.lotCode }),
+  },
   "auction.lot_cancelled": { names: [], load: async () => ({}) },
   "artwork.retain_unrequested": { names: [], load: async () => ({}) },
   "entry.foa_verified": {

@@ -3,6 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import {
   auctionLot,
+  auctionBid,
   artworkCustodyEvent,
   artworkVerification,
   competition,
@@ -20,6 +21,8 @@ import { ensureGrant } from "./access";
 import { ensureSeedAuthenticator } from "./second-factor";
 import { SEED_AUCTION_COMPETITION } from "./competitions";
 import { emit } from "../outbox/emit";
+import { SEED_ACCOUNTS } from "./accounts";
+import { BID_DECLARATION_VERSION } from "../modules/auctions/domain/bid-declaration";
 import { SEED_GUARDIANS } from "./guardians";
 import { SEED_PARTICIPANTS } from "./participants";
 import type { Seeder } from "./types";
@@ -35,6 +38,7 @@ export const SEED_AUCTIONS = {
   },
   competitionCode: SEED_AUCTION_COMPETITION.code,
   open: lotCode(1),
+  openBidPaise: 110000n,
   scheduled: lotCode(2),
   unsold: lotCode(3),
   cancelled: lotCode(4),
@@ -252,6 +256,19 @@ export const seedAuctions: Seeder = async (deps) => {
         })
         .onConflictDoNothing()
         .returning({ id: auctionLot.id });
+      if (inserted && status === "open") {
+        await db
+          .insert(auctionBid)
+          .values({
+            id: id(61),
+            lotId: inserted.id,
+            bidderUserId: SEED_ACCOUNTS.members[1].id,
+            amountPaise: SEED_AUCTIONS.openBidPaise,
+            declarationVersion: BID_DECLARATION_VERSION,
+            placedAt: new Date(days(starts).getTime() + 3600_000),
+          })
+          .onConflictDoNothing();
+      }
       if (inserted && (status === "open" || status === "scheduled")) {
         await db
           .insert(artworkCustodyEvent)

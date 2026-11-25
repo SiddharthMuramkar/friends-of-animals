@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function Page() {
+export default async function Page({ searchParams }: PageProps<"/auctions">) {
   const t = await getTranslations("auctions");
   return (
     <Section hue="yellow" tone="tint" className="pt-10 sm:pt-14">
@@ -28,24 +28,32 @@ export default async function Page() {
       <Suspense
         fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
       >
-        <Lots />
+        <Lots searchParams={searchParams} />
       </Suspense>
     </Section>
   );
 }
-async function Lots() {
+async function Lots({
+  searchParams,
+}: Pick<PageProps<"/auctions">, "searchParams">) {
   // Fresh reads: consent withdrawal must hide a lot immediately, even
   // before the outbox worker cancels it and releases its artwork.
   await connection();
-  const [lots, t] = await Promise.all([
+  const [lots, t, query] = await Promise.all([
     as(PUBLIC_READER).browseLots(),
     getTranslations("auctions"),
+    searchParams,
   ]);
   return (
     <section className="mt-8" aria-labelledby="auction-lots-heading">
       <h2 id="auction-lots-heading" className="text-h3 text-ink">
         {t("upcoming")}
       </h2>
+      {query.bid === "unavailable" ? (
+        <p role="alert" className="mt-4 text-ink">
+          {t("bidding.unavailable")}
+        </p>
+      ) : null}
       {lots.length === 0 ? (
         <p className="mt-4 text-ink">{t("empty")}</p>
       ) : (

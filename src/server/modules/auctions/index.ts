@@ -35,6 +35,7 @@ import {
 } from "./lifecycle";
 import { browseLots, getLot, listLotsForAdmin, getLotForAdmin } from "./read";
 import { emit } from "../../outbox";
+import { placeBid, type PlaceBidInput } from "./bidding";
 
 export const createLotInput = z.object({
   artworkId: z.uuid(),
@@ -167,6 +168,7 @@ async function listEligibleArtwork(ctx: UseCaseContext) {
 }
 
 export const auctionsUseCases = (ctx: UseCaseContext) => ({
+  placeBid: (input: PlaceBidInput) => placeBid(ctx, input),
   browseLots: () => browseLots(ctx),
   getLot: (input: { lotCode: string }) => getLot(ctx, input),
   listLotsForAdmin: () => listLotsForAdmin(ctx),

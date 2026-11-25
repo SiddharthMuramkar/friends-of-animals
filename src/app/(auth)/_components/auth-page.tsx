@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/site/heading";
 import { inlineLink } from "@/components/site/link-styles";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { judgeInvitationNext } from "@/lib/judge-invitation-next";
+import { signInNext } from "@/lib/sign-in-next";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 
@@ -88,7 +88,7 @@ async function EmailMethod({
     getTranslations("common.callout"),
   ]);
 
-  const next = judgeInvitationNext((await searchParams)?.next);
+  const next = signInNext((await searchParams)?.next);
   // Out in the free space beside the card, from md: the 576px card, a 24px
   // gap and the 80px drawing fit the 720px prose column.
   const drawing = art ? (
