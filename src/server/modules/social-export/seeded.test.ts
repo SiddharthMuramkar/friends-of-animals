@@ -16,7 +16,9 @@ it("seeds distinct demo grants and actual social stamps, and lets the adult crea
     })
   );
   const owner = h.as(
-    await h.signIn(await h.seed.member({ email: SEED_ACCOUNTS.members[0].email }))
+    await h.signIn(
+      await h.seed.member({ email: SEED_ACCOUNTS.members[0].email })
+    )
   );
   const visitor = h.as(h.visitor());
   const id = { exportId: SEED_SOCIAL_EXPORT.queued };
@@ -37,6 +39,7 @@ it("seeds distinct demo grants and actual social stamps, and lets the adult crea
       itemId: SEED_GALLERY.items[2],
       title: "Our friends",
       credit: { name: "Isha D.", school: "Green Valley School", city: "Pune" },
+      sampleIllustration: true,
     },
   ]);
   await expect(visitor.myPublicUseConsents()).rejects.toMatchObject({

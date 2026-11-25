@@ -7,6 +7,7 @@
     "candidates": "Gallery items eligible to queue",
     "queueEmpty": "There are no active social exports.",
     "candidateEmpty": "There are no more gallery items with social-media consent to queue.",
+    "sample": "AI illustration — sample artwork, not a participant’s submission.",
     "credit": "Consented credit: {name}",
     "creditDownload": "Credit: {name}",
     "captionLabel": "Caption (required)",

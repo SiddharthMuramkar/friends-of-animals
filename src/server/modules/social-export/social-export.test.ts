@@ -109,6 +109,7 @@ it("queues only a published gallery item with separate social consent, as a cura
       itemId: ref.itemId,
       title: "A dog and a cup of tea",
       credit: { name: "Isha D." },
+      sampleIllustration: false,
     },
   ]);
   const queued = await curator.queueSocialExport(ref);
@@ -122,6 +123,7 @@ it("queues only a published gallery item with separate social consent, as a cura
       credit: { name: "Isha D." },
       status: "pending",
       stampReady: false,
+      sampleIllustration: false,
     },
   ]);
   expect(await curator.queueSocialExport(ref)).toEqual({
@@ -138,6 +140,16 @@ it("edits captions, downloads only the ready stamped PNG and fresh credit, and r
   const queued = await curator.queueSocialExport(ref);
   if (!queued.ok) throw Error(queued.error);
   const id = { exportId: queued.exportId };
+  await expect(visitor.requestSocialExportStamp(id)).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(guardian.requestSocialExportStamp(id)).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  expect(await curator.requestSocialExportStamp(id)).toMatchObject({
+    ok: true,
+    stamp: "queued",
+  });
   await expect(
     guardian.editSocialCaption({ ...id, caption: "Text" })
   ).rejects.toMatchObject({ code: "forbidden" });
@@ -256,6 +268,9 @@ it("removes withdrawn exports immediately, never revives an old grant or posted 
   // the old row. Explicit requeue may happen before delayed withdrawal delivery.
   expect(await grantSocial()).toMatchObject({ ok: true });
   expect(await curator.listSocialExports()).toEqual([]);
+  expect(
+    await curator.requestSocialExportStamp({ exportId: queued.exportId })
+  ).toEqual({ ok: false, error: "source_changed" });
   const requeued = await curator.queueSocialExport(ref);
   if (!requeued.ok) throw Error(requeued.error);
   expect(requeued.exportId).not.toBe(queued.exportId);
@@ -329,28 +344,46 @@ it("recomputes the small credit fields, checks source visibility and retires the
   if (!download.ok) throw Error(download.error);
   expect(download.credit).toEqual({ name: "Isha D.", city: "Nagpur" });
   expect(download.caption).not.toContain("Sample Learning School");
-  // An unpublished or hidden gallery image is not a social source, even
-  // though it still has an independent social-media grant and the PNG.
+  // Hide is moderation, not just a temporary pause. A fresh review and
+  // publication may be queued again but must never reuse its old caption.
   expect(
     await curator.hideGalleryItem({ ...ref, reason: "moderator" })
   ).toMatchObject({ ok: true });
   expect(await curator.listSocialExports()).toEqual([]);
-  expect(await curator.getSocialExportDownload(id)).toMatchObject({
-    ok: false,
-    error: "gallery_unavailable",
-  });
   expect(await curator.queueSocialExport(ref)).toMatchObject({
     ok: false,
     error: "gallery_unavailable",
   });
+  expect(await curator.restoreGalleryItem(ref)).toMatchObject({ ok: true });
+  expect(
+    await curator.editGalleryItem({
+      ...ref,
+      title: "A dog and a cup of tea",
+      story: "New review after hide",
+      featured: false,
+    })
+  ).toMatchObject({ ok: true });
+  expect(await curator.publishGalleryItem(ref)).toMatchObject({ ok: true });
+  expect(await curator.listSocialExports()).toEqual([]);
+  expect(await curator.getSocialExportDownload(id)).toEqual({
+    ok: false,
+    error: "not_found",
+  });
+  const afterHide = await curator.queueSocialExport(ref);
+  if (!afterHide.ok) throw Error(afterHide.error);
+  const afterHideId = { exportId: afterHide.exportId };
   expect(
     await guardian.withdrawChildConsent({
       ...target,
       purpose: "public_display",
     })
   ).toMatchObject({ ok: true });
+  expect(await curator.getSocialExportDownload(afterHideId)).toMatchObject({
+    ok: false,
+    error: "gallery_unavailable",
+  });
   await h.drain();
-  expect(await curator.getSocialExportDownload(id)).toEqual({
+  expect(await curator.getSocialExportDownload(afterHideId)).toEqual({
     ok: false,
     error: "not_found",
   });

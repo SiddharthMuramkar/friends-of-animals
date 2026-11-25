@@ -112,6 +112,7 @@ export async function liveSocialSource(
     galleryConsentEventId: source.consentEventId,
     socialConsentEventId: grant.id,
     credit,
+    sampleIllustration: source.image?.sampleIllustration ?? false,
   } as const;
 }
 

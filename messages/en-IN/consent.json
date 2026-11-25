@@ -27,6 +27,7 @@
     "notice": {
       "given": "Done. We'll email you news and updates.",
       "withdrawn": "Done. We won't email you news and updates any more.",
+      "publicationWithdrawn": "Permission withdrawn. FOA will no longer provide your artwork for this use.",
       "outdated": "We changed the text while you were reading. Read the new version below, then choose again.",
       "failed": "We couldn't save your choice, so nothing changed. Please try again."
     },

@@ -141,6 +141,7 @@ describe("answerConsentLink", () => {
     expect(withdrawn.outbox.map(({ handler }) => handler).sort()).toEqual([
       "gallery.withdraw_consent",
       "notifications.dispatch",
+      "social_export.withdraw_consent",
     ]);
     for (const delivery of withdrawn.outbox) {
       expect(delivery.payload).toEqual({

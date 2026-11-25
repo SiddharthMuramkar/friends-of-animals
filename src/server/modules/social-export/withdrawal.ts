@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { recordAudit } from "../../audit/record";
 import { consentEvent, socialExport } from "../../db/schema";
+import type { UseCaseContext } from "../../use-cases";
+import type { Role } from "../../access/domain/roles";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
 
 /** Withdraw only rows based on a grant of the same purpose, subject,
@@ -72,5 +74,29 @@ export async function withdrawSocialExportConsent(
         }
       );
     }
+  });
+}
+
+/** Moderation retires the export as part of the gallery's transaction; a
+ * later review/publish must never resurrect an old caption or posted status.
+ * Caller holds the gallery row lock, matching the export lock order. */
+export async function retireHiddenGalleryExport(
+  ctx: Pick<UseCaseContext, "db" | "clock" | "actor">,
+  itemId: string,
+  role: Role | null
+) {
+  const [row] = await ctx.db
+    .select()
+    .from(socialExport)
+    .where(eq(socialExport.galleryItemId, itemId))
+    .for("update");
+  if (!row) return;
+  await ctx.db.delete(socialExport).where(eq(socialExport.id, row.id));
+  await recordAudit(ctx.db, ctx, {
+    action: "social_export.retired",
+    entity: { type: "social_export", id: row.id },
+    before: { status: row.status },
+    after: { reason: "gallery_hidden" },
+    actorRole: role,
   });
 }

@@ -66,6 +66,9 @@ export default async function Page({
                   <p className="mt-2 wrap-anywhere">
                     {t("credit", { name: creditText(item.credit) })}
                   </p>
+                  {item.sampleIllustration ? (
+                    <p className="mt-2 text-sm text-ink-muted">{t("sample")}</p>
+                  ) : null}
                   {item.status === "pending" ? (
                     <form
                       action={socialExportAction.bind(
@@ -128,7 +131,7 @@ export default async function Page({
                         action={socialExportAction.bind(
                           null,
                           "retry",
-                          item.itemId
+                          item.exportId
                         )}
                         className="mt-3"
                       >
@@ -171,6 +174,9 @@ export default async function Page({
                 <p className="mt-2 wrap-anywhere">
                   {t("credit", { name: creditText(item.credit) })}
                 </p>
+                {item.sampleIllustration ? (
+                  <p className="mt-2 text-sm text-ink-muted">{t("sample")}</p>
+                ) : null}
                 <form
                   className="mt-4"
                   action={socialExportAction.bind(null, "queue", item.itemId)}

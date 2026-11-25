@@ -14,14 +14,9 @@ export async function socialExportAction(
     const use = as(await currentActor());
     switch (command) {
       case "queue":
-      case "retry": {
-        const queued = await use.queueSocialExport({ itemId: id });
-        return command === "retry" &&
-          !queued.ok &&
-          queued.error === "already_queued"
-          ? { ok: true as const }
-          : queued;
-      }
+        return use.queueSocialExport({ itemId: id });
+      case "retry":
+        return use.requestSocialExportStamp({ exportId: id });
       case "edit": {
         const value = form.get("caption");
         return use.editSocialCaption({

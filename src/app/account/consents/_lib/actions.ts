@@ -65,5 +65,5 @@ export async function withdrawPublicUseConsentAction(
     competitionId,
     purpose,
   });
-  backWith(result.ok ? "withdrawn" : "failed");
+  backWith(result.ok ? "publicationWithdrawn" : "failed");
 }

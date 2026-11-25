@@ -31,9 +31,8 @@ test("a content manager queues consented gallery art, edits its caption, downloa
   await expect(
     page.getByRole("heading", { name: "Social media export", level: 1 })
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "A refuge for birds", exact: true })
-  ).toBeVisible();
+  // The #103 gallery moderation journey independently hides and restores
+  // the first demo art. This journey owns the third, otherwise untouched item.
   // A gallery-only grant does not make artwork a social candidate.
   await expect(
     page.getByRole("heading", { name: "A kinder street", exact: true })
@@ -44,6 +43,9 @@ test("a content manager queues consented gallery art, edits its caption, downloa
   const row = page.getByRole("listitem").filter({
     has: page.getByRole("heading", { name: "Our friends", exact: true }),
   });
+  await expect(
+    row.getByText("AI illustration — sample artwork", { exact: false })
+  ).toBeVisible();
   await row.getByRole("button", { name: "Queue for social export" }).click();
   await expect(row.getByText("Pending", { exact: true })).toBeVisible();
   await expect(

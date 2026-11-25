@@ -102,3 +102,26 @@ it("serializes concurrent queue requests into one pending export and one social 
     before + 1
   );
 });
+
+it("refuses queueing when a concurrent creator withdrawal takes the subject lock first", async () => {
+  const { curator, ref, owner, account, competition } = await galleryFixture();
+  const both = await world.sql.begin(async (blocker) => {
+    await blocker`select id from "user" where id=${account.id} for no key update`;
+    const withdraw = owner.withdrawMyPublicUseConsent({
+      competitionId: competition.id,
+      purpose: "social_media",
+    });
+    withdraw.catch(() => {});
+    await world.waitForLockWaiters(1);
+    const queue = curator.queueSocialExport(ref);
+    queue.catch(() => {});
+    await world.waitForLockWaiters(2);
+    return { withdraw, queue };
+  });
+  expect(await both.withdraw).toMatchObject({ ok: true, changed: true });
+  expect(await both.queue).toEqual({ ok: false, error: "no_social_consent" });
+  expect(
+    (await curator.listSocialExports()).some((i) => i.itemId === ref.itemId)
+  ).toBe(false);
+  await world.drain();
+});
