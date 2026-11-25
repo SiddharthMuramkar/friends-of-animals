@@ -1,3 +1,4 @@
+import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 // What each handler named in ./events.ts SUBSCRIBERS does with a delivery.
 // A handler may run more than once for one delivery (a worker that dies
 // after the handler's work but before settling runs it again once the
@@ -48,6 +49,7 @@ import {
   sendReceiptLink,
   sendRefundNotice,
   sendThankYou,
+  sendRecurringNotice,
 } from "../modules/donations/messages";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { sendEntryReceiptToFamily } from "../modules/entries/family-receipt";
@@ -62,6 +64,12 @@ import { runExecuteErasure } from "../modules/privacy/requests/subject-data/eras
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
+import { runRoundDeadlineJob } from "../modules/school-round/overdue";
+import {
+  forwardOnSubmissionsClosed,
+  forwardLateEntry,
+} from "../modules/verification/forward-individual-entries";
+import { returnResubmission } from "../modules/verification/return-resubmission";
 import { openSchoolRounds } from "../modules/school-round/open-school-rounds";
 import {
   queueFamilyOutcomes,
@@ -135,6 +143,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "verification.forward_individual_entries": (deps, { payload }) =>
+    forwardOnSubmissionsClosed(deps, payload),
+  "verification.forward_late_entry": (deps, { payload }) =>
+    forwardLateEntry(deps, payload),
+  "verification.return_resubmission": (deps, { payload }) =>
+    returnResubmission(deps, payload),
   "ledger.post_capture": async (deps, { payload }) => {
     await postPaymentCapture({ ...deps, actor: ledgerWorker }, payload);
   },
@@ -149,6 +163,13 @@ export const HANDLERS: Handlers = {
     await postForeignDonation({ ...deps, actor: ledgerWorker }, payload);
   },
   "donations.send_thank_you": sendThankYou,
+  "recurring_donations.cancel": async (deps, { payload }) => {
+    await sendRecurringCancel(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload.id
+    );
+  },
+  "recurring_donations.send_notice": sendRecurringNotice,
   "donations.send_receipt_link": sendReceiptLink,
   "donations.send_refund_notice": sendRefundNotice,
   // Sends the messages the event's route rows name (#69).
@@ -236,6 +257,12 @@ export const HANDLERS: Handlers = {
       );
     }
   },
+  "reminders.schedule_artwork": async (deps, { payload }) => {
+    await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "physical_artwork", subjectId: payload.artworkId }
+    );
+  },
   // Reminds whoever owes the deadline now (#84). Safe to repeat: each
   // message is claimed under the reminder's id.
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
@@ -244,12 +271,18 @@ export const HANDLERS: Handlers = {
   // Opens the competition's school rounds (#89). Safe to repeat.
   "school_round.open_rounds": async (deps, { payload }) => {
     await openSchoolRounds(deps, payload);
+    // A refused move to FOA judging counted these rounds as missing (#90).
+    await retryBlockedMoves(deps, payload);
   },
   // Queues one outcome message per entry of a finalised round (#89), once.
   "school_round.queue_family_outcomes": (deps, { payload }) =>
     queueFamilyOutcomes(deps, payload),
   // Emails one entry's family its school round outcome (#89).
   "school_round.send_family_outcome": sendFamilyOutcome,
+  // At the shortlist deadline, makes unfinished school rounds overdue
+  // (#90). Safe to repeat: only open rounds move.
+  "school_round.mark_overdue": (deps, { payload }) =>
+    runRoundDeadlineJob(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

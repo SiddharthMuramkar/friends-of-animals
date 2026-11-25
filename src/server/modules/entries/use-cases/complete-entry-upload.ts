@@ -48,6 +48,11 @@ import {
 import { entryCodeFormat } from "../domain/entry-code";
 import { ENTRY_TEXT_LIMITS, type EntryText } from "../domain/entry-text";
 import type { EntryStatus } from "../domain/status";
+import {
+  latestVerification,
+  recordResubmission,
+  resubmissionDueAt,
+} from "../../verification/store";
 import { decideUpload, type UploadDecision } from "../domain/submission";
 import { checkUpload } from "../domain/upload-rules";
 import { chooseDiscipline, uploadRuleFor } from "../rules";
@@ -144,10 +149,15 @@ export async function completeEntryUpload(
   return ctx.db.transaction((tx) => record(tx, ctx, request));
 }
 
-async function prepareEntryUpload(
+/**
+ * Takes and checks the bytes of `request.fileId` for its grant, outside the
+ * registration's lock; false if the uploader has no such upload. Shared
+ * with the school round's shortlisted entries (#91).
+ */
+export async function prepareEntryUpload(
   tx: AppDb,
   ctx: UseCaseContext,
-  request: Parsed,
+  request: { fileId: string; registrationId: string },
   ownerId: string
 ): Promise<boolean> {
   const upload = await lockEntryUpload(tx, request.fileId, ownerId);
@@ -228,6 +238,9 @@ async function record(
     entry: current ? snapshotOf(current) : null,
     window,
     now,
+    resubmissionDueAt: current
+      ? await resubmissionDueAt(tx, current.row.id, current.row.status)
+      : null,
   });
   if (!decision.ok) return { ok: false, error: decision.reason };
   if (file.status === "rejected")
@@ -241,7 +254,10 @@ async function record(
     description: request.description,
     statement: request.statement || null,
   };
-  const pendingText = current?.row.status === "submitted" ? text : null;
+  const pendingText =
+    current?.row.status === "submitted" || current?.row.status === "sent_back"
+      ? text
+      : null;
   const row = current
     ? await updateEntry(tx, now, current, decision, pendingText ? null : text)
     : await createEntry(tx, now, {
@@ -294,6 +310,17 @@ async function record(
     });
   }
 
+  if (current?.row.status === "sent_back") {
+    const latest = await latestVerification(tx, row.id);
+    if (!latest) throw new Error("Missing send-back record");
+    await recordResubmission(tx, {
+      verificationId: latest.id,
+      at: now,
+      userId: actor.userId,
+      withFile: true,
+    });
+  }
+
   // The scan can see this upload only after its entry file commits.
   await acceptPendingUpload(tx, ctx.clock, file);
   const status =
@@ -318,7 +345,7 @@ export async function createEntry(
     discipline: Discipline;
     text: EntryText;
     userId: string;
-    status?: "processing" | "submitted";
+    status?: "processing" | "submitted" | "school_shortlisted";
   }
 ) {
   const id = uuidv7(now);

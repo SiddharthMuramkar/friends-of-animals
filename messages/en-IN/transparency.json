@@ -1,0 +1,47 @@
+{
+  "transparency": {
+    "meta": {
+      "title": "Financial transparency",
+      "description": "See Friends of Animals’ published income, spending, donation totals and disclosed supporters, from our reconciled ledger."
+    },
+    "eyebrow": "Our accounts",
+    "title": "Where the money goes",
+    "lead": "See what Friends of Animals received and spent, straight from our ledger. Finance publishes a month only once it has been reconciled and locked.",
+    "loading": "Reading the published accounts…",
+    "empty": "No months have been published yet. Figures will appear here once the first month is reconciled and locked.",
+    "yearNav": "Published financial years",
+    "year": "Financial year {fy}",
+    "through": "Published through {month}. The financial year runs from April to March in India. Months still open are not included.",
+    "income": "Income",
+    "spending": "Spending",
+    "donations": "Donations received, net of refunds",
+    "monthly": "Published months",
+    "monthIncome": "{month} income",
+    "monthSpending": "{month} spending",
+    "category": "Category",
+    "amount": "Amount (INR)",
+    "total": "Total",
+    "noActivity": "No activity recorded",
+    "groups": {
+      "income": "Other income",
+      "programs": "Programmes",
+      "fundraising": "Fundraising",
+      "administration": "Administration"
+    },
+    "organisations": {
+      "title": "Organisations that chose disclosure",
+      "lead": "Totals for the published months of this financial year, net of refunds. We count only gifts whose organisation chose to be named.",
+      "caption": "Disclosed organisation donations",
+      "name": "Organisation",
+      "empty": "No organisations have been named for these published months."
+    },
+    "wall": {
+      "title": "Donor wall",
+      "lead": "With thanks to people who asked to be named. We never show an individual's donation amount or contact details.",
+      "empty": "No individual supporters have opted in for these published months."
+    },
+    "method": "These figures show actual income and spending, not budgets. Refunds and reversals reduce totals in the month they are posted. If a month needs to be reopened for correction, it is not shown until it is locked again.",
+    "impactLink": "How we count our impact",
+    "giveLink": "Support Friends of Animals"
+  }
+}

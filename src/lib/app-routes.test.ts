@@ -15,6 +15,8 @@ import {
   adminPaymentReviewCasePath,
   adminInstitutionPath,
   APP_ROUTES,
+  DASHBOARD_DONATIONS,
+  recurringDonationPath,
   entryDetailPath,
   guardianChildPath,
   institutionCompetitionsPath,
@@ -37,6 +39,11 @@ import {
 const COMPETITION_ID = "01938a00-0000-7000-8000-000000002001";
 
 describe("isSignedInPage", () => {
+  it("recognises monthly donor dashboard pages", () => {
+    expect(isSignedInPage(DASHBOARD_DONATIONS)).toBe(true);
+    expect(isSignedInPage(recurringDonationPath(COMPETITION_ID))).toBe(true);
+  });
+
   it("knows every listed page", () => {
     for (const path of Object.values(APP_ROUTES)) {
       expect(isSignedInPage(path), path).toBe(true);

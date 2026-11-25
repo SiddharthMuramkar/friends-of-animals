@@ -45,6 +45,7 @@ const SHARED_ERRORS = [
   "too_many_words",
   "submission_not_open",
   "deadline_passed",
+  "resubmission_closed",
   "entry_locked",
   "upload_limit",
   "file_not_found",

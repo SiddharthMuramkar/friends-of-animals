@@ -54,3 +54,8 @@ export * from "./adoption-applications";
 export * from "./campaigns";
 export * from "./volunteers";
 export * from "./school-round";
+
+export * from "./recurring-donations";
+export * from "./verification";
+
+export * from "./physical-artwork";

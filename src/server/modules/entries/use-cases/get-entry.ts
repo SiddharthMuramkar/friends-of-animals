@@ -34,6 +34,7 @@ import { sanitizeEssayBody, type EssayBody } from "../../../rich-text/essay";
 import { moduleFileUrl } from "../../files/use-cases/delivery";
 import { moduleDerivativeUrl } from "../../files/use-cases/derivative-url";
 import { visibleProfiles } from "../../participants/list-my-registrations";
+import { latestVerification } from "../../verification/store";
 import { parseEntryCode } from "../domain/entry-code";
 import type { EntryFileStatus, EntryStatus } from "../domain/status";
 import { decideUpload, type SubmissionWindow } from "../domain/submission";
@@ -42,6 +43,12 @@ import { submissionWindows } from "../registration-facts";
 import { formatOf, uploadRuleFor, type EntryFormat } from "../rules";
 
 export type EntryDetail = {
+  id: string;
+  correction: {
+    reasonCode: string;
+    reasonText: string | null;
+    dueAt: Date;
+  } | null;
   code: string;
   status: EntryStatus;
   title: string;
@@ -147,6 +154,7 @@ export async function getEntry(
     .as("newest");
   const [row] = await ctx.db
     .select({
+      id: entry.id,
       code: entry.code,
       status: entry.status,
       title: entry.title,
@@ -216,6 +224,18 @@ export async function getEntry(
   const window: SubmissionWindow | undefined = (
     await submissionWindows(ctx.db, [row.competitionId])
   ).get(row.competitionId);
+  const latest =
+    row.status === "sent_back"
+      ? await latestVerification(ctx.db, row.id)
+      : null;
+  const correction =
+    latest?.reasonCode && latest.resubmissionDueAt
+      ? {
+          reasonCode: latest.reasonCode,
+          reasonText: latest.reasonText,
+          dueAt: latest.resubmissionDueAt,
+        }
+      : null;
   const canUpload =
     row.registrationRoute === "individual" &&
     row.registrationStatus === "confirmed" &&
@@ -223,6 +243,7 @@ export async function getEntry(
     decideUpload({
       entry: { status: row.status, files: [] },
       window,
+      resubmissionDueAt: correction?.dueAt ?? null,
       now: ctx.clock.now(),
     }).ok &&
     (await participationRefusals(ctx.db, ctx, [row.registrationId])).size === 0;
@@ -230,6 +251,8 @@ export async function getEntry(
   return {
     ok: true,
     entry: {
+      id: row.id,
+      correction,
       code: row.code,
       status: row.status,
       title: row.title,
@@ -237,7 +260,7 @@ export async function getEntry(
       statement: row.statement,
       discipline: row.discipline,
       competition: { name: row.competitionName, slug: row.competitionSlug },
-      closesAt: window?.closesAt ?? null,
+      closesAt: correction?.dueAt ?? window?.closesAt ?? null,
       registrationId: row.registrationId,
       participantName: row.participantName,
       whose: visible.whose,

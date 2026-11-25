@@ -24,6 +24,7 @@ import { PAYMENTS_POLICY } from "../modules/payments/policy";
 import { PARTICIPANTS_POLICY } from "../modules/participants/policy";
 import { GUARDIANS_POLICY } from "../modules/guardians/policy";
 import { LEDGER_POLICY } from "../modules/ledger/policy";
+import { TRANSPARENCY_POLICY } from "../modules/transparency/policy";
 import { ENTRIES_POLICY } from "../modules/entries/policy";
 import { ANNOUNCEMENTS_POLICY } from "../modules/announcements/policy";
 import { PRIVACY_POLICY } from "../modules/privacy/policy";
@@ -37,6 +38,8 @@ import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
+import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
+import { VERIFICATION_POLICY } from "../modules/verification/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
@@ -63,6 +66,7 @@ export const POLICY = composePolicies(
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
   LEDGER_POLICY,
+  TRANSPARENCY_POLICY,
   ENTRIES_POLICY,
   ANNOUNCEMENTS_POLICY,
   PRIVACY_POLICY,
@@ -75,7 +79,9 @@ export const POLICY = composePolicies(
   REMINDERS_POLICY,
   CAMPAIGNS_POLICY,
   INSTITUTION_SUBMISSIONS_POLICY,
-  SCHOOL_ROUND_POLICY
+  SCHOOL_ROUND_POLICY,
+  VERIFICATION_POLICY,
+  PHYSICAL_ARTWORK_POLICY
 );
 
 export type Action = keyof typeof POLICY;

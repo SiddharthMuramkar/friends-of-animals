@@ -17,6 +17,9 @@ const ALLOWED: Record<string, TransitionCause> = {
   // Only once every enabled discipline has a published rubric (#88): the
   // guard runs where the move is made (../transition-guards.ts).
   "registration_closed->school_judging": "schedule",
+  // At the shortlist deadline, only once every school round is finished
+  // (#90): the guard runs where the move is made.
+  "school_judging->foa_judging": "schedule",
   // A super admin cancels a competition from any status but cancelled
   // (#80); nothing leaves cancelled.
   "draft->cancelled": "cancellation",
@@ -24,6 +27,7 @@ const ALLOWED: Record<string, TransitionCause> = {
   "registration_open->cancelled": "cancellation",
   "registration_closed->cancelled": "cancellation",
   "school_judging->cancelled": "cancellation",
+  "foa_judging->cancelled": "cancellation",
 };
 
 const CAUSES = ["manager", "schedule", "cancellation"] as const;
@@ -40,6 +44,7 @@ describe("the competition status machine", () => {
       "registration_open",
       "registration_closed",
       "school_judging",
+      "foa_judging",
       "cancelled",
     ]);
   });

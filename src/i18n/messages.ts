@@ -58,10 +58,12 @@ import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
+import donorDashboard from "../../messages/en-IN/donorDashboard.json";
 import donationCheckout from "../../messages/en-IN/donationCheckout.json";
 import donations from "../../messages/en-IN/donations.json";
 import receipts from "../../messages/en-IN/receipts.json";
 import adminDonations from "../../messages/en-IN/adminDonations.json";
+import artwork from "../../messages/en-IN/artwork.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
@@ -70,6 +72,7 @@ import guardian from "../../messages/en-IN/guardian.json";
 import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
+import transparency from "../../messages/en-IN/transparency.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
 import judgingGuide from "../../messages/en-IN/judgingGuide.json";
@@ -150,10 +153,12 @@ export const NAMESPACES = [
   "adoptionApplications",
   "donate",
   "donationCheckout",
+  "donorDashboard",
   "donations",
   "receipts",
   "adminDonations",
   "entries",
+  "artwork",
   "error",
   "files",
   "footer",
@@ -161,6 +166,7 @@ export const NAMESPACES = [
   "volunteer",
   "home",
   "impact",
+  "transparency",
   "inbox",
   "institutions",
   "judgingGuide",
@@ -245,10 +251,12 @@ export const messages = {
   ...adoptionApplications,
   ...donate,
   ...donationCheckout,
+  ...donorDashboard,
   ...donations,
   ...receipts,
   ...adminDonations,
   ...entries,
+  ...artwork,
   ...error,
   ...files,
   ...footer,
@@ -256,6 +264,7 @@ export const messages = {
   ...volunteer,
   ...home,
   ...impact,
+  ...transparency,
   ...inbox,
   ...institutions,
   ...judgingGuide,

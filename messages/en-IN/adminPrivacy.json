@@ -270,6 +270,12 @@
           "receipt_title": "Keeps the adult participant's receipt tied to the submitted title",
           "essay_body": "Keeps the essay a participant typed as their entry, for review and judging"
         },
+        "entry_verification": {
+          "entry_id": "Connect the verification decision to the submitted entry.",
+          "reason_text": "Explain to the participant or coordinator what needs to be corrected.",
+          "decided_by_user_id": "Record the verifier responsible for the decision.",
+          "resubmitted_by_user_id": "Record who resubmitted the entry."
+        },
         "entry_transition": {
           "entry_id": "Associates a change in status with the participant's entry",
           "entry_file_id": "Shows which upload caused a change in the entry's status",
@@ -455,16 +461,24 @@
           "name_ciphertext": "The donor's name, or an organisation's contact person, printed on the receipt",
           "email_ciphertext": "Where the donor's receipt link and messages about the donation go",
           "email_hash": "Finds the donor's receipt when they ask for a new link with their email, without storing it readably",
-          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that"
+          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that",
+          "pan_ciphertext": "The donor’s PAN, collected while 80G is enabled and encrypted at rest"
         },
         "donation": {
-          "wall_name": "The name the donor chose to appear under on the public donor wall"
+          "wall_name": "The name the donor chose to appear under on the public donor wall",
+          "offline_reference": "The cheque, bank transfer or cash receipt reference for the donation",
+          "offline_proof_file_id": "Links the donation to its private proof of payment, readable only by finance",
+          "offline_recorded_by": "Names the finance account that recorded the offline donation"
         },
         "receipt": {
           "snapshot": "The receipt as issued, with the donor's name, frozen so it never changes"
         },
         "receipt_link": {
           "created_by_user_id": "Who asked for a receipt link: the donor's account, or finance"
+        },
+        "recurring_donation": {
+          "wall_name": "The name the monthly donor chose to appear under on the public donor wall",
+          "user_id": "Links the monthly mandate to its donor's account so they can see and cancel it"
         },
         "refund": {
           "decided_by": "Who in finance approved or rejected a refund, so FOA can answer for it",
@@ -500,7 +514,11 @@
         },
         "school_round": {
           "judging_attested_by_user_id": "Records which coordinator attested the school judging",
-          "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
+          "finalised_by_user_id": "Records which coordinator finalised the school shortlist",
+          "closed_by_user_id": "Records which competition manager closed an overdue school round on the school's behalf"
+        },
+        "school_round_declaration": {
+          "declared_by_user_id": "Records which coordinator made the declarations for a shortlisted entry they created"
         },
         "school_round_pick": {
           "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
@@ -597,6 +615,17 @@
           "subject_id": "Names the account or child's profile that was erased",
           "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
           "profile_ids": "Names every participant profile the erasure covered, for the same reason"
+        },
+        "physical_artwork": {
+          "entry_id": "Links the original artwork to its verified digital entry.",
+          "registration_id": "Identifies the sender's registration.",
+          "institution_registration_id": "Identifies the school responsible for dispatch.",
+          "artwork_code": "Identifies the parcel throughout custody.",
+          "courier_name": "Records the courier used to dispatch the artwork.",
+          "tracking_number": "Tracks the parcel and resolves delivery discrepancies.",
+          "requested_by": "Identifies the staff member who requested the original.",
+          "dispatched_by": "Identifies the sender who recorded dispatch.",
+          "received_by": "Identifies the staff member who recorded receipt."
         }
       }
     },

@@ -33,6 +33,7 @@ import {
   donation,
   paymentBatch,
   receipt,
+  recurringRefusedCharge,
   refund,
   type PaymentBatchRow,
 } from "../../db/schema";
@@ -112,13 +113,14 @@ async function moveDonation(
  * Captures the donation with `gatewayPaymentId`: its status, its batch's,
  * and its receipt with the next number, in the caller's transaction.
  */
-async function captureDonation(
+export async function captureDonation(
   tx: AppDb,
   ctx: PaymentsContext,
   input: {
     batch: PaymentBatchRow;
     row: DonationRow;
     gatewayPaymentId: string;
+    capturedAt?: Date;
     event: Extract<DonationEvent, "captured" | "late_capture_accepted">;
     batchEvent: Extract<PaymentBatchEvent, "captured" | "review_confirmed">;
   },
@@ -131,13 +133,14 @@ async function captureDonation(
     throw new Error(`Donation ${row.id} can't be captured`);
   }
   const now = ctx.clock.now();
+  const capturedAt = input.capturedAt ?? now;
   await tx
     .update(paymentBatch)
     .set({
       status: batchMove.to,
       captureMethod: "gateway",
       gatewayPaymentId,
-      capturedAt: now,
+      capturedAt,
       updatedAt: now,
     })
     .where(eq(paymentBatch.id, batch.id));
@@ -150,13 +153,13 @@ async function captureDonation(
       purpose: "donation",
       captureMethod: "gateway",
       gatewayPaymentId,
-      capturedAt: now.toISOString(),
+      capturedAt: capturedAt.toISOString(),
     },
     actorRole,
   });
   await tx
     .update(donation)
-    .set({ status: move.to, gatewayPaymentId, capturedAt: now, updatedAt: now })
+    .set({ status: move.to, gatewayPaymentId, capturedAt, updatedAt: now })
     .where(eq(donation.id, row.id));
   const issued = await issueReceipt(tx, ctx, {
     donationId: row.id,
@@ -345,6 +348,21 @@ export async function settleDonationRefund(
     .from(refund)
     .where(eq(refund.id, refundId));
   if (!returned || returned.kind === "duplicate") return;
+  const [refused] = await tx
+    .select()
+    .from(recurringRefusedCharge)
+    .where(eq(recurringRefusedCharge.refundId, refundId));
+  if (refused) {
+    await emit(tx, ctx.clock, {
+      type: "recurring_donation.refunded",
+      aggregate: {
+        type: "recurring_donation",
+        id: refused.recurringDonationId,
+      },
+      payload: { id: refused.recurringDonationId },
+    });
+    return;
+  }
   const row = await lockDonationOf(tx, returned.batchId);
 
   const foreign = returned.kind === "foreign_payment";

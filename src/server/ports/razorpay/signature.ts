@@ -50,3 +50,18 @@ export function isValidWebhookSignature(
 ): boolean {
   return sameHex(hmacHex(webhookSecret, rawBody, "webhook secret"), signature);
 }
+
+/** Subscriptions sign payment id first, then the stored subscription id. */
+export function isValidSubscriptionCheckoutSignature(
+  returned: { subscriptionId: string; paymentId: string; signature: string },
+  keySecret: string
+): boolean {
+  return sameHex(
+    hmacHex(
+      keySecret,
+      `${returned.paymentId}|${returned.subscriptionId}`,
+      "key secret"
+    ),
+    returned.signature
+  );
+}

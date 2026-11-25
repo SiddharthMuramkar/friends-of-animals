@@ -38,6 +38,7 @@ import { paymentsUseCases } from "./modules/payments";
 import { participantsUseCases } from "./modules/participants";
 import { guardiansUseCases } from "./modules/guardians";
 import { ledgerUseCases } from "./modules/ledger";
+import { transparencyUseCases } from "./modules/transparency";
 import { entriesUseCases } from "./modules/entries";
 import { announcementsUseCases } from "./modules/announcements";
 import { privacyUseCases } from "./modules/privacy";
@@ -52,6 +53,8 @@ import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
 import { schoolRoundUseCases } from "./modules/school-round";
+import { physicalArtworkUseCases } from "./modules/physical-artwork";
+import { verificationUseCases } from "./modules/verification";
 import { composeUseCases } from "./use-cases";
 
 const useCases = composeUseCases(
@@ -79,6 +82,7 @@ const useCases = composeUseCases(
   participantsUseCases,
   guardiansUseCases,
   ledgerUseCases,
+  transparencyUseCases,
   entriesUseCases,
   announcementsUseCases,
   privacyUseCases,
@@ -92,7 +96,9 @@ const useCases = composeUseCases(
   remindersUseCases,
   campaignsUseCases,
   institutionSubmissionsUseCases,
-  schoolRoundUseCases
+  schoolRoundUseCases,
+  verificationUseCases,
+  physicalArtworkUseCases
 );
 
 /** Every use case, by name, bound to one actor. */

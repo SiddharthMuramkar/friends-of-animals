@@ -140,6 +140,14 @@ export function adminRefundPath(refundId: string): string {
 
 /** Finance's donations (#106): the list and each donation's page. */
 export const ADMIN_DONATIONS = "/admin/donations";
+export const ADMIN_OFFLINE_DONATION = `${ADMIN_DONATIONS}/offline` as const;
+export const ADMIN_RECURRING_DONATIONS = "/admin/donations/recurring";
+export const DASHBOARD_DONATIONS = "/dashboard/donations";
+export const MONTHLY_CHECKOUT_ROUTE = "/donate/checkout/monthly/[id]";
+export const recurringDonationPath = (id: string) =>
+  `${DASHBOARD_DONATIONS}/recurring/${encodeURIComponent(id)}`;
+export const monthlyCheckoutPath = (id: string) =>
+  `/donate/checkout/monthly/${encodeURIComponent(id)}`;
 
 export function adminDonationPath(donationId: string): string {
   return `${ADMIN_DONATIONS}/${encodeURIComponent(donationId)}`;
@@ -239,6 +247,17 @@ export function adoptionApplicationsPath(
  * public stories page, /adopt/stories, is in src/lib/routes.ts.
  */
 export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_ARTWORK = "/admin/artwork";
+export const INSTITUTION_ARTWORK = "/institution/artwork";
+export const MY_ARTWORK = "/dashboard/artwork";
+export const adminArtworkPath = (artworkCode: string) =>
+  `${ADMIN_ARTWORK}/${encodeURIComponent(artworkCode)}`;
+
+export const ADMIN_VERIFICATION = "/admin/verification";
+export function adminVerificationEntryPath(entryId: string): string {
+  return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
+}
+
 export const ADMIN_ADOPTIONS = "/admin/adoptions";
 
 export function myAdoptionApplicationPath(applicationId: string): string {
@@ -259,6 +278,12 @@ export function adminAdoptionApplicationPath(applicationId: string): string {
  * JS budget. The sitemap lists it by hand.
  */
 export const ADOPTION_STORIES_PATH = "/adopt/stories";
+
+/** Published ledger figures (#110); kept out of the shared client registry. */
+export const TRANSPARENCY_PATH = "/transparency";
+export function transparencyYearPath(fy: string): string {
+  return `${TRANSPARENCY_PATH}?fy=${encodeURIComponent(fy)}`;
+}
 
 /** An adoptable animal's public page. */
 export function adoptableAnimalPath(slug: string): string {
@@ -282,6 +307,10 @@ export function adminBatchRefundPath(batchId: string): string {
  * Where a super admin cancels a competition (#80). Listed with
  * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
  */
+export function adminSchoolRoundsPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/school-rounds`;
+}
+
 export function adminCompetitionCancelPath(competitionId: string): string {
   return `/admin/competitions/${encodeURIComponent(competitionId)}/cancel`;
 }
@@ -425,7 +454,10 @@ export function donationCheckoutPath(donationId: string, token: string) {
 }
 
 export function isDonationCheckoutPage(pathname: string): boolean {
-  return fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE);
+  return (
+    fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE) ||
+    fitsTemplate(pathname, MONTHLY_CHECKOUT_ROUTE)
+  );
 }
 
 /** A donation's thank-you page (#106), for the same token's holder. */
@@ -457,6 +489,7 @@ export const CHECKOUT_ROUTES = [
   PAY_FEES_ROUTE,
   PAY_MY_REGISTRATION_ROUTE,
   DONATION_CHECKOUT_ROUTE,
+  MONTHLY_CHECKOUT_ROUTE,
 ] as const;
 
 /** A payment batch's status and receipt (#77). */
@@ -509,6 +542,12 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_ARTWORK,
+  "/admin/artwork/[artworkCode]",
+  INSTITUTION_ARTWORK,
+  MY_ARTWORK,
+  ADMIN_VERIFICATION,
+  "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
@@ -522,6 +561,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/safeguarding/[id]",
   "/admin/blog/[id]",
   "/admin/competitions/[id]/rubrics",
+  "/admin/competitions/[id]/school-rounds",
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,
@@ -537,7 +577,11 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
   ADMIN_DONATIONS,
+  ADMIN_OFFLINE_DONATION,
+  ADMIN_RECURRING_DONATIONS,
   "/admin/donations/[id]",
+  DASHBOARD_DONATIONS,
+  "/dashboard/donations/recurring/[id]",
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",

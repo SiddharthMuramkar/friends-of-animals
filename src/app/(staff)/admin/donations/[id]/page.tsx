@@ -24,6 +24,7 @@ import { LinkForm } from "../_components/link-form";
 import {
   decideDonationRefundAction,
   requestDonationRefundAction,
+  openOfflineDonationProofAction,
 } from "../_lib/actions";
 
 // One donation, for finance (#106): the donor, the money, the receipt, a
@@ -109,6 +110,13 @@ export default async function Page({
           tone="danger"
           label={callout("danger")}
           message={t(`refund.errors.${problem}`)}
+        />
+      ) : null}
+      {query["proof"] === "unavailable" ? (
+        <OutcomeNotice
+          tone="danger"
+          label={callout("danger")}
+          message={t("offline.proofUnavailable")}
         />
       ) : null}
       <Details donation={donation} />
@@ -200,6 +208,20 @@ async function Details({ donation }: { donation: DonationView }) {
           {donation.capturedAt
             ? row(t("detail.captured"), when(donation.capturedAt))
             : null}
+          {donation.offline ? (
+            <>
+              {row(
+                t("offline.method"),
+                t(`offline.methods.${donation.offline.method}`)
+              )}
+              {row(t("offline.reference"), donation.offline.reference)}
+              {row(t("offline.receivedOn"), donation.offline.receivedOn)}
+              {row(
+                t("offline.proofStatus"),
+                t(`offline.proofStatuses.${donation.offline.proofStatus}`)
+              )}
+            </>
+          ) : null}
           {donation.payment?.gatewayPaymentId
             ? row(t("detail.payment"), donation.payment.gatewayPaymentId)
             : null}
@@ -216,6 +238,19 @@ async function Details({ donation }: { donation: DonationView }) {
               )
             : null}
         </dl>
+        {donation.offline?.proofStatus === "clean" ? (
+          <form action={openOfflineDonationProofAction} className="mt-4">
+            <input type="hidden" name="donationId" value={donation.id} />
+            <SubmitButton
+              variant="secondary"
+              pendingLabel={t("link.submitting")}
+            >
+              {t("offline.openProof")}
+            </SubmitButton>
+          </form>
+        ) : donation.offline ? (
+          <p className="mt-3 text-ink-muted">{t("offline.proofUnavailable")}</p>
+        ) : null}
         {donation.reviewCases.length > 0 ? (
           <>
             <h3 className="mt-6 text-h5">{t("detail.reviewTitle")}</h3>

@@ -1,3 +1,12 @@
+import {
+  ARTWORK_VARIABLES,
+  artworkRecipients,
+  artworkValues,
+} from "../physical-artwork/messages";
+import {
+  VERIFICATION_VARIABLES,
+  verificationValues,
+} from "../verification/message-values";
 // Who a route's message goes to, and what each event lets a template say.
 //
 // A route row names an audience by key. Each audience turns an event into
@@ -112,6 +121,10 @@ import {
   outcomeValues,
   SCHOOL_ROUND_OUTCOME_VARIABLES,
 } from "../school-round/family-outcomes";
+import {
+  overdueValues,
+  SCHOOL_ROUND_OVERDUE_VARIABLES,
+} from "../school-round/overdue";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -206,6 +219,12 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "recurring_donation.activated":
+    case "recurring_donation.charge_failed":
+    case "recurring_donation.cancelled":
+    case "recurring_donation.refunded":
+    case "recurring_donation.payment_refused":
+    case "recurring_donation.cancel_requested":
     case "donation.captured":
     case "donation.foreign_payment_received":
     case "donation.refunded":
@@ -240,6 +259,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The fan-out job and the authority's own email (#116); no route row
       // sends to a user for either.
       return null;
+    case "entry.foa_verified":
+    case "entry.sent_back":
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -279,13 +300,23 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
       return null;
+    case "artwork.requested":
+    case "artwork.dispatched":
+    case "artwork.received":
+    case "entry.replacement_live":
+    case "competition.submissions_closed":
     case "competition.school_judging_started":
     case "school_round.shortlist_finalised":
-      // Open the rounds and queue the families' messages (#89); no route
-      // row names them.
+    case "school_round.closed_on_behalf":
+      // Open the rounds and queue the families' messages (#89, #90); no
+      // route row names them.
+      return null;
+    case "school_round.overdue":
+      // For the school's coordinators (`institution_coordinators`, #90).
       return null;
     case "entry.school_shortlisted":
     case "entry.not_shortlisted":
+    case "registration.not_shortlisted":
       // The family contact isn't a user: their message goes by the school
       // round's own handler (#89), not by a route row.
       return null;
@@ -338,6 +369,8 @@ function volunteerApplicationOf(delivery: Delivery): string | null {
 function registrationOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
     case "registration.confirmed":
+    case "entry.foa_verified":
+    case "entry.sent_back":
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -363,6 +396,16 @@ type Audience = (db: AppDb, delivery: Delivery) => Promise<AudienceMember[]>;
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  artwork_sender: async (db, delivery) =>
+    delivery.eventType === "artwork.requested" ||
+    delivery.eventType === "artwork.received"
+      ? artworkRecipients(
+          db,
+          delivery.payload.artworkId,
+          delivery.eventType === "artwork.received"
+        )
+      : [],
+
   /** The user the event is about: the new account, the one who withdrew. */
   subject_user: async (db, delivery) => {
     // The institution's receipt; an adult's own goes as individual_payer.
@@ -415,10 +458,14 @@ export const AUDIENCES = {
   /**
    * Everyone who acts for an institution registration's institution: its
    * coordinators and its authorised person (#80: its competition was
-   * cancelled).
+   * cancelled; #90: its school round is overdue).
    */
   institution_coordinators: async (db, delivery) =>
-    delivery.eventType === "institution_registration.competition_cancelled"
+    (delivery.eventType === "institution_registration.competition_cancelled" ||
+      delivery.eventType === "school_round.overdue" ||
+      delivery.eventType === "entry.foa_verified" ||
+      delivery.eventType === "entry.sent_back") &&
+    delivery.payload.institutionRegistrationId
       ? institutionCoordinators(db, delivery.payload.institutionRegistrationId)
       : [],
   /**
@@ -655,6 +702,13 @@ function reasonSentence(block: TransitionBlock): string {
           "and"
         ),
       });
+    case "school_rounds_unfinished":
+      return statusWords("blockReason.school_rounds_unfinished", {
+        unfinished: block.missing + block.open + block.overdue,
+        missing: block.missing,
+        open: block.open,
+        overdue: block.overdue,
+      });
   }
 }
 
@@ -751,6 +805,12 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   // The donations module renders these itself (#106): only it can mint a
   // receipt link as the email goes. Declared so templates check out.
+  "recurring_donation.activated": { names: [], load: async () => ({}) },
+  "recurring_donation.charge_failed": { names: [], load: async () => ({}) },
+  "recurring_donation.cancelled": { names: [], load: async () => ({}) },
+  "recurring_donation.refunded": { names: [], load: async () => ({}) },
+  "recurring_donation.payment_refused": { names: [], load: async () => ({}) },
+  "recurring_donation.cancel_requested": { names: [], load: async () => ({}) },
   "donation.captured": {
     names: [
       "donation.amount",
@@ -810,6 +870,25 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) =>
       institutionCancellationValues(db, payload.institutionRegistrationId),
   },
+  "competition.submissions_closed": { names: [], load: async () => ({}) },
+  "entry.replacement_live": { names: [], load: async () => ({}) },
+  "artwork.requested": {
+    names: ARTWORK_VARIABLES,
+    load: (db, { payload }) => artworkValues(db, payload.artworkId),
+  },
+  "artwork.dispatched": { names: [], load: async () => ({}) },
+  "artwork.received": {
+    names: ARTWORK_VARIABLES,
+    load: (db, { payload }) => artworkValues(db, payload.artworkId),
+  },
+  "entry.foa_verified": {
+    names: VERIFICATION_VARIABLES,
+    load: (db, { payload }) => verificationValues(db, payload.verificationId),
+  },
+  "entry.sent_back": {
+    names: VERIFICATION_VARIABLES,
+    load: (db, { payload }) => verificationValues(db, payload.verificationId),
+  },
   "entry.submitted": {
     names: ENTRY_RECEIPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload, true),
@@ -824,9 +903,18 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   "competition.school_judging_started": { names: [], load: async () => ({}) },
   "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "school_round.closed_on_behalf": { names: [], load: async () => ({}) },
+  "school_round.overdue": {
+    names: SCHOOL_ROUND_OVERDUE_VARIABLES,
+    load: (db, { payload }) => overdueValues(db, payload.roundId),
+  },
   "entry.school_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,
     load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "registration.not_shortlisted": {
+    names: CONFIRMATION_VARIABLES,
+    load: (db, { payload }) => confirmationValues(db, payload.registrationId),
   },
   "entry.not_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,

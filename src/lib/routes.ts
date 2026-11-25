@@ -2,7 +2,7 @@
  * The one registry of public routes. The header, footer and sitemap read it,
  * so a page that isn't here isn't linked. Labels live in messages/en-IN/nav.json
  * under nav.links.<id>. Spec modules that aren't built yet (gallery,
- * transparency, events, volunteer, auctions) stay out. Pages
+ * events, volunteer, auctions) stay out. Pages
  * behind sign-in are in src/lib/app-routes.ts.
  */
 

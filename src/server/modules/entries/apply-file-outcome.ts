@@ -9,6 +9,7 @@
 
 import type { AppDb } from "../../db/app-db";
 import type { Clock } from "../../ports/clock";
+import { promoteShortlistedEntry } from "../school-round/promote-shortlisted-entry";
 import { entryFileOf, lockEntry, settleEntryFile } from "./store";
 
 export async function applyEntryFileOutcome(
@@ -21,4 +22,5 @@ export async function applyEntryFileOutcome(
     const locked = await lockEntry(tx, found.entryId);
     if (locked) await settleEntryFile(tx, deps.clock, locked, found.id);
   });
+  await promoteShortlistedEntry(deps, found.entryId);
 }

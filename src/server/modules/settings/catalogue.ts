@@ -30,6 +30,7 @@ import {
   VOLUNTEER_AGE_RULE_BOUNDS,
   VOLUNTEER_AGE_RULE_DEFAULTS,
 } from "../volunteers/domain/eligibility";
+import { RESUBMISSION_DAYS } from "../verification/domain/decide";
 import {
   booleanSetting,
   integerSetting,
@@ -109,6 +110,7 @@ export const SETTINGS = {
   // runs and previews, which pay through the test checkout. The amounts
   // and the expiry are defaults FOA confirms (HR-51).
   "donations.enabled": booleanSetting({ default: false }),
+  "donations.recurringEnabled": booleanSetting({ default: false }),
   // Whether someone without an account may give.
   "donations.allowGuest": booleanSetting({ default: true }),
   "donations.minAmountRupees": integerSetting({
@@ -220,6 +222,32 @@ export const SETTINGS = {
   // and the hourly reminder sync plans any new time.
   "reminders.entrySubmissionDueFirstHours": reminderHours(72),
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
+  "reminders.schoolRoundShortlistDueFirstHours": reminderHours(72),
+  "reminders.schoolRoundShortlistDueSecondHours": reminderHours(24),
+  // Physical artwork (#93), HR-40: no requests until FOA supplies the address.
+  "artwork.dispatchDays": integerSetting({
+    default: 14,
+    min: 3,
+    max: 60,
+    unit: "days",
+  }),
+  "artwork.dispatchReminderLeadHours": reminderHours(72),
+  "artwork.packagingInstructions": textSetting({
+    default:
+      "Protect the original work with suitable packaging and mark it with the Artwork ID.",
+    maxLength: 2000,
+  }),
+  "artwork.shippingPayer": booleanSetting({ default: false }), // false: sender pays; true: FOA pays
+  "org.foaFacilityAddress": textSetting({ default: "", maxLength: 500 }),
+  // FOA verification (#92): how long a sent-back entry stays open for its
+  // resubmission, counted from the send-back. The owner's default is 7
+  // days (2026-11-19); FOA confirms it (HR-37).
+  "entries.resubmissionDays": integerSetting({
+    default: RESUBMISSION_DAYS.default,
+    min: RESUBMISSION_DAYS.min,
+    max: RESUBMISSION_DAYS.max,
+    unit: "days",
+  }),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel

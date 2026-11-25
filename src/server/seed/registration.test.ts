@@ -60,6 +60,13 @@ describe("the registration seed", () => {
         reference: "WINGS26-I-5EED3",
         status: "active",
       }),
+      expect.objectContaining({
+        id: "01938a00-0000-7000-8000-000000093000",
+        institutionId: SEED_SCOPES.institution.id,
+        competitionId: "01938a00-0000-7000-8000-000000009301",
+        reference: "ORIG27-I-5EED1",
+        status: "active",
+      }),
     ]);
   });
 

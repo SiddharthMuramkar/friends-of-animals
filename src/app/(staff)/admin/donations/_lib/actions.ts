@@ -143,3 +143,18 @@ export async function decideDonationRefundAction(formData: FormData) {
   }
   back(donationId, outcome.key, outcome.value);
 }
+
+export async function openOfflineDonationProofAction(formData: FormData) {
+  const actor = await signedIn();
+  const donationId = text(formData, "donationId");
+  const back = adminDonationPath(donationId);
+  let destination = `${back}?proof=unavailable`;
+  try {
+    const result = await as(actor).getOfflineDonationProof({ donationId });
+    if (result.ok) destination = result.url;
+  } catch (error) {
+    liftSecondFactor(error, back);
+    console.error(`Donation proof read failed: ${errorSummaryForLogs(error)}`);
+  }
+  redirect(destination);
+}

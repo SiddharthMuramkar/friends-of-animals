@@ -20,6 +20,7 @@ export const FILE_PURPOSES = [
   "adoption_photo",
   "entry_video",
   "entry_document",
+  "offline_donation_proof",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
@@ -122,6 +123,13 @@ export const PURPOSE_RULES = {
    * admins read it, and only `requestOfflinePaymentProofUpload` presigns
    * one, after its own authorization.
    */
+  // A donation's proof is read only through the finance donation use case.
+  offline_donation_proof: {
+    contentTypes: STORABLE_CONTENT_TYPES,
+    maxBytes: 10 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
   offline_payment_proof: {
     contentTypes: STORABLE_CONTENT_TYPES,
     maxBytes: 10 * MiB,

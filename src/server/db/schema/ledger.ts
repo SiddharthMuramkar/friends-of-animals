@@ -57,7 +57,7 @@ export const ledgerAccount = pgTable(
     isSystem: boolean("is_system").notNull().default(false),
     /** An inactive account takes no new manual lines; its history stays. */
     isActive: boolean("is_active").notNull().default(true),
-    /** What the transparency page (#110) shows; null shows the name. */
+    /** What the transparency page (#110) shows; null uses a public group or system label. */
     publicLabel: text("public_label"),
     /** How #110 groups it. Income and expense accounts only. */
     publicGroup: text("public_group", { enum: PUBLIC_GROUPS }),

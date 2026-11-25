@@ -52,7 +52,12 @@ export type UploadDecision =
     }
   | {
       ok: false;
-      reason: "submission_not_open" | "deadline_passed" | "entry_locked";
+      reason:
+        | "submission_not_open"
+        | "deadline_passed"
+        | "entry_locked"
+        /** A sent-back entry's resubmission deadline has passed (#92). */
+        | "resubmission_closed";
     };
 
 const IN_FLIGHT: ReadonlySet<EntryFileStatus> = new Set([
@@ -60,24 +65,42 @@ const IN_FLIGHT: ReadonlySet<EntryFileStatus> = new Set([
   "processing",
 ]);
 
+/** The entry's files still being checked. */
+function inFlight(entry: EntrySnapshot): string[] {
+  return entry.files
+    .filter((file) => IN_FLIGHT.has(file.status))
+    .map((file) => file.id);
+}
+
 /** Whether a new upload may go ahead now, and what it does. */
 export function decideUpload({
   entry,
   window,
   now,
+  resubmissionDueAt = null,
 }: {
   entry: EntrySnapshot | null;
   window: SubmissionWindow;
   now: Date;
+  /**
+   * When the entry is sent back by FOA (#92): its resubmission deadline.
+   * Until then a new file replaces the live one, whatever the submission
+   * window says.
+   */
+  resubmissionDueAt?: Date | null;
 }): UploadDecision {
+  if (entry?.status === "sent_back") {
+    if (!resubmissionDueAt || now.getTime() >= resubmissionDueAt.getTime()) {
+      return { ok: false, reason: "resubmission_closed" };
+    }
+    return { ok: true, action: "replace", supersede: inFlight(entry) };
+  }
   const state = windowState(window, now);
   if (state === "not_open") return { ok: false, reason: "submission_not_open" };
   if (state === "closed") return { ok: false, reason: "deadline_passed" };
   if (entry === null) return { ok: true, action: "create", supersede: [] };
 
-  const supersede = entry.files
-    .filter((file) => IN_FLIGHT.has(file.status))
-    .map((file) => file.id);
+  const supersede = inFlight(entry);
   if (canMoveEntry(entry.status, "processing")) {
     return { ok: true, action: "retry", supersede };
   }

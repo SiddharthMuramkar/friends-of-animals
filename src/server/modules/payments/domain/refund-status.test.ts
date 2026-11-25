@@ -81,12 +81,13 @@ describe("initialRefundStatus()", () => {
     expect(initialRefundStatus("foreign_payment")).toBe("approved");
   });
 
-  it("knows exactly four kinds", () => {
+  it("knows exactly five kinds", () => {
     expect(REFUND_KINDS).toEqual([
       "discretionary",
       "cancellation",
       "duplicate",
       "foreign_payment",
+      "recurring_after_cancel",
     ]);
   });
 });
