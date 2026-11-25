@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { derivativeKeyFor, derivativeKindsFor } from "./media-work";
+import {
+  derivativeKeyFor,
+  derivativeKindsFor,
+  mediaJobFor,
+} from "./media-work";
 import { storagePrefixOf } from "./storage-key";
 
 const FILE_ID = "01938a00-0000-7000-8000-000000000001";
@@ -94,5 +98,22 @@ describe("storagePrefixOf", () => {
         id: FILE_ID,
       })
     ).toThrow();
+  });
+});
+
+describe("essay PDF derivatives", () => {
+  it("queues PDF work only for essay documents and uses the PDF extension", () => {
+    expect(
+      mediaJobFor({ purpose: "entry_document", contentType: "application/pdf" })
+    ).toBe("pdf");
+    expect(
+      mediaJobFor({ purpose: "consent_form", contentType: "application/pdf" })
+    ).toBeNull();
+    expect(
+      mediaJobFor({ purpose: "entry_document", contentType: "image/webp" })
+    ).toBeNull();
+    expect(
+      derivativeKeyFor({ prefix: "local/", fileId: FILE_ID, kind: "pdf_clean" })
+    ).toBe(`local/derived/${FILE_ID}/pdf_clean.pdf`);
   });
 });

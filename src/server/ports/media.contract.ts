@@ -11,6 +11,7 @@ import {
   type DerivativeKind,
 } from "@/server/modules/files/domain/derivatives";
 import { readMediaFixture } from "@/test/media-fixtures";
+import { essayPdf, PDF_IDENTITY_MARKER } from "@/test/pdf-fixtures";
 import { webpMetadata, webpSize } from "@/test/webp";
 
 import { planVideoTranscode } from "@/server/modules/files/domain/video-transcode";
@@ -19,6 +20,7 @@ import {
   MediaError,
   type ImageProcessor,
   type MediaErrorCode,
+  type PdfProcessor,
   type VideoProcessor,
 } from "./media";
 
@@ -347,6 +349,46 @@ export function videoProcessorContract(
           maxDurationMs: THREE_MINUTES,
         }),
         "unsupported_type"
+      );
+    });
+  });
+}
+
+/** Each PDF adapter must produce a distinct, metadata-free copy or fail. */
+export function pdfProcessorContract(
+  name: string,
+  setup: () => Promise<{ processor: PdfProcessor }>
+) {
+  describe(`${name} (PdfProcessor contract)`, () => {
+    it("makes a separate PDF copy without the source's metadata", async () => {
+      const { processor } = await setup();
+      const bytes = essayPdf();
+      const copy = await processor.processPdf({ bytes });
+      expect(copy).toMatchObject({
+        kind: "pdf_clean",
+        contentType: "application/pdf",
+        width: null,
+        height: null,
+        durationMs: null,
+      });
+      expect(copy.bytes).not.toEqual(bytes);
+      const pdf = new TextDecoder().decode(copy.bytes);
+      expect(pdf).toMatch(/^%PDF-/);
+      expect(pdf).not.toContain(PDF_IDENTITY_MARKER);
+      expect(pdf).not.toContain("/EmbeddedFile");
+      expect(pdf).not.toContain("https://example.invalid/private");
+      expect(pdf).not.toContain("/Annots");
+    });
+
+    it("refuses a non-PDF and a truncated PDF", async () => {
+      const { processor } = await setup();
+      await expectMediaError(
+        processor.processPdf({ bytes: GIF }),
+        "unsupported_type"
+      );
+      await expectMediaError(
+        processor.processPdf({ bytes: text("%PDF-1.4\n") }),
+        "media_decode_failed"
       );
     });
   });

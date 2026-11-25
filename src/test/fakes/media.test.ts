@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MediaError } from "@/server/ports/media";
 import {
   mediaProcessorContract,
+  pdfProcessorContract,
   streamOf,
   videoProcessorContract,
 } from "@/server/ports/media.contract";
@@ -15,6 +16,10 @@ mediaProcessorContract("FakeMediaProcessor", async () => ({
 }));
 
 videoProcessorContract("FakeMediaProcessor", async () => ({
+  processor: new FakeMediaProcessor(),
+}));
+
+pdfProcessorContract("FakeMediaProcessor", async () => ({
   processor: new FakeMediaProcessor(),
 }));
 

@@ -1,14 +1,15 @@
-// The media jobs (#85, #86): derived copies of each clean image or video.
+// The shared media jobs: derived copies of clean images, videos and essay PDFs.
 //
 //   scan passes  → queueMediaWork, in the scan's transaction: a
 //                  file_processing row (queued) and a
 //                  files.processing_requested event (an image) or a
-//                  files.video_processing_requested event (a video), only
+//                  files.video_processing_requested or files.pdf_processing_requested, only
 //                  if the file's purpose and type get derivatives
 //                  (./domain/media-work.ts)
 //   worker-media → processImageAsset, the files.process_image handler, or
 //                  processVideoAsset (./process-video.ts), the
-//                  files.process_video handler, both on the media queue
+//                  files.process_video handler, or processPdfAsset, the
+//                  files.process_pdf handler, all on the media queue
 //                  (src/server/outbox/queues.ts): reads the original, makes
 //                  the derivatives with the MediaProcessor, stores them,
 //                  then records the file_derivative rows and marks the job
@@ -62,8 +63,9 @@ export type MediaJobDeps = {
 
 /**
  * Queues the file's media job if it gets derivatives. Call it in the
- * transaction that marks the file clean, and nowhere else: nothing is
- * processed before its scan passes. Returns whether it queued one.
+ * transaction that marks the file clean, or with an already-clean legacy
+ * PDF held under share lock: never before its scan passes. Returns whether
+ * it queued a job.
  */
 export async function queueMediaWork(
   tx: AppDb,
@@ -80,10 +82,13 @@ export async function queueMediaWork(
     .returning({ id: fileProcessing.fileAssetId });
   if (queued.length === 0) return false;
   await emit(tx, clock, {
-    type:
-      job === "video"
-        ? "files.video_processing_requested"
-        : "files.processing_requested",
+    type: (
+      {
+        image: "files.processing_requested",
+        video: "files.video_processing_requested",
+        pdf: "files.pdf_processing_requested",
+      } as const
+    )[job],
     aggregate: { type: "file_asset", id: file.id },
     payload: { fileId: file.id },
   });
@@ -115,8 +120,8 @@ export async function processImageAsset(
 export type MadeDerivative = {
   kind: StoredDerivativeKind;
   contentType: string;
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   durationMs: number | null;
   bytes: Uint8Array;
 };
@@ -175,7 +180,7 @@ export async function startJob(
   return started.length > 0 ? file : null;
 }
 
-async function readAll(
+export async function readAll(
   stream: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer());

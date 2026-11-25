@@ -7,7 +7,7 @@
 // after this read, and a clean file is served as it was scanned. What the
 // file becomes is scanOutcome's call (domain/scan-outcome.ts):
 //   - clean        deliverable to anyone `can()` allows; its media job is
-//                  queued, or files.file_ready says it needs none (#86);
+//                  queued, or files.file_ready says it needs none;
 //   - quarantined  moved to `<prefix>quarantine/<id>`, audited, never
 //                  delivered to anyone (files.file_quarantined);
 //   - rejected     its bytes aren't the declared type; the object is
@@ -226,9 +226,8 @@ async function settle(
   };
 
   if (status === "clean") {
-    // An image's or a video's derivatives are queued with the verdict
-    // (#85, #86), never before it. A file that gets none is ready now, and
-    // the module whose upload it was hears so (an essay's PDF, #86).
+    // Image, video and essay PDF derivatives are queued with the verdict,
+    // never before it. A file that gets none is ready now.
     await db.transaction(async (tx) => {
       if (!(await recordVerdict(tx, file, verdict))) return;
       if (mediaJobFor(file) !== null) {

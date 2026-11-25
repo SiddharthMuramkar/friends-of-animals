@@ -167,7 +167,7 @@ export const PURPOSE_RULES = {
   },
   /**
    * A participant's essay as a PDF (#86). Only `startEntryUpload` presigns
-   * one; it is shown as stored once its scan passes.
+   * one; the scan and blind-judging raster copy must be ready (#96).
    */
   entry_document: {
     contentTypes: ["application/pdf"],
