@@ -9,6 +9,7 @@ import {
 } from "@/server/db/schema";
 import { createHarness, type Harness } from "@/test/harness";
 
+import { SEED_RECURRING_CHARGES } from "./recurring-donations";
 import { SEED_DONATIONS } from "./donations";
 
 async function rows(h: Harness) {
@@ -38,10 +39,13 @@ describe("the donations seed", () => {
       { id: SEED_DONATIONS.csr.donationId, status: "captured" },
       { id: SEED_DONATIONS.pending.donationId, status: "pending" },
       { id: SEED_DONATIONS.foreign.donationId, status: "refunded" },
+      ...SEED_RECURRING_CHARGES.map((id) => ({ id, status: "captured" })),
     ]);
     expect(once.receipts.map((each) => each.number)).toEqual([
       "FOA-RCPT-2627-000001",
       "FOA-RCPT-2627-000002",
+      "FOA-RCPT-2627-000003",
+      "FOA-RCPT-2627-000004",
     ]);
     // The ledger seed's reconcile posts them.
     expect(
@@ -51,6 +55,10 @@ describe("the donations seed", () => {
     ).toEqual([
       { sourceType: "donation", sourceId: SEED_DONATIONS.captured.donationId },
       { sourceType: "donation", sourceId: SEED_DONATIONS.csr.donationId },
+      ...SEED_RECURRING_CHARGES.map((sourceId) => ({
+        sourceId,
+        sourceType: "donation",
+      })),
       { sourceType: "foreign_donation", sourceId: "pay_seed_foreign" },
     ]);
     expect(await rows(h)).toEqual(once);

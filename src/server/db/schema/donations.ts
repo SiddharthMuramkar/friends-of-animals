@@ -50,6 +50,7 @@ import type { ReceiptSnapshot } from "../../modules/donations/receipts/snapshot"
 import { encryptedText } from "../types/encrypted-text";
 import { user } from "./identity";
 import { paymentBatch } from "./payments";
+import { recurringDonation } from "./recurring-donations";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
@@ -131,6 +132,10 @@ export const donation = pgTable(
     checkoutTokenHash: text("checkout_token_hash"),
     /** The captured gateway payment; null until captured. */
     gatewayPaymentId: text("gateway_payment_id"),
+    recurringDonationId: uuid("recurring_donation_id").references(
+      () => recurringDonation.id,
+      { onDelete: "restrict" }
+    ),
     /** When a pending online donation expires unpaid. */
     expiresAt: timestamptz("expires_at"),
     capturedAt: timestamptz("captured_at"),
@@ -138,6 +143,7 @@ export const donation = pgTable(
     updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
+    unique("donation_gateway_payment_unique").on(table.gatewayPaymentId),
     unique("donation_payment_batch_unique").on(table.paymentBatchId),
     unique("donation_checkout_token_hash_unique").on(table.checkoutTokenHash),
     check("donation_amount_positive", sql`${table.amountMinor} > 0`),

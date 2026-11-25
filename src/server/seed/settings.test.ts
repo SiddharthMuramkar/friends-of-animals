@@ -26,6 +26,7 @@ describe("the settings seed", () => {
       { key: "donations.maxAmountRupees", value: 100_000 },
       { key: "donations.minAmountRupees", value: 100 },
       { key: "donations.pendingExpiryHours", value: 24 },
+      { key: "donations.recurringEnabled", value: true },
       { key: "entries.resubmissionDays", value: 7 },
       // The accountant's export waits for HR-47 only in production (#109).
       { key: "ledger.accountantExport", value: true },

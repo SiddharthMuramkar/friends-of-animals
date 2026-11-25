@@ -492,6 +492,36 @@ export type DomainEvent =
       payload: { donationId: string; refundId: string };
     }
   | {
+      type: "recurring_donation.activated";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.charge_failed";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.cancelled";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.refunded";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.payment_refused";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.cancel_requested";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
       /** A donor asked for a new receipt link by email (#106). The token
        * is minted when the email goes, never stored here. */
       type: "receipt.link_requested";
@@ -871,6 +901,15 @@ export const EVENT_PAYLOADS = {
     donationId: z.uuid(),
     refundId: z.uuid(),
   }),
+  "recurring_donation.activated": z.object({ id: z.uuid() }),
+  "recurring_donation.charge_failed": z.object({ id: z.uuid() }),
+  "recurring_donation.cancelled": z.object({ id: z.uuid() }),
+  "recurring_donation.refunded": z.object({ id: z.uuid() }),
+  "recurring_donation.payment_refused": z.object({
+    id: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "recurring_donation.cancel_requested": z.object({ id: z.uuid() }),
   "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
@@ -1090,6 +1129,12 @@ export const SUBSCRIBERS = {
   "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
   "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
   "donation.refunded": ["donations.send_refund_notice"],
+  "recurring_donation.activated": ["recurring_donations.send_notice"],
+  "recurring_donation.charge_failed": ["recurring_donations.send_notice"],
+  "recurring_donation.cancelled": ["recurring_donations.send_notice"],
+  "recurring_donation.refunded": ["recurring_donations.send_notice"],
+  "recurring_donation.payment_refused": ["ledger.post_foreign_donation"],
+  "recurring_donation.cancel_requested": ["recurring_donations.cancel"],
   "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).

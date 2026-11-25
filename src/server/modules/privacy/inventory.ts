@@ -1459,6 +1459,12 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "retain",
   })("snapshot", "identity"),
   actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
+  rowsOf("recurring_donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  actorColumn("recurring_donation", "user_id", DONATION_RECORD),
   // Privacy rights requests (#115): who asked about whom, and the words
   // the requester and the grievance officer wrote, encrypted.
   privacyRequestColumn("subject_id", "identity"),

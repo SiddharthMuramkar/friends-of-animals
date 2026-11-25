@@ -179,6 +179,7 @@ describe("ledger source types", () => {
       "refund",
       "donation",
       "foreign_donation",
+      "recurring_after_cancel",
       "manual",
       "reversal",
     ]);

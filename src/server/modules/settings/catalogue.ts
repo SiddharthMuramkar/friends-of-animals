@@ -110,6 +110,7 @@ export const SETTINGS = {
   // runs and previews, which pay through the test checkout. The amounts
   // and the expiry are defaults FOA confirms (HR-51).
   "donations.enabled": booleanSetting({ default: false }),
+  "donations.recurringEnabled": booleanSetting({ default: false }),
   // Whether someone without an account may give.
   "donations.allowGuest": booleanSetting({ default: true }),
   "donations.minAmountRupees": integerSetting({

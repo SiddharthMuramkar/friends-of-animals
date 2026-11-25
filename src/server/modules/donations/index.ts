@@ -40,6 +40,7 @@ import {
   type RequestReceiptLinkByEmailInput,
 } from "./receipt-links";
 import { startDonation, type StartDonationInput } from "./start-donation";
+import { recurringUseCases } from "./recurring";
 import { getDonationTerms } from "./terms";
 
 export type * from "./admin";
@@ -54,6 +55,7 @@ export type { DonorType } from "./domain/donor";
 export type { ReceiptSnapshot } from "./receipts/snapshot";
 
 export const donationsUseCases = (ctx: UseCaseContext) => ({
+  ...recurringUseCases(ctx),
   getDonationTerms: () => getDonationTerms(ctx),
   startDonation: (input: StartDonationInput) => startDonation(ctx, input),
   payForDonation: (input: PayForDonationInput) => payForDonation(ctx, input),
