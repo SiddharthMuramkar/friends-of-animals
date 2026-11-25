@@ -1,0 +1,321 @@
+{
+  "adoption": {
+    "disclaimer": {
+      "label": "About adoption through FOA",
+      "body": "Friends of Animals facilitates adoption. The organisation that lists an animal is responsible for it, for its care until it goes home and for the adoption itself."
+    },
+    "species": {
+      "dog": "Dog",
+      "cat": "Cat",
+      "rabbit": "Rabbit",
+      "bird": "Bird",
+      "other": "Other"
+    },
+    "sex": {
+      "female": "Female",
+      "male": "Male",
+      "unknown": "Not known"
+    },
+    "size": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large"
+    },
+    "ageBand": {
+      "baby": "Under 6 months",
+      "young": "6 months to 2 years",
+      "adult": "2 to 8 years",
+      "senior": "8 years and over"
+    },
+    "ageParts": {
+      "years": "{years, plural, one {# year} other {# years}}",
+      "months": "{months, plural, one {# month} other {# months}}",
+      "underMonth": "under 1 month"
+    },
+    "aboutAge": "About {age}",
+    "sterilised": {
+      "yes": "Sterilised",
+      "no": "Not sterilised",
+      "unknown": "Not known"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "on_hold": "On hold",
+      "adopted": "Adopted",
+      "withdrawn": "Withdrawn"
+    },
+    "browse": {
+      "meta": {
+        "title": "Adopt an animal",
+        "description": "Dogs, cats and other animals looking for a home, listed by organisations FOA has verified."
+      },
+      "eyebrow": "Adoption",
+      "title": "Adopt an animal",
+      "lead": "Animals looking for a home, listed by rescuers and organisations FOA has verified. Each one's page says who to talk to.",
+      "filters": {
+        "title": "Filter animals",
+        "species": "Animal",
+        "age": "Age",
+        "sex": "Sex",
+        "size": "Size",
+        "state": "State",
+        "city": "City",
+        "pin": "PIN code",
+        "sterilised": "Only sterilised animals",
+        "any": "Any",
+        "apply": "Show animals",
+        "clear": "Clear filters"
+      },
+      "results": "Animals for adoption",
+      "count": "{count, plural, =0 {No animals match} one {# animal on this page} other {# animals on this page}}",
+      "empty": "No animal matches these filters right now. Try fewer filters, or come back soon.",
+      "next": "More animals",
+      "first": "Back to the newest",
+      "loading": "Loading animals",
+      "noPhoto": "No photo yet",
+      "place": "{city}, {state}",
+      "from": "With {organisation}"
+    },
+    "animal": {
+      "loading": "Loading this animal's page",
+      "eyebrow": "Up for adoption",
+      "onHold": "On hold: an adoption is being discussed, or this animal needs time. You can still ask about it.",
+      "adopted": "Adopted: this animal has found a home.",
+      "factsTitle": "At a glance",
+      "species": "Animal",
+      "breed": "Breed",
+      "sex": "Sex",
+      "age": "Age",
+      "size": "Size",
+      "colour": "Colour",
+      "sterilised": "Sterilised",
+      "place": "Where",
+      "placeValue": "{city}, {state} {pinCode}",
+      "aboutTitle": "About {name}",
+      "healthTitle": "Health",
+      "vaccinationTitle": "Vaccinations",
+      "conditionsTitle": "Adoption conditions",
+      "noNotes": "Not given.",
+      "photosTitle": "Photos",
+      "organisationTitle": "Who to talk to",
+      "organisationBody": "{organisation} listed {name}. Their page has their contact details.",
+      "organisationLink": "See {organisation}",
+      "back": "All animals"
+    },
+    "manage": {
+      "back": "Back to the listing",
+      "forbidden": {
+        "title": "You can't manage these animals",
+        "body": "Only the representatives of a verified directory listing manage its animals.",
+        "back": "Your listings"
+      },
+      "notVerified": "Your listing isn't verified right now, so its animals are hidden and can't be published or changed.",
+      "loading": "Loading",
+      "list": {
+        "meta": {
+          "title": "Animals for adoption",
+          "description": "The animals your listing offers for adoption."
+        },
+        "eyebrow": "Adoption",
+        "title": "Animals from {name}",
+        "lead": "Add an animal, give it photos and publish it on /adopt. Drafts stay private.",
+        "add": "Add an animal",
+        "empty": "No animals yet.",
+        "name": "Animal",
+        "status": "Status",
+        "photos": "Photos",
+        "updated": "Last changed",
+        "open": "Manage {name}"
+      },
+      "new": {
+        "meta": {
+          "title": "Add an animal",
+          "description": "List an animal for adoption."
+        },
+        "title": "Add an animal",
+        "lead": "Write what an adopter needs to know. It stays a private draft until you add a photo and publish it.",
+        "submit": "Save the draft",
+        "submitting": "Saving"
+      },
+      "edit": {
+        "meta": {
+          "title": "Edit an animal",
+          "description": "Change what an animal's page says."
+        },
+        "title": "Edit {name}",
+        "lead": "Changes to a published animal show at once.",
+        "submit": "Save changes",
+        "submitting": "Saving"
+      },
+      "animal": {
+        "meta": {
+          "title": "Manage an animal",
+          "description": "Photos, publishing and details of one animal."
+        },
+        "eyebrow": "Adoption",
+        "notices": {
+          "created": "Saved as a draft. Add a photo, then publish.",
+          "saved": "Saved.",
+          "unchanged": "Nothing had changed.",
+          "published": "Published: it is on /adopt now.",
+          "held": "On hold: it is out of the list, and its page says so.",
+          "resumed": "Back on the list.",
+          "withdrawn": "Withdrawn.",
+          "photoRemoved": "Photo removed.",
+          "photoDescribed": "Text alternative saved."
+        },
+        "detailsTitle": "Details",
+        "edit": "Edit details",
+        "viewPublic": "See its public page",
+        "photosTitle": "Photos",
+        "photosLead": "Up to {max} photos. Each needs a short description for people who can't see it. Photos show once they are checked and resized, in a minute or two.",
+        "noPhotos": "No photos yet.",
+        "photoState": {
+          "uploading": "Uploading",
+          "scanning": "Being checked",
+          "processing": "Being resized",
+          "ready": "Ready",
+          "refused": "Couldn't be used"
+        },
+        "describe": "Save description",
+        "remove": "Remove photo",
+        "movesTitle": "Publishing",
+        "blockers": {
+          "no_photo": "Add a photo and wait until it is ready before publishing.",
+          "directory_not_verified": "Your listing must be verified to publish."
+        },
+        "publish": "Publish",
+        "hold": "Put on hold",
+        "holdHint": "Takes it out of the list while an adoption is discussed. Its page stays, marked on hold.",
+        "resume": "Put back on the list",
+        "withdraw": "Withdraw",
+        "withdrawHint": "Takes it down for good. Use this if it has gone home another way, or won't be adopted.",
+        "closed": "This listing is closed. Its details can't change.",
+        "errors": {
+          "invalid_transition": "That can't be done to this animal now. The page shows where it is.",
+          "directory_not_verified": "Your listing must be verified for that.",
+          "publish_blocked": "It can't be published yet.",
+          "listing_closed": "This listing is closed.",
+          "last_photo": "A published animal keeps at least one ready photo. Add another first.",
+          "alt_required": "Describe the photo.",
+          "alt_too_long": "Keep the description to 150 characters.",
+          "invalid_input": "Something in the request wasn't right. Try again.",
+          "unexpected": "Something went wrong. Try again."
+        },
+        "photoMeta": "Photo {position}: {state}"
+      },
+      "upload": {
+        "title": "Add a photo",
+        "file": "Photo",
+        "limits": "JPEG, PNG, WebP or HEIC, up to 15 MB.",
+        "alt": "Describe the photo",
+        "altHint": "For people who can't see it, up to 150 characters: for example, \"Bruno lying in the sun\".",
+        "submit": "Upload photo",
+        "uploading": "Uploading",
+        "uploaded": "Uploaded. It shows here once it is checked and resized.",
+        "errors": {
+          "empty": "Choose a photo.",
+          "alt_required": "Describe the photo.",
+          "alt_too_long": "Keep the description to 150 characters.",
+          "type_not_allowed": "Use a JPEG, PNG, WebP or HEIC photo.",
+          "too_large": "That photo is over 15 MB.",
+          "too_many_photos": "This animal has the most photos it can have. Remove one first.",
+          "listing_closed": "This listing is closed.",
+          "directory_not_verified": "Your listing must be verified to add photos.",
+          "upload_failed": "The upload didn't finish. Try again.",
+          "forbidden": "You can't add photos to this animal.",
+          "unexpected": "Something went wrong. Try again."
+        }
+      },
+      "form": {
+        "sections": {
+          "animal": "The animal",
+          "health": "Health",
+          "adoption": "Adoption",
+          "place": "Where it is"
+        },
+        "fields": {
+          "name": {
+            "label": "Name",
+            "error": "Give a name of up to 60 characters."
+          },
+          "species": {
+            "label": "Animal",
+            "error": "Choose an animal."
+          },
+          "breed": {
+            "label": "Breed (optional)",
+            "error": "Keep the breed to 60 characters."
+          },
+          "sex": {
+            "label": "Sex",
+            "error": "Choose one."
+          },
+          "size": {
+            "label": "Size",
+            "error": "Choose a size."
+          },
+          "colour": {
+            "label": "Colour (optional)",
+            "error": "Keep the colour to 40 characters."
+          },
+          "age": {
+            "label": "Age, about",
+            "hint": "A guess is fine. Its page keeps the age up to date.",
+            "years": "Years",
+            "months": "Months",
+            "error": "Give 0 to 60 years and 0 to 11 months."
+          },
+          "sterilised": {
+            "label": "Sterilised",
+            "error": "Choose one."
+          },
+          "about": {
+            "label": "About the animal (optional)",
+            "hint": "Character, habits, how it is with people and other animals.",
+            "error": "Keep this to 1,500 characters."
+          },
+          "healthNotes": {
+            "label": "Health notes (optional)",
+            "error": "Keep this to 2,000 characters."
+          },
+          "vaccinationNotes": {
+            "label": "Vaccinations (optional)",
+            "error": "Keep this to 1,000 characters."
+          },
+          "conditions": {
+            "label": "Adoption conditions",
+            "hint": "What you ask of an adopter: a home visit, an indoor home, a follow-up call.",
+            "error": "Write the adoption conditions, up to 2,000 characters."
+          },
+          "state": {
+            "label": "State or union territory",
+            "error": "Choose a state."
+          },
+          "city": {
+            "label": "City or town",
+            "error": "Give a city of up to 80 characters."
+          },
+          "pinCode": {
+            "label": "PIN code",
+            "error": "Give a 6-digit PIN code."
+          }
+        },
+        "sizeNone": "Not given",
+        "alerts": {
+          "invalid_input": "Some answers need fixing. They are marked below.",
+          "directory_not_verified": "Your listing must be verified to list animals.",
+          "listing_closed": "This listing is closed. Its details can't change.",
+          "unexpected": "Something went wrong. Try again."
+        },
+        "statePlaceholder": "Choose a state"
+      }
+    },
+    "organisationLink": {
+      "title": "Animals for adoption",
+      "body": "List animals that need a home. They show on /adopt while your listing is verified.",
+      "link": "Manage animals"
+    }
+  }
+}

@@ -184,6 +184,38 @@ export function publicListingPath(slug: string): string {
   return `/ngos/${encodeURIComponent(slug)}`;
 }
 
+/**
+ * A directory listing's animals for adoption (#129), managed by its
+ * representatives. Listed with APP_ROUTE_TEMPLATES. The public pages,
+ * /adopt and /adopt/<slug>, are in src/lib/routes.ts.
+ */
+export function adoptionsPath(listingId: string): string {
+  return `${myListingPath(listingId)}/adoptions`;
+}
+
+/** Where a representative adds an animal. */
+export function newAdoptionPath(listingId: string): string {
+  return `${adoptionsPath(listingId)}/new`;
+}
+
+/** One animal's photos, publishing and details. */
+export function adoptionPath(listingId: string, adoptionId: string): string {
+  return `${adoptionsPath(listingId)}/${encodeURIComponent(adoptionId)}`;
+}
+
+/** Where a representative edits an animal's details. */
+export function editAdoptionPath(
+  listingId: string,
+  adoptionId: string
+): string {
+  return `${adoptionPath(listingId, adoptionId)}/edit`;
+}
+
+/** An adoptable animal's public page. */
+export function adoptableAnimalPath(slug: string): string {
+  return `/adopt/${encodeURIComponent(slug)}`;
+}
+
 /** Campaigns to consented segments (#126): the list, the composer, each one. */
 export const ADMIN_CAMPAIGNS = "/admin/campaigns";
 export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
@@ -447,6 +479,10 @@ export const APP_ROUTE_TEMPLATES = [
   "/organisation/[id]/edit",
   ADMIN_DIRECTORY,
   "/admin/directory/[id]",
+  "/organisation/[id]/adoptions",
+  "/organisation/[id]/adoptions/new",
+  "/organisation/[id]/adoptions/[adoptionId]",
+  "/organisation/[id]/adoptions/[adoptionId]/edit",
 ] as const;
 
 /**
