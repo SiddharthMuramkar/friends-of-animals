@@ -96,13 +96,18 @@ async function Rounds({ params, searchParams }: Props) {
           <section
             key={round.id}
             className={CARD}
-            aria-labelledby={`round-${round.id}`}
+            aria-labelledby={`round-${round.id} reference-${round.id}`}
           >
             <SectionHeading
               id={`round-${round.id}`}
               title={round.institutionName}
             />
-            <p className="mt-2 text-sm text-ink-muted">{round.reference}</p>
+            <p
+              id={`reference-${round.id}`}
+              className="mt-2 text-sm text-ink-muted"
+            >
+              {round.reference}
+            </p>
             <p className="mt-3">
               <Chip
                 tone={
@@ -125,7 +130,7 @@ async function Rounds({ params, searchParams }: Props) {
               <form
                 className="mt-4 flex flex-col gap-3"
                 action={changeSchoolRoundAction}
-                aria-labelledby={`close-${round.id}`}
+                aria-labelledby={`close-${round.id} round-${round.id} reference-${round.id}`}
               >
                 <h3 id={`close-${round.id}`}>{t("close")}</h3>
                 <p>{t("closeLead")}</p>
@@ -150,7 +155,7 @@ async function Rounds({ params, searchParams }: Props) {
               <form
                 className="mt-4 flex flex-col gap-3"
                 action={changeSchoolRoundAction}
-                aria-labelledby={`reopen-${round.id}`}
+                aria-labelledby={`reopen-${round.id} round-${round.id} reference-${round.id}`}
               >
                 <h3 id={`reopen-${round.id}`}>{t("reopen")}</h3>
                 <p>{t("reopenLead")}</p>
