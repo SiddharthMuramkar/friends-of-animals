@@ -75,9 +75,14 @@ test("published results appear in adult and linked child timelines", async ({
   await expect(
     page.getByText("Art for kindness", { exact: true }).first()
   ).toBeVisible();
-  await expect(
-    page.getByText("Became a FOA finalist", { exact: true })
-  ).toBeVisible();
+  const adultFinalist = page
+    .getByRole("listitem")
+    .filter({
+      has: page.getByText("Art for kindness", { exact: true }),
+    })
+    .filter({ has: page.getByText("Became a FOA finalist", { exact: true }) });
+  await expect(adultFinalist).toHaveCount(1);
+  await expect(adultFinalist).toBeVisible();
   await check(page, "seeded adult history");
   const guardian = await newDevice(browser, info);
   try {
@@ -91,9 +96,16 @@ test("published results appear in adult and linked child timelines", async ({
         name: "Rohan Desai’s engagement timeline",
       })
     ).toBeVisible();
-    await expect(
-      guardian.getByText("Became a FOA finalist", { exact: true })
-    ).toBeVisible();
+    const teenFinalist = guardian
+      .getByRole("listitem")
+      .filter({
+        has: guardian.getByText("Art for kindness", { exact: true }),
+      })
+      .filter({
+        has: guardian.getByText("Became a FOA finalist", { exact: true }),
+      });
+    await expect(teenFinalist).toHaveCount(1);
+    await expect(teenFinalist).toBeVisible();
     await check(guardian, "linked teen timeline");
     await guardian.goto(
       `/guardian/children/${SEED_GUARDIANS.children.young.profileId}/timeline`
