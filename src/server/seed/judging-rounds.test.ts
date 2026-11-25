@@ -4,7 +4,7 @@ import { judgingRound, judgeInvitation, judgeOnboarding } from "../db/schema";
 import { SEED_JUDGING } from "./judging-rounds";
 import { SEED_COMPETITION_MANAGER } from "./competitions";
 describe("judging round seeds", () => {
-  it("seeds two national physical rounds and both stages of judge onboarding idempotently", async () => {
+  it("seeds pilot rounds, a waiting global continuation and both stages of judge onboarding idempotently", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = h.as(await h.signIn(SEED_COMPETITION_MANAGER));
@@ -22,6 +22,23 @@ describe("judging round seeds", () => {
     expect(
       await manager.getJudgingRound({ roundId: SEED_JUDGING.openRoundId })
     ).toMatchObject({ ok: true, round: { status: "open" } });
+    expect(
+      await manager.getJudgingRound({
+        roundId: SEED_JUDGING.continuationRoundId,
+      })
+    ).toMatchObject({
+      ok: true,
+      round: {
+        status: "draft",
+        level: "global",
+        judgesPhysical: false,
+        entrySource: "round_finalists",
+        sourceRoundId: SEED_JUDGING.openRoundId,
+      },
+    });
+    expect(
+      await manager.admitToPool({ roundId: SEED_JUDGING.continuationRoundId })
+    ).toMatchObject({ ok: false, error: "source_not_locked" });
     expect(
       await h.as(await h.signIn(SEED_JUDGING.onboardedJudge)).myJudgeRounds()
     ).toMatchObject({ ok: true, rounds: [{ readiness: { ready: true } }] });

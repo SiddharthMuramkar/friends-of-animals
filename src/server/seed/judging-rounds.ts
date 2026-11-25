@@ -28,6 +28,7 @@ const id = (n: number) =>
 export const SEED_JUDGING = {
   draftRoundId: id(1),
   openRoundId: id(2),
+  continuationRoundId: id(8),
   onboardedJudge: {
     id: id(3),
     name: "Sample Onboarded Judge",
@@ -57,8 +58,22 @@ export async function seedJudgingRounds(deps: SeedDeps) {
   for (const [roundId, name, status] of [
     [SEED_JUDGING.draftRoundId, "Sample national draft", "draft"],
     [SEED_JUDGING.openRoundId, "Sample national final", "open"],
+    [SEED_JUDGING.continuationRoundId, "Sample global continuation", "draft"],
   ] as const) {
+    const chained = roundId === SEED_JUDGING.continuationRoundId;
     await db.transaction(async (tx) => {
+      if (chained) {
+        const [source] = await tx
+          .select()
+          .from(judgingRound)
+          .where(eq(judgingRound.id, SEED_JUDGING.openRoundId));
+        if (
+          !source ||
+          source.competitionId !== comp.id ||
+          source.status === "cancelled"
+        )
+          return;
+      }
       const [added] = await tx
         .insert(judgingRound)
         .values({
@@ -66,8 +81,10 @@ export async function seedJudgingRounds(deps: SeedDeps) {
           competitionId: comp.id,
           name,
           nameKey: roundNameKey(name),
-          level: "national",
-          judgesPhysical: true,
+          level: chained ? "global" : "national",
+          judgesPhysical: !chained,
+          entrySource: chained ? "round_finalists" : "verified_entries",
+          sourceRoundId: chained ? SEED_JUDGING.openRoundId : null,
           awardScheme: "ranked_123",
           status,
           createdAt: now,

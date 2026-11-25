@@ -25,7 +25,13 @@ import {
   loadJudgeConflictFacts,
 } from "./conflict-facts";
 import { loadJudgeReadiness } from "./judges";
-import { actorId, authorizeRound, loadRound } from "./rounds";
+import { loadFinalistSource } from "./chain-source";
+import {
+  actorId,
+  authorizeRound,
+  loadRound,
+  lockRoundCompetition,
+} from "./rounds";
 import { physicallyReadyEntryIds } from "./physical-readiness";
 
 const notFound = { ok: false, error: "not_found" } as const;
@@ -62,11 +68,26 @@ export async function admitToPool(
   if (!parsed.success) return invalidInput(parsed.error);
   if (!round) return notFound;
   return ctx.db.transaction(async (tx) => {
+    // Graph, admission and recognition changes serialize on competition,
+    // then round rows. Never inspect a stale source or insert after its tag changes.
+    const parent = await lockRoundCompetition(tx, round.competitionId);
+    if (!parent) return notFound;
+    if (String(parent.status) === "results_published") return closed;
     const current = await loadRound(tx, round.id, true);
     if (!current || !acceptsJudges(current.status)) return closed;
+    const source = await loadFinalistSource(tx, current, true);
+    if (current.entrySource === "round_finalists") {
+      if (!source) return { ok: false, error: "source_not_found" } as const;
+      if (source.status === "cancelled")
+        return { ok: false, error: "source_cancelled" } as const;
+      if (source.status !== "locked")
+        return { ok: false, error: "source_not_locked" } as const;
+    }
     const requested =
       parsed.data.entryIds === undefined
-        ? undefined
+        ? source
+          ? [...source.finalists]
+          : undefined
         : [...new Set(parsed.data.entryIds)];
     const entries =
       requested?.length === 0
@@ -88,6 +109,10 @@ export async function admitToPool(
     const refused: { entryId: string; reason: PoolRefusal }[] = [];
     const admittedIds: string[] = [];
     for (const entryId of requested ?? entries.map((e) => e.id)) {
+      if (source && !source.finalists.has(entryId)) {
+        refused.push({ entryId, reason: "not_source_finalist" });
+        continue;
+      }
       const decision = decidePoolAdmission({
         judgesPhysical: current.judgesPhysical,
         foaVerified: statuses.get(entryId) === "foa_verified",
@@ -367,11 +392,20 @@ export async function getRoundPool(
   const physical = round.judgesPhysical
     ? await physicallyReadyEntryIds(ctx.db, round.competitionId)
     : null;
+  const source = await loadFinalistSource(ctx.db, round);
   const counts = new Map<string, number>();
   for (const a of assignments)
     counts.set(a.entryId, (counts.get(a.entryId) ?? 0) + 1);
   return {
     ok: true,
+    source: source
+      ? {
+          id: source.id,
+          name: source.name,
+          status: source.status,
+          advancingCount: source.finalists.size,
+        }
+      : null,
     entries: entries
       .filter((e) => !physical || physical.has(e.entryId))
       .map((e) => ({
