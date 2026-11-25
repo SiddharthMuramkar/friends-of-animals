@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
 import { SEED_AUCTIONS } from "@/server/seed/auctions";
 import { SEED_ACCOUNTS } from "@/server/seed/accounts";
 import { signedInOfficer } from "../privacy/requests/testing";
@@ -11,7 +12,7 @@ import { SEED_GUARDIANS } from "@/server/seed/guardians";
 describe("auction payment", () => {
   it("offers the winner an exclusive checkout and passes an expired offer to the next buyer", async () => {
     const h = await createHarness();
-    await h.seed.preview();
+    await seedAuctionResults(h.deps);
     const first = h.as(await h.signIn(SEED_ACCOUNTS.members[2]));
     const next = h.as(await h.signIn(SEED_GUARDIANS.guardian));
     const manager = h.as(await h.signIn(SEED_AUCTIONS.manager));
@@ -58,7 +59,7 @@ describe("auction payment", () => {
 describe("auction capture and delivery", () => {
   it("captures one sale, snapshots the policy, posts exact paise, and tracks receipt", async () => {
     const h = await createHarness();
-    await h.seed.preview();
+    await seedAuctionResults(h.deps);
     const buyer = h.as(await h.signIn(SEED_ACCOUNTS.members[2]));
     const stranger = h.as(await h.signIn(SEED_GUARDIANS.guardian));
     const manager = h.as(await h.signIn(SEED_AUCTIONS.manager));
@@ -248,7 +249,7 @@ describe("auction capture and delivery", () => {
 describe("auction review and privacy", () => {
   it("never sells on a late capture, returns review money and relists after the last offer", async () => {
     const h = await createHarness();
-    await h.seed.preview();
+    await seedAuctionResults(h.deps);
     const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
     const visitor = h.as(h.visitor());
     const manager = h.as(await h.signIn(SEED_AUCTIONS.manager));
@@ -342,7 +343,7 @@ describe("auction review and privacy", () => {
 
 it("keeps delivered sale accounting after either subject erases their data, without exposing buyer delivery fields to the creator", async () => {
   const h = await createHarness();
-  await h.seed.preview();
+  await seedAuctionResults(h.deps);
   await h.settings.set("privacy.erasureEnabled", true);
   const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
   const creator = h.as(await h.signIn(SEED_AUCTIONS.artist));
@@ -426,7 +427,7 @@ it("keeps delivered sale accounting after either subject erases their data, with
 
 it("reviews wrong-currency and mismatched captures and extra money without selling twice", async () => {
   const h = await createHarness();
-  await h.seed.preview();
+  await seedAuctionResults(h.deps);
   const visitor = h.as(h.visitor());
   const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
   const other = h.as(await h.signIn(SEED_AUCTIONS.buyerMobile));
