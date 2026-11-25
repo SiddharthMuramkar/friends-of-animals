@@ -159,8 +159,20 @@ export async function ownedProfiles(ctx: Pick<UseCaseContext, "db" | "actor">) {
     .where(and(eq(guardian.userId, uid), verifiedLink()));
   return [...new Set([...own, ...linked].map((r) => r.id))];
 }
-/** Ownership is defined once for download variants; #124 can extend this
- * when a volunteer certificate has its own user holder. */
+/** Predicate loads only a person's user-held and current profile-held
+ * certificates. Keep missing and unrelated rows indistinguishable before
+ * locking a byte-serving row, then recheck the same scope in its transaction. */
+export async function certificateOwnershipFilter(
+  ctx: Pick<UseCaseContext, "db" | "actor">
+) {
+  if (ctx.actor.kind !== "user") return sql`false`;
+  const ids = await ownedProfiles(ctx);
+  return or(
+    eq(certificate.recipientUserId, ctx.actor.userId),
+    ids.length ? inArray(certificate.participantProfileId, ids) : sql`false`
+  )!;
+}
+/** The final ownership check used by both private download variants. */
 export async function certificateOwner(
   ctx: Pick<UseCaseContext, "db" | "actor">,
   row: { participantProfileId: string | null; recipientUserId: string | null }
@@ -174,8 +186,7 @@ export async function certificateOwner(
 }
 export async function listMyCertificates(ctx: UseCaseContext) {
   await authorize(ctx, "certificates.list_mine");
-  const ids = await ownedProfiles(ctx);
-  if (ctx.actor.kind !== "user") return [];
+  const owned = await certificateOwnershipFilter(ctx);
   return ctx.db
     .select({
       ...publicFields,
@@ -202,12 +213,7 @@ export async function listMyCertificates(ctx: UseCaseContext) {
         eq(fileDerivative.kind, STAMP_SETTINGS.certificate_share.kind)
       )
     )
-    .where(
-      or(
-        eq(certificate.recipientUserId, ctx.actor.userId),
-        ids.length ? inArray(certificate.participantProfileId, ids) : sql`false`
-      )
-    )
+    .where(owned)
     .orderBy(asc(certificate.nameSnapshot), asc(certificate.number))
     .then((rows) =>
       rows.map(({ pdfFileId, stampId, ...row }) => ({
@@ -231,11 +237,12 @@ export async function getCertificateDownloadUrl(
   // Missing IDs and a wrong owner are indistinguishable, including staff.
   if (ctx.actor.kind !== "user" || !z.uuid().safeParse(certificateId).success)
     throw invalid();
+  const owned = await certificateOwnershipFilter(ctx);
   return ctx.db.transaction(async (tx) => {
     const [row] = await tx
       .select()
       .from(certificate)
-      .where(eq(certificate.id, certificateId))
+      .where(and(eq(certificate.id, certificateId), owned))
       .for("update");
     const ownerId = row
       ? await certificateOwner({ ...ctx, db: tx }, row)

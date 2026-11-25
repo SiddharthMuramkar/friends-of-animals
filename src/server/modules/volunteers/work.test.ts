@@ -292,6 +292,14 @@ it("protects assigned work, verifies a teen certificate privately with current g
   ).rejects.toMatchObject({ code: "forbidden" });
   const competitionManager = h.as(await staffActor(h, "competition_manager"));
   await expect(
+    competitionManager.retryCertificateRender({
+      certificateId: cert.certificateId,
+    })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await manager.retryCertificateRender({ certificateId: cert.certificateId })
+  ).toEqual({ ok: false, error: "not_retryable" });
+  await expect(
     competitionManager.revokeCertificate({
       certificateId: cert.certificateId,
       reason: "Wrong name",

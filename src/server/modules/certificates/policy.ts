@@ -11,6 +11,7 @@ export const CERTIFICATES_POLICY = {
   "certificates.correct_volunteer": stepUp(
     role("community_manager", "super_admin")
   ),
+  "certificates.list_volunteer": role("community_manager", "super_admin"),
   "certificates.retry_volunteer_render": role(
     "community_manager",
     "super_admin"
