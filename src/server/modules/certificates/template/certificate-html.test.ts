@@ -77,5 +77,5 @@ it("prints exact approved service minutes on a volunteer certificate with the sh
   const html = certificateHtml(service);
   expect(html).toContain("Approved volunteer service: 1 h 35 min");
   expect(html).not.toContain("Friends &amp; Nature");
-  expect(html).toContain("Volunteer service certificate");
+  expect(html).toContain("Certificate of volunteer service");
 });
