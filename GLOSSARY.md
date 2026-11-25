@@ -1059,6 +1059,18 @@ consenting adult participant or the verified Guardian who currently consents
 for a child. Each selected opportunity is recorded as interest, not enrolment
 or an earned Engagement milestone.
 
+**FOA club**:
+A lasting student or teacher group at a verified Institution, proposed through
+an application and approved by a Community manager. A suspended club still
+holds a place in the Institution's configured club limit; an approved club
+accepts members. A club does not grant staff or school-record access.
+
+**Club membership**:
+A Community member's dated stint in an approved FOA club. Joining and leaving
+are separate dated Engagement timeline facts; rejoining creates a new stint.
+Membership and applicant identities are private, and self-attested affiliation
+is distinct from a verified school registration or scoped institution role.
+
 **Ambassador application**:
 A private request by an eligible adult Community member to represent FOA. It
 is Submitted, then Approved or Declined by a Community manager (a decline
