@@ -33,8 +33,12 @@ test("visitors browse consented lots; auction manager drafts, schedules and canc
   await page
     .getByRole("link", { name: `View lot ${SEED_AUCTIONS.open}` })
     .click();
+  await expect(page).toHaveURL(`/auctions/${SEED_AUCTIONS.open}`);
+  const publicLot = page.getByRole("article").filter({
+    has: page.getByRole("heading", { name: `Lot ${SEED_AUCTIONS.open}` }),
+  });
   await expect(
-    page.getByRole("heading", { name: `Lot ${SEED_AUCTIONS.open}` })
+    publicLot.getByText("First place", { exact: true })
   ).toBeVisible();
   await expectAccessible(page, "public lot");
   await expectAccessibleInDark(page, "public lot");
@@ -87,6 +91,12 @@ test("visitors browse consented lots; auction manager drafts, schedules and canc
   const title = await page.getByRole("heading", { level: 1 }).textContent();
   expect(title).toMatch(/^LOT-/);
   await expect(page.getByRole("heading", { name: "Draft" })).toBeVisible();
+  await expect(
+    page.getByText(
+      info.project.name === "mobile" ? "First place" : "Second place",
+      { exact: true }
+    )
+  ).toBeVisible();
   await expectAccessible(page, "auction lot admin detail");
   await expectAccessibleInDark(page, "auction lot admin detail");
   await page.getByRole("button", { name: "Schedule lot" }).click();

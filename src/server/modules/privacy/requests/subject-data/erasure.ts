@@ -30,6 +30,8 @@ import type { FieldCipher } from "../../../../crypto/field-cipher";
 import type { AppDb } from "../../../../db/app-db";
 import {
   account,
+  certificate,
+  certificateReadyNotice,
   auditLog,
   artworkPhoto,
   physicalArtwork,
@@ -43,6 +45,7 @@ import {
   consentLink,
   directoryListing,
   entry,
+  auctionBid,
   entryFile,
   entryUploadGrant,
   erasureRecord,
@@ -381,8 +384,24 @@ export async function gatherErasure(
         )
       )
   ).map((row) => row.id);
+  const certificateFileIds = (
+    await db
+      .select({ id: certificate.pdfFileId })
+      .from(certificate)
+      .where(
+        and(
+          within(certificate.participantProfileId, profileIds),
+          isNotNull(certificate.pdfFileId)
+        )
+      )
+  ).map((r) => r.id!);
   const fileIds = [
-    ...new Set([...entryFileIds, ...artworkFileIds, ...uploadIds]),
+    ...new Set([
+      ...entryFileIds,
+      ...artworkFileIds,
+      ...uploadIds,
+      ...certificateFileIds,
+    ]),
   ];
 
   // A registration a payment, a refund or consent evidence names stays.
@@ -527,6 +546,12 @@ export async function gatherErasure(
       )),
     uploads: uploadIds.length,
     entries: entryIds.length,
+    auctionBids: await n(
+      db
+        .select({ n: count() })
+        .from(auctionBid)
+        .where(within(auctionBid.bidderUserId, users))
+    ),
     freeRegistrations: freeRegistrations.length,
     keptRegistrations: keptRegistrations.length,
     guardianLinks:
@@ -697,6 +722,12 @@ async function eraseRecords(
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
+  // Preserve accepted amounts and deadlines, even for an account retained
+  // only for other financial records. Erasure never lowers the lot's price.
+  await tx
+    .update(auctionBid)
+    .set({ bidderUserId: null })
+    .where(within(auctionBid.bidderUserId, users));
   const registrationIds = [...registrations.free, ...registrations.kept];
   await tx
     .delete(entryUploadGrant)
@@ -708,6 +739,12 @@ async function eraseRecords(
     .where(within(roundAssignment.entryId, entryIds));
   await tx.delete(judgeConflict).where(within(judgeConflict.entryId, entryIds));
   await tx.delete(roundEntry).where(within(roundEntry.entryId, entryIds));
+  await tx
+    .delete(certificateReadyNotice)
+    .where(within(certificateReadyNotice.recipientUserId, users));
+  await tx
+    .delete(certificate)
+    .where(within(certificate.participantProfileId, scope.profileIds));
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx

@@ -95,6 +95,7 @@
         "consentLinkContacts": "90 days after the link is answered, revoked or expires",
         "consentLinkSecrets": "Until the link is used, revoked or expires",
         "entries": "3 years after the competition ends",
+        "auctionBids": "While the auction lot is kept, then 3 years after final settlement; the bidder link is cleared earlier on account erasure",
         "entryMedia": "Until 90 days after the competition ends",
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
@@ -699,6 +700,12 @@
           "via": "Records how FOA returned the requested original.",
           "requested_by": "Identifies the creator, guardian or coordinator who requested a return."
         },
+        "auction_bid": {
+          "bidder_user_id": "Links an accepted bid to the account that placed it",
+          "amount_paise": "Records the exact bid amount, in INR paise",
+          "declaration_version": "Records the version of the adult and binding bid statement that the bidder accepted",
+          "lot_id": "Identifies the lot on which the bidder placed the bid"
+        },
         "auction_lot": {
           "artwork_id": "Links an auction lot to the creator’s original artwork.",
           "consent_event_id": "Links the auction consent evidence used to establish eligibility.",
@@ -715,6 +722,21 @@
           "outcome": "Records the recognition awarded to the participant’s entry",
           "award_position": "Records the position within the round’s award scheme",
           "suitable_for_auction": "Records the manager’s assessment of the work’s auction suitability, independently of consent"
+        },
+        "certificate": {
+          "participant_profile_id": "Participant who earned the certificate.",
+          "registration_id": "Competition registration that earned the certificate.",
+          "number": "Unique number used to verify the certificate.",
+          "name_snapshot": "Name printed on the issued private certificate.",
+          "award_position": "Place recognised on the certificate.",
+          "award_label": "Award label recognised on the certificate.",
+          "type": "Type of achievement the certificate recognises.",
+          "revoked_reason": "Reason staff revoked or corrected a certificate.",
+          "pdf_file_id": "Private PDF generated from the certificate.",
+          "revoked_by_user_id": "Staff member who revoked or corrected the certificate."
+        },
+        "certificate_ready_notice": {
+          "recipient_user_id": "Account notified once its certificates were ready."
         },
         "result_release": {
           "prepared_by_user_id": "Staff member who prepared the competition results release.",
@@ -931,6 +953,10 @@
         "entries": {
           "name": "Competition entries",
           "rule": "3 years after the competition ends. No daily job yet."
+        },
+        "auctionBids": {
+          "name": "Auction bids",
+          "rule": "Kept with the auction lot until 3 years after final settlement (no daily job yet). Erasure clears the account link without lowering the accepted bid history. Paid-sale records follow the financial record floor."
         },
         "entryMedia": {
           "name": "Entry images",

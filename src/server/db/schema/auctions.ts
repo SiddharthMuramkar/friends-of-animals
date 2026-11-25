@@ -81,3 +81,32 @@ export const auctionLot = pgTable(
   ]
 );
 export type AuctionLotRow = typeof auctionLot.$inferSelect;
+
+/** The accepted bid history is immutable except for erasing an account link.
+ * No bidder identity is copied into the lot or its public projection. */
+export const auctionBid = pgTable(
+  "auction_bid",
+  {
+    id: uuid().primaryKey(),
+    lotId: uuid("lot_id")
+      .notNull()
+      .references(() => auctionLot.id, { onDelete: "cascade" }),
+    bidderUserId: uuid("bidder_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    amountPaise: bigint("amount_paise", { mode: "bigint" }).notNull(),
+    // The declaration version captures precisely which adult/binding bid
+    // statement the bidder accepted, without gathering a new DOB or phone.
+    declarationVersion: text("declaration_version").notNull(),
+    placedAt: stamp("placed_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("auction_bid_lot_amount_unique").on(
+      t.lotId,
+      t.amountPaise.desc()
+    ),
+    index("auction_bid_bidder_idx").on(t.bidderUserId),
+    check("auction_bid_positive_amount", sql`${t.amountPaise} > 0`),
+  ]
+);
+export type AuctionBidRow = typeof auctionBid.$inferSelect;

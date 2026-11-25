@@ -1,4 +1,9 @@
 import {
+  certificateReadyRecipients,
+  certificateReadyValues,
+  CERTIFICATE_READY_VARIABLES,
+} from "../certificates/messages";
+import {
   PRIZE_VARIABLES,
   prizeRecipients,
   prizeValues,
@@ -43,6 +48,8 @@ import type { AppDb } from "../../db/app-db";
 import {
   competition,
   competitionTransitionBlock,
+  auctionBid,
+  auctionLot,
   institution,
   userRole,
 } from "../../db/schema";
@@ -319,12 +326,15 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "results.prize_awarded":
     case "community.member_joined":
     case "engagement.milestone_recorded":
+    case "certificate.render":
+    case "certificates.ready":
     case "results.published":
     case "auction.lot_created":
     case "auction.lot.open":
     case "auction.lot.close":
     case "auction.lot_opened":
     case "auction.lot_closed":
+    case "auction.bid_outbid":
     case "auction.lot_cancelled":
     case "artwork.retain_unrequested":
     case "artwork.requested":
@@ -427,6 +437,10 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  certificate_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "certificates.ready" && cipher
+      ? certificateReadyRecipients(db, delivery.payload, cipher)
+      : [],
   prize_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "results.prize_awarded" && cipher
       ? prizeRecipients(db, delivery.payload, cipher)
@@ -449,6 +463,16 @@ export const AUDIENCES = {
     }
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
+  },
+  /** The displaced bidder, not the new leader. Resolve at delivery time so
+   * an erased bid's former account cannot receive anything. */
+  outbid_bidder: async (db, delivery) => {
+    if (delivery.eventType !== "auction.bid_outbid") return [];
+    const [bid] = await db
+      .select({ userId: auctionBid.bidderUserId })
+      .from(auctionBid)
+      .where(eq(auctionBid.id, delivery.payload.previousBidId));
+    return bid?.userId ? [bid.userId] : [];
   },
   /** Whoever paid for their own registration (#78): their receipt. */
   individual_payer: async (db, delivery) =>
@@ -934,11 +958,28 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "community.member_joined": { names: [], load: async () => ({}) },
   "engagement.milestone_recorded": { names: [], load: async () => ({}) },
   "results.published": { names: [], load: async () => ({}) },
+  "certificate.render": { names: [], load: async () => ({}) },
+  "certificates.ready": {
+    names: CERTIFICATE_READY_VARIABLES,
+    load: (db, delivery) => certificateReadyValues(db, delivery.payload),
+  },
   "auction.lot_created": { names: [], load: async () => ({}) },
   "auction.lot.open": { names: [], load: async () => ({}) },
   "auction.lot.close": { names: [], load: async () => ({}) },
   "auction.lot_opened": { names: [], load: async () => ({}) },
   "auction.lot_closed": { names: [], load: async () => ({}) },
+  "auction.bid_outbid": {
+    names: ["lot.code"],
+    load: async (db, { payload }): Promise<Record<string, string>> => {
+      const [row] = await db
+        .select({ code: auctionLot.lotCode })
+        .from(auctionBid)
+        .innerJoin(auctionLot, eq(auctionBid.lotId, auctionLot.id))
+        .where(eq(auctionBid.id, payload.previousBidId));
+      if (!row) return {};
+      return { "lot.code": row.code };
+    },
+  },
   "auction.lot_cancelled": { names: [], load: async () => ({}) },
   "artwork.retain_unrequested": { names: [], load: async () => ({}) },
   "entry.foa_verified": {

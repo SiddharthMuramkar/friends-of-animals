@@ -1,3 +1,5 @@
+import certificatePdf from "../../messages/en-IN/certificatePdf.json";
+import certificates from "../../messages/en-IN/certificates.json";
 import results from "../../messages/en-IN/results.json";
 // Every namespace file, imported statically so the merged messages are typed
 // and bundled at build time. One file per namespace: each agent edits its own.
@@ -168,6 +170,8 @@ export const NAMESPACES = [
   "adminDonations",
   "entries",
   "artwork",
+  "certificates",
+  "certificatePdf",
   "artworkCustody",
   "auctions",
   "error",
@@ -272,6 +276,8 @@ export const messages = {
   ...adminDonations,
   ...entries,
   ...artwork,
+  ...certificates,
+  ...certificatePdf,
   ...artworkCustody,
   ...auctions,
   ...error,

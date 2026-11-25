@@ -270,6 +270,10 @@ export const judgeOnboardingPath = (id: string) =>
 export const isJudgeInvitationPage = (path: string) =>
   fitsTemplate(path, `${JUDGE_INVITATIONS_PREFIX}/[token]`);
 
+/** Public request-time verification, never signed in or cached. */
+export const CERTIFICATE_VERIFY_PREFIX = "/verify";
+export const ADMIN_CERTIFICATES = "/admin/certificates";
+export const MY_CERTIFICATES = "/dashboard/certificates";
 export const ADMIN_ARTWORK = "/admin/artwork";
 export const ADMIN_ARTWORK_DISCREPANCIES = "/admin/artwork/discrepancies";
 export const INSTITUTION_ARTWORK = "/institution/artwork";
@@ -592,6 +596,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/judge/rounds/[id]",
   "/judge/rounds/[id]/entries/[entryCode]",
 
+  ADMIN_CERTIFICATES,
+  MY_CERTIFICATES,
   ADMIN_ARTWORK,
   "/admin/artwork/[artworkCode]",
   "/admin/artwork/[artworkCode]/verify",

@@ -1123,6 +1123,8 @@ docker compose -f workers.yml up -d --wait worker-prod
 Put only the four `R2_` lines in these files: a service's `environment:`
 overrides anything else they set.
 
+The certificate renderer (#100) sends self-contained `index.html` with the bundled approved logo and QR to Gotenberg’s Chromium HTML route. It uses A4 landscape, tagged PDF output and the image’s Noto Sans Devanagari font. The web app and default worker cannot invoke the certificate PDF renderer.
+
 Gotenberg and the media worker share the internal `pdf` network. Send
 documents and their assets as file uploads. Chromium and LibreOffice
 accept local URLs under `/tmp` and API requests time out after 30 s.

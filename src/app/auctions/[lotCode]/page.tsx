@@ -6,8 +6,10 @@ import { notFound } from "next/navigation";
 import { Section } from "@/components/site/section";
 import { PageHeader } from "@/components/site/heading";
 import { ButtonLink } from "@/components/site/button-link";
-import { as } from "@/server/app";
+import { as, currentActor } from "@/server/app";
 import { PUBLIC_READER } from "../../competitions/_lib/public-reader";
+import { BidForm } from "../_bid-form";
+import { LiveLotRefresh } from "../_live-refresh";
 import { LotDetails } from "../_lot-details";
 
 // A minor's lot detail must not be indexed: its consent can change at any time.
@@ -18,12 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("auctions");
   return { title: t("title"), robots: { index: false, follow: false } };
 }
-async function Lot({ params }: PageProps<"/auctions/[lotCode]">) {
+async function Lot({ params, searchParams }: PageProps<"/auctions/[lotCode]">) {
   await connection();
   const { lotCode } = await params;
-  const [t, lot] = await Promise.all([
+  const [t, lot, actor, query] = await Promise.all([
     getTranslations("auctions"),
     as(PUBLIC_READER).getLot({ lotCode }),
+    currentActor(),
+    searchParams,
   ]);
   if (!lot) notFound();
   return (
@@ -31,6 +35,13 @@ async function Lot({ params }: PageProps<"/auctions/[lotCode]">) {
       <article className="mt-8 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6">
         <h2 className="text-h3 text-ink">{t("lot", { code: lot.lotCode })}</h2>
         <LotDetails lot={lot} />
+        <BidForm
+          lot={lot}
+          signedIn={actor.kind === "user"}
+          result={query.bid}
+        />
+        <p className="mt-4 text-sm text-ink-muted">{t("refresh")}</p>
+        <LiveLotRefresh />
       </article>
     </>
   );
@@ -53,7 +64,7 @@ export default async function Page(props: PageProps<"/auctions/[lotCode]">) {
           <output className="mt-8 block">
             <span className="sr-only">{t("loading")}</span>
             <span aria-hidden="true" className="block">
-              <span className="block h-96 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5">
+              <span className="block min-h-116 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5">
                 <span className="block h-8 w-52 max-w-full rounded-xl bg-surface-muted" />
                 <span className="block h-5 w-20 rounded-lg bg-surface-muted" />
                 <span className="mt-4 block h-6 w-40 rounded-lg bg-surface-muted" />

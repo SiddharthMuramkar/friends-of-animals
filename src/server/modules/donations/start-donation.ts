@@ -38,7 +38,7 @@ import {
 import { DONOR_PURPOSE, donorEmailHash } from "./donors";
 import { readSetting } from "../settings/read";
 import { normalizePan } from "./domain/pan";
-import { isKnownMinor } from "./minor";
+import { isKnownMinor } from "../participants/known-minor";
 
 export type StartDonationInput = {
   amountMinor: bigint;

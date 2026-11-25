@@ -81,7 +81,7 @@ export async function getFileDownloadUrl(
   const staffOnly = staffAction !== undefined;
   const policy = staffOnly
     ? { allowed: true as const, ...(await authorize(ctx, staffAction)) }
-    : await can(ctx, "file.read", { ownerId: file.ownerUserId });
+    : await can(ctx, "file.read", { ownerId: file.ownerUserId ?? undefined });
   if (staffOnly && !isFilePurposeAvailable(file.purpose, ctx.files.appEnv)) {
     return { ok: false, error: "file_unavailable" };
   }

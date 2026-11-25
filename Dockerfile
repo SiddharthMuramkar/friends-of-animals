@@ -94,6 +94,7 @@ RUN apt-get update \
 #   docker run --rm <a worker-media image> pnpm test:media
 COPY vitest.config.ts vitest.media.config.ts ./
 COPY fixtures/media ./fixtures/media
+COPY public/brand/foa-logo.svg ./public/brand/foa-logo.svg
 USER node
 CMD ["node", "--import", "tsx", "src/worker-media/main.ts"]
 

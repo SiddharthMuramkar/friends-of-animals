@@ -1,7 +1,7 @@
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
 import { ButtonLink } from "@/components/site/button-link";
-import { MY_ARTWORK } from "@/lib/app-routes";
+import { MY_ARTWORK, MY_CERTIFICATES } from "@/lib/app-routes";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
@@ -117,13 +117,17 @@ async function Areas() {
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
   const artwork = await getTranslations("artwork");
+  const certificates = await getTranslations("certificates");
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
 
   return (
     <div className="mt-8 flex flex-col gap-8">
-      <div>
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink href={MY_CERTIFICATES} variant="secondary">
+          {certificates("title")}
+        </ButtonLink>
         <ButtonLink href={MY_ARTWORK} variant="secondary">
           {artwork("title")}
         </ButtonLink>

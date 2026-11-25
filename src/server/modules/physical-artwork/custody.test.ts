@@ -229,6 +229,13 @@ describe("artwork custody", () => {
     });
     const coordinator = h.as(await h.signIn(SEED_COORDINATORS.coordinator));
     expect(await coordinator.requestArtworkReturn(ref)).toMatchObject({
+      ok: false,
+      error: "return_window_not_open",
+    });
+    // ORIG27 remains in judging; exercise the trusted publication event
+    // rather than relying on a synthetic preview return window.
+    await publish(h, SEED_ARTWORK.competitionId);
+    expect(await coordinator.requestArtworkReturn(ref)).toMatchObject({
       ok: true,
     });
   });

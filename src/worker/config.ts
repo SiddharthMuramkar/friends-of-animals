@@ -90,6 +90,7 @@ type Common = {
   queue: WorkerQueue;
   /** The site's base URL, for links in messages; unset, none. */
   siteUrl: string | undefined;
+  gotenbergUrl?: string | undefined;
   /** The app's field keys (FIELD_ENCRYPTION_KEYS, FIELD_HMAC_KEY). */
   fieldEncryptionKeys: string | undefined;
   fieldHmacKey: string | undefined;
@@ -167,6 +168,7 @@ const schema = z
     WORKER_VERSION: z.string().default("dev"),
     WORKER_PASSWORD_FILE: z.string().optional(),
     WORKER_QUEUE: z.enum(["default", "media"]).default("default"),
+    GOTENBERG_URL: z.url({ protocol: /^https?$/ }).optional(),
     MEDIA_TIMEOUT_SECONDS: seconds(60, MAX_MEDIA_TIMEOUT_SECONDS),
     SENTRY_DSN: z
       .string()
@@ -262,6 +264,7 @@ export function workerConfig(
           }
         : undefined,
     clamd: { CLAMD_HOST: env.CLAMD_HOST, CLAMD_PORT: env.CLAMD_PORT },
+    gotenbergUrl: env.GOTENBERG_URL,
     siteUrl:
       env.APP_URL ?? (env.APP_ENV === "local" ? LOCAL_APP_URL : undefined),
     fieldEncryptionKeys: env.FIELD_ENCRYPTION_KEYS,

@@ -118,6 +118,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryMedia",
   "entryUploadGrants",
   "entryPendingText",
+  /** Auction bids remain with their lot; the bidder link is cleared on erasure. */
+  "auctionBids",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
   /**

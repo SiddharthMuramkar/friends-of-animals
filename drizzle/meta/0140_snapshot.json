@@ -1,5 +1,5 @@
 {
-  "id": "b65f608c-52af-40f1-9900-f02eeff5711c",
+  "id": "fdb313ff-8ea8-45fd-8c67-64337d6aa291",
   "prevId": "fb5293e3-8199-4709-9136-431e60d3edfd",
   "version": "7",
   "dialect": "postgresql",
@@ -19778,6 +19778,124 @@
       },
       "isRLSEnabled": false
     },
+    "public.auction_bid": {
+      "name": "auction_bid",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "lot_id": {
+          "name": "lot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bidder_user_id": {
+          "name": "bidder_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_paise": {
+          "name": "amount_paise",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declaration_version": {
+          "name": "declaration_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "placed_at": {
+          "name": "placed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "auction_bid_lot_amount_unique": {
+          "name": "auction_bid_lot_amount_unique",
+          "columns": [
+            {
+              "expression": "lot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "amount_paise",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auction_bid_bidder_idx": {
+          "name": "auction_bid_bidder_idx",
+          "columns": [
+            {
+              "expression": "bidder_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "auction_bid_lot_id_auction_lot_id_fk": {
+          "name": "auction_bid_lot_id_auction_lot_id_fk",
+          "tableFrom": "auction_bid",
+          "tableTo": "auction_lot",
+          "columnsFrom": [
+            "lot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "auction_bid_bidder_user_id_user_id_fk": {
+          "name": "auction_bid_bidder_user_id_user_id_fk",
+          "tableFrom": "auction_bid",
+          "tableTo": "user",
+          "columnsFrom": [
+            "bidder_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "auction_bid_positive_amount": {
+          "name": "auction_bid_positive_amount",
+          "value": "\"auction_bid\".\"amount_paise\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.auction_lot": {
       "name": "auction_lot",
       "schema": "",
@@ -20498,553 +20616,6 @@
         "release_times": {
           "name": "release_times",
           "value": "\"result_release\".\"publish_at\" > \"result_release\".\"prepared_at\" AND (\"result_release\".\"published_at\" IS NULL OR \"result_release\".\"published_at\" >= \"result_release\".\"publish_at\") AND (\"result_release\".\"status\" = 'published') = (\"result_release\".\"published_at\" IS NOT NULL) AND (\"result_release\".\"status\" = 'rejected') = (\"result_release\".\"rejected_at\" IS NOT NULL) AND (\"result_release\".\"status\" NOT IN ('approved', 'published') OR \"result_release\".\"approved_at\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.community_member": {
-      "name": "community_member",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "subject_user_id": {
-          "name": "subject_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject_profile_id": {
-          "name": "subject_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "joined_by_user_id": {
-          "name": "joined_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "display_name_ciphertext": {
-          "name": "display_name_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "about_ciphertext": {
-          "name": "about_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "community_member_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "joined_at": {
-          "name": "joined_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "left_at": {
-          "name": "left_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "community_member_profile_idx": {
-          "name": "community_member_profile_idx",
-          "columns": [
-            {
-              "expression": "subject_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "community_member_joined_by_idx": {
-          "name": "community_member_joined_by_idx",
-          "columns": [
-            {
-              "expression": "joined_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "community_member_status_idx": {
-          "name": "community_member_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "joined_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "community_member_subject_user_id_user_id_fk": {
-          "name": "community_member_subject_user_id_user_id_fk",
-          "tableFrom": "community_member",
-          "tableTo": "user",
-          "columnsFrom": [
-            "subject_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "community_member_subject_profile_id_participant_profile_id_fk": {
-          "name": "community_member_subject_profile_id_participant_profile_id_fk",
-          "tableFrom": "community_member",
-          "tableTo": "participant_profile",
-          "columnsFrom": [
-            "subject_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "community_member_joined_by_user_id_user_id_fk": {
-          "name": "community_member_joined_by_user_id_user_id_fk",
-          "tableFrom": "community_member",
-          "tableTo": "user",
-          "columnsFrom": [
-            "joined_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "community_member_subject_unique": {
-          "name": "community_member_subject_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "subject_user_id",
-            "subject_profile_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "community_member_one_subject": {
-          "name": "community_member_one_subject",
-          "value": "num_nonnulls(\"community_member\".\"subject_user_id\",\"community_member\".\"subject_profile_id\") = 1"
-        },
-        "community_member_status_dates": {
-          "name": "community_member_status_dates",
-          "value": "(\"community_member\".\"status\" = 'active' AND \"community_member\".\"left_at\" IS NULL AND \"community_member\".\"display_name_ciphertext\" IS NOT NULL) OR (\"community_member\".\"status\" = 'left' AND \"community_member\".\"left_at\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.engagement_milestone": {
-      "name": "engagement_milestone",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "subject_user_id": {
-          "name": "subject_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject_profile_id": {
-          "name": "subject_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "engagement_milestone_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "achieved_at": {
-          "name": "achieved_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_type": {
-          "name": "source_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_id": {
-          "name": "source_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "engagement_milestone_profile_idx": {
-          "name": "engagement_milestone_profile_idx",
-          "columns": [
-            {
-              "expression": "subject_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "engagement_milestone_competition_idx": {
-          "name": "engagement_milestone_competition_idx",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "engagement_milestone_subject_user_id_user_id_fk": {
-          "name": "engagement_milestone_subject_user_id_user_id_fk",
-          "tableFrom": "engagement_milestone",
-          "tableTo": "user",
-          "columnsFrom": [
-            "subject_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "engagement_milestone_subject_profile_id_participant_profile_id_fk": {
-          "name": "engagement_milestone_subject_profile_id_participant_profile_id_fk",
-          "tableFrom": "engagement_milestone",
-          "tableTo": "participant_profile",
-          "columnsFrom": [
-            "subject_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "engagement_milestone_competition_id_competition_id_fk": {
-          "name": "engagement_milestone_competition_id_competition_id_fk",
-          "tableFrom": "engagement_milestone",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "engagement_milestone_logical_unique": {
-          "name": "engagement_milestone_logical_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "subject_user_id",
-            "subject_profile_id",
-            "kind",
-            "competition_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "engagement_milestone_one_subject": {
-          "name": "engagement_milestone_one_subject",
-          "value": "num_nonnulls(\"engagement_milestone\".\"subject_user_id\",\"engagement_milestone\".\"subject_profile_id\") = 1"
-        },
-        "engagement_milestone_competition_scope": {
-          "name": "engagement_milestone_competition_scope",
-          "value": "(\"engagement_milestone\".\"kind\" IN ('participant','school_winner','foa_finalist')) = (\"engagement_milestone\".\"competition_id\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.timeline_entry": {
-      "name": "timeline_entry",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "subject_user_id": {
-          "name": "subject_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "subject_profile_id": {
-          "name": "subject_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "milestone_id": {
-          "name": "milestone_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ref_type": {
-          "name": "ref_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ref_id": {
-          "name": "ref_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_key": {
-          "name": "source_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "timeline_entry_user_date_idx": {
-          "name": "timeline_entry_user_date_idx",
-          "columns": [
-            {
-              "expression": "subject_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "timeline_entry_profile_date_idx": {
-          "name": "timeline_entry_profile_date_idx",
-          "columns": [
-            {
-              "expression": "subject_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "timeline_entry_milestone_idx": {
-          "name": "timeline_entry_milestone_idx",
-          "columns": [
-            {
-              "expression": "milestone_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "timeline_entry_subject_user_id_user_id_fk": {
-          "name": "timeline_entry_subject_user_id_user_id_fk",
-          "tableFrom": "timeline_entry",
-          "tableTo": "user",
-          "columnsFrom": [
-            "subject_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "timeline_entry_subject_profile_id_participant_profile_id_fk": {
-          "name": "timeline_entry_subject_profile_id_participant_profile_id_fk",
-          "tableFrom": "timeline_entry",
-          "tableTo": "participant_profile",
-          "columnsFrom": [
-            "subject_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "timeline_entry_milestone_id_engagement_milestone_id_fk": {
-          "name": "timeline_entry_milestone_id_engagement_milestone_id_fk",
-          "tableFrom": "timeline_entry",
-          "tableTo": "engagement_milestone",
-          "columnsFrom": [
-            "milestone_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "timeline_entry_source_unique": {
-          "name": "timeline_entry_source_unique",
-          "nullsNotDistinct": true,
-          "columns": [
-            "subject_user_id",
-            "subject_profile_id",
-            "source_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "timeline_entry_one_subject": {
-          "name": "timeline_entry_one_subject",
-          "value": "num_nonnulls(\"timeline_entry\".\"subject_user_id\",\"timeline_entry\".\"subject_profile_id\") = 1"
         }
       },
       "isRLSEnabled": false
@@ -22219,26 +21790,6 @@
         "approved",
         "published",
         "rejected"
-      ]
-    },
-    "public.community_member_status": {
-      "name": "community_member_status",
-      "schema": "public",
-      "values": [
-        "active",
-        "left"
-      ]
-    },
-    "public.engagement_milestone_kind": {
-      "name": "engagement_milestone_kind",
-      "schema": "public",
-      "values": [
-        "participant",
-        "school_winner",
-        "foa_finalist",
-        "community_member",
-        "volunteer",
-        "ambassador"
       ]
     }
   },

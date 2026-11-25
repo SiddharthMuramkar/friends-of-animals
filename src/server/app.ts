@@ -32,6 +32,7 @@ import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
 import { communityUseCases } from "./modules/community";
+import { certificateUseCases } from "./modules/certificates";
 import { resultsUseCases } from "./modules/results";
 import { judgingUseCases } from "./modules/judging";
 import { competitionTermsUseCases } from "./modules/competitions/terms";
@@ -81,6 +82,7 @@ const useCases = composeUseCases(
   judgingUseCases,
   resultsUseCases,
   communityUseCases,
+  certificateUseCases,
   competitionTermsUseCases,
   registrationUseCases,
   paymentsUseCases,

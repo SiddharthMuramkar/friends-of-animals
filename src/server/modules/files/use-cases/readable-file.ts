@@ -29,6 +29,7 @@ export async function findReadableFile(
       ...ENTRY_FILE_PURPOSES,
       "offline_donation_proof",
       "artwork_condition_photo",
+      "certificate_pdf",
     ]),
   ];
   if (!everyFile.allowed) {

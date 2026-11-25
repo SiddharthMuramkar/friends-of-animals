@@ -78,7 +78,9 @@ export async function getFileDerivativeUrl(
   // Asked again with the owner, for the role that allows it (the audit) and
   // the status gate, so a caller it refuses learns nothing of the file's
   // status or its derivatives.
-  const policy = await can(ctx, "file.read", { ownerId: file.ownerUserId });
+  const policy = await can(ctx, "file.read", {
+    ownerId: file.ownerUserId ?? undefined,
+  });
   const decision = deliveryDecision({
     status: file.status,
     // Only a clean file has derivatives: the owner's early access to an
