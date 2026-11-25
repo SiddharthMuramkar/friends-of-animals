@@ -231,6 +231,8 @@ export const SETTINGS = {
     max: 60,
     unit: "days",
   }),
+  // HR-63: auctioning original art is opt-in after FOA and counsel approve.
+  "auctions.enabled": booleanSetting({ default: false }),
   "artwork.returnWindowDays": integerSetting({
     default: 30,
     min: 1,

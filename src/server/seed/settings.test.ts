@@ -27,6 +27,7 @@ describe("the settings seed", () => {
       },
       { key: "artwork.returnWindowDays", value: 30 },
       { key: "artwork.shippingPayer", value: false },
+      { key: "auctions.enabled", value: true },
       { key: "auth.emailSignIn", value: true },
       { key: "auth.staffSessionHours", value: 12 },
       { key: "breach.authorityEmail", value: "" },

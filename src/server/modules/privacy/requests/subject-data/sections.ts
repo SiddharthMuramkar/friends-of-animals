@@ -45,6 +45,7 @@ import {
   judgeOnboarding,
   artworkPhoto,
   artworkCustodyEvent,
+  auctionLot,
   artworkDiscrepancy,
   artworkReturnRequest,
   artworkVerification,
@@ -321,6 +322,13 @@ export const SECTIONS: readonly Section[] = [
     table: judgeOnboarding,
     where: (scope) => within(judgeOnboarding.judgeUserId, users(scope)),
     owners: ["judge_user_id"],
+  },
+  {
+    table: auctionLot,
+    where: (scope) =>
+      sql`${auctionLot.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id", "consent_event_id", "lot_code"],
+    withhold: ["created_by"],
   },
   {
     table: artworkVerification,
