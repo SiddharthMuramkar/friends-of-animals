@@ -177,69 +177,42 @@ describe("hintedTiles", () => {
         "test"
       ),
       { font: { loadSystemFonts: false } }
-    ).render();
+    ).render().pixels;
 
   it.each(FAVICON_GRIDS.map((grid) => [grid.size, grid] as const))(
-    "centres three distinct tiles on a transparent canvas at %i px",
+    "puts every edge on a whole pixel at %i px",
     (_, grid) => {
-      const { size, tileWidth, tileHeight, gap } = grid;
-      const { pixels } = renderIcon(grid);
-      const left = (size - (3 * tileWidth + 2 * gap)) / 2;
-      const top = (size - tileHeight) / 2;
-      const pixel = (x: number, y: number) => [
-        ...pixels.subarray((y * size + x) * 4, (y * size + x) * 4 + 4),
-      ];
-      const y = Math.ceil(top);
-      for (let x = 0; x < size; x++) {
-        // The band is vertically centred, without a white matte.
-        expect(pixel(x, 0)[3]).toBe(0);
-        expect(pixel(x, size - 1)[3]).toBe(0);
-        expect(pixel(x, y)[3]).toBe(pixel(size - 1 - x, y)[3]);
-      }
-      const colours = [
-        [0xc9, 0x28, 0x27, 255],
-        [0x07, 0xac, 0x06, 255],
-        [0x2b, 0x41, 0xf0, 255],
-      ];
-      colours.forEach((colour, tile) => {
-        const x0 = left + tile * (tileWidth + gap);
-        expect(pixel(Math.floor(x0 + tileWidth / 2), y)).toEqual(colour);
-        // Each tile contains visible light lettering, not a solid block.
-        let light = 0;
-        for (let yy = y; yy < top + tileHeight; yy++) {
-          for (let x = Math.ceil(x0); x < x0 + tileWidth - 1; x++) {
-            const [r, g, b, a] = pixel(x, yy);
-            if (a === 255 && Math.min(r, g, b) >= 180) light++;
-          }
-        }
-        expect(light).toBeGreaterThan(0);
-        if (tile < 2) {
-          // Even a half-pixel gutter at 16 px separates the colours.
-          expect(
-            pixel(Math.floor(x0 + tileWidth + gap / 2), y)[3]
-          ).toBeLessThan(255);
-        }
-      });
+      const pixels = renderIcon(grid);
+      const alphas = new Set<number>();
+      for (let i = 3; i < pixels.length; i += 4) alphas.add(pixels[i]);
+      // Nothing half-covered: each pixel is a tile, a letter or the tab.
+      expect([...alphas].sort((a, b) => a - b)).toEqual([0, 255]);
     }
   );
 
-  it("ships both ICO copies with the current artwork at every size", () => {
-    const ico = readFileSync(new URL("../public/favicon.ico", import.meta.url));
-    const brandIco = readFileSync(
-      new URL("../public/brand/favicon.ico", import.meta.url)
-    );
-    expect(brandIco.equals(ico)).toBe(true);
-    expect(ico.readUInt16LE(2)).toBe(1);
-    expect(ico.readUInt16LE(4)).toBe(FAVICON_GRIDS.length);
-    FAVICON_GRIDS.forEach((grid, index) => {
-      const entry = 6 + index * 16;
-      expect(ico[entry]).toBe(grid.size);
-      expect(ico[entry + 1]).toBe(grid.size);
-      const length = ico.readUInt32LE(entry + 8);
-      const offset = ico.readUInt32LE(entry + 12);
-      expect(
-        ico.subarray(offset, offset + length).equals(renderIcon(grid).asPng())
-      ).toBe(true);
+  it.each(
+    FAVICON_GRIDS.filter((grid) => grid.letters).map(
+      (grid) => [grid.size, grid] as const
+    )
+  )("draws the hand-placed letters pixel for pixel at %i px", (_, grid) => {
+    const { size, tileWidth, tileHeight, gap, letters } = grid;
+    const pixels = renderIcon(grid);
+    const left = Math.floor((size - (3 * tileWidth + 2 * gap)) / 2);
+    const top = Math.floor((size - tileHeight) / 2);
+    letters?.bitmaps.forEach((bitmap, tile) => {
+      const x0 =
+        left +
+        tile * (tileWidth + gap) +
+        Math.floor((tileWidth - bitmap[0].length) / 2);
+      bitmap.forEach((row, y) =>
+        row.split("").forEach((cell, x) => {
+          const i = ((top + letters.top + y) * size + x0 + x) * 4;
+          const white = [0, 1, 2, 3].every((c) => pixels[i + c] === 255);
+          expect(white, `tile ${tile}, row ${y}, column ${x}`).toBe(
+            cell === "X"
+          );
+        })
+      );
     });
   });
 

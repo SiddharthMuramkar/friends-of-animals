@@ -190,7 +190,7 @@ export default async function AwarenessPage() {
           />
           <StickerScatter stickers={MONTH_STICKERS} />
         </div>
-        <SeasonalCard id="now" headingLevel={3} className="mt-10" />
+        <SeasonalCard id="now" headingLevel={3} interactive className="mt-10" />
       </Section>
 
       {/* 3. Street neighbours */}
