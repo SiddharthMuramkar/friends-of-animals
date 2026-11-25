@@ -173,3 +173,57 @@ describe("community member management", () => {
     expect(JSON.stringify(members)).not.toContain("about");
   });
 });
+
+it("converges a former accountless child's profile and own-account journey when the verified login links", async () => {
+  const h = await createHarness();
+  const family = await h.seed.guardian({
+    children: [{ fullName: "Child sample", age: 15 }],
+  });
+  const childId = family.childIds[0]!;
+  const parent = h.as(await h.signIn(family.account));
+  const joined = await parent.joinCommunity({
+    childId,
+    displayName: "Child member",
+  });
+  if (!joined.ok) throw Error(joined.error);
+  h.clock.advance({ seconds: 1 });
+  const account = await h.seed.member({
+    name: "Teen sample",
+    email: "teen-link@example.test",
+  });
+  const teen = h.as(await h.signIn(account));
+  expect(
+    await teen.joinCommunity({ displayName: "My own name" })
+  ).toMatchObject({ ok: true });
+  expect(
+    await parent.inviteTeenLogin({ childId, email: account.email })
+  ).toMatchObject({ ok: true });
+  await h.drain();
+  const token = /\/invitations\/([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/.exec(
+    h.email.lastTo(account.email)?.text ?? ""
+  )?.[1];
+  if (!token) throw Error("Missing invitation");
+  expect(await teen.acceptTeenInvitation({ token })).toMatchObject({
+    ok: true,
+    childId,
+  });
+  expect((await teen.getMyCommunity()).member).toMatchObject({
+    id: joined.memberId,
+    displayName: "My own name",
+    status: "active",
+  });
+  expect((await teen.getTimeline()).milestones).toHaveLength(1);
+  expect((await teen.getTimeline()).entries).toHaveLength(1);
+  expect(await parent.getTimeline({ childId })).toEqual(
+    await teen.getTimeline()
+  );
+  const staff = h.as(await staffActor(h, "community_manager"));
+  expect(await staff.listMembers({})).toMatchObject({ ok: true, total: 1 });
+  expect(await teen.leaveCommunity()).toMatchObject({
+    ok: true,
+    memberId: joined.memberId,
+  });
+  expect((await parent.getMyCommunity({ childId })).member).toMatchObject({
+    status: "left",
+  });
+});

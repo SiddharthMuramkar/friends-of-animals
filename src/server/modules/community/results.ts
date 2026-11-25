@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, notLike } from "drizzle-orm";
 import { z } from "zod";
 import { authorize, type PolicyContext } from "../../access/can";
 import type { AppDb } from "../../db/app-db";
@@ -6,6 +6,7 @@ import {
   competition,
   entry,
   registration,
+  participantProfile,
   schoolRound,
   schoolRoundPick,
 } from "../../db/schema";
@@ -35,6 +36,10 @@ async function recordRelease(
       position: schoolRoundPick.position,
     })
     .from(registration)
+    .innerJoin(
+      participantProfile,
+      eq(participantProfile.id, registration.participantProfileId)
+    )
     .leftJoin(entry, eq(entry.registrationId, registration.id))
     .leftJoin(
       schoolRound,
@@ -53,10 +58,13 @@ async function recordRelease(
     .where(
       and(
         eq(registration.competitionId, release.competitionId),
-        eq(registration.status, "confirmed")
+        eq(registration.status, "confirmed"),
+        // Financial erasure may keep an anonymised registration/profile.
+        notLike(participantProfile.identityHash, "erased:%")
       )
     )
-    .orderBy(asc(registration.participantProfileId), asc(registration.id));
+    .orderBy(asc(registration.participantProfileId), asc(registration.id))
+    .for("no key update", { of: participantProfile });
   const finalists = new Set(
     release.lines
       .filter((line) =>
