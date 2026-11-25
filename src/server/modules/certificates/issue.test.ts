@@ -1,3 +1,4 @@
+import { insertCertificate } from "./issue";
 import { eq } from "drizzle-orm";
 import {
   certificate,
@@ -98,4 +99,43 @@ it("issues participation to a shortlist-only school's unuploaded pupil after the
   expect(new Set(rows.map((r) => r.registrationId))).toEqual(
     new Set(regs.map((r) => r.id))
   );
+});
+
+it("retries a forced number collision against the real unique constraint at the IST year boundary", async () => {
+  const h = await createHarness();
+  const school = await shortlistOnlySchool(h, { students: 1 });
+  const [row] = await h.db
+    .select()
+    .from(registration)
+    .where(eq(registration.competitionId, school.competition.id));
+  if (!row) throw Error("missing registration fixture");
+  // 1 Jan 00:01 in India, but still 31 Dec in UTC.
+  const clock = { now: () => new Date("2026-12-31T18:31:00.000Z") };
+  const fixed = (byte: number) => () => new Uint8Array(10).fill(byte);
+  const first = await insertCertificate(
+    h.db,
+    clock,
+    {
+      type: "participation",
+      registrationId: row.id,
+      competitionId: row.competitionId,
+      participantProfileId: row.participantProfileId,
+      nameSnapshot: "Participant",
+    },
+    fixed(0)
+  );
+  let draws = 0;
+  const second = await insertCertificate(
+    h.db,
+    clock,
+    {
+      type: "volunteer_service",
+      participantProfileId: row.participantProfileId,
+      nameSnapshot: "Participant",
+    },
+    () => new Uint8Array(10).fill(draws++ === 0 ? 0 : 1)
+  );
+  expect(first.number).toBe("FOA-C-27-0000000000");
+  expect(second.number).toBe("FOA-C-27-1111111111");
+  expect(draws).toBe(2);
 });
