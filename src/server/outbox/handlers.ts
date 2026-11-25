@@ -14,6 +14,11 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 
 import { recordPublishedEngagement } from "../modules/community/results";
 import { issueCertificates } from "../modules/certificates/issue";
+import {
+  buildInstitutionCertificateArchive,
+  expireInstitutionCertificateArchive,
+} from "../modules/certificates/archive";
+import { sendFamilyReissue } from "../modules/certificates/messages";
 import { renderCertificate } from "../modules/certificates/render";
 import type { PdfRenderer } from "../ports/pdf";
 import { publishResultsRelease } from "../modules/results/releases";
@@ -172,6 +177,17 @@ export const HANDLERS: Handlers = {
       payload
     );
   },
+  "certificates.build_archive": (deps, delivery) =>
+    buildInstitutionCertificateArchive(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      delivery.payload
+    ),
+  "certificates.expire_archive": (deps, delivery) =>
+    expireInstitutionCertificateArchive(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      delivery.payload
+    ),
+  "certificates.send_family_reissue": sendFamilyReissue,
   "certificate.render": (deps, { payload }) =>
     renderCertificate(
       { ...deps, actor: { kind: "system", process: "worker" } },

@@ -1,5 +1,6 @@
 import {
   certificateReadyRecipients,
+  reissueRecipients,
   certificateReadyValues,
   CERTIFICATE_READY_VARIABLES,
 } from "../certificates/messages";
@@ -326,6 +327,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "results.prize_awarded":
     case "community.member_joined":
     case "engagement.milestone_recorded":
+    case "certificate.archive_requested":
+    case "certificate.archive_expired":
+    case "certificate.reissued":
     case "certificate.render":
     case "certificates.ready":
     case "results.published":
@@ -437,6 +441,10 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  certificate_reissued_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "certificate.reissued" && cipher
+      ? reissueRecipients(db, delivery.payload.certificateId, cipher)
+      : [],
   certificate_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "certificates.ready" && cipher
       ? certificateReadyRecipients(db, delivery.payload, cipher)
@@ -958,6 +966,9 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "community.member_joined": { names: [], load: async () => ({}) },
   "engagement.milestone_recorded": { names: [], load: async () => ({}) },
   "results.published": { names: [], load: async () => ({}) },
+  "certificate.archive_requested": { names: [], load: async () => ({}) },
+  "certificate.archive_expired": { names: [], load: async () => ({}) },
+  "certificate.reissued": { names: [], load: async () => ({}) },
   "certificate.render": { names: [], load: async () => ({}) },
   "certificates.ready": {
     names: CERTIFICATE_READY_VARIABLES,

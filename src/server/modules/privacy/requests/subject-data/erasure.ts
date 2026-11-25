@@ -113,6 +113,7 @@ import { readSetting } from "../../../settings/read";
 import { TOMBSTONE } from "../../domain/anonymise";
 import { FINANCIAL_FLOOR } from "../../domain/periods";
 import { floorLapsesAt } from "../../domain/retention-period";
+import { purgeArchivesForErasure } from "../../../certificates/archive";
 import { activeLegalHolds } from "../../holds";
 import { lastActivity } from "../../policies/financial";
 import { privacyRequestAuditSnapshot } from "../domain/audit";
@@ -728,7 +729,11 @@ async function deleteFiles(tx: AppDb, fileIds: readonly string[]) {
  */
 async function eraseRecords(
   tx: AppDb,
-  deps: { clock: OutboxDeps["clock"]; cipher: FieldCipher },
+  deps: {
+    clock: OutboxDeps["clock"];
+    cipher: FieldCipher;
+    storage: ObjectStorage;
+  },
   targets: ErasureTargets,
   plan: ErasurePlan,
   approverUserId: string
@@ -759,6 +764,10 @@ async function eraseRecords(
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
+  await purgeArchivesForErasure(
+    { db: tx, clock: deps.clock, storage: deps.storage },
+    scope.profileIds
+  );
   // A paid account or profile can remain for a statutory floor, but its
   // community history is not a financial record. Erase both subject keys.
   await tx

@@ -28,7 +28,12 @@ export default async function Page() {
           Map.groupBy(rows, (row) => row.participantProfileId),
           ([profileId, certs]) => (
             <section key={profileId} className="mt-8 grid gap-4">
-              <h2 className="text-h2">{certs[0]!.recipientName}</h2>
+              <h2 className="text-h2">
+                {
+                  (certs.find((c) => c.status === "issued") ?? certs[0]!)
+                    .recipientName
+                }
+              </h2>
               <ul className="grid gap-4 sm:grid-cols-2">
                 {certs.map((c) => (
                   <li
@@ -37,6 +42,9 @@ export default async function Page() {
                   >
                     <h3 className="text-h3">{t(`type.${c.type}`)}</h3>
                     <p>{c.competitionName}</p>
+                    <p>
+                      {t("recipient")}: {c.recipientName}
+                    </p>
                     <p className="break-words font-semibold">{c.number}</p>
                     <p>{format.dateTime(c.issuedAt, "longDateTime")}</p>
                     <p>

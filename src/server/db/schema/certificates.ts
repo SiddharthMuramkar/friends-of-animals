@@ -19,7 +19,11 @@ import {
   CERTIFICATE_RENDER_STATUSES,
 } from "../../modules/certificates/domain/status";
 import { competition } from "./competitions";
-import { registration, participantProfile } from "./registration";
+import {
+  registration,
+  participantProfile,
+  institutionRegistration,
+} from "./registration";
 import { entry } from "./entries";
 import { schoolRound } from "./school-round";
 import { judgingRound } from "./judging-rounds";
@@ -141,3 +145,40 @@ export const certificateReadyNotice = pgTable(
     ),
   ]
 );
+
+// A private, transient ZIP for one institution registration. The manifest is
+// an immutable snapshot of the certificate/profile ids, used both to detect
+// a stale archive and to purge the containing ZIP upon a subject's erasure.
+export const certificateArchiveStatus = pgEnum("certificate_archive_status", [
+  "pending",
+  "ready",
+  "failed",
+  "invalidated",
+]);
+export const certificateArchive = pgTable(
+  "certificate_archive",
+  {
+    id: uuid().primaryKey(),
+    institutionRegistrationId: uuid("institution_registration_id")
+      .notNull()
+      .references(() => institutionRegistration.id),
+    status: certificateArchiveStatus().notNull().default("pending"),
+    certificateIds: uuid("certificate_ids").array().notNull(),
+    profileIds: uuid("profile_ids").array().notNull(),
+    storageKey: text("storage_key").notNull(),
+    bucket: text().notNull(),
+    createdAt: at("created_at").notNull(),
+    expiresAt: at("expires_at").notNull(),
+  },
+  (t) => [
+    index("certificate_archive_registration_idx").on(
+      t.institutionRegistrationId,
+      t.createdAt
+    ),
+    check(
+      "certificate_archive_manifest_nonempty",
+      sql`cardinality(${t.certificateIds}) > 0 AND cardinality(${t.profileIds}) > 0`
+    ),
+  ]
+);
+export type CertificateArchiveRow = typeof certificateArchive.$inferSelect;

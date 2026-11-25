@@ -625,6 +625,7 @@ export const SECTIONS: readonly Section[] = [
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   certificate_ready_notice: "background_job",
+  certificate_archive: "mixed_subject_temporary_archive",
   verification: "sign_in_secret",
   receipt_link: "receipt_bearer_link",
   otp_rate_limit: "keyed_hash_only",
