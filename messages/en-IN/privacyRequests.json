@@ -1,0 +1,177 @@
+{
+  "privacyRequests": {
+    "messageTypes": {
+      "access": "a copy of the data we hold",
+      "correction": "a correction to the data we hold",
+      "erasure": "erasure of the data we hold"
+    },
+    "types": {
+      "access": "See a copy of the data",
+      "correction": "Correct the data",
+      "erasure": "Erase the data"
+    },
+    "statuses": {
+      "submitted": "Received",
+      "in_progress": "Being worked on",
+      "completed": "Done",
+      "partially_completed": "Done, some records kept",
+      "rejected": "Refused",
+      "cancelled": "Cancelled"
+    },
+    "about": {
+      "self": "You",
+      "child": "{name}",
+      "erasedChild": "A child's profile, now erased"
+    },
+    "list": {
+      "meta": {
+        "title": "Your privacy requests",
+        "description": "Ask to see, correct or erase the data Friends of Animals keeps about you or your child, and follow your requests."
+      },
+      "eyebrow": "Your data",
+      "title": "Your privacy requests",
+      "lead": "You can ask for a copy of the data Friends of Animals keeps about you or a child you look after, ask us to correct it, or ask us to erase it. FOA's grievance officer answers each request by its due date.",
+      "loading": "Loading your requests…",
+      "new": "Make a request",
+      "empty": "You haven't made a privacy request yet.",
+      "caption": "Your privacy requests, newest first",
+      "reference": "Reference",
+      "type": "What you asked",
+      "aboutHeading": "About",
+      "status": "Status",
+      "filed": "Made on",
+      "due": "Answer due by",
+      "filedByChild": "Made by your child"
+    },
+    "new": {
+      "meta": {
+        "title": "Make a privacy request",
+        "description": "Ask to see, correct or erase the data Friends of Animals keeps."
+      },
+      "eyebrow": "Your data",
+      "title": "Make a privacy request",
+      "lead": "Tell us what you want and whose data it is about. We answer by email and on your requests page.",
+      "loading": "Loading…",
+      "back": "Back to your requests",
+      "type": "What do you want?",
+      "typePlaceholder": "Choose one",
+      "typeHints": {
+        "access": "See a copy: we prepare a file of everything we keep, for you to download.",
+        "correction": "Correct: tell us what is wrong and what it should say.",
+        "erasure": "Erase: we delete what we can. The law makes us keep some records for a while, such as payments and proof of consent, and we tell you which."
+      },
+      "subject": "Whose data is it about?",
+      "subjectPlaceholder": "Choose one",
+      "self": "Me",
+      "teenErasure": "If you are under 18, your parent or guardian asks for erasure for you.",
+      "correctionDetails": "What should we correct? (for a correction only)",
+      "correctionHint": "Up to 2,000 characters. Say what is wrong and what it should say.",
+      "submit": "Send request",
+      "pending": "Sending…",
+      "errors": {
+        "invalid_input": "Choose what you want and whose data it is about. A correction also needs a description of what to correct.",
+        "already_open": "A request like this about the same person is still open. You can follow it on your requests page.",
+        "child_is_adult": "Your child is 18 or older now, so they make their own requests.",
+        "guardian_not_verified": "Verify yourself as a guardian before making a request for a child.",
+        "erasure_needs_guardian": "Ask your parent or guardian to request erasure for you.",
+        "under_13_needs_guardian": "Ask your parent or guardian to make this request for you.",
+        "forbidden": "You can only make a request about yourself or a child you look after."
+      }
+    },
+    "view": {
+      "meta": {
+        "title": "Privacy request",
+        "description": "Follow one of your privacy requests."
+      },
+      "back": "Back to your requests",
+      "loading": "Loading the request…",
+      "title": "Request {reference}",
+      "facts": {
+        "label": "About this request",
+        "type": "What you asked",
+        "about": "About",
+        "status": "Status",
+        "filed": "Made on",
+        "due": "Answer due by",
+        "started": "Work started on",
+        "closed": "Finished on",
+        "notYet": "Not yet",
+        "filedBy": "Made by",
+        "filedByYou": "You",
+        "filedByChild": "Your child"
+      },
+      "correction": "What you asked us to correct",
+      "rejection": "Why we couldn't carry it out",
+      "rejectionNext": "If you disagree, you can write to us through the contact page, or complain to the Data Protection Board of India.",
+      "resolution": "What we corrected",
+      "retained": {
+        "title": "What we kept, and why",
+        "lead": "We erased everything else. These records stay only as long as the reason applies.",
+        "until": "until {date}",
+        "noEnd": "for as long as the reason applies",
+        "item": "{category}: {basis}, {when}"
+      },
+      "categories": {
+        "consents": "Your consents",
+        "sign_in": "Sign-in records",
+        "roles": "Roles",
+        "messages": "Messages and message choices",
+        "guardian_record": "Your guardian record",
+        "uploads": "Your uploads",
+        "entries": "Competition entries and their pictures",
+        "registrations": "Unpaid registrations",
+        "guardian_links": "Guardian links",
+        "profile": "Participant profile",
+        "account": "Your account's name and contact",
+        "kept_profile": "Participant profile (anonymised)",
+        "paid_registrations": "Paid registrations",
+        "payments": "Payment records",
+        "children": "Your children's profiles",
+        "consent_records": "The record of consents given and withdrawn",
+        "audit_log": "The audit log of actions on the site",
+        "privacy_requests": "Your privacy requests"
+      },
+      "bases": {
+        "financial_floor": "the law on financial records",
+        "financial_record": "kept with a payment record",
+        "consent_proof": "proof of consent",
+        "audit_log": "the site's audit log, which can't be changed",
+        "legal_hold": "a legal hold",
+        "linked_records": "other records still need it",
+        "institution_record": "an institution you registered",
+        "separate_subject": "each child's data is theirs: ask separately",
+        "rights_record": "the record of your requests"
+      },
+      "export": {
+        "title": "Your copy of the data",
+        "preparing": "We're preparing your copy. We'll email you when it's ready.",
+        "ready": "Your copy is ready. The download link works until {date}.",
+        "download": "Download your copy",
+        "pending": "Preparing the download…",
+        "expired": "The download has expired, and the copy has been deleted. Make a new request if you need another."
+      },
+      "cancel": {
+        "title": "Cancel this request",
+        "body": "You can cancel it until our grievance officer starts work on it.",
+        "submit": "Cancel request",
+        "pending": "Cancelling…"
+      },
+      "results": {
+        "filed": "Your request is in. We've emailed you its reference.",
+        "cancelled": "Your request is cancelled."
+      },
+      "errors": {
+        "already_in_progress": "Work has started on this request, so it can't be cancelled now.",
+        "request_closed": "This request is finished, so it can't be cancelled.",
+        "export_not_ready": "Your copy isn't ready yet.",
+        "link_expired": "The download has expired.",
+        "export_deleted": "The copy has been deleted. Make a new request if you need another."
+      },
+      "denied": {
+        "title": "This request isn't yours to see",
+        "body": "You can see the privacy requests you made, and those about a child you look after.",
+        "back": "Go to your requests"
+      }
+    }
+  }
+}

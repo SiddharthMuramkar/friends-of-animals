@@ -46,6 +46,11 @@ import { sendEntryReceiptToFamily } from "../modules/entries/family-receipt";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import { fanOutBreachNotices } from "../modules/breaches/fan-out";
 import { sendAuthorityNotice } from "../modules/breaches/authority-message";
+import {
+  runBuildExport,
+  runExpireExport,
+} from "../modules/privacy/requests/subject-data/export";
+import { runExecuteErasure } from "../modules/privacy/requests/subject-data/erasure";
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
@@ -189,6 +194,16 @@ export const HANDLERS: Handlers = {
   // Emails the authority about a breach, once (#116).
   "breaches.send_authority_notice": (deps, { payload }) =>
     sendAuthorityNotice(deps, payload),
+  // Builds and stores an access request's data export (#115b). Safe to
+  // repeat: a request no longer waiting for its export is left alone.
+  "privacy.build_export": (deps, { payload }) => runBuildExport(deps, payload),
+  // Deletes an export once its link has expired (#115b).
+  "privacy.expire_export": (deps, { payload }) =>
+    runExpireExport(deps, payload),
+  // Carries out an approved erasure (#115b). Safe to repeat: a closed
+  // request is left alone, and a changed plan is refused.
+  "privacy.execute_erasure": (deps, { payload }) =>
+    runExecuteErasure(deps, payload),
   // Brings a competition's reminders in step after it is published, its
   // key dates change or it is cancelled (#84). Safe to repeat.
   "reminders.schedule": async (deps, { payload }) => {

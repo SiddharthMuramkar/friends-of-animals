@@ -98,6 +98,31 @@ A keyed fingerprint kept beside an Encrypted field, so the platform can find a
 record by that value (a User by phone at sign-in) without storing it readably.
 _Avoid_: Phone hash, lookup hash
 
+**Rights request**:
+A request under India's data protection law, by a User about their own data
+or by a Guardian about a linked child's: for a copy of it (access), to
+correct it, or to erase it. Each has a reference, a due date and a status
+the requester follows.
+_Avoid_: DSAR, privacy ticket, data request
+
+**Grievance officer**:
+The Role held by FOA's grievance officer: the only people who answer Rights
+requests, in the grievance queue. No other Role can, super admins included.
+_Avoid_: DPO, privacy admin
+
+**Data export**:
+The file of everything FOA keeps about one person, prepared for an access
+request. Only the person who made the request can download it, for a
+limited time; staff never see it.
+_Avoid_: Data dump, takeout
+
+**Erasure**:
+Carrying out an erasure request: the person's consents are withdrawn, and
+their records deleted or anonymised, except what the law makes FOA keep
+(payments under their floor, proof of consent, the Audit log) or a legal
+hold stops. What was kept, why and until when is recorded and told to them.
+_Avoid_: Deletion (for the whole process), right to be forgotten
+
 ## Safeguarding
 
 **Safeguarding report**:
@@ -666,6 +691,21 @@ from India Post's open pin-code directory. A Directory listing is found by
 distance from its pin-code centre, never from its address, so distances are
 approximate.
 _Avoid_: Geocode, listing location
+
+## Adoption
+
+**Adoption listing**:
+One animal a Directory listing offers for adoption: who it is, its health
+and vaccination notes, the adoption conditions and where it is. It stays a
+private draft until a representative publishes it with a photo, and it is
+public only while its Directory listing is verified. FOA facilitates; the
+listing organisation is responsible for the animal.
+_Avoid_: Pet listing, animal profile, adoption post
+
+**Adoptable animal**:
+What the public sees of a published Adoption listing on /adopt and its own
+page.
+_Avoid_: Pet, available animal
 
 ## Engineering
 

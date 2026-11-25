@@ -10,6 +10,7 @@
 import { offsiteCopySchedule } from "../modules/offsite-copy/schedule";
 import { reconcileLedgerSchedule } from "../modules/ledger/backfill";
 import { retentionSweepSchedule } from "../modules/privacy/schedule";
+import { flagOverdueSchedule } from "../modules/privacy/requests/overdue";
 import { remindersSyncSchedule } from "../modules/reminders/schedule";
 import type { ErrorReporter } from "../ports/errors";
 import type { OutboxDeps } from "./handlers";
@@ -48,6 +49,7 @@ export const SCHEDULES: readonly ScheduleDefinition[] = [
   offsiteCopySchedule,
   reconcileLedgerSchedule,
   retentionSweepSchedule,
+  flagOverdueSchedule,
   remindersSyncSchedule,
 ];
 

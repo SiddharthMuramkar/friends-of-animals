@@ -466,6 +466,30 @@ const ENTRY_PENDING_TEXT = {
   toConfirm: true,
 } as const;
 
+/** Privacy rights requests (#115): kept 3 years after they close. */
+const PRIVACY_REQUEST_RECORD = {
+  policy: "privacyRequests",
+  periodKey: "privacyRequests",
+  basis:
+    "FOA shows what a person asked under their data rights and how and when it answered (DPDP Act 2023; HR-30)",
+  toConfirm: true,
+} as const;
+
+/** Erasure records (#115b): kept as the proof of each erasure. */
+const ERASURE_RECORD = {
+  policy: "erasureRecords",
+  periodKey: "erasureRecords",
+  basis:
+    "FOA shows it erased what a person asked, and erases it again if a backup is restored (DPDP Act 2023; HR-30)",
+  toConfirm: true,
+} as const;
+
+const privacyRequestColumn = rowsOf("privacy_request", {
+  subject: { kind: "user", via: "subject_kind + subject_id" },
+  retention: PRIVACY_REQUEST_RECORD,
+  onExpiry: "delete_row",
+});
+
 const user = rowsOf("user", {
   subject: { kind: "user", via: "id" },
   retention: WHILE_ACCOUNT_OPEN,
@@ -506,6 +530,13 @@ const institution = rowsOf("institution", {
 
 const listing = rowsOf("directory_listing", {
   subject: { kind: "directory_listing", via: "id" },
+  retention: WHILE_LISTED,
+  onExpiry: "delete_row",
+});
+
+/** An adoption listing (#129) lives and goes with its directory listing. */
+const adoptable = rowsOf("adoption_listing", {
+  subject: { kind: "directory_listing", via: "directory_listing_id" },
   retention: WHILE_LISTED,
   onExpiry: "delete_row",
 });
@@ -894,6 +925,14 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "retain",
   }),
   actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
+  // Adoption listings (#129): an animal fostered by an individual is
+  // where they live, so its location is theirs. The animal's own details
+  // are not personal data (non-personal.ts).
+  adoptable("state", "contact"),
+  adoptable("city", "contact"),
+  adoptable("city_key", "contact"),
+  adoptable("pin_code", "contact"),
+  actorColumn("adoption_listing", "created_by_user_id", WHILE_LISTED),
   // Coordinator invitations (#74)
   coordinatorInvitation("identifier_ciphertext", "contact"),
   coordinatorInvitation("identifier_hash", "technical"),
@@ -1308,6 +1347,41 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Privacy rights requests (#115): who asked about whom, and the words
+  // the requester and the grievance officer wrote, encrypted.
+  privacyRequestColumn("subject_id", "identity"),
+  privacyRequestColumn("requested_by_user_id", "identity", {
+    subject: { kind: "user", via: "requested_by_user_id" },
+  }),
+  privacyRequestColumn("correction_details_ciphertext", "content"),
+  privacyRequestColumn("rejection_reason_ciphertext", "content"),
+  privacyRequestColumn("resolution_ciphertext", "content"),
+  actorColumn("privacy_request", "assigned_to_user_id", PRIVACY_REQUEST_RECORD),
+  actorColumn(
+    "privacy_request",
+    "erasure_approved_by_user_id",
+    PRIVACY_REQUEST_RECORD
+  ),
+  rowsOf("privacy_request_note", {
+    subject: {
+      kind: "user",
+      via: "request_id → privacy_request.subject_kind + subject_id",
+    },
+    retention: PRIVACY_REQUEST_RECORD,
+    onExpiry: "delete_row",
+  })("body_ciphertext", "content"),
+  actorColumn("privacy_request_note", "author_user_id", PRIVACY_REQUEST_RECORD),
+  // Erasure records (#115b): ids of the accounts and profiles erased.
+  ...(["subject_id", "user_ids", "profile_ids"] as const).map((column) =>
+    rowsOf("erasure_record", {
+      subject: {
+        kind: "user",
+        via: "subject_kind + subject_id, user_ids, profile_ids",
+      },
+      retention: ERASURE_RECORD,
+      onExpiry: "retain",
+    })(column, "identity")
+  ),
   // Volunteer applications (#123): the applicant's answers and the record
   // of who vetted them.
   volunteerApplication("applicant_user_id", "identity"),
