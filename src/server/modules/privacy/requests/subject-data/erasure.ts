@@ -31,6 +31,11 @@ import type { AppDb } from "../../../../db/app-db";
 import {
   account,
   auditLog,
+  artworkPhoto,
+  physicalArtwork,
+  roundEntry,
+  roundAssignment,
+  judgeConflict,
   consentDocument,
   consentEvent,
   consentForm,
@@ -346,6 +351,16 @@ export async function gatherErasure(
         .where(within(entryUploadGrant.registrationId, registrationIds))
     ).map((row) => row.id),
   ];
+  const artworkFileIds = (
+    await db
+      .select({ id: artworkPhoto.fileAssetId })
+      .from(artworkPhoto)
+      .innerJoin(
+        physicalArtwork,
+        eq(physicalArtwork.id, artworkPhoto.artworkId)
+      )
+      .where(within(physicalArtwork.entryId, entryIds))
+  ).map((row) => row.id);
   const uploadIds = (
     await db
       .select({ id: fileAsset.id })
@@ -357,7 +372,9 @@ export async function gatherErasure(
         )
       )
   ).map((row) => row.id);
-  const fileIds = [...new Set([...entryFileIds, ...uploadIds])];
+  const fileIds = [
+    ...new Set([...entryFileIds, ...artworkFileIds, ...uploadIds]),
+  ];
 
   // A registration a payment, a refund or consent evidence names stays.
   const paidRegistrations = new Set(
@@ -644,6 +661,13 @@ async function eraseRecords(
   await tx
     .delete(entryUploadGrant)
     .where(within(entryUploadGrant.registrationId, registrationIds));
+  // Judging (#95) references the entry with composite foreign keys.
+  // Remove its assignments and conflict flags before the pool row and entry.
+  await tx
+    .delete(roundAssignment)
+    .where(within(roundAssignment.entryId, entryIds));
+  await tx.delete(judgeConflict).where(within(judgeConflict.entryId, entryIds));
+  await tx.delete(roundEntry).where(within(roundEntry.entryId, entryIds));
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx

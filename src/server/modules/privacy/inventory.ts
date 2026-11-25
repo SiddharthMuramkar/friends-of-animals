@@ -1458,6 +1458,47 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("physical_artwork", "requested_by", ENTRY_RECORD),
   actorColumn("physical_artwork", "dispatched_by", ENTRY_RECORD),
   actorColumn("physical_artwork", "received_by", ENTRY_RECORD),
+  rowsOf("physical_artwork", {
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+  })("storage_location", "content"),
+  ...(
+    [
+      ["artwork_verification", ["artwork_id", "condition_notes", "material"]],
+      ["artwork_photo", ["artwork_id", "file_asset_id"]],
+      ["artwork_discrepancy", ["artwork_id", "notes", "resolution"]],
+      ["artwork_custody_event", ["artwork_id", "location", "return_via"]],
+      ["artwork_return_request", ["artwork_id", "via"]],
+    ] as const
+  ).flatMap(([table, columns]) =>
+    columns.map((column) =>
+      rowsOf(table, {
+        subject: {
+          kind: "participant_profile",
+          via: "artwork_id → physical_artwork.entry_id → entry.participant_profile_id",
+        },
+        retention: ENTRY_RECORD,
+        onExpiry: "delete_row",
+      })(
+        column,
+        column === "artwork_id" || column === "file_asset_id"
+          ? "technical"
+          : "content"
+      )
+    )
+  ),
+  actorColumn("artwork_verification", "verified_by", ENTRY_RECORD),
+  actorColumn("artwork_photo", "created_by", ENTRY_RECORD),
+  actorColumn("artwork_discrepancy", "raised_by", ENTRY_RECORD),
+  actorColumn("artwork_discrepancy", "resolved_by", ENTRY_RECORD),
+  actorColumn(
+    "artwork_custody_event",
+    "actor_user_id",
+    ENTRY_RECORD,
+    "delete_row"
+  ),
+  actorColumn("artwork_return_request", "requested_by", ENTRY_RECORD),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",

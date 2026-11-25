@@ -4,6 +4,7 @@ import { authorize, can } from "../../access/can";
 import { grantsOf } from "../../access/grants";
 import { recordAudit } from "../../audit/record";
 import {
+  artworkCustodyEvent,
   competition,
   entry,
   institutionRegistration,
@@ -21,6 +22,7 @@ import { visibleProfiles } from "../participants/list-my-registrations";
 import { artworkCodeFormat, normaliseArtworkCode } from "./domain/code";
 import { decideArtwork, decideArtworkRequest } from "./domain/decide";
 import { PHYSICAL_ARTWORK_STATUSES } from "./domain/status";
+import { custodyUseCases, returnSummary, nextCustodyId } from "./custody";
 
 const ids = z
   .array(z.uuid())
@@ -310,7 +312,7 @@ async function getArtwork(ctx: UseCaseContext, input: { artworkCode: string }) {
     : ({ ok: false, error: "not_found" } as const);
 }
 
-async function senderScope(ctx: UseCaseContext) {
+async function senderScope(ctx: UseCaseContext, includeSchoolFamily = false) {
   const actor = ctx.actor;
   if (actor.kind !== "user") throw new Error("unreachable");
   const institutions = (await grantsOf(ctx.db, actor.userId))
@@ -321,7 +323,11 @@ async function senderScope(ctx: UseCaseContext) {
         g.scope.type === "institution"
     )
     .flatMap((g) => (g.scope.type === "institution" ? [g.scope.id] : []));
-  const profiles = [...(await visibleProfiles(ctx.db, actor.userId)).keys()];
+  const visible = await visibleProfiles(ctx.db, actor.userId);
+  const profiles = [...visible.keys()];
+  const familyProfiles = [...visible]
+    .filter(([, access]) => access.pays)
+    .map(([id]) => id);
   const regs = profiles.length
     ? await ctx.db
         .select({ id: registration.id })
@@ -333,6 +339,18 @@ async function senderScope(ctx: UseCaseContext) {
           )
         )
     : [];
+  const schoolFamily =
+    includeSchoolFamily && familyProfiles.length
+      ? await ctx.db
+          .select({ id: registration.id })
+          .from(registration)
+          .where(
+            and(
+              inArray(registration.participantProfileId, familyProfiles),
+              eq(registration.route, "institution")
+            )
+          )
+      : [];
   const schools = institutions.length
     ? await ctx.db
         .select({ id: institutionRegistration.id })
@@ -349,6 +367,12 @@ async function senderScope(ctx: UseCaseContext) {
           )
         )
       : undefined,
+    schoolFamily.length
+      ? inArray(
+          physicalArtwork.registrationId,
+          schoolFamily.map((r) => r.id)
+        )
+      : undefined,
     schools.length
       ? inArray(
           physicalArtwork.institutionRegistrationId,
@@ -356,11 +380,16 @@ async function senderScope(ctx: UseCaseContext) {
         )
       : undefined
   );
-  return scope;
+  return {
+    scope,
+    familySchoolIds: new Set(schoolFamily.map((r) => r.id)),
+    institutionRegistrationIds: new Set(schools.map((r) => r.id)),
+  };
 }
 async function listMyArtworks(ctx: UseCaseContext) {
   await authorize(ctx, "artwork.list_mine");
-  const scope = await senderScope(ctx);
+  const { scope, familySchoolIds, institutionRegistrationIds } =
+    await senderScope(ctx, true);
   const rows = scope
     ? await ctx.db
         .select({
@@ -375,8 +404,17 @@ async function listMyArtworks(ctx: UseCaseContext) {
     : [];
   return {
     ok: true,
-    artworks: rows.map((row) =>
-      view(row.work, ctx.clock.now(), row.entryCode, row.entryTitle)
+    artworks: await Promise.all(
+      rows.map(async (row) => ({
+        ...view(row.work, ctx.clock.now(), row.entryCode, row.entryTitle),
+        familySender:
+          row.work.institutionRegistrationId === null ||
+          familySchoolIds.has(row.work.registrationId),
+        institutionSender:
+          row.work.institutionRegistrationId !== null &&
+          institutionRegistrationIds.has(row.work.institutionRegistrationId),
+        ...(await returnSummary(ctx, row.work)),
+      }))
     ),
   } as const;
 }
@@ -396,7 +434,7 @@ async function recordArtworkDispatch(
   if (actor.kind !== "user") throw new Error("unreachable");
   return ctx.db.transaction(async (tx) => {
     const scoped = { ...ctx, db: tx };
-    const scope = await senderScope(scoped);
+    const { scope } = await senderScope(scoped);
     if (!scope) return { ok: false, error: "not_found" } as const;
     const rows = await tx
       .select()
@@ -496,6 +534,13 @@ async function markArtworkReceived(
       .update(physicalArtwork)
       .set({ status: "received", receivedBy: actor.userId, receivedAt: now })
       .where(eq(physicalArtwork.id, row.id));
+    await tx.insert(artworkCustodyEvent).values({
+      id: nextCustodyId(now),
+      artworkId: row.id,
+      kind: "received",
+      actorUserId: actor.userId,
+      at: now,
+    });
     await recordAudit(tx, ctx, {
       action: "physical_artwork.received",
       entity: { type: "physical_artwork", id: row.id },
@@ -565,6 +610,7 @@ async function listArtworkCandidates(
   };
 }
 export const physicalArtworkUseCases = (ctx: UseCaseContext) => ({
+  ...custodyUseCases(ctx),
   requestPhysicalArtwork: (input: z.input<typeof requestInput>) =>
     requestPhysicalArtwork(ctx, input),
   recordArtworkDispatch: (input: z.input<typeof dispatchInput>) =>

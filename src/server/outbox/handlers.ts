@@ -12,6 +12,8 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { retainUnrequested } from "../modules/physical-artwork/custody";
+import { openArtworkResultsWindow } from "../modules/physical-artwork/results-window";
 import type { Deps } from "../deps";
 import type { BlindIndex } from "../crypto/blind-index";
 import type { FieldCipher } from "../crypto/field-cipher";
@@ -262,6 +264,10 @@ export const HANDLERS: Handlers = {
       );
     }
   },
+  "artwork.open_results_window": (deps, { payload }) =>
+    openArtworkResultsWindow(deps, payload),
+  "artwork.retain_unrequested": (deps, { payload }) =>
+    retainUnrequested(deps, payload),
   "reminders.schedule_artwork": async (deps, { payload }) => {
     await scheduleReminders(
       { ...deps, actor: { kind: "system", process: "worker" } },

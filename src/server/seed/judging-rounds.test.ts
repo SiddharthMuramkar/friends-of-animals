@@ -28,6 +28,22 @@ describe("judging round seeds", () => {
     expect(
       await h.as(await h.signIn(SEED_JUDGING.pendingJudge)).myJudgeRounds()
     ).toMatchObject({ ok: true, rounds: [{ readiness: { ready: false } }] });
+    expect(
+      await manager.getRoundPool({ roundId: SEED_JUDGING.openRoundId })
+    ).toMatchObject({
+      ok: true,
+      entries: expect.arrayContaining([
+        expect.objectContaining({ entryId: expect.any(String) }),
+      ]),
+    });
+    expect(
+      await manager.listAssignments({ roundId: SEED_JUDGING.openRoundId })
+    ).toMatchObject({
+      ok: true,
+      assignments: expect.arrayContaining([
+        expect.objectContaining({ entryId: expect.any(String) }),
+      ]),
+    });
     const first = [
       await h.db.select().from(judgingRound),
       await h.db.select().from(judgeInvitation),
