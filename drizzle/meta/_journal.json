@@ -848,20 +848,6 @@
       "when": 1795587055787,
       "tag": "0120_91_registration_not_shortlisted",
       "breakpoints": true
-    },
-    {
-      "idx": 121,
-      "version": "7",
-      "when": 1795587480584,
-      "tag": "0121_95_pre_enum_judging",
-      "breakpoints": true
-    },
-    {
-      "idx": 122,
-      "version": "7",
-      "when": 1795587537365,
-      "tag": "0122_95_judging_rounds",
-      "breakpoints": true
     }
   ]
 }
