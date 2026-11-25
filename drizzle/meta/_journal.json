@@ -1058,27 +1058,6 @@
       "when": 1795599048925,
       "tag": "0150_101_certificate_archives",
       "breakpoints": true
-    },
-    {
-      "idx": 151,
-      "version": "7",
-      "when": 1795601724503,
-      "tag": "0151_124_volunteer_work",
-      "breakpoints": true
-    },
-    {
-      "idx": 152,
-      "version": "7",
-      "when": 1795601844683,
-      "tag": "0152_124_certificate_holder",
-      "breakpoints": true
-    },
-    {
-      "idx": 153,
-      "version": "7",
-      "when": 1795602552565,
-      "tag": "0153_124_volunteer_work_messages",
-      "breakpoints": true
     }
   ]
 }
