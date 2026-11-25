@@ -78,9 +78,11 @@ test("a manager creates and opens a round; an invitee signs in, accepts and comp
     await expectRendersAccessibly(guest, invitePath!);
     await expectAccessibleInDark(guest, "signed-out invitation");
     await guest
+      .locator("main")
       .getByRole("link", { name: "Sign in", exact: true })
-      .last()
       .click();
+    await expect(guest).toHaveURL(/\/sign-in\?next=/);
+    expect(new URL(guest.url()).searchParams.get("next")).toBe(invitePath);
     await guest.getByRole("textbox", { name: "Email address" }).fill(judge);
     await guest.getByRole("button", { name: "Email me a code" }).click();
     await expect(guest.getByRole("status")).toContainText(judge);
