@@ -74,7 +74,7 @@ export async function RankingsPanel({
           </p>
         ) : null}
         {locked && round.lockOverrideReason ? (
-          <p className="break-all">
+          <p className="break-words">
             {t("overrideRecorded", { reason: round.lockOverrideReason })}
           </p>
         ) : null}
@@ -183,7 +183,7 @@ export async function RankingsPanel({
                             type="checkbox"
                             name="suitableForAuction"
                             defaultChecked={item.suitableForAuction}
-                            className="size-5 accent-primary"
+                            className="size-5 accent-link"
                           />
                           {t("auctionSuitable")}
                         </label>

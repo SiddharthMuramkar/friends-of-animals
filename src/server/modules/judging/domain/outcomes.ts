@@ -17,6 +17,11 @@
 //
 // Loads under plain Node: relative imports only.
 
+import {
+  AWARD_BANDS,
+  type AwardScheme,
+} from "../../competitions/domain/award-schemes";
+
 export const ROUND_OUTCOMES = [
   "winner",
   "runner_up",
@@ -26,12 +31,6 @@ export const ROUND_OUTCOMES = [
 ] as const;
 
 export type RoundOutcome = (typeof ROUND_OUTCOMES)[number];
-
-/** As the competition's award settings name them; ranked_123 by default. */
-import {
-  AWARD_BANDS,
-  type AwardScheme,
-} from "../../competitions/domain/award-schemes";
 
 export type OutcomeTag = {
   entryId: string;

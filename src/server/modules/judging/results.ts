@@ -201,7 +201,14 @@ async function calculateRankings(db: AppDb, round: JudgingRound) {
   for (const partition of partitions.values()) {
     const pinned = criteria.get(partition[0]!.discipline)!;
     if (!pinned.length) {
-      unscored.push(...partition.map(({ sheets: _, ...row }) => row));
+      unscored.push(
+        ...partition.map(({ entryId, code, discipline, categoryId }) => ({
+          entryId,
+          code,
+          discipline,
+          categoryId,
+        }))
+      );
       continue;
     }
     const result = rankEntries(pinned, partition);
