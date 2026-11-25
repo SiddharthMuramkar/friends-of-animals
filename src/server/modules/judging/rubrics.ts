@@ -207,12 +207,20 @@ function summary({ id, code, name, status }: CompetitionRow) {
 }
 
 async function lockRubric(tx: AppDb, rubricId: string) {
+  // Round creation/opening locks the competition before pinning rubric FKs.
+  // Rubric mutations must acquire those same resources in that order.
+  const [scope] = await tx
+    .select({ competitionId: rubric.competitionId })
+    .from(rubric)
+    .where(eq(rubric.id, rubricId));
+  if (!scope) return null;
+  const parent = await loadCompetition(tx, scope.competitionId, "share");
   const [row] = await tx
     .select()
     .from(rubric)
     .where(eq(rubric.id, rubricId))
     .for("update");
-  return row ?? null;
+  return row && parent ? { row, parent } : null;
 }
 
 /** Each rubric's criteria, in order; an empty list for one with none. */
@@ -400,10 +408,10 @@ export async function updateRubricDraft(
 
   return frozenAsNotEditable(() =>
     ctx.db.transaction(async (tx) => {
-      const row = await lockRubric(tx, rubricId);
-      if (!row) return { ok: false, error: "not_found" } as const;
-      const found = await loadCompetition(tx, row.competitionId, "share");
-      if (found && rubricsLocked(found.status)) {
+      const locked = await lockRubric(tx, rubricId);
+      if (!locked) return { ok: false, error: "not_found" } as const;
+      const { row, parent } = locked;
+      if (rubricsLocked(parent.status)) {
         return { ok: false, error: "rubric_locked_by_judging" } as const;
       }
       if (!isRubricEditable(row.status)) {
@@ -441,10 +449,10 @@ export async function publishRubric(
 
   return frozenAsNotEditable(() =>
     ctx.db.transaction(async (tx) => {
-      const row = await lockRubric(tx, rubricId);
-      if (!row) return { ok: false, error: "not_found" } as const;
-      const found = await loadCompetition(tx, row.competitionId, "share");
-      if (found && rubricsLocked(found.status)) {
+      const locked = await lockRubric(tx, rubricId);
+      if (!locked) return { ok: false, error: "not_found" } as const;
+      const { row, parent } = locked;
+      if (rubricsLocked(parent.status)) {
         return { ok: false, error: "rubric_locked_by_judging" } as const;
       }
       if (!canMoveRubric(row.status, "published")) {
@@ -518,10 +526,10 @@ export async function startRubricRevision(
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
-    const row = await lockRubric(tx, rubricId);
-    if (!row) return { ok: false, error: "not_found" } as const;
-    const found = await loadCompetition(tx, row.competitionId, "share");
-    if (found && rubricsLocked(found.status)) {
+    const locked = await lockRubric(tx, rubricId);
+    if (!locked) return { ok: false, error: "not_found" } as const;
+    const { row, parent } = locked;
+    if (rubricsLocked(parent.status)) {
       return { ok: false, error: "rubric_locked_by_judging" } as const;
     }
     if (row.status !== "published") {

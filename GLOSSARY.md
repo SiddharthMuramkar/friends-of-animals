@@ -699,8 +699,14 @@ A competition’s FOA round, at a city/district, state, national or global level
 **Judge onboarding**:
 A round-scoped judge’s acceptance of the code of conduct and confidentiality terms, followed by a conflict declaration; all are required before an assignment or a blind entry read.
 
+**Round entry source**:
+The rule for selecting candidates for a Judging round: FOA-verified entries or the advancing Round outcomes of one source round in the same competition once it locks. Links cannot form a loop; they need not visit every judging level.
+
+**Chained judging levels**:
+Judging rounds linked by their Round entry sources. Each round has independent pins, awards, judges, physical requirements and scores. A round with no non-cancelled successor is a terminal round.
+
 **Round pool**:
-The FOA-verified entries a round admits. A physical round additionally needs a physically ready artwork. Only a pooled entry may be assigned.
+The FOA-verified entries a round admits from its Round entry source. A physical round additionally needs a physically ready artwork. Only a pooled entry may be assigned.
 
 **Assignment**:
 One pooled entry allocated to one ready judge, provided their declared and live conflicts do not apply.

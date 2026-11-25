@@ -65,7 +65,25 @@ describe("round settings", () => {
     expect(roundSettingsSchema.safeParse(input).success).toBe(false);
   });
 
-  it("refuses finalists of another round until chained levels arrive", () => {
+  it("accepts a valid linked source but not a round ID for verified entries", () => {
+    const sourceRoundId = "01938a00-0000-7000-8000-000000000001";
+    expect(
+      roundSettingsSchema.parse({
+        name: "Next",
+        entrySource: "round_finalists",
+        sourceRoundId,
+      })
+    ).toMatchObject({ entrySource: "round_finalists", sourceRoundId });
+    expect(
+      roundSettingsSchema.safeParse({
+        name: "Next",
+        entrySource: "verified_entries",
+        sourceRoundId,
+      }).success
+    ).toBe(false);
+  });
+
+  it("requires a source round when using earlier finalists", () => {
     expect(
       roundSettingsSchema.safeParse({
         name: "National final",

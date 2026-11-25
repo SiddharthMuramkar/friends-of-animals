@@ -111,7 +111,7 @@ describe("the competition terms seed", () => {
 
     expect(await counts(h)).toEqual(once);
     // Three sample fees, and TREES27's free institution fee from the
-    // school-route submissions seed (#87).
-    expect(once).toMatchObject({ fees: 4, awards: 1, pins: 12 });
+    // school-route submissions seed (#87). AUCT27 pins auction consent (#131).
+    expect(once).toMatchObject({ fees: 4, awards: 1, pins: 13 });
   });
 });

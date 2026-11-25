@@ -1,6 +1,6 @@
 // Live rankings and the only transition that freezes them. The round row
 // serializes score saves, assignment changes, locking and recognition tags.
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
@@ -30,6 +30,7 @@ import {
   authorizeRound,
   competitionScope,
   loadRound,
+  lockRoundCompetition,
   roundIdInput,
 } from "./rounds";
 import { decideRoundLock, roundAllows } from "./domain/round-lock";
@@ -41,6 +42,7 @@ import {
   type ScoreSheet,
 } from "./domain/ranking";
 import {
+  advances,
   outcomeTagProblems,
   prefillOutcomes,
   ROUND_OUTCOMES,
@@ -394,6 +396,10 @@ async function tagRoundOutcomes(
   if (!parsed.success) return invalidInput(parsed.error);
   if (!round) return notFound;
   return ctx.db.transaction(async (tx) => {
+    const parent = await lockRoundCompetition(tx, round.competitionId);
+    if (!parent) return notFound;
+    if (String(parent.status) === "results_published")
+      return { ok: false, error: "results_published" } as const;
     const current = await loadRound(tx, round.id, true);
     if (!current) return notFound;
     const { role } = await authorize(
@@ -417,6 +423,34 @@ async function tagRoundOutcomes(
     );
     if (problems.length)
       return { ok: false, error: "invalid_outcomes", problems } as const;
+    // A live successor may already have admitted an advancing outcome. Do
+    // not erase the basis for admission or remove its independent judging work.
+    const withdrawing = parsed.data.tags
+      .filter(
+        (tag) =>
+          !advances(tag.outcome) &&
+          allowed.some(
+            (row) => row.entryId === tag.entryId && advances(row.outcome)
+          )
+      )
+      .map((tag) => tag.entryId);
+    if (withdrawing.length) {
+      const [used] = await tx
+        .select({ entryId: roundEntry.entryId })
+        .from(roundEntry)
+        .innerJoin(judgingRound, eq(judgingRound.id, roundEntry.roundId))
+        .where(
+          and(
+            eq(judgingRound.competitionId, current.competitionId),
+            eq(judgingRound.sourceRoundId, current.id),
+            ne(judgingRound.status, "cancelled"),
+            inArray(roundEntry.entryId, withdrawing)
+          )
+        )
+        .limit(1);
+      if (used)
+        return { ok: false, error: "outcome_already_advanced" } as const;
+    }
     const before: OutcomeTag[] = [];
     const after: OutcomeTag[] = [];
     for (const tag of parsed.data.tags) {

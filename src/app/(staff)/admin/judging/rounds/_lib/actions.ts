@@ -17,6 +17,7 @@ const settings = z.object({
   level: z.enum(JUDGING_LEVELS),
   judgesPhysical: z.boolean(),
   awardScheme: z.enum(AWARD_SCHEMES).optional(),
+  sourceRoundId: z.union([z.uuid(), z.literal("verified_entries")]),
 });
 export async function roundAction(form: FormData) {
   const actor = await currentActor();
@@ -37,6 +38,7 @@ export async function roundAction(form: FormData) {
         name: text(form, "name"),
         level: text(form, "level"),
         judgesPhysical: form.get("judgesPhysical") === "on",
+        sourceRoundId: text(form, "sourceRoundId"),
         awardScheme:
           text(form, "awardScheme") === "competition_default"
             ? undefined
@@ -44,17 +46,27 @@ export async function roundAction(form: FormData) {
       });
       if (operation === "create") target = `${ADMIN_JUDGING_ROUNDS}/new`;
       if (parsed.success) {
+        const { sourceRoundId, ...choices } = parsed.data;
+        const roundSettings = {
+          ...choices,
+          entrySource:
+            sourceRoundId === "verified_entries"
+              ? ("verified_entries" as const)
+              : ("round_finalists" as const),
+          sourceRoundId:
+            sourceRoundId === "verified_entries" ? null : sourceRoundId,
+        };
         if (operation === "create") {
           const result = await api.createJudgingRound({
             competitionId,
-            ...parsed.data,
+            ...roundSettings,
           });
           if (result.ok) target = adminJudgingRoundPath(result.roundId);
           done = result.ok ? "created" : result.error;
         } else {
           const result = await api.updateJudgingRound({
             roundId,
-            ...parsed.data,
+            ...roundSettings,
           });
           done = result.ok ? "saved" : result.error;
         }
@@ -126,6 +138,10 @@ export async function roundAction(form: FormData) {
           refused: String(result.refused.length),
           physical: String(
             result.refused.filter((r) => r.reason === "not_physically_ready")
+              .length
+          ),
+          finalists: String(
+            result.refused.filter((r) => r.reason === "not_source_finalist")
               .length
           ),
           verification: String(

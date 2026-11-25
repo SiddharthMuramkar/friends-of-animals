@@ -42,6 +42,7 @@ async function renderRounds(api: ReturnType<typeof as>) {
     api.listJudgingRounds(),
     api.myAccess(),
   ]);
+  const byId = new Map(data.ok ? data.rounds.map((r) => [r.id, r]) : []);
   return (
     <div className="mt-8 flex flex-col gap-4">
       {access.grants.some((g) => g.role === "competition_manager") ? (
@@ -57,6 +58,18 @@ async function renderRounds(api: ReturnType<typeof as>) {
               <p>
                 {t(`levels.${round.level}`)} · {t(`statuses.${round.status}`)} ·{" "}
                 {t(round.judgesPhysical ? "physical" : "digital")}
+              </p>
+              <p>
+                {round.sourceRoundId
+                  ? t("sourceLabel", {
+                      name:
+                        byId.get(round.sourceRoundId)?.name ??
+                        t("sourceUnavailable"),
+                      status: byId.get(round.sourceRoundId)
+                        ? t(`statuses.${byId.get(round.sourceRoundId)!.status}`)
+                        : t("sourceUnavailable"),
+                    })
+                  : t("verifiedSource")}
               </p>
               <ButtonLink
                 href={adminJudgingRoundPath(round.id)}

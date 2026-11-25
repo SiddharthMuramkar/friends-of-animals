@@ -22,8 +22,7 @@ export type JudgingLevel = (typeof JUDGING_LEVELS)[number];
 
 /**
  * Where a round's pool comes from: FOA-verified entries, or the finalists
- * of an earlier round. Both are defined now; finalists of another round
- * are accepted once chained judging levels exist.
+ * of an earlier round. Finalists are available only once the source round is locked.
  */
 export const ROUND_ENTRY_SOURCES = [
   "verified_entries",
@@ -45,14 +44,23 @@ export const DEFAULT_ROUND_SETTINGS = {
 const MAX_NAME_LENGTH = 120;
 
 /** A round's settings from untrusted input, with the defaults filled in. */
-export const roundSettingsSchema = z.strictObject({
-  name: z.string().trim().min(1).max(MAX_NAME_LENGTH),
-  level: z.enum(JUDGING_LEVELS).default(DEFAULT_ROUND_SETTINGS.level),
-  judgesPhysical: z.boolean().default(DEFAULT_ROUND_SETTINGS.judgesPhysical),
-  entrySource: z
-    .enum(["verified_entries"])
-    .default(DEFAULT_ROUND_SETTINGS.entrySource),
-});
+export const roundSettingsSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(MAX_NAME_LENGTH),
+    level: z.enum(JUDGING_LEVELS).default(DEFAULT_ROUND_SETTINGS.level),
+    judgesPhysical: z.boolean().default(DEFAULT_ROUND_SETTINGS.judgesPhysical),
+    entrySource: z
+      .enum(ROUND_ENTRY_SOURCES)
+      .default(DEFAULT_ROUND_SETTINGS.entrySource),
+    sourceRoundId: z.uuid().nullable().optional(),
+  })
+  .refine(
+    (s) => (s.entrySource === "round_finalists") === (s.sourceRoundId != null),
+    {
+      path: ["sourceRoundId"],
+      message: "Entry source and source round must agree",
+    }
+  );
 
 export type RoundSettings = z.infer<typeof roundSettingsSchema>;
 
