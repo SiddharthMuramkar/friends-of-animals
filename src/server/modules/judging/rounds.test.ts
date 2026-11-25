@@ -1,3 +1,5 @@
+import { auditLog } from "../../db/schema";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { managerOf, seedCompetition, signedInWith } from "./testing";
@@ -85,6 +87,17 @@ describe("FOA judging rounds", () => {
     expect(
       await as.cancelJudgingRound({ roundId, reason: "Again" })
     ).toMatchObject({ ok: false, error: "round_transition_not_allowed" });
+    const logs = await h.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, roundId))
+      .orderBy(auditLog.id);
+    expect(logs.map((row) => row.action)).toEqual([
+      "judging_round.created",
+      "judging_round.updated",
+      "judging_round.opened",
+      "judging_round.cancelled",
+    ]);
     const member = h.as(await signedInWith(h));
     for (const call of [
       () => member.createJudgingRound(input),

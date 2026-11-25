@@ -134,6 +134,36 @@ describe("FOA round pool and assignment", () => {
         entryId: entryIds[1]!,
       })
     ).toMatchObject({ ok: true });
+    // A live institution role acquired after onboarding takes effect on the next assignment.
+    await h.seed.grant(judge, {
+      role: "institution_coordinator",
+      scope: { type: "institution", id: world.ref.institutionId },
+    });
+    expect(
+      await manager.assignEntries({
+        roundId,
+        judgeUserId: judge.id,
+        entryIds: [entryIds[1]!],
+      })
+    ).toMatchObject({
+      ok: true,
+      assigned: 0,
+      refused: [{ entryId: entryIds[1], reason: "conflict" }],
+    });
+    expect(await conflictedEntryIds(h.db, roundId, judge.id)).toEqual(
+      new Set(entryIds)
+    );
+    expect(
+      await manager.assignEntries({
+        roundId,
+        judgeUserId: judge.id,
+        entryIds: [world.entryIds[3]!],
+      })
+    ).toMatchObject({
+      ok: true,
+      assigned: 0,
+      refused: [{ entryId: world.entryIds[3], reason: "not_in_pool" }],
+    });
     for (const call of [
       () => j.admitToPool({ roundId, entryIds }),
       () => j.getRoundPool({ roundId }),

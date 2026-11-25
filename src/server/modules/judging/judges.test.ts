@@ -1,3 +1,4 @@
+import { auditLog, judgeInvitation } from "../../db/schema";
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { grantsOf } from "../../access/grants";
@@ -33,6 +34,9 @@ describe("round judge invitation and onboarding", () => {
       h.email.lastTo(judge.email)?.text ?? ""
     )?.[1];
     if (!token) throw new Error("Invitation was not delivered");
+    const stored = JSON.stringify(await h.db.select().from(judgeInvitation));
+    expect(stored).not.toContain(judge.email);
+    expect(stored).not.toContain(token);
     expect(await member.acceptJudgeInvitation({ token })).toMatchObject({
       ok: false,
       error: "email_mismatch",
@@ -123,6 +127,18 @@ describe("round judge invitation and onboarding", () => {
     await expect(j.getJudgeOnboarding({ roundId })).rejects.toMatchObject({
       code: "forbidden",
     });
+    const logged = await h.db.select().from(auditLog);
+    expect(logged.map((row) => row.action)).toEqual(
+      expect.arrayContaining([
+        "judging.judge_invited",
+        "role.granted",
+        "judging.invitation_accepted",
+        "judging.conflicts_declared",
+        "role.revoked",
+        "judging.judge_removed",
+      ])
+    );
+    expect(JSON.stringify(logged)).not.toContain(token);
   });
 });
 

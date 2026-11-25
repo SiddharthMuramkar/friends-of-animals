@@ -36,6 +36,12 @@ export type {
   JudgingGuideDiscipline,
 } from "./judging-guide";
 export type { RubricCriterion, RubricProblem } from "./domain/rubric-criteria";
+export { loadJudgeReadiness } from "./judges";
+export {
+  conflictedEntryIds,
+  loadEntryConflictFacts,
+  loadJudgeConflictFacts,
+} from "./conflict-facts";
 export type { RubricStatus } from "./domain/rubric-status";
 export { JUDGING_POLICY, type JudgingAction } from "./policy";
 
