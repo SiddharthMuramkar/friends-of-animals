@@ -21,6 +21,7 @@
       "adultOnly": "Only signed-in adults may bid.",
       "signIn": "Sign in to bid",
       "submit": "Place bid",
+      "submitting": "Placing bid…",
       "accepted": "Your bid was accepted.",
       "tooLow": "Your bid is below the current minimum. Enter at least {minimum}.",
       "invalidAmount": "Enter a positive rupee amount with at most two decimal places.",

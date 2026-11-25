@@ -11,7 +11,7 @@ import { eq, or } from "drizzle-orm";
 import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
 import { participantProfile } from "../../db/schema";
-import { isAdultAt } from "../participants/domain/age";
+import { isAdultAt } from "./domain/age";
 import { parseIsoDate } from "../registration/domain/calendar-date";
 import { PROFILE_PURPOSE } from "../registration/student-profile";
 

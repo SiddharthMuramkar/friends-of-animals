@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
-import { ButtonLink, buttonStyles } from "@/components/site/button-link";
-import { inputStyles } from "@/components/form";
+import { ButtonLink } from "@/components/site/button-link";
+import { inputStyles, SubmitButton } from "@/components/form";
 import { auctionLotPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import type { PublicLot } from "@/server/modules/auctions/read";
@@ -37,6 +37,12 @@ export async function BidForm({
                 : result === "lot_not_open"
                   ? t("notOpen")
                   : null;
+  const amountError =
+    result === "bid_below_base" ||
+    result === "bid_too_low" ||
+    result === "invalid_amount" ||
+    result === "invalid_input";
+  const declarationError = result === "declaration_required";
   return (
     <section
       className="mt-6 border-t-2 border-border pt-5"
@@ -47,8 +53,9 @@ export async function BidForm({
       </h3>
       <p className="mt-2 text-ink">{t("minimum", { minimum })}</p>
       <p className="mt-2 text-sm text-ink-muted">{t("lateBid")}</p>
-      {response ? (
+      {response && signedIn ? (
         <p
+          id="bid-response"
           role={result === "accepted" ? "status" : "alert"}
           className="my-3 font-semibold text-ink"
         >
@@ -87,7 +94,10 @@ export async function BidForm({
               name="amount"
               required
               maxLength={20}
-              aria-describedby="bid-amount-hint"
+              aria-invalid={amountError || undefined}
+              aria-describedby={
+                amountError ? "bid-amount-hint bid-response" : "bid-amount-hint"
+              }
             />
           </div>
           <div className="flex items-start gap-3">
@@ -96,15 +106,17 @@ export async function BidForm({
               className="mt-1 size-5 accent-current"
               id="bid-adult"
               name="adult"
+              aria-invalid={declarationError || undefined}
+              aria-describedby={declarationError ? "bid-response" : undefined}
               required
             />
             <label htmlFor="bid-adult" className="text-ink">
               {t("declaration")}
             </label>
           </div>
-          <button type="submit" className={buttonStyles()}>
+          <SubmitButton pendingLabel={t("submitting")}>
             {t("submit")}
-          </button>
+          </SubmitButton>
         </form>
       ) : (
         <>

@@ -10,7 +10,7 @@ import { parseLotCode } from "@/server/modules/auctions/domain/lot-code";
 /** Native POST from the lot's form, with the price parsed exactly as paise.
  * Never send the bid amount, user id, or reserve price back in a query. */
 export async function bidOnLot(code: string, form: FormData) {
-  const lotCode = parseLotCode(code);
+  const lotCode = typeof code === "string" ? parseLotCode(code) : null;
   if (!lotCode) redirect("/auctions");
   const path = auctionLotPath(lotCode);
   const actor = await currentActor();
