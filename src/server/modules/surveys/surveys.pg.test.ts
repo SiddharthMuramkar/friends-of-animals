@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { createPgWorld } from "@/test/pg";
 import { openToIndividuals, adultForm } from "../participants/testing";
@@ -15,13 +15,14 @@ it("locks sending and the one-response boundary under concurrent dashboard and b
   const world = createPgWorld();
   try {
     await world.deps.settings.set("surveys.enabled", true);
-    const suffix = randomUUID()
-      .replace(/[^a-f]/g, "")
-      .slice(0, 3)
-      .toUpperCase()
-      .padEnd(3, "A");
+    const suffix = Array.from(randomBytes(4), (byte) =>
+      String.fromCharCode(65 + (byte % 26))
+    ).join("");
+    // The PG suite shares a database: unique code AND unique competition
+    // name (the slug comes from the name, not the code).
     const comp = await openToIndividuals(world, {
       code: `SV${suffix}27`,
+      name: `Survey race ${randomUUID()}`,
       fee: 0n,
     });
     const manager = await world.seed.member({ email: world.uniqueEmail() });
