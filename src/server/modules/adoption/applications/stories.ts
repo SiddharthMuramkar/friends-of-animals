@@ -30,6 +30,7 @@ import { uuidv7 } from "../../../ids";
 import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { isPubliclyListed } from "../../directory/domain/listing-status";
+import type { AdoptionSpecies } from "../domain/details";
 import { lockUserSubject } from "../../consent/repository";
 import {
   decideStoryPublication,
@@ -243,7 +244,7 @@ export type PublishedSuccessStory = {
   id: string;
   body: string;
   publishedAt: Date;
-  animal: { name: string; species: string };
+  animal: { name: string; species: AdoptionSpecies };
   organisation: { name: string; slug: string };
 };
 

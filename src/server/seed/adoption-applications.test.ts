@@ -57,7 +57,10 @@ describe("the adoption applications' preview seed", () => {
       .select()
       .from(user)
       .where(eq(user.email, SEED_ADOPTION_APPLICATIONS.coordinator.email));
-    const coordinatorActor = await h.signIn(coordinator!);
+    const coordinatorActor = await h.signIn({
+      ...coordinator!,
+      email: SEED_ADOPTION_APPLICATIONS.coordinator.email,
+    });
 
     expect(
       await h.as(coordinatorActor).listAdoptionApplications()

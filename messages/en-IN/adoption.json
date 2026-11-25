@@ -101,6 +101,10 @@
       "organisationTitle": "Who to talk to",
       "organisationBody": "{organisation} listed {name}. Their page has their contact details.",
       "organisationLink": "See {organisation}",
+      "applyTitle": "Apply to adopt {name}",
+      "applyBody": "Friends of Animals' adoption coordinator reads your application and puts you in touch with {organisation} if it looks like a good match. You need to be signed in and an adult.",
+      "applyLink": "Apply to adopt {name}",
+      "storiesLink": "Read adopters' stories",
       "back": "All animals"
     },
     "manage": {
@@ -153,6 +157,7 @@
           "title": "Manage an animal",
           "description": "Photos, publishing and details of one animal."
         },
+        "applicationsLink": "See applications for {name}",
         "eyebrow": "Adoption",
         "notices": {
           "created": "Saved as a draft. Add a photo, then publish.",

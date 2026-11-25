@@ -31,6 +31,7 @@
         "payer": "Payer",
         "recipient": "Recipient",
         "safeguarding_report": "Person in the safeguarding report",
+        "adoption_application": "Adopter who applied",
         "user": "Account holder",
         "visitor": "Visitor",
         "held_subject": "Account, participant or institution under the hold"

@@ -211,6 +211,34 @@ export function editAdoptionPath(
   return `${adoptionPath(listingId, adoptionId)}/edit`;
 }
 
+/** An animal's applications, for its organisation (#130). */
+export function adoptionApplicationsPath(
+  listingId: string,
+  adoptionId: string
+): string {
+  return `${adoptionPath(listingId, adoptionId)}/applications`;
+}
+
+/**
+ * Adoption applications (#130): an applicant's own, where they apply, and
+ * the adoption coordinator's queue. Listed with APP_ROUTE_TEMPLATES. The
+ * public stories page, /adopt/stories, is in src/lib/routes.ts.
+ */
+export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_ADOPTIONS = "/admin/adoptions";
+
+export function myAdoptionApplicationPath(applicationId: string): string {
+  return `${DASHBOARD_ADOPTIONS}/${encodeURIComponent(applicationId)}`;
+}
+
+export function applyToAdoptPath(slug: string): string {
+  return `${DASHBOARD_ADOPTIONS}/apply/${encodeURIComponent(slug)}`;
+}
+
+export function adminAdoptionApplicationPath(applicationId: string): string {
+  return `${ADMIN_ADOPTIONS}/${encodeURIComponent(applicationId)}`;
+}
+
 /** An adoptable animal's public page. */
 export function adoptableAnimalPath(slug: string): string {
   return `/adopt/${encodeURIComponent(slug)}`;
@@ -483,6 +511,12 @@ export const APP_ROUTE_TEMPLATES = [
   "/organisation/[id]/adoptions/new",
   "/organisation/[id]/adoptions/[adoptionId]",
   "/organisation/[id]/adoptions/[adoptionId]/edit",
+  "/organisation/[id]/adoptions/[adoptionId]/applications",
+  "/dashboard/adoptions",
+  "/dashboard/adoptions/[id]",
+  "/dashboard/adoptions/apply/[slug]",
+  "/admin/adoptions",
+  "/admin/adoptions/[id]",
 ] as const;
 
 /**

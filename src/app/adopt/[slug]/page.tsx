@@ -9,7 +9,11 @@ import { Callout } from "@/components/site/callout";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
-import { adoptableAnimalPath, publicListingPath } from "@/lib/app-routes";
+import {
+  adoptableAnimalPath,
+  applyToAdoptPath,
+  publicListingPath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
 import type { AdoptableAnimal } from "@/server/modules/adoption";
@@ -165,6 +169,26 @@ async function AnimalView({ animal }: { animal: AdoptableAnimal }) {
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+
+      {animal.status === "published" ? (
+        <section aria-labelledby="animal-apply" className={CARD}>
+          <SectionHeading
+            id="animal-apply"
+            title={t("applyTitle", { name: animal.name })}
+          />
+          <p className="mt-3 text-ink">
+            {t("applyBody", { organisation: animal.organisation.name })}
+          </p>
+          <p className="mt-4 flex flex-wrap gap-4">
+            <ButtonLink href={applyToAdoptPath(animal.slug)}>
+              {t("applyLink", { name: animal.name })}
+            </ButtonLink>
+            <ButtonLink href={ROUTES.adoptionStories.path} variant="secondary">
+              {t("storiesLink")}
+            </ButtonLink>
+          </p>
         </section>
       ) : null}
 

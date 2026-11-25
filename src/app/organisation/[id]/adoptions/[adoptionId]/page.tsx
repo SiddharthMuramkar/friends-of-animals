@@ -12,6 +12,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import {
   adoptableAnimalPath,
+  adoptionApplicationsPath,
   adoptionsPath,
   editAdoptionPath,
 } from "@/lib/app-routes";
@@ -133,6 +134,14 @@ async function Animal({ params, searchParams }: Props) {
           <p>{t(`errors.${error}`)}</p>
         </FormAlert>
       ) : null}
+      <p>
+        <ButtonLink
+          href={adoptionApplicationsPath(listing.directory.id, listing.id)}
+          variant="secondary"
+        >
+          {t("applicationsLink", { name: listing.details.name })}
+        </ButtonLink>
+      </p>
       <Moves listing={listing} />
       <Photos listing={listing} />
       <Details listing={listing} />

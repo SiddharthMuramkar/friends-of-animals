@@ -58,6 +58,12 @@ describe("proxy: adoptable animals", () => {
     expect(animals.asked).toEqual([]);
   });
 
+  it("lets the success stories page through without asking (#130)", async () => {
+    const { animals, proxy } = proxyOverAnimals();
+    expect(getRewrittenUrl(await proxy(request("/adopt/stories")))).toBeNull();
+    expect(animals.asked).toEqual([]);
+  });
+
   it("lets the request through when the database can't answer", async () => {
     const { animals, proxy } = proxyOverAnimals();
     animals.fail = true;

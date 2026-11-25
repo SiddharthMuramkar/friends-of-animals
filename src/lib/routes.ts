@@ -87,6 +87,12 @@ const DEFINITIONS = {
     sitemap: { updated: "2026-11-24", priority: 0.7 },
   },
   adoptable: { path: "/adopt/[slug]", hue: "green" },
+  /** Adopters' success stories, shared with their consent (#130). */
+  adoptionStories: {
+    path: "/adopt/stories",
+    hue: "green",
+    sitemap: { updated: "2026-11-25", priority: 0.5 },
+  },
   about: {
     path: "/about",
     hue: "blue",
