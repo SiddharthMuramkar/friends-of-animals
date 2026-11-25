@@ -296,6 +296,13 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: schema.resultAward,
+    where: (scope) =>
+      sql`${schema.resultAward.entryId} IN ${entryIdsOf(scope)} AND ${schema.resultAward.releaseId} IN (SELECT ${schema.resultRelease.id} FROM ${schema.resultRelease} WHERE ${schema.resultRelease.status} = 'published')`,
+    owners: ["entry_id"],
+    withhold: ["suitable_for_auction"],
+  },
+  {
     table: entryFile,
     where: (scope) => sql`${entryFile.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],

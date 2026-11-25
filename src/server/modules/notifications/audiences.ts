@@ -1,4 +1,8 @@
-import { PRIZE_VARIABLES, prizeRecipients, prizeValues } from "../results/messages";
+import {
+  PRIZE_VARIABLES,
+  prizeRecipients,
+  prizeValues,
+} from "../results/messages";
 import {
   ARTWORK_VARIABLES,
   artworkRecipients,
@@ -413,11 +417,18 @@ function competitionOf(delivery: Delivery): string | null {
 
 export type { AudienceMember };
 
-type Audience = (db: AppDb, delivery: Delivery) => Promise<AudienceMember[]>;
+type Audience = (
+  db: AppDb,
+  delivery: Delivery,
+  cipher?: FieldCipher
+) => Promise<AudienceMember[]>;
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
-  prize_recipients: async (db, delivery) => delivery.eventType === "results.prize_awarded" ? prizeRecipients(db, delivery.payload) : [],
+  prize_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "results.prize_awarded" && cipher
+      ? prizeRecipients(db, delivery.payload, cipher)
+      : [],
   artwork_sender: async (db, delivery) =>
     delivery.eventType === "artwork.requested" ||
     delivery.eventType === "artwork.received"
@@ -914,7 +925,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "artwork.return_requested": { names: [], load: async () => ({}) },
   "artwork.returned": { names: [], load: async () => ({}) },
   "results.release_due": { names: [], load: async () => ({}) },
-  "results.prize_awarded": { names: PRIZE_VARIABLES, load: (db, delivery) => prizeValues(db, delivery.payload) },
+  "results.prize_awarded": {
+    names: PRIZE_VARIABLES,
+    load: (db, delivery) => prizeValues(db, delivery.payload),
+  },
   "results.published": { names: [], load: async () => ({}) },
   "auction.lot_created": { names: [], load: async () => ({}) },
   "auction.lot.open": { names: [], load: async () => ({}) },

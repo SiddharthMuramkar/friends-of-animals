@@ -12,7 +12,7 @@ import {
   generateTotpSecret,
   totpCode,
 } from "../../src/server/modules/second-factor/domain/totp";
-import { SEED_ARTWORK_COMPETITION } from "../../src/server/seed/competitions";
+import { SEED_AUCTION_COMPETITION } from "../../src/server/seed/competitions";
 import {
   expectAccessible,
   expectAccessibleInDark,
@@ -60,12 +60,12 @@ test("FOA resolves a discrepancy, verifies with private condition photos and rec
   const db = drizzle({ client, schema });
   const { cipher } = fieldCryptoFor(parseEnv(fieldKeyEnvSchema, process.env));
   const now = new Date();
-  const competitionId = SEED_ARTWORK_COMPETITION.id;
+  const competitionId = SEED_AUCTION_COMPETITION.id;
   const profileId = randomUUID(),
     registrationId = randomUUID(),
     entryId = randomUUID(),
     artworkId = randomUUID();
-  const artworkCode = `ORIG27-A-${symbols()}`;
+  const artworkCode = `AUCT27-A-${symbols()}`;
   const path = `${board}/${artworkCode}`;
   try {
     const [account] = await db
@@ -97,13 +97,13 @@ test("FOA resolves a discrepancy, verifies with private condition photos and rec
         ageGroupId: group.id,
         route: "individual",
         status: "confirmed",
-        registrationNumber: `ORIG27-R-${symbols()}`,
+        registrationNumber: `AUCT27-R-${symbols()}`,
         createdAt: now,
         updatedAt: now,
       });
       await tx.insert(schema.entry).values({
         id: entryId,
-        code: `ORIG27-E-${symbols()}`,
+        code: `AUCT27-E-${symbols()}`,
         competitionId,
         registrationId,
         participantProfileId: profileId,

@@ -52,7 +52,8 @@
       "title": "Edit {name}",
       "lead": "Save as often as you like. A draft stays private; changes to a published competition show on its public page at once.",
       "preview": "Preview this competition",
-      "back": "Back to the competition list"
+      "back": "Back to the competition list",
+      "resultsRelease": "Results release"
     },
     "preview": {
       "meta": {

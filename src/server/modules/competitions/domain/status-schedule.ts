@@ -72,7 +72,12 @@ export function statusJobs(
   status: CompetitionStatus,
   keyDates: KeyDates
 ): StatusJob[] {
-  if (status === "draft" || status === "cancelled") return [];
+  if (
+    status === "draft" ||
+    status === "cancelled" ||
+    status === "results_published"
+  )
+    return [];
   return KEY_DATE_KINDS.flatMap((kind) => {
     const dueAt = keyDates[kind];
     return dueAt ? [{ kind, dueAt }] : [];
@@ -141,7 +146,11 @@ export function planStatusJob(
   now: Date
 ): StatusJobPlan {
   // A cancelled competition moves no more (#80): every job of it is stale.
-  if (competition.status === "cancelled") return { kind: "stale" };
+  if (
+    competition.status === "cancelled" ||
+    competition.status === "results_published"
+  )
+    return { kind: "stale" };
   if (isStale(job, competition.keyDates)) return { kind: "stale" };
   if (now.getTime() < job.dueAt.getTime()) {
     return { kind: "early", dueAt: job.dueAt };

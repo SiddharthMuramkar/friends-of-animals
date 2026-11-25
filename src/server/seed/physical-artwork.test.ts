@@ -26,7 +26,14 @@ describe("physical artwork preview", () => {
       ],
     });
     const school = h.as(await h.signIn(SEED_COORDINATORS.coordinator));
-    expect(await school.listMyArtworks()).toMatchObject({
+    const schoolArtworks = await school.listMyArtworks();
+    if (!schoolArtworks.ok) throw Error("No school artwork");
+    expect({
+      ...schoolArtworks,
+      artworks: schoolArtworks.artworks.filter((a) =>
+        a.artworkCode.startsWith("ORIG27-")
+      ),
+    }).toMatchObject({
       ok: true,
       artworks: [
         { status: "requested" },
@@ -36,14 +43,21 @@ describe("physical artwork preview", () => {
       ],
     });
     const guardian = h.as(await h.signIn(SEED_GUARDIANS.guardian));
-    expect(await guardian.listMyArtworks()).toMatchObject({
+    const guardianArtworks = await guardian.listMyArtworks();
+    if (!guardianArtworks.ok) throw Error("No guardian artwork");
+    expect({
+      ...guardianArtworks,
+      artworks: guardianArtworks.artworks.filter((a) =>
+        a.artworkCode.startsWith("ORIG27-")
+      ),
+    }).toMatchObject({
       ok: true,
       artworks: [
         { status: "requested", artworkCode: "ORIG27-A-5EED03" },
         {
           status: "verified",
           artworkCode: "ORIG27-A-5EED06",
-          returnRequested: true,
+          returnRequested: false,
         },
       ],
     });

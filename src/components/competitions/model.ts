@@ -242,6 +242,7 @@ const STATUS: Record<PublicCompetition["status"], CompetitionStatus> = {
   registration_closed: "REGISTRATION_CLOSED",
   school_judging: "SCHOOL_JUDGING",
   foa_judging: "FOA_JUDGING",
+  results_published: "RESULTS_PUBLISHED",
   cancelled: "CANCELLED",
 };
 

@@ -43,6 +43,7 @@ const DEFINITIONS = {
     sitemap: { updated: UPDATED, priority: 0.9 },
   },
   competition: { path: "/competitions/[slug]", hue: "pink" },
+  competitionResults: { path: "/competitions/[slug]/results", hue: "pink" },
   /** The route chooser (#78): through a school, or as an individual adult. */
   participate: {
     path: "/participate",
@@ -209,7 +210,7 @@ export function sitemapRoutes(): (PublicRoute & {
 
 /** Concrete href for a dynamic route, e.g. routeHref("story", "kolam"). */
 export function slugHref(
-  id: "competition" | "story" | "adoptable",
+  id: "competition" | "competitionResults" | "story" | "adoptable",
   slug: string
 ): string {
   return ROUTES[id].path.replace("[slug]", encodeURIComponent(slug));

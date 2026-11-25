@@ -49,6 +49,7 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedResults } from "./results";
 import { seedAuctions } from "./auctions";
 import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
@@ -128,6 +129,7 @@ const seeders: readonly Seeder[] = [
   seedChildConsents,
   seedPhysicalArtwork,
   seedAuctions,
+  seedResults,
   seedScoring,
   seedJudgingRounds,
   // After the consent and guardians seeds: the declarations and the

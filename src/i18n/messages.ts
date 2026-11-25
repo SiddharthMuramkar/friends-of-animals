@@ -1,3 +1,4 @@
+import results from "../../messages/en-IN/results.json";
 // Every namespace file, imported statically so the merged messages are typed
 // and bundled at build time. One file per namespace: each agent edits its own.
 // Adding a namespace: create messages/en-IN/<name>.json ({ "<name>": {} }),
@@ -281,6 +282,7 @@ export const messages = {
   ...institutions,
   ...judgingGuide,
   ...judging,
+  ...results,
   ...adminJudging,
   ...judgeScoring,
   ...institutionRegistration,

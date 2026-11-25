@@ -136,7 +136,8 @@ export async function dispatchEvent(
     }
     const members: AudienceMember[] = await AUDIENCES[route.audience](
       deps.db,
-      delivery
+      delivery,
+      deps.cipher
     );
     for (const member of members) {
       const userId = typeof member === "string" ? member : member.userId;

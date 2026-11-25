@@ -166,7 +166,16 @@ export async function CompetitionDetail({
               <p className="mt-5 max-w-prose text-lead text-ink">{c.theme}</p>
             ) : null}
 
-            <ButtonLink href="#take-part" size="lg" className="mt-8">
+            <ButtonLink
+              prefetch={action === "results" ? false : undefined}
+              href={
+                action === "results" && !c.sample
+                  ? `${ROUTES.competition.path.replace("[slug]", encodeURIComponent(c.slug))}/results`
+                  : "#take-part"
+              }
+              size="lg"
+              className="mt-8"
+            >
               {actionLabel}
             </ButtonLink>
 

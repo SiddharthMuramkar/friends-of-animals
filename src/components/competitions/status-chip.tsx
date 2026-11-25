@@ -22,6 +22,7 @@ const LOOK: Record<
   registration_closed: { icon: DoorClosed, tone: "pink" },
   school_judging: { icon: Gavel, tone: "blue" },
   foa_judging: { icon: Gavel, tone: "green" },
+  results_published: { icon: Gavel, tone: "green" },
   cancelled: { icon: Ban, tone: "neutral" },
 };
 

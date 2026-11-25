@@ -89,8 +89,8 @@
         },
         "results": {
           "label": "See the results",
-          "title": "Results pages are coming",
-          "body": "Results will be published here with first names and initials only. That page is being built."
+          "title": "Results published",
+          "body": "See the approved results with consented credits only."
         },
         "cancelled": {
           "label": "This competition was cancelled",

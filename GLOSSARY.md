@@ -964,3 +964,15 @@ The code that names one person who takes part in competitions, such as
 FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
 _Avoid_: Participant number, registration number (that names one
 registration)
+
+**Results release**:
+An immutable recognition snapshot from an explicitly selected locked final
+Judging round, including prize and delivery instructions. A Competition manager
+prepares it for a different authorised Staff member to approve with Step-up.
+Only the worker publishes the approved release at or after its scheduled instant.
+
+**Public results**:
+The recognition from a published Results release for which the participant's or
+guardian's current public-display consent allows a public credit. No assessment,
+entry code or original work is published here; withdrawn credit disappears on
+subsequent reads.
