@@ -7,6 +7,7 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import type { SignInMethods } from "@/server/identity";
 
 import { phoneCodeAction } from "../_lib/phone-actions";
 import { CodeForm } from "./code-form";
@@ -53,8 +54,20 @@ export async function PhoneAuthPage({ intent }: { intent: Intent }) {
 }
 
 async function PhoneMethod({ intent }: { intent: Intent }) {
-  const [methods, t, tf, tc] = await Promise.all([
-    currentActor().then((actor) => as(actor).signInMethods()),
+  const methods = await as(await currentActor()).signInMethods();
+  return <PhoneMethodView intent={intent} methods={methods} />;
+}
+
+/** The available methods determine the same presentation for real visitors
+ * and server-rendering tests, without mocking the settings use case. */
+export async function PhoneMethodView({
+  intent,
+  methods,
+}: {
+  intent: Intent;
+  methods: SignInMethods;
+}) {
+  const [t, tf, tc] = await Promise.all([
     getTranslations("authPhone"),
     getTranslations("authPhone.form"),
     getTranslations("common.callout"),
