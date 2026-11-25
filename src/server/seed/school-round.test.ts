@@ -22,6 +22,14 @@ describe("the school round seed", () => {
     await h.seed.preview();
     const coordinator = h.as(await h.signIn(SEED_COORDINATORS.coordinator));
 
+    const competition = await h
+      .as(h.visitor())
+      .getPublishedCompetition({ slug: "kinder-skies" });
+    expect(
+      competition!.keyDates
+        .find((date) => date.kind === "school_round_closes")!
+        .at.getTime()
+    ).toBeGreaterThan(h.clock.now().getTime());
     const view = await coordinator.getSchoolRound(ROUND);
 
     expect(view).toMatchObject({

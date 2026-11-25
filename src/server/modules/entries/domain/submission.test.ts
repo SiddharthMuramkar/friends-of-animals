@@ -113,20 +113,32 @@ describe("decideUpload", () => {
     }
   });
 
-  it("refuses an entry that has moved on from submission", () => {
-    for (const status of [
-      "school_shortlisted",
-      "not_shortlisted",
-      "submitted_to_foa",
-      "foa_verified",
-    ] as const) {
-      expect(
-        decideUpload({
-          entry: entry(status, [["a", "live"]]),
-          window: WINDOW,
-          now: DURING,
-        })
-      ).toEqual({ ok: false, reason: "entry_locked" });
+  it.each([
+    "school_shortlisted",
+    "not_shortlisted",
+    "submitted_to_foa",
+    "foa_verified",
+  ] as const)("refuses ordinary uploads to %s entries", (status) => {
+    expect(
+      decideUpload({
+        entry: entry(status, [["a", "live"]]),
+        window: WINDOW,
+        now: DURING,
+      })
+    ).toEqual({ ok: false, reason: "entry_locked" });
+  });
+
+  it("does not turn reopening a school round into ordinary upload permission, even when the entry's original file failed", () => {
+    for (const status of ["school_shortlisted", "not_shortlisted"] as const) {
+      for (const file of ["pending", "rejected", "failed"] as const) {
+        expect(
+          decideUpload({
+            entry: entry(status, [["a", file]]),
+            window: WINDOW,
+            now: DURING,
+          })
+        ).toEqual({ ok: false, reason: "entry_locked" });
+      }
     }
   });
 

@@ -15,7 +15,6 @@
 // Pure: no I/O, no "server-only".
 
 import {
-  canMoveEntry,
   canMoveEntryFile,
   type EntryFileStatus,
   type EntryStatus,
@@ -101,7 +100,9 @@ export function decideUpload({
   if (entry === null) return { ok: true, action: "create", supersede: [] };
 
   const supersede = inFlight(entry);
-  if (canMoveEntry(entry.status, "processing")) {
+  // A round reopening can also restore an entry to processing, but that
+  // transition is not permission to retry an ordinary upload.
+  if (entry.status === "rejected" || entry.status === "failed") {
     return { ok: true, action: "retry", supersede };
   }
   if (entry.status === "processing" || entry.status === "submitted") {
