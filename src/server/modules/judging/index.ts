@@ -5,6 +5,7 @@
 import { blindJudgingUseCases } from "./blind";
 import { assignmentUseCases } from "./assignment";
 import { judgeUseCases } from "./judges";
+import { roundResultUseCases } from "./results";
 import { roundUseCases } from "./rounds";
 import type { UseCaseContext } from "../../use-cases";
 import type { Discipline } from "../competitions/domain/vocabulary";
@@ -48,6 +49,7 @@ export { JUDGING_POLICY, type JudgingAction } from "./policy";
 
 export const judgingUseCases = (ctx: UseCaseContext) => ({
   ...roundUseCases(ctx),
+  ...roundResultUseCases(ctx),
   ...judgeUseCases(ctx),
   ...assignmentUseCases(ctx),
   ...blindJudgingUseCases(ctx),

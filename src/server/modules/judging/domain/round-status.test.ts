@@ -9,9 +9,13 @@ import {
 } from "./round-status";
 
 // Every ordered pair the machine allows today. A pair missing here is
-// forbidden. `open -> locked` belongs to the rankings ticket, which adds
-// it with its own guard (every assignment scored, or a staff override).
-const ALLOWED = new Set(["draft->open", "draft->cancelled", "open->cancelled"]);
+// forbidden. The lock guard has its own exhaustive tests in round-lock.test.ts.
+const ALLOWED = new Set([
+  "draft->open",
+  "draft->cancelled",
+  "open->cancelled",
+  "open->locked",
+]);
 
 const PAIRS = JUDGING_ROUND_STATUSES.flatMap((from) =>
   JUDGING_ROUND_STATUSES.map((to) => [from, to] as const)
@@ -46,8 +50,8 @@ describe("the judging round status machine", () => {
     }
   });
 
-  it("doesn't lock a round yet", () => {
-    expect(canMoveRound("open", "locked")).toBe(false);
+  it("locks only an open round (subject to the guard)", () => {
+    expect(canMoveRound("open", "locked")).toBe(true);
     expect(canMoveRound("draft", "locked")).toBe(false);
   });
 });

@@ -620,7 +620,8 @@
         "judging_round": {
           "created_by_user_id": "Records who created a judging round",
           "opened_by_user_id": "Records who opened a judging round",
-          "cancelled_by_user_id": "Records who cancelled a judging round"
+          "cancelled_by_user_id": "Records who cancelled a judging round",
+          "locked_by_user_id": "Records who locked a judging round and its ranking"
         },
         "round_entry": {
           "admitted_by_user_id": "Records who admitted an entry to a round"
@@ -702,6 +703,15 @@
           "story": "Describes the artist’s original work and its inspiration.",
           "cancellation_reason": "Records why the creator’s lot stopped.",
           "created_by": "Identifies the auction manager who created the lot."
+        },
+        "round_result": {
+          "code": "Identifies the participant’s ranked entry",
+          "rank": "Records the participant’s place in the locked category ranking",
+          "score_numerator": "Records the exact numerator of the participant’s locked weighted score",
+          "score_denominator": "Records the exact denominator of the participant’s locked weighted score",
+          "outcome": "Records the recognition awarded to the participant’s entry",
+          "award_position": "Records the position within the round’s award scheme",
+          "suitable_for_auction": "Records the manager’s assessment of the work’s auction suitability, independently of consent"
         }
       }
     },

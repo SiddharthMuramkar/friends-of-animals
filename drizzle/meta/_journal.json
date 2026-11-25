@@ -950,15 +950,8 @@
     {
       "idx": 135,
       "version": "7",
-      "when": 1795591916599,
-      "tag": "0135_131_pre_custody_event",
-      "breakpoints": true
-    },
-    {
-      "idx": 136,
-      "version": "7",
-      "when": 1795591942983,
-      "tag": "0136_131_auction_lots",
+      "when": 1795592581620,
+      "tag": "0135_97_round_results",
       "breakpoints": true
     }
   ]

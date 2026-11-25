@@ -156,7 +156,14 @@ export async function assignEntries(
       .select({ entryId: roundEntry.entryId })
       .from(roundEntry)
       .where(eq(roundEntry.roundId, round.id));
-    const poolIds = new Set(pool.map((p) => p.entryId));
+    const physical = current.judgesPhysical
+      ? await physicallyReadyEntryIds(tx, current.competitionId)
+      : null;
+    const poolIds = new Set(
+      pool
+        .filter((p) => !physical || physical.has(p.entryId))
+        .map((p) => p.entryId)
+    );
     const existing = await tx
       .select({ entryId: roundAssignment.entryId })
       .from(roundAssignment)
@@ -357,15 +364,20 @@ export async function getRoundPool(
     .select({ entryId: roundAssignment.entryId })
     .from(roundAssignment)
     .where(eq(roundAssignment.roundId, round.id));
+  const physical = round.judgesPhysical
+    ? await physicallyReadyEntryIds(ctx.db, round.competitionId)
+    : null;
   const counts = new Map<string, number>();
   for (const a of assignments)
     counts.set(a.entryId, (counts.get(a.entryId) ?? 0) + 1);
   return {
     ok: true,
-    entries: entries.map((e) => ({
-      ...e,
-      assignmentCount: counts.get(e.entryId) ?? 0,
-    })),
+    entries: entries
+      .filter((e) => !physical || physical.has(e.entryId))
+      .map((e) => ({
+        ...e,
+        assignmentCount: counts.get(e.entryId) ?? 0,
+      })),
   } as const;
 }
 export async function listAssignments(
@@ -393,7 +405,15 @@ export async function listAssignments(
     .innerJoin(registration, eq(registration.id, entry.registrationId))
     .innerJoin(user, eq(user.id, roundAssignment.judgeUserId))
     .where(eq(roundAssignment.roundId, round.id));
-  return { ok: true, assignments } as const;
+  const physical = round.judgesPhysical
+    ? await physicallyReadyEntryIds(ctx.db, round.competitionId)
+    : null;
+  return {
+    ok: true,
+    assignments: assignments.filter(
+      (a) => !physical || physical.has(a.entryId)
+    ),
+  } as const;
 }
 export async function listRoundConflicts(
   ctx: UseCaseContext,

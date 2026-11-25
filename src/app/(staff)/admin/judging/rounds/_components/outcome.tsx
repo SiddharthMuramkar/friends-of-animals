@@ -2,6 +2,14 @@ import { getTranslations } from "next-intl/server";
 import type { JSX } from "react";
 export type Query = Record<string, string | string[] | undefined>;
 const outcomes = [
+  "locked",
+  "tagged",
+  "round_not_open",
+  "round_not_locked",
+  "no_assignments",
+  "unscored_assignments",
+  "override_reason_invalid",
+  "invalid_outcomes",
   "created",
   "saved",
   "opened",
