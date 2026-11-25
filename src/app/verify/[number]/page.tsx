@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/site/heading";
@@ -9,9 +8,8 @@ export const metadata = {
   title: "Certificate verification",
   robots: { index: false, follow: false },
 };
-export function generateStaticParams() {
-  return [{ number: "unknown" }];
-}
+// A full request-time response also works for the plain GET form with JS off.
+export const instant = false;
 async function Result({ params }: PageProps<"/verify/[number]">) {
   await connection();
   const t = await getTranslations("certificates");
@@ -71,7 +69,9 @@ async function Result({ params }: PageProps<"/verify/[number]">) {
   );
 }
 export default async function Page(props: PageProps<"/verify/[number]">) {
+  await connection();
   const t = await getTranslations("certificates");
+  const result = await Result(props);
   return (
     <Section
       width="prose"
@@ -80,9 +80,7 @@ export default async function Page(props: PageProps<"/verify/[number]">) {
       className="pt-10 sm:pt-14 min-h-svh"
     >
       <PageHeader title={t("verify")} />
-      <Suspense fallback={<p className="mt-8">{t("loading")}</p>}>
-        <Result {...props} />
-      </Suspense>
+      {result}
     </Section>
   );
 }
