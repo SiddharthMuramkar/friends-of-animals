@@ -38,4 +38,21 @@ describe("startRecurringDonation", () => {
     });
     expect(h.gateway.plans).toHaveLength(0);
   });
+  it("refuses amounts outside the monthly bounds before requesting a plan", async () => {
+    const h = await createHarness();
+    await openDonations(h);
+    await h.settings.set("donations.recurringEnabled", true);
+    const actor = await h.signIn(await h.seed.member());
+    expect(
+      await h
+        .as(actor)
+        .startRecurringDonation({ ...input, amountMinor: 9_999n })
+    ).toEqual({ ok: false, error: "amount_too_small" });
+    expect(
+      await h
+        .as(actor)
+        .startRecurringDonation({ ...input, amountMinor: 1_500_001n })
+    ).toEqual({ ok: false, error: "amount_too_large" });
+    expect(h.gateway.plans).toHaveLength(0);
+  });
 });
