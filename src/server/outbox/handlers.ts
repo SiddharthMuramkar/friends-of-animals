@@ -122,7 +122,7 @@ import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
-  cdn?: CdnPurger;
+  cdn: CdnPurger;
   appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
@@ -148,7 +148,7 @@ export type OutboxDeps = {
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
   media: MediaProcessor;
-  pdf?: PdfRenderer;
+  pdf: PdfRenderer;
   /** Sends approved refunds and reads them back (#80). */
   payments: PaymentGateway;
 } & Pick<Deps, "appEnv">;

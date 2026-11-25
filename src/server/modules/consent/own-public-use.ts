@@ -7,9 +7,7 @@ import { authorize } from "../../access/can";
 import { competition, consentEvent } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
 import { invalidInput } from "../../input";
-import { lockUserSubject, subjectEvents } from "./repository";
-import { currentConsent, decideWithdraw } from "./domain/consent-state";
-import { appendConsentEvent } from "./consents";
+import { withdrawOwnUse } from "./withdraw-own-use";
 
 const PURPOSES = ["public_display", "social_media"] as const;
 export type OwnPublicPurpose = (typeof PURPOSES)[number];
@@ -54,30 +52,10 @@ export async function withdrawMyPublicUseConsent(
 ) {
   await authorize(ctx, "consent.withdraw");
   if (ctx.actor.kind !== "user") throw new Error("Expected user");
-  const userId = ctx.actor.userId;
   const parsed = z
     .object({ competitionId: z.uuid(), purpose: z.enum(PURPOSES) })
     .safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { competitionId, purpose } = parsed.data;
-  const subject = { type: "user" as const, id: userId };
-  return ctx.db.transaction(async (tx) => {
-    await lockUserSubject(tx, userId);
-    const state = currentConsent(
-      await subjectEvents(tx, subject, purpose, competitionId, userId)
-    );
-    const decision = decideWithdraw(state);
-    if (decision.kind !== "record")
-      return { ok: true, changed: false } as const;
-    await appendConsentEvent(tx, ctx, state, {
-      subject,
-      giverUserId: userId,
-      purpose,
-      action: "withdrawn",
-      documentId: decision.documentId,
-      method: "web_form",
-      competitionId,
-    });
-    return { ok: true, changed: true } as const;
-  });
+  return withdrawOwnUse(ctx, competitionId, purpose);
 }

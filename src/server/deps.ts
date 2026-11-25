@@ -46,6 +46,7 @@ import type { MalwareScanner } from "./ports/malware-scanner";
 import { malwareScannerFor } from "./ports/malware-scanner-clamav";
 import { localScanner } from "./ports/malware-scanner-local";
 import { unconfiguredPdfRenderer, type PdfRenderer } from "./ports/pdf";
+import { noStoreCdnPurger, type CdnPurger } from "./ports/cdn-purger";
 import { unconfiguredMedia, type MediaProcessor } from "./ports/media";
 import type { PaymentGateway } from "./ports/payment-gateway";
 import { paymentGatewayFor } from "./ports/payment-gateway-select";
@@ -87,6 +88,7 @@ export interface Deps extends DbWithClock {
   /** Processes derivatives on the media queue in worker-media. */
   media: MediaProcessor;
   pdf: PdfRenderer;
+  cdn: CdnPurger;
   /** The human check on public forms (proof of work, signed by the secret). */
   humanCheck: HumanCheck;
   /** The contact form's limits per IP and per address. */
@@ -259,6 +261,7 @@ export function productionDeps(): Deps {
       scanner: scannerFor(config),
       media: unconfiguredMedia,
       pdf: unconfiguredPdfRenderer,
+      cdn: noStoreCdnPurger,
       // Razorpay where its keys are set (live in production, test
       // elsewhere), the test checkout's fallback where none are, and a
       // gateway that refuses every payment in production without live keys.

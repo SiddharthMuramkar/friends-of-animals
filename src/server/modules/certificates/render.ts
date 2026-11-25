@@ -10,7 +10,7 @@ import {
 } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { OutboxDeps } from "../../outbox/handlers";
-import { PdfRenderError, unconfiguredPdfRenderer } from "../../ports/pdf";
+import { PdfRenderError } from "../../ports/pdf";
 import { lockSubject } from "../privacy/requests/submit";
 import { storageKeyFor } from "../files/domain/storage-key";
 import { certificateDocument } from "./document";
@@ -64,7 +64,7 @@ export async function renderCertificate(
     const prefix = ctx.files.keyPrefix;
     try {
       if (prefix === null || !ctx.auth.baseUrl) throw new PdfRenderError();
-      bytes = await (ctx.pdf ?? unconfiguredPdfRenderer).render({
+      bytes = await ctx.pdf.render({
         template: "certificate",
         version: row.templateVersion,
         data: certificateDocument(row, comp ?? null, ctx.auth.baseUrl),

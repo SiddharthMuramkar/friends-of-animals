@@ -79,3 +79,45 @@ it("never mistakes a provider failure for a confirmed purge; fake failures can r
   expect(fake.purges).toEqual([["/gallery"]]);
   await expect(noStoreCdnPurger.purge(["/gallery"])).resolves.toBeUndefined();
 });
+
+import { cdnPurgerContract } from "./cdn-purger.contract";
+cdnPurgerContract("in-memory", () => {
+  const purger = new FakeCdnPurger();
+  return {
+    purger,
+    purged: () => purger.purges.flat(),
+    failNext: () => purger.failNext(),
+  };
+});
+cdnPurgerContract("Cloudflare adapter", () => {
+  const paths: string[] = [];
+  let fail = false;
+  const purger = cloudflareCdnPurger(
+    {
+      origin: "https://example.test",
+      zoneId: "a".repeat(32),
+      token: "synthetic",
+    },
+    async (_input, request) => {
+      if (fail) {
+        fail = false;
+        return Response.json({ success: false });
+      }
+      const body = JSON.parse(String(request?.body)) as { files: string[] };
+      paths.push(
+        ...body.files.map((file) => {
+          const url = new URL(file);
+          return url.pathname + url.search;
+        })
+      );
+      return Response.json({ success: true });
+    }
+  );
+  return {
+    purger,
+    purged: () => paths,
+    failNext: () => {
+      fail = true;
+    },
+  };
+});

@@ -4,6 +4,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { SiteLink } from "@/components/site/site-link";
+import { documentVersionPath } from "@/server/modules/competitions/domain/consent-attachments";
 import { SubmitButton } from "@/components/form";
 import { ConsentPolicyLink } from "@/components/legal/consent-policy-link";
 import {
@@ -23,6 +25,7 @@ import type { MyConsent } from "@/server/modules/consent";
 import { ChangeNotice } from "./_components/change-notice";
 import {
   giveConsentAction,
+  giveAuctionConsentAction,
   withdrawConsentAction,
   withdrawAuctionConsentAction,
   withdrawPublicUseConsentAction,
@@ -212,6 +215,35 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
               <li key={item.competitionId}>
                 <p className="font-semibold text-ink">{item.title}</p>
                 <p className="text-ink">{t(`auction.${item.state}`)}</p>
+                {item.document && !item.onCurrent ? (
+                  <div className="mt-2 space-y-2">
+                    <p>{t("auction.renewal")}</p>
+                    <SiteLink
+                      href={documentVersionPath(
+                        "auction",
+                        item.document.version
+                      )}
+                      className="underline"
+                    >
+                      {t("auction.read", { version: item.document.version })}
+                    </SiteLink>
+                    <form
+                      action={giveAuctionConsentAction.bind(
+                        null,
+                        item.competitionId
+                      )}
+                    >
+                      <input
+                        type="hidden"
+                        name="documentId"
+                        value={item.document.id}
+                      />
+                      <SubmitButton pendingLabel={t("saving")}>
+                        {t("auction.renew")}
+                      </SubmitButton>
+                    </form>
+                  </div>
+                ) : null}
                 {item.state === "given" ? (
                   <form
                     className="mt-2"

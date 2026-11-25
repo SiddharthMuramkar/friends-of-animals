@@ -1,0 +1,3 @@
+ALTER TABLE "gateway_webhook_event" ADD COLUMN "capture_payment_fingerprint" text;--> statement-breakpoint
+ALTER TABLE "gateway_webhook_event" ADD COLUMN "capture_occurred_by" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "gateway_webhook_event" ADD CONSTRAINT "gateway_webhook_capture_evidence_pair" CHECK (("gateway_webhook_event"."capture_payment_fingerprint" IS NULL) = ("gateway_webhook_event"."capture_occurred_by" IS NULL));

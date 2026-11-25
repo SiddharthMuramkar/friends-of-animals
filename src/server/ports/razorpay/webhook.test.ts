@@ -50,7 +50,33 @@ describe("readRazorpayWebhook()", () => {
       eventId: expect.stringMatching(/^[0-9a-f]{64}$/),
       type: "payment.captured",
       orderId: "order_JROxH1kSf9IR6d",
+      capture: {
+        paymentId: "pay_JRP3Y66cNcf2qF",
+        occurredBy: new Date("2022-05-05T03:47:56.999Z"),
+      },
     });
+  });
+
+  it.each([
+    "missing",
+    "after-authorisation",
+    "payment-created-only",
+    "not-captured",
+  ])("does not guess capture timing from %s evidence", (kind) => {
+    const body = JSON.parse(DOCUMENTED_CAPTURE);
+    if (kind === "missing") delete body.created_at;
+    if (kind === "after-authorisation") body.event = "payment.authorized";
+    if (kind === "payment-created-only") {
+      body.payload.payment.entity.created_at = body.created_at;
+      delete body.created_at;
+    }
+    if (kind === "not-captured") body.payload.payment.entity.captured = false;
+    const event = readRazorpayWebhook(
+      ...delivered(JSON.stringify(body)),
+      SECRET
+    );
+    expect(event?.capture).toBeUndefined();
+    expect(event?.orderId).toBe("order_JROxH1kSf9IR6d");
   });
 
   it("gives a replayed body the same id, whatever x-razorpay-event-id says", () => {

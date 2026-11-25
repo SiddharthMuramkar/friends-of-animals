@@ -19,18 +19,17 @@ import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
 import type { UseCaseContext } from "../../../use-cases";
 import { competitionResource } from "../../competitions/manage";
-import { applySchoolRoundOutcome } from "../../entries/school-round-outcome";
 import { recordMove } from "../../entries/store";
 import type { EntryStatus } from "../../entries/domain/status";
-import { planFinalisation, type FinaliseBlocker } from "../domain/finalise";
+import type { FinaliseBlocker } from "../domain/finalise";
 import { planReopen, type ReopenBlocker } from "../domain/reopen";
-import { planShortlistOnlyRound } from "../shortlist-only-outcomes";
+import { applyFinalOutcomes } from "../apply-final-outcomes";
 import {
   isSchoolRoundFinished,
   type SchoolRoundStatus,
 } from "../domain/status";
 import { shortlistDeadlineOf } from "../overdue";
-import { loadPicks, loadRoundEntries, recordRoundTransition } from "../store";
+import { loadRoundEntries, recordRoundTransition } from "../store";
 
 const refInput = z.object({ competitionId: z.uuid(), roundId: z.uuid() });
 const closeInput = refInput.extend({
@@ -91,54 +90,20 @@ export async function closeSchoolRoundOnBehalf(
       return { ok: false, error: "competition_not_judging" };
     if (round.status !== "overdue")
       return { ok: false, error: "round_not_overdue" };
-    const shortlistOnly = comp.digitalScope === "shortlist_only";
-    const entries = await loadRoundEntries(
-      tx,
-      round.institutionRegistrationId,
-      { lock: true }
-    );
-    const picks = await loadPicks(tx, round.id);
-    const plan = planFinalisation({
-      by: "manager",
-      panelSize: 0,
-      conductCertified: false,
-      judgingAttested: false,
-      entries: entries.map((e) => ({
-        entryId: e.entryId,
-        submitted:
-          e.status === (shortlistOnly ? "school_shortlisted" : "submitted"),
-      })),
-      picks,
+    const applied = await applyFinalOutcomes(tx, ctx, {
+      roundId,
+      institutionRegistrationId: round.institutionRegistrationId,
+      shortlistOnly: comp.digitalScope === "shortlist_only",
+      role,
+      prerequisites: {
+        by: "manager",
+        panelSize: 0,
+        conductCertified: false,
+        judgingAttested: false,
+      },
     });
-    if (!plan.ok)
-      return { ok: false, error: "finalise_blocked", blockers: plan.blockers };
-    const shortlistPlan = shortlistOnly
-      ? await planShortlistOnlyRound(
-          tx,
-          round.institutionRegistrationId,
-          entries
-        )
-      : null;
-    if (shortlistPlan && !shortlistPlan.ok)
-      return {
-        ok: false,
-        error: "finalise_blocked",
-        blockers: shortlistPlan.blockers.map(({ entryId }) => ({
-          code: "pick_not_in_round",
-          entryId,
-        })),
-      };
-    const outcomes = shortlistPlan?.outcomes ?? plan.outcomes;
-    const statusOf = new Map(entries.map((e) => [e.entryId, e.status]));
-    for (const outcome of outcomes) {
-      if (outcome.statuses.length === 0) continue;
-      await applySchoolRoundOutcome(tx, ctx, {
-        entryId: outcome.entryId,
-        from: statusOf.get(outcome.entryId)!,
-        statuses: outcome.statuses,
-        actorRole: role,
-      });
-    }
+    if (!applied.ok) return applied;
+    const { shortlisted, notShortlisted } = applied;
     const now = ctx.clock.now();
     await tx
       .update(schoolRound)
@@ -156,11 +121,6 @@ export async function closeSchoolRoundOnBehalf(
       to: "closed_on_behalf",
       reason,
     });
-    const shortlisted = outcomes.filter(
-      (e) => e.outcome === "shortlisted"
-    ).length;
-    const notShortlisted =
-      shortlistPlan?.notShortlisted.length ?? outcomes.length - shortlisted;
     await recordAudit(tx, ctx, {
       action: "school_round.closed_on_behalf",
       entity: { type: "school_round", id: roundId },

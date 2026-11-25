@@ -43,7 +43,15 @@ export default async function Page({
         <>
           {query.result ? (
             <output className="mt-4 block">
-              {t(query.result === "ok" ? "saved" : "error")}
+              {t(
+                query.result === "ok"
+                  ? "saved"
+                  : query.result === "policy_document_mismatch"
+                    ? "policyDocumentMismatch"
+                    : query.result === "auction_active"
+                      ? "policyAuctionActive"
+                      : "error"
+              )}
             </output>
           ) : null}
           {loaded.value.length === 0 ? (
@@ -66,6 +74,17 @@ export default async function Page({
                     >
                       {policy.name}
                     </h2>
+                    <p className="text-ink-muted text-sm">
+                      {policy.document &&
+                      policy.document.creatorShareBps !== null
+                        ? t("policyDocument", {
+                            version: policy.document.version,
+                            share: creatorSharePercentForInput(
+                              policy.document.creatorShareBps
+                            ),
+                          })
+                        : t("policyDocumentMissing")}
+                    </p>
                     <label
                       htmlFor={`share-${policy.competitionId}`}
                       className="block font-semibold"

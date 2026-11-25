@@ -1,6 +1,8 @@
+import { auctionPolicyDocument } from "../modules/consent/auction-policy";
+import { withAuctionShare } from "../modules/consent/domain/auction-proceeds";
 // Local and preview-only sample original works. Separate competition and
 // artwork rows keep the custody and judging journeys independent.
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   auctionLot,
   auctionBid,
@@ -207,8 +209,8 @@ export const seedAuctions: Seeder = async (deps) => {
     .from(competition)
     .where(eq(competition.code, SEED_AUCTIONS.competitionCode));
   if (!comp) return;
-  const [doc] = await db
-    .select({ id: consentDocument.id })
+  const [base] = await db
+    .select()
     .from(consentDocument)
     .where(
       and(
@@ -216,16 +218,50 @@ export const seedAuctions: Seeder = async (deps) => {
         eq(consentDocument.version, 1)
       )
     );
-  if (!doc) return;
-  await db
-    .insert(competitionConsentDocument)
-    .values({
-      competitionId: comp.id,
-      purpose: "auction",
-      consentDocumentId: doc.id,
-      attachedAt: now,
-    })
-    .onConflictDoNothing();
+  if (!base) return;
+  // Seed this competition's exact terms once, without changing a later
+  // operator pin or rewriting another competition's immutable document.
+  const existingPolicy = await auctionPolicyDocument(db, comp.id);
+  if (!existingPolicy) {
+    await db.transaction(async (tx) => {
+      const [latest] = await tx
+        .select({ version: consentDocument.version })
+        .from(consentDocument)
+        .where(eq(consentDocument.purpose, "auction"))
+        .orderBy(desc(consentDocument.version))
+        .limit(1);
+      await tx
+        .insert(consentDocument)
+        .values({
+          id: id(901),
+          purpose: "auction",
+          version: (latest?.version ?? 1) + 1,
+          title: "Sample auction consent — 25% creator share",
+          body: withAuctionShare(base.body, 2500),
+          publishedAt: days(-130),
+        })
+        .onConflictDoNothing();
+      const [attached] = await tx
+        .insert(competitionConsentDocument)
+        .values({
+          competitionId: comp.id,
+          purpose: "auction",
+          consentDocumentId: id(901),
+          attachedAt: days(-130),
+        })
+        .onConflictDoNothing()
+        .returning({ id: competitionConsentDocument.competitionId });
+      if (attached)
+        await tx
+          .update(competition)
+          .set({ auctionCreatorShareBps: 2500 })
+          .where(eq(competition.id, comp.id));
+    });
+  }
+  const policy = await auctionPolicyDocument(db, comp.id);
+  if (!policy?.compatible) return;
+  const doc = policy.document;
+  const creatorShareBps = policy.share;
   const buyer = await ensureVerifiedAccount(deps, SEED_AUCTIONS.buyer);
   const artist = await ensureVerifiedAccount(deps, SEED_AUCTIONS.artist);
   await db
@@ -378,8 +414,8 @@ export const seedAuctions: Seeder = async (deps) => {
         ageGroupId: group.id,
         status: "confirmed",
         registrationNumber: `AUCT27-R-5EED0${n}`,
-        createdAt: days(-100),
-        updatedAt: days(-60),
+        createdAt: days(-120),
+        updatedAt: days(-100),
       })
       .onConflictDoNothing();
     await db
@@ -394,9 +430,9 @@ export const seedAuctions: Seeder = async (deps) => {
         title: work.title,
         description: work.story,
         status: "foa_verified",
-        submittedAt: days(-60),
-        createdAt: days(-60),
-        updatedAt: days(-20),
+        submittedAt: days(-100),
+        createdAt: days(-100),
+        updatedAt: days(-82),
       })
       .onConflictDoNothing();
     await db
@@ -408,14 +444,14 @@ export const seedAuctions: Seeder = async (deps) => {
         competitionId: comp.id,
         artworkCode: `AUCT27-A-5EED0${n}`,
         status: work.status,
-        requestedAt: days(-50),
-        dispatchDeadline: days(-30),
+        requestedAt: days(-89),
+        dispatchDeadline: days(-84),
         packagingInstructions: "Protect the original artwork",
         shippingPayer: "sender",
         facilityAddress: "Sample FOA address",
-        receivedAt: days(-25),
+        receivedAt: days(-83),
         storageLocation: "Sample archive shelf",
-        retainedAt: work.status === "retained" ? days(-5) : null,
+        retainedAt: work.status === "retained" ? days(-41) : null,
       })
       .onConflictDoNothing();
     await db
@@ -423,7 +459,7 @@ export const seedAuctions: Seeder = async (deps) => {
       .values({
         artworkId,
         verifiedBy: manager.id,
-        verifiedAt: days(-20),
+        verifiedAt: days(-82),
         codeMatchesLabel: true,
         creatorConfirmed: true,
         matchesDigital: true,
@@ -446,7 +482,7 @@ export const seedAuctions: Seeder = async (deps) => {
         competitionId: comp.id,
         action: "given",
         method: "web_form",
-        occurredAt: days(-99),
+        occurredAt: days(-119),
       })
       .onConflictDoNothing();
     // Third and fourth originals are free for a manager to draft a lot.
@@ -585,7 +621,7 @@ export const seedAuctions: Seeder = async (deps) => {
             competitionId: comp.id,
             status: paid ? "paid" : "open",
             amountPaise: 160101n,
-            creatorShareBps: paid ? 2500 : 0,
+            creatorShareBps,
             offeredAt,
             expiresAt,
             ...(paid
@@ -616,7 +652,7 @@ export const seedAuctions: Seeder = async (deps) => {
                 description: "Sample auction sale",
                 lines: auctionCaptureLines({
                   amountPaise: 160101n,
-                  creatorShareBps: 2500,
+                  creatorShareBps,
                 }),
               }
             );

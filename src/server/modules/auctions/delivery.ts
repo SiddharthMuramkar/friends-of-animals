@@ -1,3 +1,4 @@
+import { hasExplicitAuctionShare } from "../consent/domain/auction-proceeds";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
@@ -10,6 +11,8 @@ import {
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
 import { invalidInput } from "../../input";
+import { auctionPolicyDocument } from "../consent/auction-policy";
+import { hasUnsettledAuctionLots } from "./reservations";
 import { lockOfferLot, type OfferInput } from "./checkout";
 import {
   checkDeliveryAddress,
@@ -45,7 +48,20 @@ export async function setAuctionProceedsPolicy(
       .where(eq(competition.id, input.competitionId))
       .for("no key update");
     if (!row) return { ok: false, error: "not_found" } as const;
+    const document = await auctionPolicyDocument(tx, input.competitionId);
+    if (
+      !document?.permitted ||
+      document.acknowledgedShare !== input.creatorShareBps
+    )
+      return { ok: false, error: "policy_document_mismatch" } as const;
+    if (
+      row.share !== input.creatorShareBps &&
+      !hasExplicitAuctionShare(document.document.body)
+    )
+      return { ok: false, error: "policy_document_mismatch" } as const;
     if (row.share === input.creatorShareBps) return { ok: true } as const;
+    if (await hasUnsettledAuctionLots(tx, input.competitionId))
+      return { ok: false, error: "auction_active" } as const;
     await tx
       .update(competition)
       .set({
@@ -65,7 +81,7 @@ export async function setAuctionProceedsPolicy(
 }
 export async function listAuctionProceedsPolicies(ctx: UseCaseContext) {
   await authorize(ctx, "auction.proceeds.read");
-  return ctx.db
+  const rows = await ctx.db
     .select({
       competitionId: competition.id,
       name: competition.name,
@@ -73,6 +89,20 @@ export async function listAuctionProceedsPolicies(ctx: UseCaseContext) {
     })
     .from(competition)
     .where(eq(competition.auctionPermitted, true));
+  return Promise.all(
+    rows.map(async (row) => {
+      const policy = await auctionPolicyDocument(ctx.db, row.competitionId);
+      return {
+        ...row,
+        document: policy
+          ? {
+              version: policy.document.version,
+              creatorShareBps: policy.acknowledgedShare,
+            }
+          : null,
+      };
+    })
+  );
 }
 export function addressOf(
   ctx: Pick<UseCaseContext, "cipher">,

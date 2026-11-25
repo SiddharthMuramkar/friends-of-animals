@@ -38,6 +38,8 @@ export const PAYMENT_REVIEW_REASONS = [
   /** A donation's money arrived after the donation expired (#106): staff
    * may accept it, which captures the donation with its receipt. */
   "donation_expired",
+  /** Full auction capture exists, but the cutoff cannot yet be proven. */
+  "auction_capture_time_unknown",
 ] as const;
 
 export type PaymentReviewReason = (typeof PAYMENT_REVIEW_REASONS)[number];

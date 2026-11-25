@@ -1490,6 +1490,19 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   // Fee payments (#77). Webhook events keep no body: it carries the payer's
   // email and phone.
   payment("payment_batch", "payer_user_id")("payer_user_id", "identity"),
+  // Signed auction capture evidence is a retained financial reference, not
+  // the webhook body or payer contact. Its fingerprint matches provider truth.
+  ...(["capture_payment_fingerprint", "capture_occurred_by"] as const).map(
+    (column) =>
+      rowsOf("gateway_webhook_event", {
+        subject: {
+          kind: "payer",
+          via: "order_id → payment_batch.gateway_order_id",
+        },
+        retention: PAYMENT_RECORD,
+        onExpiry: "retain",
+      })(column, "technical")
+  ),
   // Offline payments and payments needing review (#79).
   payment("offline_payment", "batch_id")("reference", "financial", {
     onExpiry: "tombstone",

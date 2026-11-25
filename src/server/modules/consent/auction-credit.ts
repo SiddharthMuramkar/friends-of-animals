@@ -4,6 +4,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import {
   consentEvent,
+  competition,
   guardian,
   guardianLink,
   participantProfile,
@@ -13,7 +14,7 @@ import type { UseCaseContext } from "../../use-cases";
 import { childDateOfBirth } from "../guardians/child-view";
 import { activeLinkOf, verifiedLink } from "../guardians/child-access";
 import { isAdultAt } from "../participants/domain/age";
-import { competitionSetup } from "./child-consent";
+import { auctionPolicyDocument } from "./auction-policy";
 import { nameParts, resolvePublicCredit } from "./domain/public-credit";
 import { lockProfileSubject, lockUserSubject } from "./repository";
 import { schoolPublicConsents } from "./school-route-use";
@@ -35,15 +36,20 @@ export async function auctionConsentCredit(
   }
   let [row] = await read();
   if (lock && row) {
+    await ctx.db
+      .select({ id: competition.id })
+      .from(competition)
+      .where(eq(competition.id, row.registration.competitionId))
+      .for("share");
     await lockProfileSubject(ctx.db, row.profile.id);
     [row] = await read();
   }
   if (!row || !["confirmed", "enrolled"].includes(row.registration.status))
     return null;
   const { profile, registration: reg } = row;
-  const setup = await competitionSetup(ctx.db, reg.competitionId);
-  const document = setup?.setup.attached.auction;
-  if (!setup?.setup.auctionAllowed || !document) return null;
+  const policy = await auctionPolicyDocument(ctx.db, reg.competitionId);
+  if (!policy?.compatible) return null;
+  const document = policy.document;
   const dob = childDateOfBirth(ctx, profile).date;
   const minor = !isAdultAt(dob, ctx.clock.now());
   const cap = minor || !isAdultAt(dob, reg.createdAt);
@@ -101,5 +107,12 @@ export async function auctionConsentCredit(
     new Set(["auction"])
   );
   if (!credit) return null;
-  return { credit, minor, subjectType, subjectId, consentEventId: latest.id };
+  return {
+    credit,
+    minor,
+    subjectType,
+    subjectId,
+    consentEventId: latest.id,
+    creatorShareBps: policy.share,
+  };
 }

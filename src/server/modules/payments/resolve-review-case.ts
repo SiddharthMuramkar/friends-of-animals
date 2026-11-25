@@ -47,6 +47,7 @@ import {
 import { captureBatch, registrationsAtCapture } from "./capture";
 import { refundRegistrations } from "./refunds/rows";
 import { startSystemRefund } from "./refunds/start-system-refund";
+import { recheckAuctionAfterReview } from "../auctions/payments";
 import { purposeHandler } from "./purposes";
 import { dashboardRefundPending } from "./review-cases";
 import {
@@ -281,6 +282,11 @@ export async function resolvePaymentReviewCase(
           },
           actorRole: role,
         });
+        if (
+          batch.purpose === "auction_sale" &&
+          reviewCase.reason === "auction_capture_time_unknown"
+        )
+          await recheckAuctionAfterReview(tx, ctx, batch.id);
         return refundByHand
           ? {
               ok: true,

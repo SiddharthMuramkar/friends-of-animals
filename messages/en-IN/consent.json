@@ -60,10 +60,13 @@
     },
     "auction": {
       "title": "Auction consent",
-      "lead": "Withdraw your consent for a competition to stop any unsold auction lots of your original artwork.",
+      "lead": "Give or withdraw your consent on a competition’s current auction terms. A changed proceeds policy requires your agreement to the new version.",
       "given": "Given",
       "withdrawn": "Withdrawn",
-      "withdraw": "Withdraw auction consent"
+      "withdraw": "Withdraw auction consent",
+      "renewal": "Review the currently attached auction terms before giving consent again.",
+      "read": "Read auction consent version {version}",
+      "renew": "Agree to these auction terms"
     }
   }
 }

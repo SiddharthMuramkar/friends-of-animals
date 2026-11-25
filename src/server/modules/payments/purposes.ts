@@ -50,7 +50,8 @@ export type PaymentPurposeHandler = {
     ctx: PurposeContext,
     batch: PaymentBatchRow,
     payments: readonly GatewayPayment[],
-    actorRole: Role | null
+    actorRole: Role | null,
+    observedAt: Date
   ): Promise<SyncOutcome>;
   acceptReviewed(
     tx: AppDb,

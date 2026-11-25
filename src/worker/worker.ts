@@ -1,3 +1,4 @@
+import { noStoreCdnPurger } from "../server/ports/cdn-purger";
 import { gotenbergPdfRenderer } from "../server/ports/pdf-gotenberg";
 import { unconfiguredPdfRenderer } from "../server/ports/pdf";
 // Puts the worker together for its mode, over injected I/O (./main.ts
@@ -176,6 +177,7 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     },
     scanner: io.scanner,
     media,
+    cdn: noStoreCdnPurger,
     pdf:
       isMedia && config.gotenbergUrl
         ? gotenbergPdfRenderer({ baseUrl: config.gotenbergUrl })

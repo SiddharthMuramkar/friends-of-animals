@@ -1,3 +1,4 @@
+import { noStoreCdnPurger } from "../../../src/server/ports/cdn-purger";
 // Local, disposable real-media proof for #102. The CI E2E app intentionally
 // has no Gotenberg/worker-media; this process drains the actual media queue
 // on the test host, using the isolated local storage root and Poppler
@@ -65,6 +66,7 @@ const deps: OutboxDeps = {
     ...popplerPdfProcessor(),
     ...stampProcessor(),
   },
+  cdn: noStoreCdnPurger,
   pdf: gotenbergPdfRenderer({ baseUrl: renderer }),
 };
 let stopping = false;

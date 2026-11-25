@@ -6,6 +6,7 @@ import {
   artworkCustodyEvent,
   artworkDiscrepancy,
   artworkReturnRequest,
+  artworkResultsWindow,
   auctionLot,
   physicalArtwork,
 } from "../../db/schema";
@@ -51,16 +52,25 @@ export async function artworkAuctionFacts(
         isNull(artworkReturnRequest.fulfilledAt)
       )
     );
+  const [window] = await db
+    .select({ closesAt: artworkResultsWindow.closesAt })
+    .from(artworkResultsWindow)
+    .where(eq(artworkResultsWindow.competitionId, work.competitionId));
   return {
     work,
+    returnWindowClosesAt: window?.closesAt ?? null,
     openDiscrepancy: !!discrepancy,
     openReturnRequest: !!request,
     inActiveLot: await isHeldForAuction(db, artworkId),
   };
 }
-export async function isHeldForAuction(db: AppDb, artworkId: string) {
-  const [lot] = await db
-    .select({ id: auctionLot.id })
+export async function holdingAuctionLot(
+  db: AppDb,
+  artworkId: string,
+  lock = false
+) {
+  const query = db
+    .select()
     .from(auctionLot)
     .where(
       and(
@@ -69,7 +79,11 @@ export async function isHeldForAuction(db: AppDb, artworkId: string) {
       )
     )
     .limit(1);
-  return !!lot;
+  const [lot] = lock ? await query.for("update") : await query;
+  return lot ?? null;
+}
+export async function isHeldForAuction(db: AppDb, artworkId: string) {
+  return !!(await holdingAuctionLot(db, artworkId));
 }
 
 /** Called within the transaction holding the artwork lock after creating the active lot. */

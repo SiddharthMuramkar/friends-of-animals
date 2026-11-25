@@ -278,8 +278,8 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         keyDates: {
           registration_opens: ist(-200, "09:00"),
           registration_closes: ist(-110, "23:59"),
-          submissions_close: ist(-60, "23:59"),
-          school_round_closes: ist(-30, "23:59"),
+          submissions_close: ist(-99, "23:59"),
+          school_round_closes: ist(-90, "23:59"),
         },
       },
     },

@@ -59,6 +59,7 @@ type FakeWebhookBody = {
   event: string;
   orderId: string | null;
   subscriptionId?: string;
+  capture?: { paymentId: string; occurredBy: string };
   refund?: { refundId: string; paymentId: string };
 };
 
@@ -303,6 +304,14 @@ export class FakePaymentGateway implements PaymentGateway {
       orderId: body.orderId,
       ...(body.subscriptionId ? { subscriptionId: body.subscriptionId } : {}),
       ...(body.refund ? { refund: body.refund } : {}),
+      ...(body.event === "payment.captured" && body.capture
+        ? {
+            capture: {
+              paymentId: body.capture.paymentId,
+              occurredBy: new Date(body.capture.occurredBy),
+            },
+          }
+        : {}),
     };
   }
 
@@ -458,6 +467,7 @@ export class FakePaymentGateway implements PaymentGateway {
       type: string;
       orderId: string | null;
       subscriptionId?: string;
+      capture?: { paymentId: string; occurredBy: Date };
       refund?: { refundId: string; paymentId: string };
     },
     {
@@ -470,6 +480,14 @@ export class FakePaymentGateway implements PaymentGateway {
       orderId: event.orderId,
       ...(event.subscriptionId ? { subscriptionId: event.subscriptionId } : {}),
       ...(event.refund ? { refund: event.refund } : {}),
+      ...(event.capture
+        ? {
+            capture: {
+              paymentId: event.capture.paymentId,
+              occurredBy: event.capture.occurredBy.toISOString(),
+            },
+          }
+        : {}),
     };
     const rawBody = JSON.stringify(body);
     const headers = new Headers({ "content-type": "application/json" });

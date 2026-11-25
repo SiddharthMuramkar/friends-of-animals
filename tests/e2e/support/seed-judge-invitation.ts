@@ -1,3 +1,4 @@
+import { FakeCdnPurger } from "../../../src/test/fakes/cdn-purger";
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { eq } from "drizzle-orm";
@@ -120,6 +121,7 @@ export const test = base.extend<{ judgingSetup: JudgingSetup }>({
         scanner: new FakeMalwareScanner(),
         media: new FakeMediaProcessor(),
         pdf: new FakePdfRenderer(),
+        cdn: new FakeCdnPurger(),
         humanCheck: proofOfWorkHumanCheck({ secret, difficulty: 4 }),
         contactLimits: CONTACT_RATE_LIMITS,
         codeRequestLimits: CODE_REQUEST_LIMITS,

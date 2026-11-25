@@ -175,6 +175,13 @@ test("finance sees the per-competition proceeds policy and may change it with st
   });
   await policy.getByLabel("Creator share (%)").fill("25.01");
   await policy.getByRole("button", { name: "Save proceeds policy" }).click();
+  await expect(
+    page.getByText(
+      "The percentage must match the attached auction consent version."
+    )
+  ).toBeVisible();
+  await expect(policy.getByLabel("Creator share (%)")).toHaveValue("25");
+  await policy.getByRole("button", { name: "Save proceeds policy" }).click();
   await expect(page.getByText("Your changes were saved.")).toBeVisible();
-  await expect(policy.getByLabel("Creator share (%)")).toHaveValue("25.01");
+  await expect(policy.getByLabel("Creator share (%)")).toHaveValue("25");
 });

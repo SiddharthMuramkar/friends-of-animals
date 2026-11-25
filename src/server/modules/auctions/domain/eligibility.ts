@@ -37,6 +37,8 @@ export type ArtworkAuctionFacts = {
   artworkStatus: string;
   openDiscrepancy: boolean;
   openReturnRequest: boolean;
+  /** Results must have opened a return window, and that window must have closed. */
+  returnWindowClosed: boolean;
   /** The competition's `auction_permitted` flag. */
   competitionAllowsAuction: boolean;
   /** Under 18 now, from the stored date of birth. */
@@ -51,6 +53,7 @@ export const INELIGIBLE_REASONS = [
   "artwork_not_listable",
   "open_discrepancy",
   "return_requested",
+  "return_window_pending",
   "already_listed",
   "competition_not_auctionable",
   "auction_consent_missing",
@@ -86,6 +89,7 @@ export function assessLotEligibility(
   if (!isListable(facts.artworkStatus)) found.add("artwork_not_listable");
   if (facts.openDiscrepancy) found.add("open_discrepancy");
   if (facts.openReturnRequest) found.add("return_requested");
+  if (!facts.returnWindowClosed) found.add("return_window_pending");
   if (facts.inActiveLot) found.add("already_listed");
   if (!facts.competitionAllowsAuction) found.add("competition_not_auctionable");
   const consent = consentProblem(facts);

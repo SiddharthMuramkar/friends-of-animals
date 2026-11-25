@@ -107,6 +107,7 @@ describe("reviewReasonFor()", () => {
       "paid_while_in_review",
       "participation_consent_required",
       "donation_expired",
+      "auction_capture_time_unknown",
     ]);
   });
 
@@ -152,7 +153,11 @@ describe("allowedOutcomes()", () => {
           currency: "INR",
           amountMinor: 100n,
         }).includes("confirm")
-      ).toBe(index >= 2 && reason !== "donation_expired");
+      ).toBe(
+        index >= 2 &&
+          reason !== "donation_expired" &&
+          reason !== "auction_capture_time_unknown"
+      );
     }
   });
 
