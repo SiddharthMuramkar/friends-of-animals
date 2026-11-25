@@ -14,6 +14,7 @@ import { Section } from "@/components/site/section";
 import {
   APP_ROUTES,
   institutionCompetitionsPath,
+  institutionRegistrationPath,
   institutionSubmissionsPath,
   newStudentPath,
   payFeesPath,
@@ -24,6 +25,7 @@ import { appEnv } from "@/lib/site";
 import { consentLinksActive } from "@/server/modules/consent-links/repository";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { DomainError, errorSummaryForLogs } from "@/server/errors";
 import { as, currentActor } from "@/server/app";
 import type {
   EnrolledStudent,
@@ -267,6 +269,11 @@ async function Students({
           </ButtonLink>
         </p>
       ) : null}
+      <CertificateArchive
+        institutionId={institutionId}
+        reference={list.reference}
+        result={param(query.archiveResult)}
+      />
       <section aria-labelledby="students-list">
         <SectionHeading id="students-list" title={t("listTitle")} />
         {list.students.length === 0 ? (
@@ -419,5 +426,118 @@ async function StudentCard({
         </form>
       ) : null}
     </article>
+  );
+}
+
+async function requestCertificateArchive(
+  institutionId: string,
+  reference: string
+) {
+  "use server";
+  let outcome = "error";
+  try {
+    const result = await as(
+      await currentActor()
+    ).requestInstitutionCertificateArchive({ institutionId, reference });
+    outcome = result.ok
+      ? "requested"
+      : result.error === "too_large"
+        ? "tooLarge"
+        : "error";
+  } catch (error) {
+    if (!(error instanceof DomainError) || error.code !== "forbidden")
+      throw new Error(
+        `Certificate archive request failed: ${errorSummaryForLogs(error)}`
+      );
+  }
+  redirect(
+    `${institutionRegistrationPath(reference, institutionId)}&archiveResult=${outcome}`
+  );
+}
+
+async function CertificateArchive({
+  institutionId,
+  reference,
+  result,
+}: {
+  institutionId: string;
+  reference: string;
+  result: string | undefined;
+}) {
+  const t = await getTranslations("certificates.archive");
+  let view;
+  try {
+    view = await as(await currentActor()).getInstitutionCertificateArchive({
+      institutionId,
+      reference,
+    });
+  } catch (error) {
+    if (error instanceof DomainError && error.code === "forbidden") return null;
+    throw new Error(
+      `Certificate archive query failed: ${errorSummaryForLogs(error)}`
+    );
+  }
+  const path = institutionRegistrationPath(reference, institutionId);
+  return (
+    <section
+      className={CARD + " grid gap-3"}
+      aria-labelledby="certificate-archive"
+    >
+      <SectionHeading id="certificate-archive" title={t("title")} />
+      <p>{t("lead")}</p>
+      {result && (
+        <output>
+          {t(
+            result === "requested"
+              ? "requested"
+              : result === "tooLarge"
+                ? "tooLarge"
+                : "error"
+          )}
+        </output>
+      )}
+      <p>
+        {view.count === 0
+          ? t("none")
+          : t("count", { ready: view.readyCount, total: view.count })}
+      </p>
+      {view.count > 0 && view.count !== view.readyCount && (
+        <p>{t("waiting")}</p>
+      )}
+      {view.archive?.status === "pending" && <p>{t("pending")}</p>}
+      {view.archive?.status === "failed" && <p>{t("failed")}</p>}
+      {view.archive?.status === "ready" && (
+        <>
+          <p>{t("ready")}</p>
+          <a
+            className={buttonStyles({ variant: "primary" })}
+            href={`/api/certificates/archives/${view.archive.id}`}
+          >
+            {t("download")}
+          </a>
+        </>
+      )}
+      {view.count > 0 &&
+        view.count === view.readyCount &&
+        (!view.archive || view.archive.status === "failed") && (
+          <form
+            action={requestCertificateArchive.bind(
+              null,
+              institutionId,
+              reference
+            )}
+            aria-labelledby="certificate-archive"
+          >
+            <SubmitButton pendingLabel={t("preparing")}>
+              {t("prepare")}
+            </SubmitButton>
+          </form>
+        )}
+      {view.count > 0 && view.archive?.status !== "ready" && (
+        <a href={path} className={buttonStyles({ variant: "secondary" })}>
+          {t("refresh")}
+        </a>
+      )}
+    </section>
   );
 }

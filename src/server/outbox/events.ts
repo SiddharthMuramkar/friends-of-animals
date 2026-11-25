@@ -525,6 +525,21 @@ export type DomainEvent =
       payload: { certificateId: string };
     }
   | {
+      type: "certificate.archive_requested";
+      aggregate: { type: "certificate_archive"; id: string };
+      payload: { archiveId: string };
+    }
+  | {
+      type: "certificate.archive_expired";
+      aggregate: { type: "certificate_archive"; id: string };
+      payload: { archiveId: string };
+    }
+  | {
+      type: "certificate.reissued";
+      aggregate: { type: "certificate"; id: string };
+      payload: { certificateId: string };
+    }
+  | {
       type: "certificates.ready";
       aggregate: { type: "competition"; id: string };
       payload: {
@@ -1117,6 +1132,9 @@ export const EVENT_PAYLOADS = {
     variant: z.enum(STAMP_VARIANTS),
   }),
   "certificate.render": z.object({ certificateId: z.uuid() }),
+  "certificate.archive_requested": z.object({ archiveId: z.uuid() }),
+  "certificate.archive_expired": z.object({ archiveId: z.uuid() }),
+  "certificate.reissued": z.object({ certificateId: z.uuid() }),
   "certificates.ready": z.object({
     competitionId: z.uuid(),
     releaseId: z.uuid(),
@@ -1385,6 +1403,12 @@ export const SUBSCRIBERS = {
   "gallery.purge_requested": ["gallery.purge"],
   "stamping.requested": ["stamping.render"],
   "certificate.render": ["certificate.render"],
+  "certificate.archive_requested": ["certificates.build_archive"],
+  "certificate.archive_expired": ["certificates.expire_archive"],
+  "certificate.reissued": [
+    "notifications.dispatch",
+    "certificates.send_family_reissue",
+  ],
   "certificates.ready": ["notifications.dispatch"],
   "artwork.retain_unrequested": ["artwork.retain_unrequested"],
   "auction.lot_created": ["notifications.dispatch"],

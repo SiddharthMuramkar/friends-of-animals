@@ -35,6 +35,7 @@ import {
 } from "./competitions";
 import { SEED_GUARDIANS } from "./guardians";
 import type { Seeder } from "./types";
+import { seedCertificateSchool } from "./certificate-school";
 const id = (n: number) =>
   `01938a00-0000-7000-8000-000000099${String(n).padStart(3, "0")}`;
 export const SEED_RESULTS = {
@@ -43,7 +44,9 @@ export const SEED_RESULTS = {
   releaseId: id(2),
   slug: SEED_AUCTION_COMPETITION.slug,
 } as const;
-export const seedResults: Seeder = async ({ db, clock }) => {
+export const seedResults: Seeder = async (deps) => {
+  const { db, clock } = deps;
+  await seedCertificateSchool(deps);
   const { competitionId, roundId, releaseId } = SEED_RESULTS;
   // Remove only the obsolete deterministic preview fixture, never another
   // release or another person's request. ORIG27 still has judging in flight.
