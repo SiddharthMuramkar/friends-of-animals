@@ -884,6 +884,11 @@ export type DomainEvent =
       };
     }
   | {
+      type: "survey.invitation_due";
+      aggregate: { type: "survey_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       /**
        * One recipient's message of a sent campaign (#126) is due. The
        * handler checks the consent it rests on again before it goes.
@@ -1300,6 +1305,7 @@ export const EVENT_PAYLOADS = {
     overdue: z.int().min(1),
     assignedToYou: z.int().min(0),
   }),
+  "survey.invitation_due": z.object({ invitationId: z.uuid() }),
   "campaign.message_due": z.object({
     campaignId: z.uuid(),
     recipientId: z.uuid(),
@@ -1595,6 +1601,7 @@ export const SUBSCRIBERS = {
   "privacy_request.erasure_approved": ["privacy.execute_erasure"],
   // The campaigns module plans its own channels on the consent each
   // message rests on, with its route's template (#126).
+  "survey.invitation_due": ["surveys.deliver_invitation"],
   "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's

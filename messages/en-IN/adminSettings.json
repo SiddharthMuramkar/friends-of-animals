@@ -312,6 +312,10 @@
         "communityMembersDays": {
           "label": "Keep former member profiles",
           "description": "Days after departure before the daily retention job clears a former member’s display name and introduction."
+        },
+        "surveyResponsesDays": {
+          "label": "Keep survey invitations and answers",
+          "description": "Days after a survey closes before invitations and linked answers are deleted."
         }
       },
       "artwork": {
@@ -366,6 +370,12 @@
         "maxPaymentOffers": {
           "label": "Maximum payment offers",
           "description": "Number of distinct buyers offered payment before the original is released for relisting."
+        }
+      },
+      "surveys": {
+        "enabled": {
+          "label": "Competition feedback surveys",
+          "description": "Allow competition managers to send feedback surveys after published results, and respondents to answer. Off until FOA approves feedback surveys."
         }
       }
     }

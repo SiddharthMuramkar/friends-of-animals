@@ -86,11 +86,13 @@ describe("the settings seed", () => {
       { key: "retention.quarantinedFilesDays", value: 30 },
       { key: "retention.readInboxItemsDays", value: 365 },
       { key: "retention.releasedLegalHoldsDays", value: 365 },
+      { key: "retention.surveyResponsesDays", value: 365 },
       { key: "retention.volunteerApplicationsDays", value: 365 },
       { key: "safeguarding.reportsPerIpPerHour", value: 10 },
       { key: "sms.enabled", value: true },
       { key: "sms.maxPerDay", value: 1000 },
       { key: "sms.maxPerHour", value: 200 },
+      { key: "surveys.enabled", value: true },
       // Open where nothing is real (#123); production keeps the default.
       { key: "volunteers.applicationsOpen", value: true },
       { key: "volunteers.guardianApprovalBelowAgeYears", value: 18 },

@@ -51,6 +51,7 @@ export const RETENTION_PERIODS = {
    */
   volunteerApplications: { defaultDays: 365 },
   /** Former member profile text, from departure. */
+  surveyResponses: { defaultDays: 365 },
   communityMembers: { defaultDays: 365 },
   /**
    * Adoption applications (#130), from when they closed; one behind a

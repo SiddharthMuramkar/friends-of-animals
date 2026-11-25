@@ -9,7 +9,8 @@ import {
   resultRelease,
 } from "../../db/schema";
 
-export async function publishedResults(db: AppDb, competitionId: string) {
+/** Published release metadata without loading any awarded entries. */
+export async function publishedRelease(db: AppDb, competitionId: string) {
   const [release] = await db
     .select({
       releaseId: resultRelease.id,
@@ -26,7 +27,13 @@ export async function publishedResults(db: AppDb, competitionId: string) {
         eq(resultRelease.status, "published")
       )
     );
-  if (!release?.publishedAt) return null;
+  return release?.publishedAt
+    ? { ...release, publishedAt: release.publishedAt }
+    : null;
+}
+export async function publishedResults(db: AppDb, competitionId: string) {
+  const release = await publishedRelease(db, competitionId);
+  if (!release) return null;
   const lines = await db
     .select({
       entryId: resultAward.entryId,

@@ -53,6 +53,7 @@ import { seedEvents } from "./events";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedReports } from "./reports";
+import { seedSurveys } from "./surveys";
 import { seedResults } from "./results";
 import { seedGallery } from "./gallery";
 import { seedSocialExport } from "./social-export";
@@ -137,6 +138,7 @@ const seeders: readonly Seeder[] = [
   seedPhysicalArtwork,
   seedAuctions,
   seedResults,
+  seedSurveys,
   seedGallery,
   seedSocialExport,
   seedReports,

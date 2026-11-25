@@ -14,6 +14,7 @@ import {
   ADMIN_BREACHES,
   ADMIN_DONATIONS,
   ADMIN_CAMPAIGNS,
+  ADMIN_SURVEYS,
   ADMIN_LEDGER,
   ADMIN_PRIVACY,
   ADMIN_PRIVACY_REQUESTS,
@@ -51,6 +52,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
       { href: ADMIN_BREACHES, label: t("breaches") },
+      { href: ADMIN_SURVEYS, label: t("surveys") },
       { href: ADMIN_CAMPAIGNS, label: t("campaigns") },
       ...(env().APP_ENV === "production"
         ? []

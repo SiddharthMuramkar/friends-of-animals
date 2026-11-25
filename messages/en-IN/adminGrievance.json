@@ -192,6 +192,7 @@
       "consent_records": "Consent log and evidence",
       "audit_log": "Audit log entries",
       "privacy_requests": "Privacy requests",
+      "survey_feedback": "Survey invitations and answers",
       "volunteer_service": "Volunteer assignments, hours and service certificates",
       "community_history": "Community membership and private engagement history"
     },

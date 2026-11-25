@@ -3,6 +3,7 @@ import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 
 import type { AppDb } from "../../../db/app-db";
 import {
+  surveyInvitation,
   campaignRecipient,
   communityMember,
   event,
@@ -67,6 +68,10 @@ const aggregateSources = {
       ["user", engagementMilestone.subjectUserId],
       ["participant_profile", engagementMilestone.subjectProfileId],
     ],
+  },
+  survey_invitation: {
+    table: surveyInvitation,
+    subjects: [["user", surveyInvitation.userId]],
   },
   campaign_recipient: {
     table: campaignRecipient,

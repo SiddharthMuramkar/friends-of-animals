@@ -23,6 +23,7 @@ export default function robots(): MetadataRoute.Robots {
       "/donate/checkout",
       "/donate/thank-you",
       "/receipts",
+      "/feedback",
     ],
   };
   if (!isIndexable()) return { rules };
