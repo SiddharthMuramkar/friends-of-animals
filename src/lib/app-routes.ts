@@ -191,6 +191,8 @@ export const clubPath = (id: string) =>
   `${DASHBOARD_CLUBS}/${encodeURIComponent(id)}`;
 export const adminClubPath = (id: string) =>
   `${ADMIN_CLUBS}/${encodeURIComponent(id)}`;
+export const DASHBOARD_AMBASSADORS = "/dashboard/ambassadors";
+export const ADMIN_AMBASSADORS = "/admin/community/ambassadors";
 export const DASHBOARD_COMMUNITY = "/dashboard/community";
 export const DASHBOARD_TIMELINE = "/dashboard/timeline";
 export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
@@ -750,6 +752,8 @@ export const APP_ROUTE_TEMPLATES = [
   `${DASHBOARD_CLUBS}/[clubId]`,
   ADMIN_CLUBS,
   `${ADMIN_CLUBS}/[clubId]`,
+  DASHBOARD_AMBASSADORS,
+  ADMIN_AMBASSADORS,
   DASHBOARD_COMMUNITY,
   DASHBOARD_TIMELINE,
   ADMIN_COMMUNITY_MEMBERS,

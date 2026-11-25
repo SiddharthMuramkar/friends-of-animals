@@ -20,7 +20,10 @@ describe("the settings seed", () => {
       { key: "adoption.minAdopterAgeYears", value: 18 },
       { key: "ambassadors.minAgeYears", value: 18 },
       { key: "ambassadors.minMembershipDays", value: 90 },
-      { key: "ambassadors.qualifyingMilestones", value: "foa_finalist,volunteer" },
+      {
+        key: "ambassadors.qualifyingMilestones",
+        value: "foa_finalist,volunteer",
+      },
       { key: "artwork.dispatchDays", value: 14 },
       { key: "artwork.dispatchReminderLeadHours", value: 72 },
       {

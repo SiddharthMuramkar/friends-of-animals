@@ -1,0 +1,68 @@
+{
+  "ambassadors": {
+    "title": "FOA Ambassadors",
+    "eyebrow": "Community",
+    "intro": "Represent Friends of Animals. Eligible adult members can apply; our community team reviews every application.",
+    "loading": "Loading ambassador applications…",
+    "eligibility": "Eligibility for an ambassador application",
+    "qualified": "You meet the current eligibility requirements.",
+    "ineligible": "You do not meet all the current eligibility requirements.",
+    "passed": "Met",
+    "failed": "Not met",
+    "checks": {
+      "activeMembership": "Active FOA community membership",
+      "membershipDays": "Member for at least {days, number} days",
+      "minimumAge": "A recorded age of at least {years, number} years",
+      "qualifyingMilestone": "Earned at least one of these milestones: {milestones}",
+      "notAmbassador": "Not already an ambassador",
+      "noOpenApplication": "No application awaiting review"
+    },
+    "application": "Your latest application",
+    "status": {
+      "none": "Not yet applied",
+      "submitted": "Awaiting review",
+      "approved": "Approved",
+      "declined": "Declined",
+      "all": "All applications"
+    },
+    "submittedAt": "Submitted on {date}",
+    "decidedAt": "Reviewed on {date}",
+    "reason": "Reason for decline",
+    "applicationHint": "Your application will be sent to the community team for review. We will let you know their decision in your inbox.",
+    "apply": "Apply to become an FOA Ambassador",
+    "working": "Submitting…",
+    "community": "Manage your community membership",
+    "timeline": "View your engagement timeline",
+    "approvedHint": "Congratulations! You have earned the ambassador milestone on your timeline.",
+    "admin": {
+      "title": "Ambassador applications",
+      "qualified": "The applicant meets the current eligibility requirements.",
+      "ineligible": "The applicant does not meet all current eligibility requirements.",
+      "intro": "Review applications against the current settings. Approval records an earned ambassador milestone. Decline only with a reason the applicant can read privately.",
+      "filter": "Filter by status",
+      "show": "Show applications",
+      "count": "{count, plural, one {# application} other {# applications}}",
+      "empty": "No applications match this status.",
+      "review": "Review for {name}",
+      "approve": "Approve {name}’s application",
+      "decline": "Decline {name}’s application",
+      "reason": "Reason for decline (required)",
+      "reasonHint": "Up to 1,000 characters. Explain the decision respectfully to the applicant. This reason will appear in their private inbox.",
+      "saving": "Saving decision…",
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {page, number} of {pages, number}"
+    },
+    "outcome": {
+      "submitted": "Your application was sent to the community team.",
+      "approved": "Application approved. The ambassador milestone was recorded.",
+      "declined": "Application declined. The reason was recorded and the applicant will be notified.",
+      "ineligible": "The applicant does not meet the current eligibility requirements. Review the checks before submitting an application or approval.",
+      "invalid_input": "Enter a valid decline reason before saving the decision.",
+      "invalid_transition": "This application has already been decided.",
+      "self_review": "Another community manager must review your own application.",
+      "not_found": "This application is no longer available.",
+      "forbidden": "You do not have permission to make this decision."
+    }
+  }
+}

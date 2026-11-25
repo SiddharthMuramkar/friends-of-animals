@@ -213,7 +213,8 @@ export const SECTIONS: readonly Section[] = [
   },
   {
     table: schema.ambassadorApplication,
-    where: (scope) => within(schema.ambassadorApplication.applicantUserId, users(scope)),
+    where: (scope) =>
+      within(schema.ambassadorApplication.applicantUserId, users(scope)),
     owners: ["applicant_user_id"],
     decrypt: { decline_reason_ciphertext: AMBASSADOR_DECLINE_PURPOSE },
     withhold: ["decided_by_user_id"],

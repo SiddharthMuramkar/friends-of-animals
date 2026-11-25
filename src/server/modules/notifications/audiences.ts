@@ -1,4 +1,8 @@
-import { ambassadorApplicant, ambassadorReviewers, ambassadorDeclineValues } from "../community/ambassadors/messages";
+import {
+  ambassadorApplicant,
+  ambassadorReviewers,
+  ambassadorDeclineValues,
+} from "../community/ambassadors/messages";
 import {
   clubNoticeRecipients,
   clubNoticeValues,
@@ -733,10 +737,14 @@ export const AUDIENCES = {
       case "ambassador.application_approved":
       case "ambassador.application_declined":
         return ambassadorApplicant(db, delivery.payload.applicationId);
-      default: return [];
+      default:
+        return [];
     }
   },
-  ambassador_reviewers: async (db, delivery) => delivery.eventType === "ambassador.application_submitted" ? ambassadorReviewers(db, delivery.payload.applicationId) : [],
+  ambassador_reviewers: async (db, delivery) =>
+    delivery.eventType === "ambassador.application_submitted"
+      ? ambassadorReviewers(db, delivery.payload.applicationId)
+      : [],
   club_applicant: async (db, delivery) =>
     delivery.eventType === "club.decision_recorded"
       ? clubNoticeRecipients(db, delivery.payload.decisionId)
@@ -1083,7 +1091,11 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   "ambassador.application_submitted": { names: [], load: async () => ({}) },
   "ambassador.application_approved": { names: [], load: async () => ({}) },
-  "ambassador.application_declined": { names: ["decline.reason"], load: (db, { payload }, cipher) => ambassadorDeclineValues(db, payload.applicationId, cipher) },
+  "ambassador.application_declined": {
+    names: ["decline.reason"],
+    load: (db, { payload }, cipher) =>
+      ambassadorDeclineValues(db, payload.applicationId, cipher),
+  },
   "community.member_joined": { names: [], load: async () => ({}) },
   "engagement.milestone_recorded": { names: [], load: async () => ({}) },
   "results.published": { names: [], load: async () => ({}) },

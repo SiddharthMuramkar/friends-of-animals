@@ -15,7 +15,13 @@ export const AMBASSADOR_APPLICATIONS = rowPolicy({
   subjects: [
     ["user", ambassadorApplication.applicantUserId],
     ["user", ambassadorApplication.decidedByUserId],
-    ["participant_profile", sql`(SELECT ${participantProfile.id} FROM ${participantProfile} WHERE ${participantProfile.loginUserId}=${ambassadorApplication.applicantUserId})`],
-    ["participant_profile", sql`(SELECT ${participantProfile.id} FROM ${participantProfile} WHERE ${participantProfile.ownerKind}='self' AND ${participantProfile.ownerUserId}=${ambassadorApplication.applicantUserId})`],
+    [
+      "participant_profile",
+      sql`(SELECT ${participantProfile.id} FROM ${participantProfile} WHERE ${participantProfile.loginUserId}=${ambassadorApplication.applicantUserId})`,
+    ],
+    [
+      "participant_profile",
+      sql`(SELECT ${participantProfile.id} FROM ${participantProfile} WHERE ${participantProfile.ownerKind}='self' AND ${participantProfile.ownerUserId}=${ambassadorApplication.applicantUserId})`,
+    ],
   ],
 });

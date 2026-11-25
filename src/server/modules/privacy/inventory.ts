@@ -176,7 +176,8 @@ const BREACH_RECORD = {
 const AMBASSADOR_APPLICATION_RECORD = {
   policy: "ambassadorApplications",
   periodKey: "ambassadorApplications",
-  basis: "Private evidence of an ambassador application and its decision; approved decisions support an earned milestone (HR-31 and HR-57).",
+  basis:
+    "Private evidence of an ambassador application and its decision; approved decisions support an earned milestone (HR-31 and HR-57).",
   toConfirm: true,
 } as const;
 const VOLUNTEER_APPLICATION_RECORD = {
@@ -2063,7 +2064,12 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   // of who vetted them.
   ambassadorApplication("applicant_user_id", "identity"),
   ambassadorApplication("decline_reason_ciphertext", "content"),
-  actorColumn("ambassador_application", "decided_by_user_id", AMBASSADOR_APPLICATION_RECORD, "delete_row"),
+  actorColumn(
+    "ambassador_application",
+    "decided_by_user_id",
+    AMBASSADOR_APPLICATION_RECORD,
+    "delete_row"
+  ),
   volunteerApplication("applicant_user_id", "identity"),
   volunteerApplication("participant_profile_id", "identity"),
   volunteerApplication("date_of_birth_ciphertext", "demographic"),
