@@ -63,9 +63,10 @@ test("staff go from dashboard through real waiting queues and download the aggre
   await check(page, "admin home");
   await main.getByRole("link", { name: /Results to approve/ }).click();
   await expect(
-    main.getByRole("heading", { name: "Results to approve" })
+    main.getByRole("heading", { level: 1, name: "Results to approve" })
   ).toBeVisible();
-  await expect(main.getByText("1 item waiting")).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/queues\/results_to_approve$/);
+  await expect(main.getByText("1 item waiting", { exact: true })).toBeVisible();
   await expect(
     main.getByRole("link", { name: "Open item RSLT27" })
   ).toHaveAttribute(
@@ -82,7 +83,7 @@ test("staff go from dashboard through real waiting queues and download the aggre
     .getByRole("link", { name: "Reports", exact: true })
     .click();
   await expect(
-    main.getByRole("heading", { name: "Competition reports" })
+    main.getByRole("heading", { level: 1, name: "Competition reports" })
   ).toBeVisible();
   await check(page, "competition reports list");
   await main.getByRole("link", { name: /Kinder Skies SKIES26/ }).click();

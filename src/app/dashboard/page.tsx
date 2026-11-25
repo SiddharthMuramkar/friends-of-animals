@@ -141,6 +141,7 @@ async function Areas() {
             <li key={link.section} className="max-w-full">
               <SiteLink
                 href={link.href}
+                prefetch={link.area === "admin" ? false : undefined}
                 className="inline-flex min-h-11 max-w-full items-center rounded-full border-2 border-border-strong bg-surface px-4 py-1.5 font-semibold text-ink wrap-anywhere hover:border-ink"
               >
                 {name(link)}
@@ -224,7 +225,11 @@ async function AreaBody({
     <ul className="mt-3 flex flex-col">
       {items.map((item) => (
         <li key={item.href}>
-          <SiteLink href={item.href} className={LINK}>
+          <SiteLink
+            href={item.href}
+            prefetch={item.href === ADMIN_HOME ? false : undefined}
+            className={LINK}
+          >
             {item.label}
           </SiteLink>
         </li>
