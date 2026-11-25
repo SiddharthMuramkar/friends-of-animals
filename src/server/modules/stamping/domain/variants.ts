@@ -3,6 +3,7 @@
 // old copies retain their original identity and retention.
 export const STAMP_VARIANTS = [
   "gallery",
+  "gallery_thumb",
   "social",
   "certificate_share",
 ] as const;
@@ -12,6 +13,12 @@ export const STAMP_SETTINGS = {
   gallery: {
     kind: "stamp_gallery_v1",
     maxEdge: 800,
+    contentType: "image/webp",
+    extension: "webp",
+  },
+  gallery_thumb: {
+    kind: "stamp_gallery_thumb_v1",
+    maxEdge: 480,
     contentType: "image/webp",
     extension: "webp",
   },

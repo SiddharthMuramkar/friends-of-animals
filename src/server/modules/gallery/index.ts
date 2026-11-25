@@ -28,6 +28,7 @@ export {
   galleryRow,
   galleryPath,
   galleryMediaPath,
+  galleryThumbnailPath,
   type PublicGalleryItem,
 } from "./read";
 export const galleryUseCases = (ctx: UseCaseContext) => ({
@@ -57,5 +58,6 @@ export const galleryUseCases = (ctx: UseCaseContext) => ({
     getPublicGalleryItem(ctx, input),
   readGalleryDraftImage: (input: { itemId: string }) =>
     readGalleryDraftImage(ctx, input),
-  readGalleryImage: (input: { itemId: string }) => readGalleryImage(ctx, input),
+  readGalleryImage: (input: { itemId: string; size?: "thumb" }) =>
+    readGalleryImage(ctx, input),
 });

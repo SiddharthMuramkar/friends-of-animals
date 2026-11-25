@@ -17,6 +17,9 @@ test("consented gallery, stamped image and anonymous report forms", async ({
   const id = SEED_GALLERY.items[index]!;
   const title = index === 0 ? "A refuge for birds" : "A kinder street";
   const path = `/gallery/${id}`;
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: `View ${title}` })).toBeVisible();
+  await expect(page.getByText("Your drawing could hang here")).toHaveCount(0);
   await page.goto("/gallery");
   await expect(page.getByRole("link", { name: `View ${title}` })).toBeVisible();
   await expect(
@@ -32,6 +35,11 @@ test("consented gallery, stamped image and anonymous report forms", async ({
   await page.goto(path);
   const art = page.getByRole("img", { name: `AI illustration: ${title}` });
   await expect(art).toHaveAttribute("src", `/media/gallery/${id}`);
+  await expect
+    .poll(async () =>
+      art.evaluate((img: HTMLImageElement) => new URL(img.currentSrc).search)
+    )
+    .toBe(info.project.name === "mobile" ? "?size=thumb" : "");
   await art.scrollIntoViewIfNeeded();
   await expect(art).toBeVisible();
   expect(

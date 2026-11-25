@@ -8,7 +8,7 @@ import type { Delivery, OutboxDeps } from "../../outbox/handlers";
 import { noStoreCdnPurger } from "../../ports/cdn-purger";
 import { readSetting } from "../settings/read";
 import { retireGalleryItem } from "./curation";
-import { galleryMediaPath, galleryPath } from "./read";
+import { galleryMediaPath, galleryPath, galleryThumbnailPath } from "./read";
 const minute = 60_000;
 const actor = { kind: "system", process: "worker" } as const;
 export async function requestGalleryPurge(
@@ -158,6 +158,7 @@ export async function runGalleryPurge(deps: OutboxDeps, purgeId: string) {
       "/gallery",
       galleryPath(row.itemId),
       galleryMediaPath(row.itemId),
+      galleryThumbnailPath(row.itemId),
       `${galleryPath(row.itemId)}/report`,
       `/gallery-report/${row.itemId}`,
     ];

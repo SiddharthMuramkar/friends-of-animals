@@ -58,9 +58,15 @@ export default async function Page(
 ) {
   const t = await getTranslations("gallery");
   return (
-    <Section hue="pink" tone="tint" className="pt-10 sm:pt-14">
+    <Section hue="pink" tone="tint" className="min-h-svh pt-10 sm:pt-14">
       <PageHeader title={t("reportTitle")} lead={t("reportLead")} />
-      <Suspense fallback={<p className="mt-5">{t("loading")}</p>}>
+      <Suspense
+        fallback={
+          <output className="mt-5 block min-h-120 text-ink-muted">
+            {t("loading")}
+          </output>
+        }
+      >
         <Report {...props} />
       </Suspense>
       <SiteLink
