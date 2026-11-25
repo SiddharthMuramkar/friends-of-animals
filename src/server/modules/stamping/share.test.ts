@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
+import { seedCertificates } from "../../seed/certificates";
 import { certificate, guardianLink } from "../../db/schema";
 import { SEED_ACCOUNTS } from "../../seed/accounts";
 import { SEED_GUARDIANS } from "../../seed/guardians";
@@ -9,7 +11,9 @@ import { SEED_RESULTS } from "../../seed/results";
 
 it("renders private share images of issued certificates, allows the recipient and verified guardian only, and refuses a revoked certificate", async () => {
   const h = await createHarness();
-  await h.seed.preview();
+  // The share source is an actual issued PDF; other preview media is unrelated.
+  await seedAuctionResults(h.deps);
+  await seedCertificates(h.deps);
   await h.drain();
   const adult = await h.signIn(
     await h.seed.member({ email: SEED_ACCOUNTS.members[0]!.email })
