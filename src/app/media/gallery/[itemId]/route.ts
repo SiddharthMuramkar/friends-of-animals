@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import { as } from "@/server/app";
 import { PUBLIC_READER } from "../../../competitions/_lib/public-reader";
 export async function GET(
-  _request: Request,
+  request: Request,
   ctx: RouteContext<"/media/gallery/[itemId]">
 ) {
   await connection();
@@ -12,8 +12,12 @@ export async function GET(
     "X-Robots-Tag": "noindex, nofollow",
     "X-Content-Type-Options": "nosniff",
   };
+  const size = new URL(request.url).searchParams.get("size");
+  if (size !== null && size !== "thumb")
+    return new Response(null, { status: 404, headers });
   const image = await as(PUBLIC_READER).readGalleryImage({
     itemId: (await ctx.params).itemId,
+    ...(size === "thumb" ? { size } : {}),
   });
   if (!image.ok) return new Response(null, { status: 404, headers });
   return new Response(image.body, {

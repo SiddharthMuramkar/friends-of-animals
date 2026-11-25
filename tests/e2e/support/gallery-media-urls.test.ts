@@ -41,6 +41,19 @@ it("recognises site media and only the independent stamped gallery route", () =>
   expect(
     classifyGalleryMedia("/media/p/local/entry_image/private", origin)
   ).toBe("private");
+  expect(classifyGalleryMedia("%2523b", origin)).toBe("site");
+  expect(
+    classifyGalleryMedia(
+      "/media/gallery/01938a00-0000-7000-8000-000000103001?size=thumb",
+      origin
+    )
+  ).toBe("stamp");
+  expect(
+    classifyGalleryMedia(
+      "/media/gallery/01938a00-0000-7000-8000-000000103001?size=original",
+      origin
+    )
+  ).toBe("unknown");
   expect(classifyGalleryMedia("/unknown.jpg", origin)).toBe("unknown");
 });
 it("reads source candidates with width and density descriptors, ignoring inline data", () => {

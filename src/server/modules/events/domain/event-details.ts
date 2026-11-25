@@ -4,8 +4,8 @@
 // checks every field and the rules between them. Problems are reported as
 // codes on the field they belong to, for the form to show next to it.
 //
-// The description is rich text. This schema only bounds its length: the use
-// case runs it through the one sanitiser (#111) before storing it.
+// The description is plain multiline text. The use case passes every
+// public string through the shared markup sanitiser (#111) on writing.
 //
 // Pure: no I/O, no "server-only", no `@/` imports.
 

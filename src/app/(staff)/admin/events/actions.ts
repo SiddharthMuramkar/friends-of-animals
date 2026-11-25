@@ -13,7 +13,10 @@ import type { EventDetailsInput } from "@/server/modules/events/domain/event-det
 import { adminCall } from "../_lib/boundary";
 
 function formInput(form: FormData): EventDetailsInput {
-  const field = (name: string) => String(form.get(name) ?? "");
+  const field = (name: string) => {
+    const value = form.get(name);
+    return typeof value === "string" ? value : "";
+  };
   const optional = (name: string) => field(name).trim() || null;
   const instant = (name: string) => {
     const parsed = istLocalToInstant(field(name));

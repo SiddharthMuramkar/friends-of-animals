@@ -14,19 +14,26 @@ import type { Delivery } from "../../outbox";
 import { activeGuardians, latestConsents } from "../campaigns/load-audience";
 import { createFormatter } from "next-intl";
 import { formats, LOCALE, TIME_ZONE } from "../../../i18n/formats";
+import { stripMarkup } from "../../rich-text/strip-markup";
+
 const formatter = createFormatter({
   locale: LOCALE,
   formats,
   timeZone: TIME_ZONE,
 });
-import { stripMarkup } from "../../rich-text/strip-markup";
 
 export const EVENT_NOTICE_VARIABLES = [
   "event.title",
   "event.start",
   "event.place",
-  "event.registrationStatus",
+];
+export const EVENT_CHANGE_VARIABLES = [
+  ...EVENT_NOTICE_VARIABLES,
   "event.changes",
+];
+export const EVENT_REGISTRATION_VARIABLES = [
+  ...EVENT_NOTICE_VARIABLES,
+  "event.registrationStatus",
 ];
 type NoticeKind =
   | "event.registration_created"
@@ -153,7 +160,7 @@ export async function eventValues(
     "event.title": stripMarkup(row.title),
     "event.start": formatter.dateTime(row.startsAt, "longDateTime"),
     "event.place":
-      [row.venueName, row.city].filter(Boolean).join(", ") ||
+      stripMarkup([row.venueName, row.city].filter(Boolean).join(", ")) ||
       (row.onlineUrl ? "Online" : "No fixed location"),
   };
 }
@@ -166,7 +173,9 @@ export async function eventNoticeValues(db: AppDb, delivery: Notice) {
       ...(await eventValues(db, delivery.payload.eventId)),
       "event.changes":
         delivery.eventType === "event.changed"
-          ? delivery.payload.changes.join(" and ")
+          ? delivery.payload.changes === "time_and_place"
+            ? "time and place"
+            : delivery.payload.changes
           : "",
     };
   }
@@ -182,6 +191,8 @@ export async function eventNoticeValues(db: AppDb, delivery: Notice) {
         ? delivery.payload.status === "registered"
           ? "Registered"
           : "Waitlisted"
-        : "Registered",
+        : delivery.eventType === "event.registration_cancelled"
+          ? "Cancelled"
+          : "Registered",
   };
 }

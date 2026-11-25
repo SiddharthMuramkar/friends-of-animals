@@ -231,7 +231,10 @@ export async function updateEvent(
           aggregate: { type: "event", id: row.id },
           payload: {
             eventId: row.id,
-            changes: changes.notice,
+            changes:
+              changes.notice.length === 2
+                ? "time_and_place"
+                : changes.notice[0]!,
             startMoved: changes.startMoved,
           },
         });

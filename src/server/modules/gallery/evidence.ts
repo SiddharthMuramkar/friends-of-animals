@@ -149,8 +149,11 @@ export async function eligibleEntry(
     !(await stampSourceAvailable(ctx.db, { fileId, variant: "gallery" }))
   )
     return { eligible: false, reason: "no_safe_image" } as const;
-  const image = await stampedImage(ctx, { fileId, variant: "gallery" });
-  const award = await publishedRecognitionForEntry(ctx.db, entryId);
+  const [image, thumbnail, award] = await Promise.all([
+    stampedImage(ctx, { fileId, variant: "gallery" }),
+    stampedImage(ctx, { fileId, variant: "gallery_thumb" }),
+    publishedRecognitionForEntry(ctx.db, entryId),
+  ]);
   return {
     eligible: true,
     facts,
@@ -158,6 +161,7 @@ export async function eligibleEntry(
     fileId,
     credit,
     image,
+    thumbnail,
     award,
   } as const;
 }
@@ -170,7 +174,8 @@ export async function liveGallerySource(ctx: Context, item: GalleryItemRow) {
   return source.eligible &&
     source.consentEventId === item.consentEventId &&
     source.fileId === item.fileId &&
-    source.image
+    source.image &&
+    source.thumbnail
     ? source
     : null;
 }
