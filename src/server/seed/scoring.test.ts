@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
+import { physicalArtwork } from "../db/schema";
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
+import { SEED_JUDGING } from "./judging-rounds";
 import { SEED_SCORING } from "./scoring";
 
 describe("blind scoring preview", () => {
@@ -44,5 +47,57 @@ describe("blind scoring preview", () => {
       ok: true,
       sheet: { version: 1, comment: { text: "Reread tomorrow" } },
     });
+  });
+  it("shows only the physically ready original artwork in the seeded physical final", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    const judge = h.as(await h.signIn(SEED_JUDGING.onboardedJudge));
+    const roundId = SEED_JUDGING.openRoundId;
+    const list = await judge.listMyAssignments({ roundId });
+    expect(list).toMatchObject({
+      ok: true,
+      entries: [
+        { entryCode: "ORIG27-E-5EED06" },
+        { entryCode: "ORIG27-E-5EED07" },
+      ],
+    });
+    expect(
+      await judge.getBlindEntry({ roundId, entryCode: "ORIG27-E-5EED04" })
+    ).toEqual({ ok: false, error: "entry_not_found" });
+    const input = { roundId, entryCode: "ORIG27-E-5EED06" };
+    const detail = await judge.getBlindEntry(input);
+    expect(detail).toMatchObject({
+      ok: true,
+      view: { media: [{ kind: "image" }] },
+    });
+    if (!detail.ok) throw new Error(detail.error);
+    expect(
+      await judge.saveScoreSheet({
+        ...input,
+        baseVersion: 0,
+        scores: { [detail.criteria[0]!.id]: 7 },
+      })
+    ).toMatchObject({ ok: true, progress: "in_progress" });
+    // A custody change after admission must hide the work on the next
+    // read and refuse a save from an already-open scoring window.
+    await h.db
+      .update(physicalArtwork)
+      .set({ status: "returned" })
+      .where(eq(physicalArtwork.artworkCode, "ORIG27-A-5EED06"));
+    expect(await judge.listMyAssignments({ roundId })).toMatchObject({
+      ok: true,
+      entries: [{ entryCode: "ORIG27-E-5EED07" }],
+    });
+    expect(await judge.getBlindEntry(input)).toEqual({
+      ok: false,
+      error: "entry_not_found",
+    });
+    expect(
+      await judge.saveScoreSheet({
+        ...input,
+        baseVersion: 1,
+        comment: "Work no longer held",
+      })
+    ).toEqual({ ok: false, error: "entry_not_found" });
   });
 });

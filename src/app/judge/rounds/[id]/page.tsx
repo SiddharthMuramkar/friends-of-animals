@@ -1,9 +1,8 @@
-import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { PageHeader } from "@/components/site/heading";
-import { JudgeSection, Loading, CARD } from "../../_components/common";
+import { JudgeSection, CARD } from "../../_components/common";
 import {
   JUDGE_DASHBOARD,
   judgeEntryPath,
@@ -17,14 +16,8 @@ export async function generateMetadata() {
   return { title: t("assignments"), robots: { index: false, follow: false } };
 }
 type Props = PageProps<"/judge/rounds/[id]">;
-export default function Page(props: Props) {
-  return (
-    <JudgeSection>
-      <Suspense fallback={<Loading />}>
-        <Assignments {...props} />
-      </Suspense>
-    </JudgeSection>
-  );
+export default async function Page(props: Props) {
+  return <JudgeSection>{await Assignments(props)}</JudgeSection>;
 }
 async function Assignments({ params, searchParams }: Props) {
   const [{ id }, query, actor, t] = await Promise.all([

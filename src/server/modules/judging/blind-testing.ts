@@ -7,6 +7,7 @@ import {
   participantProfile,
   institution,
 } from "../../db/schema";
+import { PROFILE_PURPOSE } from "../registration/student-profile";
 import { insertConsentDocumentVersion } from "../consent/insert-version";
 import { schoolEntriesAtFoa, signedInVerifier } from "../verification/testing";
 import { managerOf, signedInWith } from "./testing";
@@ -158,6 +159,15 @@ export async function identifiableWork(
     reg!.id,
     profile!.guardianEmailCiphertext!,
     profile!.guardianPhoneCiphertext!,
+    ...(
+      [
+        [PROFILE_PURPOSE.guardianName, profile!.guardianNameCiphertext],
+        [PROFILE_PURPOSE.guardianEmail, profile!.guardianEmailCiphertext],
+        [PROFILE_PURPOSE.guardianPhone, profile!.guardianPhoneCiphertext],
+      ] as const
+    ).flatMap(([purpose, ciphertext]) =>
+      ciphertext ? [h.deps.cipher.decrypt(purpose, ciphertext)] : []
+    ),
     title,
     description,
     statement,

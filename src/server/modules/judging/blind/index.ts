@@ -67,7 +67,7 @@ async function listMyAssignments(
   const access = await scoringRound(ctx, input.roundId, "read");
   if (!access.ok) return access;
   const { round, judgeUserId } = access;
-  const assigned = await assignedWork(ctx.db, round.id, judgeUserId);
+  const assigned = await assignedWork(ctx.db, round, judgeUserId);
   const started = await startedSheetIds(
     ctx.db,
     assigned.flatMap((a) => (a.scoreSheetId ? [a.scoreSheetId] : []))
@@ -100,7 +100,7 @@ async function getBlindEntry(ctx: UseCaseContext, input: BlindEntryInput) {
   const access = await scoringRound(ctx, input.roundId, "read");
   if (!access.ok) return access;
   const { round, judgeUserId } = access;
-  const assigned = await assignedWork(ctx.db, round.id, judgeUserId);
+  const assigned = await assignedWork(ctx.db, round, judgeUserId);
   const index = assigned.findIndex((a) => a.entryCode === input.entryCode);
   const item = assigned[index];
   if (!item) return notFound;
@@ -160,7 +160,7 @@ async function saveScoreSheet(ctx: UseCaseContext, input: SaveScoreSheetInput) {
     );
     if (!access.ok) return access;
     const { round, judgeUserId } = access;
-    const assigned = await assignedWork(tx, round.id, judgeUserId);
+    const assigned = await assignedWork(tx, round, judgeUserId);
     const item = assigned.find((a) => a.entryCode === input.entryCode);
     const decision = decideScoringAccess(
       { roundStatus: round.status, onboarded: true, assigned: Boolean(item) },
@@ -201,16 +201,14 @@ async function saveScoreSheet(ctx: UseCaseContext, input: SaveScoreSheetInput) {
       if (row)
         await tx.update(scoreSheet).set(fields).where(eq(scoreSheet.id, id));
       else
-        await tx
-          .insert(scoreSheet)
-          .values({
-            id,
-            roundId: round.id,
-            entryId: item.entryId,
-            judgeUserId,
-            createdAt: now,
-            ...fields,
-          });
+        await tx.insert(scoreSheet).values({
+          id,
+          roundId: round.id,
+          entryId: item.entryId,
+          judgeUserId,
+          createdAt: now,
+          ...fields,
+        });
       for (const [criterionId, score] of Object.entries(next.scores)) {
         if (score.changedAtVersion !== next.version) continue;
         await tx

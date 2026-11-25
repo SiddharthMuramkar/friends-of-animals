@@ -983,7 +983,7 @@ Competition managers create draft rounds and pin each enabled discipline’s pub
 
 #### Blind scoring (#96)
 
-`listMyAssignments`, `getBlindEntry` and `saveScoreSheet` are round-scoped judge-only use cases in `judging/blind`. Each call checks current onboarding and conflicts, and the allow-listed view contains only entry code, discipline, category, age group, and live derived work. The score sheet saves patches against the pinned rubric with field versions, reports conflicting edits, and keeps completion/change audit records without copying free-text comments. A removed or conflicted assignment deletes its sheet and scores; the audit remains. Locked rounds are readable but not writable.
+`listMyAssignments`, `getBlindEntry` and `saveScoreSheet` are round-scoped judge-only use cases in `judging/blind`. Each call checks current onboarding and conflicts (open physical rounds additionally recheck artwork readiness), and the allow-listed view contains only entry code, discipline, category, age group, and live derived work. The score sheet saves patches against the pinned rubric with field versions, reports conflicting edits, and keeps completion/change audit records without copying free-text comments. A removed or conflicted assignment deletes its sheet and scores; the audit remains. Locked rounds are readable but not writable.
 
 ### ledger
 

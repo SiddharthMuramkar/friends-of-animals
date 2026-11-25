@@ -7,7 +7,7 @@ import {
   type PointerEvent,
   type KeyboardEvent,
 } from "react";
-import { useTranslations } from "next-intl";
+import type { ViewerCopy } from "./copy";
 import { buttonStyles } from "@/components/site/button-link";
 import type { BlindMedia } from "@/server/modules/judging/blind/domain/blind-entry-view";
 import { clampPan, pinchZoom, zoomBy, type Point } from "./zoom";
@@ -22,14 +22,13 @@ const distance = (points: Point[]) =>
 
 function ImageViewer({
   media,
-  alt,
+  copy,
   onError,
 }: {
   media: ImageMedia;
-  alt: string;
+  copy: ViewerCopy;
   onError: () => void;
 }) {
-  const t = useTranslations("judgeScoring");
   const dialog = useRef<HTMLDialogElement>(null),
     stage = useRef<HTMLDivElement>(null),
     image = useRef<HTMLImageElement>(null);
@@ -139,7 +138,7 @@ function ImageViewer({
       {/* oxlint-disable-next-line nextjs/no-img-element -- Already resized private signed derivative (or styleguide image). */}
       <img
         src={media.url}
-        alt={alt}
+        alt={copy.workAlt}
         width={media.width ?? undefined}
         height={media.height ?? undefined}
         onError={onError}
@@ -154,7 +153,7 @@ function ImageViewer({
           setOpen(true);
         }}
       >
-        {t("fullScreen")}
+        {copy.fullScreen}
       </button>
       <dialog
         ref={dialog}
@@ -170,15 +169,15 @@ function ImageViewer({
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3 pt-[max(.75rem,env(safe-area-inset-top))]">
           <div className="min-w-0 flex-1">
             <h1 id={title} className="text-xl font-bold">
-              {t("viewTitle")}
+              {copy.viewTitle}
             </h1>
             <p id={help} className="text-sm text-ink-muted">
-              {t("zoomHelp")}
+              {copy.zoomHelp}
             </p>
           </div>
           <form method="dialog">
             <button type="submit" className={secondary}>
-              {t("closeViewer")}
+              {copy.closeViewer}
             </button>
           </form>
         </header>
@@ -196,7 +195,7 @@ function ImageViewer({
             <img
               ref={image}
               src={media.url}
-              alt={alt}
+              alt={copy.workAlt}
               draggable={false}
               onError={onError}
               className="max-h-full max-w-full object-contain"
@@ -213,14 +212,14 @@ function ImageViewer({
             onClick={() => setView(zoomBy(state.current.zoom, -0.5))}
             disabled={transform.zoom <= 1}
           >
-            {t("zoomOut")}
+            {copy.zoomOut}
           </button>
           <button
             type="button"
             className={secondary}
             onClick={() => setView(1, { x: 0, y: 0 })}
           >
-            {t("fit")}
+            {copy.fit}
           </button>
           <button
             type="button"
@@ -228,10 +227,13 @@ function ImageViewer({
             onClick={() => setView(zoomBy(state.current.zoom, 0.5))}
             disabled={transform.zoom >= 4}
           >
-            {t("zoomIn")}
+            {copy.zoomIn}
           </button>
           <span className="font-semibold" aria-live="polite">
-            {t("zoomValue", { percent: Math.round(transform.zoom * 100) })}
+            {copy.zoomValue.replace(
+              "{percent}",
+              String(Math.round(transform.zoom * 100))
+            )}
           </span>
         </div>
       </dialog>
@@ -243,14 +245,13 @@ function ImageViewer({
  * original or builds a storage URL. The caller may refresh its authorization. */
 export function MediaViewer({
   media,
-  entryCode,
+  copy,
   onRefresh,
 }: {
   media: BlindMedia;
-  entryCode: string;
+  copy: ViewerCopy;
   onRefresh?: () => void;
 }) {
-  const t = useTranslations("judgeScoring");
   const [failed, setFailed] = useState(false);
   const refresh = onRefresh ? (
     <button
@@ -261,7 +262,7 @@ export function MediaViewer({
         onRefresh();
       }}
     >
-      {t("refreshWork")}
+      {copy.refreshWork}
     </button>
   ) : null;
   return (
@@ -269,7 +270,7 @@ export function MediaViewer({
       {media.kind === "image" ? (
         <ImageViewer
           media={media}
-          alt={t("workAlt", { entryCode })}
+          copy={copy}
           onError={() => setFailed(true)}
         />
       ) : null}
@@ -281,7 +282,7 @@ export function MediaViewer({
           playsInline
           preload="metadata"
           poster={media.posterUrl ?? undefined}
-          aria-label={t("videoLabel", { entryCode })}
+          aria-label={copy.videoLabel}
           onError={() => setFailed(true)}
           className="max-h-[65dvh] w-full rounded-xl bg-black"
         >
@@ -290,7 +291,7 @@ export function MediaViewer({
       ) : null}
       {media.kind === "essay_text" ? (
         <div>
-          <h3 className="font-bold">{t("essay")}</h3>
+          <h3 className="font-bold">{copy.essay}</h3>
           <p className="mt-3 whitespace-pre-wrap wrap-break-word text-body leading-relaxed">
             {media.text}
           </p>
@@ -303,11 +304,11 @@ export function MediaViewer({
           target="_blank"
           rel="noreferrer"
         >
-          {t("pdf")}
+          {copy.pdf}
         </a>
       ) : null}
-      {media.kind === "unavailable" ? <p>{t("unavailable")}</p> : null}
-      {failed ? <output>{t("mediaFailed")}</output> : null}
+      {media.kind === "unavailable" ? <p>{copy.unavailable}</p> : null}
+      {failed ? <output>{copy.mediaFailed}</output> : null}
       {refresh}
     </div>
   );

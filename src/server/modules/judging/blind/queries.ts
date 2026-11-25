@@ -11,6 +11,7 @@ import {
   rubricCriterion,
   scoreSheet,
 } from "../../../db/schema";
+import { physicallyReadyEntryIds } from "../physical-readiness";
 import { conflictedEntryIds } from "../conflict-facts";
 import { entryAgeGroupLabels } from "../entry-categories";
 import type { Discipline } from "../../competitions/domain/vocabulary";
@@ -18,9 +19,15 @@ import { EMPTY_SCORE_SHEET, type ScoreSheet } from "./domain/score-sheet";
 
 export async function assignedWork(
   db: AppDb,
-  roundId: string,
+  round: {
+    id: string;
+    competitionId: string;
+    judgesPhysical: boolean;
+    status: string;
+  },
   judgeUserId: string
 ) {
+  const roundId = round.id;
   const rows = await db
     .select({
       entryId: entry.id,
@@ -48,7 +55,14 @@ export async function assignedWork(
     )
     .orderBy(asc(entry.code));
   const conflicts = await conflictedEntryIds(db, roundId, judgeUserId);
-  const allowed = rows.filter((row) => !conflicts.has(row.entryId));
+  const physical =
+    round.status === "open" && round.judgesPhysical
+      ? await physicallyReadyEntryIds(db, round.competitionId)
+      : null;
+  const allowed = rows.filter(
+    (row) =>
+      !conflicts.has(row.entryId) && (!physical || physical.has(row.entryId))
+  );
   const labels = await entryAgeGroupLabels(
     db,
     allowed.map((row) => row.entryId)

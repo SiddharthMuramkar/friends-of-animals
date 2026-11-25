@@ -95,6 +95,13 @@ describe("getBlindEntry", () => {
       scope: { type: "institution", id: w.school.institutionId },
     });
     expect(await judge.getBlindEntry(input)).toEqual(refusal);
+    expect(
+      await judge.saveScoreSheet({
+        ...input,
+        baseVersion: 0,
+        comment: "No longer assigned",
+      })
+    ).toEqual(refusal);
     expect(await judge.listMyAssignments({ roundId: w.roundId })).toMatchObject(
       { ok: true, entries: [] }
     );

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { NextIntlClientProvider } from "next-intl";
-import { messages } from "@/i18n/messages";
-import { LOCALE } from "@/i18n/formats";
+import { viewerCopy } from "@/components/media-viewer/copy";
 import { MediaViewer } from "@/components/media-viewer/media-viewer";
 import { siteArt } from "@/lib/art";
 import { notFound } from "next/navigation";
@@ -249,6 +247,7 @@ export default async function Page() {
   // Test sites only.
   if (!isSampleContentEnabled()) notFound();
   const t = await getTranslations("styleguide");
+  const mediaCopy = viewerCopy(await getTranslations("judgeScoring"), "SAMPLE");
   const competitions = getSampleCompetitions();
   const impact = getSampleImpact();
 
@@ -715,22 +714,17 @@ export default async function Page() {
           title={t("sections.viewer")}
         />
         <div className="mt-6 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5">
-          <NextIntlClientProvider
-            locale={LOCALE}
-            timeZone="Asia/Kolkata"
-            messages={{ judgeScoring: messages.judgeScoring }}
-          >
-            <MediaViewer
-              media={{
-                kind: "image",
-                url: siteArt("scene-street-neighbours").plain.src,
-                width: null,
-                height: null,
-                thumbnailUrl: null,
-              }}
-              entryCode="SAMPLE"
-            />
-          </NextIntlClientProvider>
+          <MediaViewer
+            media={{
+              kind: "image",
+              url: siteArt("scene-street-neighbours").plain.src,
+              width: null,
+              height: null,
+              thumbnailUrl: null,
+            }}
+            copy={mediaCopy}
+          />
+
           <AiMark className="mt-3" />
         </div>
       </Section>

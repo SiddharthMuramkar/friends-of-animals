@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { viewerCopy } from "@/components/media-viewer/copy";
 import { MediaViewer } from "@/components/media-viewer/media-viewer";
 import type { BlindEntryView } from "@/server/modules/judging/blind/domain/blind-entry-view";
 export function Work({ view }: { view: BlindEntryView }) {
@@ -13,7 +14,7 @@ export function Work({ view }: { view: BlindEntryView }) {
         <MediaViewer
           key={index}
           media={media}
-          entryCode={view.entryCode}
+          copy={viewerCopy(t, view.entryCode)}
           onRefresh={() => router.refresh()}
         />
       ))}

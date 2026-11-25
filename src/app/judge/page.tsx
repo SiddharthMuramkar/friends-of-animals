@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { ButtonLink } from "@/components/site/button-link";
@@ -10,16 +9,15 @@ import {
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { CARD, JudgeSection, Loading } from "./_components/common";
+import { CARD, JudgeSection } from "./_components/common";
 export const metadata = { robots: { index: false, follow: false } };
 export default async function Page() {
   const t = await getTranslations("judging");
+  const rounds = await Rounds();
   return (
     <JudgeSection>
       <PageHeader title={t("title")} lead={t("lead")} tile="teal" />
-      <Suspense fallback={<Loading />}>
-        <Rounds />
-      </Suspense>
+      {rounds}
     </JudgeSection>
   );
 }

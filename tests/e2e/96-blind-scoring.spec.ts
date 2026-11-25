@@ -86,10 +86,49 @@ test("judges see assigned work and inspect the derived image", async ({
   await expect(viewer.getByText("150% zoom")).toBeVisible();
   await page.keyboard.press("+");
   await expect(viewer.getByText("200% zoom")).toBeVisible();
+  if (testInfo.project.name === "desktop") {
+    const expanded = viewer.getByRole("img");
+    const before = await expanded.getAttribute("style");
+    const { width, height } = page.viewportSize()!;
+    await page.mouse.move(width / 2, height / 2);
+    await page.mouse.down();
+    await page.mouse.move(width / 2 + 80, height / 2 + 50, { steps: 4 });
+    await page.mouse.up();
+    await expect(expanded).not.toHaveAttribute("style", before!);
+  }
   await page.keyboard.press("-");
   await expect(viewer.getByText("150% zoom")).toBeVisible();
   await page.keyboard.press("0");
   await expect(viewer.getByText("100% zoom")).toBeVisible();
+  if (testInfo.project.name === "mobile") {
+    // Real touch input on the Pixel project, not an event handler unit test.
+    const cdp = await page.context().newCDPSession(page);
+    const { width, height } = page.viewportSize()!;
+    const x = width / 2,
+      y = height / 2;
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [
+        { x: x - 30, y, id: 1 },
+        { x: x + 30, y, id: 2 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [
+        { x: x - 60, y, id: 1 },
+        { x: x + 60, y, id: 2 },
+      ],
+    });
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await cdp.detach();
+    await expect(viewer.getByText("200% zoom")).toBeVisible();
+    await viewer.getByRole("button", { name: "Fit image" }).click();
+    await expect(viewer.getByText("100% zoom")).toBeVisible();
+  }
   for (const theme of ["light", "dark"]) {
     await page.evaluate(
       (dark) => document.documentElement.classList.toggle("dark", dark),
@@ -206,7 +245,13 @@ test("saves score patches automatically and through a no-JavaScript form", async
   });
   try {
     const noJs = await fallback.newPage();
-    await noJs.goto(path(0));
+    await noJs.goto("/judge");
+    await noJs
+      .getByRole("link", {
+        name: "View assigned entries for Sample digital judging",
+      })
+      .click();
+    await noJs.getByRole("link", { name: SEED_SCORING.entryCodes[0] }).click();
     await noJs
       .getByLabel("Comments (optional)")
       .fill("Saved without JavaScript");

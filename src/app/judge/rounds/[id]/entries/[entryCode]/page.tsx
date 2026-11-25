@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import { messages } from "@/i18n/messages";
@@ -9,7 +8,7 @@ import { PageHeader } from "@/components/site/heading";
 import { judgeOnboardingPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
-import { CARD, Loading } from "../../../../_components/common";
+import { CARD } from "../../../../_components/common";
 import { ScoreForm, type SaveStatus } from "./_components/score-form";
 import { Work } from "./_components/work";
 export async function generateMetadata() {
@@ -17,12 +16,14 @@ export async function generateMetadata() {
   return { title: t("scoreTitle"), robots: { index: false, follow: false } };
 }
 type Props = PageProps<"/judge/rounds/[id]/entries/[entryCode]">;
-export default function Page(props: Props) {
+// The judge layout is already request-dynamic (nonce protected). Await
+// the form here rather than stream it behind Suspense: without JS React
+// cannot replace the loading placeholder with the native Save form.
+export default async function Page(props: Props) {
+  const content = await Entry(props);
   return (
     <Section hue="teal" tone="tint" width="wide" className="pt-10 sm:pt-14">
-      <Suspense fallback={<Loading />}>
-        <Entry {...props} />
-      </Suspense>
+      {content}
     </Section>
   );
 }

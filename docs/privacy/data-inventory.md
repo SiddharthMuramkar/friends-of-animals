@@ -148,3 +148,19 @@ Pending replacement text is cleared when the image passes, fails or is
 superseded. Upload grants and unused staged objects are cleared by the worker
 after the 10-minute upload URL expires. A separate worker delivery checks the
 same staging key again an hour after expiry to clear bytes from in-flight PUTs.
+
+## Blind judging
+
+The judge's score sheet identifies the assigned judge and contains private
+comments about a participant's entry, plus numerical criterion scores. The
+`judgingRecords` lifecycle proposes 90 days after round results, pending
+counsel (HR-31). Removing an assignment deletes its score sheet and scores;
+completion and later changes are audited, but free-text comments are not
+copied to the append-only audit log.
+
+The scoring view never returns personal metadata or the original upload.
+Private judging assessments are excluded from automated rights exports until
+FOA can review the confidential material without exposing another person or
+unfinished results. A privacy officer handles those requests. The derivative
+worker strips file metadata; any name the participant includes within the
+visible work is not automatically redacted.
