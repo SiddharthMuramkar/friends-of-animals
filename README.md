@@ -1710,14 +1710,14 @@ The full check is in [Testing and CI](#testing-and-ci).
 
 Four test layers plus a read-only smoke check of the live site. Only Vitest runs with nothing but Node 26 and `pnpm install`.
 
-| Layer                          | Files                                                                                           | Command                              | Needs                                      | When CI runs it     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------ | ------------------- |
-| Vitest (Seam 1 and unit tests) | `*.test.ts(x)` beside the code in `src/`, `scripts/`, `docker/`, `tests/e2e/` (about 600 files) | `pnpm test`                          | Nothing: in-process Postgres (PGlite)      | Every run, 8 shards |
-| Real-Postgres races            | `src/**/*.pg.test.ts`                                                                           | `pnpm test:pg`                       | A migrated throwaway Postgres              | Full runs only      |
-| Live provider contracts        | `src/**/*.live.test.ts` (2 files)                                                               | `pnpm test:live`                     | Real R2 or B2 credentials                  | Never; by hand      |
-| ffmpeg contract (#86)          | `src/**/*.media.test.ts` (1 file)                                                               | `pnpm test:media`                    | ffmpeg and ffprobe: the worker-media image | Never; by hand      |
-| Playwright journeys (Seam 2)   | `tests/e2e/*.spec.ts` (about 50)                                                                | `pnpm test:e2e`                      | A running app, its Postgres, Chromium      | Full runs only      |
-| Production smoke               | `tests/e2e/prod-smoke.spec.ts`                                                                  | `pnpm test:e2e --project=prod-smoke` | The live site                              | By hand (`e2e.yml`) |
+| Layer                          | Files                                                                                           | Command                              | Needs                                      | When CI runs it      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------ | -------------------- |
+| Vitest (Seam 1 and unit tests) | `*.test.ts(x)` beside the code in `src/`, `scripts/`, `docker/`, `tests/e2e/` (about 600 files) | `pnpm test`                          | Nothing: in-process Postgres (PGlite)      | Every run, 10 shards |
+| Real-Postgres races            | `src/**/*.pg.test.ts`                                                                           | `pnpm test:pg`                       | A migrated throwaway Postgres              | Full runs only       |
+| Live provider contracts        | `src/**/*.live.test.ts` (2 files)                                                               | `pnpm test:live`                     | Real R2 or B2 credentials                  | Never; by hand       |
+| ffmpeg contract (#86)          | `src/**/*.media.test.ts` (1 file)                                                               | `pnpm test:media`                    | ffmpeg and ffprobe: the worker-media image | Never; by hand       |
+| Playwright journeys (Seam 2)   | `tests/e2e/*.spec.ts` (about 50)                                                                | `pnpm test:e2e`                      | A running app, its Postgres, Chromium      | Full runs only       |
+| Production smoke               | `tests/e2e/prod-smoke.spec.ts`                                                                  | `pnpm test:e2e --project=prod-smoke` | The live site                              | By hand (`e2e.yml`)  |
 
 Before you push:
 
@@ -1869,7 +1869,7 @@ The CI job "Test integrity" fails if any test file (`tests/`, `src/test/`, `*.te
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Choose the jobs to run (`scope`) | `full` is true for non-PR runs, PR branches starting `revert/`, and PRs labelled `full-ci`                                                     |
 | Lint, Typecheck, Format check    | `pnpm lint`, `pnpm typecheck`, `pnpm format:check`                                                                                             |
-| Vitest (shard n/10)              | 10 parallel jobs                                                                                                                               |
+| Vitest (shard n/10)              | 10 parallel jobs, one Vitest worker each                                                                                                       |
 | Test integrity                   | The rules above                                                                                                                                |
 | Build without a database         | `pnpm build && pnpm check:build` with empty database URLs: pages must prerender without a database; bundle-size, browser-syntax and CSP checks |
 | Migrations                       | [What CI checks on migrations](#what-ci-checks-on-migrations)                                                                                  |

@@ -291,7 +291,9 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           registration_opens: ist(-170, "09:00"),
           registration_closes: ist(-95, "23:59"),
           submissions_close: ist(-50, "23:59"),
-          school_round_closes: ist(-35, "23:59"),
+          // The school's seeded round is still open for its coordinator;
+          // #90 makes rounds overdue at this deadline.
+          school_round_closes: ist(10, "23:59"),
         },
       },
     },

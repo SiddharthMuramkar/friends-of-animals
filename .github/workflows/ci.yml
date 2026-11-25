@@ -84,8 +84,10 @@ jobs:
   # The slowest shard sets the wall time of every PR run, and a crowded
   # shard slows every file in it: at 94 files a shard (eight shards, #55
   # part 1) the seed tests ran past Vitest's 5 s limit. Ten keeps a shard
-  # near 75 files. Change the name, the matrix and the --shard total
-  # together.
+  # near 75 files. PGlite migration and preview seed tests compete for the
+  # runner's CPU and memory; run one test file at a time within each shard,
+  # while keeping the ten shards parallel. Change the name, the matrix and
+  # the --shard total together.
   vitest:
     name: Vitest (shard ${{ matrix.shard }}/10)
     runs-on: ubuntu-latest
@@ -101,7 +103,7 @@ jobs:
       - uses: ./.github/actions/setup
       - env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm exec vitest run --shard="$SHARD/10"
+        run: pnpm exec vitest run --shard="$SHARD/10" --maxWorkers=1
 
   integrity:
     name: Test integrity
