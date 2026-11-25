@@ -12,6 +12,7 @@ import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
   ADMIN_ADOPTIONS,
+  ADMIN_AUCTIONS,
   ADMIN_JUDGING_ROUNDS,
   JUDGE_DASHBOARD,
   ADMIN_VERIFICATION,
@@ -103,6 +104,7 @@ async function Areas() {
   );
   // Adoption coordinators handle adoption applications (#130).
   const verifier = grants.some((grant) => grant.role === "foa_verifier");
+  const auction = grants.some((g) => g.role === "auction_manager");
   const adoption = grants.some(
     (grant) => grant.role === "adoption_coordinator"
   );
@@ -168,6 +170,7 @@ async function Areas() {
             competitions={competitions}
             community={community}
             adoption={adoption}
+            auction={auction}
             verifier={verifier}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
@@ -188,6 +191,7 @@ async function AreaBody({
   competitions,
   community,
   adoption,
+  auction,
   verifier,
 }: {
   area: DashboardLink["area"];
@@ -200,6 +204,7 @@ async function AreaBody({
   competitions: boolean;
   community: boolean;
   adoption: boolean;
+  auction: boolean;
   verifier: boolean;
 }) {
   const [t, registration] = await Promise.all([
@@ -295,6 +300,9 @@ async function AreaBody({
               : []),
             ...(verifier
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
+              : []),
+            ...(auction
+              ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]
               : []),
             ...(adoption
               ? [{ href: ADMIN_ADOPTIONS, label: t("admin.adoptions") }]

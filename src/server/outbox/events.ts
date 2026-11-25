@@ -466,6 +466,36 @@ export type DomainEvent =
       };
     }
   | {
+      type: "auction.lot_created";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot.open";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot.close";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot_opened";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot_closed";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot_cancelled";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
       type: "artwork.retain_unrequested";
       aggregate: { type: "competition"; id: string };
       payload: { competitionId: string };
@@ -978,6 +1008,12 @@ export const EVENT_PAYLOADS = {
     releaseId: z.uuid(),
     publishedAt: z.iso.datetime(),
   }),
+  "auction.lot_created": z.object({ lotId: z.uuid() }),
+  "auction.lot.open": z.object({ lotId: z.uuid() }),
+  "auction.lot.close": z.object({ lotId: z.uuid() }),
+  "auction.lot_opened": z.object({ lotId: z.uuid() }),
+  "auction.lot_closed": z.object({ lotId: z.uuid() }),
+  "auction.lot_cancelled": z.object({ lotId: z.uuid() }),
   "artwork.retain_unrequested": z.object({ competitionId: z.uuid() }),
   "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
   "entry.sent_back": ENTRY_VERIFICATION_EVENT,
@@ -1107,7 +1143,7 @@ export const SUBSCRIBERS = {
   "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
-  "consent.withdrawn": ["notifications.dispatch"],
+  "consent.withdrawn": ["notifications.dispatch", "auctions.withdraw_consent"],
   "consent.link_sent": ["consent_links.deliver"],
   // files.process_image runs in worker-media only: the media queue
   // (./queues.ts). An entry's file follows each step of its own (#85):
@@ -1212,6 +1248,13 @@ export const SUBSCRIBERS = {
   "artwork.returned": ["notifications.dispatch"],
   "results.published": ["artwork.open_results_window"],
   "artwork.retain_unrequested": ["artwork.retain_unrequested"],
+  "auction.lot_created": ["notifications.dispatch"],
+  "auction.lot.open": ["auctions.open_lot"],
+  "auction.lot.close": ["auctions.close_lot"],
+  "auction.lot_opened": ["notifications.dispatch"],
+  "auction.lot_closed": ["auctions.settle_closed"],
+  "auction.lot_cancelled": ["notifications.dispatch"],
+
   "entry.foa_verified": ["notifications.dispatch"],
   "entry.sent_back": ["notifications.dispatch"],
   // A resubmitted file went live: the entry returns to FOA (#92).

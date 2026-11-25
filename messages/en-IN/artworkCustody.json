@@ -31,7 +31,11 @@
     "photos": "Private condition photos",
     "photoHelp": "Upload at least one front and one back photo. Select clean photos below before verifying. Each photo may be up to 20 MB.",
     "photoKind": "Photo view (Required)",
-    "photoKinds": { "front": "Front", "back": "Back", "detail": "Detail" },
+    "photoKinds": {
+      "front": "Front",
+      "back": "Back",
+      "detail": "Detail"
+    },
     "photo": "Condition photo (Required)",
     "upload": "Upload condition photo",
     "uploading": "Uploading…",
@@ -74,7 +78,9 @@
       "exhibited": "Exhibited",
       "moved": "Moved",
       "retained": "Retained",
-      "returned": "Returned"
+      "returned": "Returned",
+      "auction_reserved": "Reserved for auction",
+      "auction_released": "Released from auction"
     },
     "noHistory": "No custody events yet.",
     "exhibit": "Put on exhibition",
@@ -103,7 +109,8 @@
       "invalid_photo": "A selected photo is not linked to this artwork.",
       "checklist_failed": "All inspection checks must pass. Raise a discrepancy if something does not match.",
       "condition_notes_required": "Describe the damage in the condition notes.",
-      "discrepancy_open": "Resolve the discrepancy before verifying the artwork."
+      "discrepancy_open": "Resolve the discrepancy before verifying the artwork.",
+      "auction_reserved": "This artwork is reserved for auction. Cancel or settle its lot before changing custody."
     }
   }
 }

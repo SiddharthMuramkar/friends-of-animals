@@ -86,6 +86,17 @@ erasure of the artwork's entry removes linked records and private photo objects.
 A custody event is append-only while its artwork exists. Return windows carry
 no claimant identity and begin at the first actual results publication.
 
+## Auction lots
+
+An auction lot links the creator's artwork and the consent event that made it
+eligible. It records the lot code, staff-created story and any cancellation
+reason. These are creator data retained with the Entry record (HR-31, pending
+confirmation); the artwork's erasure cascades to its lots. The manager's
+account is recorded separately. Public reads calculate credit using current
+consent and never expose a private image, storage key, reserve price or an
+identifiable minor beyond first name and last initial. Lot details are not
+indexed.
+
 ## Breach log
 
 A breach's title, impact, authority reference and timeline notes are

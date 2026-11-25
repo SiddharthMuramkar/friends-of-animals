@@ -145,6 +145,13 @@ export const SEED_SCORING_COMPETITION = {
   name: "Kindness in Art",
 } as const;
 
+export const SEED_AUCTION_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000131000",
+  code: "AUCT27",
+  slug: "art-for-kindness",
+  name: "Art for kindness",
+} as const;
+
 /**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
@@ -227,6 +234,34 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           registration_closes: ist(-120, "23:59"),
           submissions_close: ist(-50, "23:59"),
           school_round_closes: ist(-20, "23:59"),
+        },
+      },
+    },
+    {
+      ...SEED_AUCTION_COMPETITION,
+      status: "foa_judging",
+      publishedAt: daysAgo(230),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: SEED_AUCTION_COMPETITION.code,
+        name: SEED_AUCTION_COMPETITION.name,
+        theme: "Imagine a kind place for every animal.",
+        participation: "individuals",
+        disciplines: ["drawing"],
+        ageGroups: [
+          { label: "6–12", minAge: 6, maxAge: 12 },
+          { label: "13–17", minAge: 13, maxAge: 17 },
+          ADULT_AGE_GROUP,
+        ],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "all_shortlisted" },
+        auctionPermitted: true,
+        keyDates: {
+          registration_opens: ist(-200, "09:00"),
+          registration_closes: ist(-110, "23:59"),
+          submissions_close: ist(-60, "23:59"),
+          school_round_closes: ist(-30, "23:59"),
         },
       },
     },

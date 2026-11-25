@@ -45,6 +45,8 @@ export const artworkCustodyKind = pgEnum("artwork_custody_kind", [
   "moved",
   "retained",
   "returned",
+  "auction_reserved",
+  "auction_released",
 ]);
 
 export const artworkVerification = pgTable(

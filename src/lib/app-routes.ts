@@ -278,6 +278,12 @@ export function adminVerificationEntryPath(entryId: string): string {
   return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
 }
 
+export const ADMIN_AUCTIONS = "/admin/auctions";
+export const ADMIN_AUCTIONS_NEW = "/admin/auctions/lots/new";
+export const adminAuctionLotPath = (lotId: string) =>
+  `${ADMIN_AUCTIONS}/lots/${encodeURIComponent(lotId)}`;
+export const auctionLotPath = (lotCode: string) =>
+  `/auctions/${encodeURIComponent(lotCode)}`;
 export const ADMIN_ADOPTIONS = "/admin/adoptions";
 
 export function myAdoptionApplicationPath(applicationId: string): string {
@@ -671,6 +677,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/dashboard/adoptions",
   "/dashboard/adoptions/[id]",
   "/dashboard/adoptions/apply/[slug]",
+  ADMIN_AUCTIONS,
+  ADMIN_AUCTIONS_NEW,
+  "/admin/auctions/lots/[lotId]",
   "/admin/adoptions",
   "/admin/adoptions/[id]",
 ] as const;

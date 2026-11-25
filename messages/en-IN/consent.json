@@ -42,6 +42,13 @@
       "paper_form": "on a paper form",
       "staff_recorded": "recorded by our staff"
     },
-    "historyWhen": "{date}, {method}"
+    "historyWhen": "{date}, {method}",
+    "auction": {
+      "title": "Auction consent",
+      "lead": "Withdraw your consent for a competition to stop any unsold auction lots of your original artwork.",
+      "given": "Given",
+      "withdrawn": "Withdrawn",
+      "withdraw": "Withdraw auction consent"
+    }
   }
 }
