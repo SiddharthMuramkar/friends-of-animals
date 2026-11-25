@@ -1,3 +1,4 @@
+import { renderStamp } from "../modules/stamping";
 import { sendSaleFamilyLetter } from "../modules/auctions/messages";
 import { expireAuctionOffer } from "../modules/auctions/offers";
 import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
@@ -190,6 +191,7 @@ export const HANDLERS: Handlers = {
       delivery.payload
     ),
   "certificates.send_family_reissue": sendFamilyReissue,
+  "stamping.render": (deps, { payload }) => renderStamp(deps, payload),
   "certificate.render": (deps, { payload }) =>
     renderCertificate(
       { ...deps, actor: { kind: "system", process: "worker" } },

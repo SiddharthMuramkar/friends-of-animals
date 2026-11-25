@@ -21,10 +21,15 @@
     "shelter": {
       "eyebrow": "One thing we are not",
       "title": "We are not a shelter",
-      "lead": "FOA does not house animals. Later, we plan to connect families who want to adopt with the people who already care for animals, and to build a network of them across India.",
+      "lead": "FOA does not house animals. Our directory and adoption listings connect families with the people and organisations who already care for animals across India.",
       "centre": "Friends of Animals",
       "centreNote": "connects, never houses",
-      "later": "Coming later",
+      "directory": "Animal help directory",
+      "adoption": "Adoption listings",
+      "volunteer": "Check availability",
+      "directoryLink": "Find animal help",
+      "adoptionLink": "Adopt an animal",
+      "volunteerLink": "Check volunteering options",
       "nodes": {
         "shelters": "Shelters and NGOs",
         "rescuers": "Independent rescuers",

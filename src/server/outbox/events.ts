@@ -1,3 +1,7 @@
+import {
+  STAMP_VARIANTS,
+  type StampVariant,
+} from "../modules/stamping/domain/variants";
 // The domain events use cases emit, and which handlers each one goes to.
 // Adding an event: add it to `DomainEvent`, give it a payload schema in
 // EVENT_PAYLOADS, and list its handlers in SUBSCRIBERS (each name then
@@ -489,6 +493,11 @@ export type DomainEvent =
         releaseId: string;
         publishedAt: string;
       };
+    }
+  | {
+      type: "stamping.requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string; variant: StampVariant };
     }
   | {
       type: "certificate.render";
@@ -1094,6 +1103,10 @@ export const EVENT_PAYLOADS = {
     releaseId: z.uuid(),
     publishedAt: z.iso.datetime(),
   }),
+  "stamping.requested": z.object({
+    fileId: z.uuid(),
+    variant: z.enum(STAMP_VARIANTS),
+  }),
   "certificate.render": z.object({ certificateId: z.uuid() }),
   "certificate.archive_requested": z.object({ archiveId: z.uuid() }),
   "certificate.archive_expired": z.object({ archiveId: z.uuid() }),
@@ -1360,6 +1373,7 @@ export const SUBSCRIBERS = {
     "certificates.issue",
     "community.record_results",
   ],
+  "stamping.requested": ["stamping.render"],
   "certificate.render": ["certificate.render"],
   "certificate.archive_requested": ["certificates.build_archive"],
   "certificate.archive_expired": ["certificates.expire_archive"],

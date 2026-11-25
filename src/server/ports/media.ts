@@ -30,6 +30,7 @@ import type {
   PlannedDerivative,
   VideoDerivativeKind,
 } from "../modules/files/domain/derivatives";
+import type { StampVariant } from "../modules/stamping/domain/variants";
 import type { SniffedImageType } from "../modules/files/domain/image-type";
 import type { VideoProbe } from "../modules/files/domain/video-probe";
 import type { SniffedVideoType } from "../modules/files/domain/video-sniff";
@@ -113,9 +114,21 @@ export interface PdfProcessor {
   processPdf(input: { bytes: Uint8Array }): Promise<PdfDerivative>;
 }
 
+export type StampImageInput = { bytes: Uint8Array; variant: StampVariant };
+export type StampedImage = {
+  bytes: Uint8Array;
+  contentType: "image/png" | "image/webp";
+  width: number;
+  height: number;
+};
+export interface StampProcessor {
+  /** A clean safe image derivative or private generated certificate PDF, never original artwork. */
+  stampImage(input: StampImageInput): Promise<StampedImage>;
+}
+
 /** What worker-media runs the media queue with. */
 export interface MediaProcessor
-  extends ImageProcessor, VideoProcessor, PdfProcessor {}
+  extends ImageProcessor, VideoProcessor, PdfProcessor, StampProcessor {}
 
 /**
  * Why an image couldn't be processed. Each code is safe to store and to
@@ -202,4 +215,5 @@ export const unconfiguredMedia: MediaProcessor = {
   processImage: () => Promise.reject(new MediaNotConfiguredError()),
   processVideo: () => Promise.reject(new MediaNotConfiguredError()),
   processPdf: () => Promise.reject(new MediaNotConfiguredError()),
+  stampImage: () => Promise.reject(new MediaNotConfiguredError()),
 };

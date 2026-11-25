@@ -6,6 +6,7 @@ import {
   certificate,
   competition,
   fileAsset,
+  fileDerivative,
   guardian,
   guardianLink,
   participantProfile,
@@ -23,6 +24,7 @@ import { indianDateAt } from "../registration/domain/calendar-date";
 import { queueCertificateRender } from "./issue";
 import type { CertificateRenderStatus } from "./domain/status";
 import { DomainError } from "../../errors";
+import { STAMP_SETTINGS } from "../stamping/domain/variants";
 const scope = (id: string) => ({
   scopes: [{ type: "competition" as const, id }],
 });
@@ -124,7 +126,7 @@ export async function retryCertificateRender(
   });
 }
 /** Own adult/teen profile or a verified, still-active linked guardian. */
-async function ownedProfiles(ctx: Pick<UseCaseContext, "db" | "actor">) {
+export async function ownedProfiles(ctx: Pick<UseCaseContext, "db" | "actor">) {
   if (ctx.actor.kind !== "user") return [];
   const uid = ctx.actor.userId;
   const own = await ctx.db
@@ -146,6 +148,17 @@ async function ownedProfiles(ctx: Pick<UseCaseContext, "db" | "actor">) {
     .where(and(eq(guardian.userId, uid), verifiedLink()));
   return [...new Set([...own, ...linked].map((r) => r.id))];
 }
+/** Ownership is defined once for download variants; #124 can extend this
+ * when a volunteer certificate has its own user holder. */
+export async function certificateOwner(
+  ctx: Pick<UseCaseContext, "db" | "actor">,
+  row: { participantProfileId: string }
+) {
+  return ctx.actor.kind === "user" &&
+    (await ownedProfiles(ctx)).includes(row.participantProfileId)
+    ? ctx.actor.userId
+    : undefined;
+}
 export async function listMyCertificates(ctx: UseCaseContext) {
   await authorize(ctx, "certificates.list_mine");
   const ids = await ownedProfiles(ctx);
@@ -157,18 +170,39 @@ export async function listMyCertificates(ctx: UseCaseContext) {
       recipientName: certificate.nameSnapshot,
       competitionName: competition.name,
       pdfFileId: certificate.pdfFileId,
+      stampId: fileDerivative.id,
     })
     .from(certificate)
     .leftJoin(competition, eq(competition.id, certificate.competitionId))
+    .leftJoin(
+      fileAsset,
+      and(
+        eq(fileAsset.id, certificate.pdfFileId),
+        eq(fileAsset.status, "clean"),
+        eq(fileAsset.purpose, "certificate_pdf")
+      )
+    )
+    .leftJoin(
+      fileDerivative,
+      and(
+        eq(fileDerivative.fileAssetId, fileAsset.id),
+        eq(fileDerivative.kind, STAMP_SETTINGS.certificate_share.kind)
+      )
+    )
     .where(inArray(certificate.participantProfileId, ids))
     .orderBy(asc(certificate.nameSnapshot), asc(certificate.number))
     .then((rows) =>
-      rows.map(({ pdfFileId, ...row }) => ({
+      rows.map(({ pdfFileId, stampId, ...row }) => ({
         ...row,
         downloadable:
           row.status === "issued" &&
           row.renderStatus === "rendered" &&
           pdfFileId !== null,
+        shareReady:
+          row.status === "issued" &&
+          row.renderStatus === "rendered" &&
+          pdfFileId !== null &&
+          stampId !== null,
       }))
     );
 }
@@ -191,13 +225,9 @@ export async function getCertificateDownloadUrl(
         )
       )
       .for("update");
-    const current = await ownedProfiles({ ...ctx, db: tx });
-    const ownerId =
-      ctx.actor.kind === "user" &&
-      row &&
-      current.includes(row.participantProfileId)
-        ? ctx.actor.userId
-        : undefined;
+    const ownerId = row
+      ? await certificateOwner({ ...ctx, db: tx }, row)
+      : undefined;
     await authorize({ ...ctx, db: tx }, "certificate.download", { ownerId });
     if (
       !row ||

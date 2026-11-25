@@ -45,6 +45,19 @@ test("a visitor filters adoptable animals and opens one's page", async ({
   ).toBeVisible();
   await checkPage(page, "/adopt");
 
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: "Read adopters' stories" })
+    .click();
+  await expect(page).toHaveURL("/adopt/stories", { timeout: 15_000 });
+  await expect(
+    page.getByRole("heading", { name: "Adoption stories", level: 1 })
+  ).toBeVisible();
+  await page
+    .getByRole("link", { name: "See animals looking for a home" })
+    .click();
+  await expect(page).toHaveURL("/adopt", { timeout: 15_000 });
+
   await page.getByLabel("Animal", { exact: true }).selectOption("cat");
   await page.getByRole("button", { name: "Show animals" }).click();
   await expect(page).toHaveURL(/\/adopt\?species=cat(&|$)/);

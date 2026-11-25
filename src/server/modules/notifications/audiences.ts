@@ -332,6 +332,7 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "artwork.returned":
     case "results.release_due":
     case "results.prize_awarded":
+    case "stamping.requested":
     case "community.member_joined":
     case "engagement.milestone_recorded":
     case "certificate.archive_requested":
@@ -991,6 +992,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "certificate.archive_requested": { names: [], load: async () => ({}) },
   "certificate.archive_expired": { names: [], load: async () => ({}) },
   "certificate.reissued": { names: [], load: async () => ({}) },
+  "stamping.requested": { names: [], load: async () => ({}) },
   "certificate.render": { names: [], load: async () => ({}) },
   "certificates.ready": {
     names: CERTIFICATE_READY_VARIABLES,

@@ -37,15 +37,18 @@
         },
         "NGOS": {
           "title": "Animal welfare groups",
-          "body": "NGOs, shelters and rescuers who would like to work with us. Tell us where you work and what you do."
+          "body": "Find animal help in our directory, or write to us if your NGO, shelter or rescue group would like to work with FOA.",
+          "link": "Find animal help"
         },
         "ADOPTION": {
           "title": "Adoption",
-          "body": "We are not a shelter and don't have animals for adoption. Help connecting adopters with shelters is coming later."
+          "body": "We are not a shelter. Our adoption listings connect you with animals cared for by the organisations that list them.",
+          "link": "Adopt an animal"
         },
         "VOLUNTEERING": {
           "title": "Volunteering",
-          "body": "Volunteering opens later. Write to us now with your city and how you would like to help, and we will keep your note."
+          "body": "Sign in to check whether volunteer applications are open, or write to us with your city and how you would like to help.",
+          "link": "Check volunteering options"
         },
         "DONATIONS": {
           "title": "Donations and payments",

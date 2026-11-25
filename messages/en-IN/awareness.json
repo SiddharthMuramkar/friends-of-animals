@@ -120,6 +120,8 @@
       "preview": "Your card",
       "download": "Download my card",
       "share": "Share my card",
+      "preparing": "Getting your card ready…",
+      "exportFailed": "We couldn't prepare your card. Change a choice or reload the page to try again.",
       "privacy": "Your card stays on this device. Nothing is sent to us or saved.",
       "cardTitle": "My kindness pledge",
       "cardWithName": "{name} promises to",

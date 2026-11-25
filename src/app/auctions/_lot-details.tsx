@@ -9,7 +9,13 @@ export function formatPaise(value: bigint): string {
     String(value % 100n).padStart(2, "0")
   );
 }
-export async function LotDetails({ lot }: { lot: PublicLot }) {
+export async function LotDetails({
+  lot,
+  priority = false,
+}: {
+  lot: PublicLot;
+  priority?: boolean;
+}) {
   const [t, format, recognition] = await Promise.all([
     getTranslations("auctions"),
     getFormatter(),
@@ -76,6 +82,29 @@ export async function LotDetails({ lot }: { lot: PublicLot }) {
           </div>
         ) : null}
       </dl>
+      {lot.image && (
+        <figure className="mt-4">
+          {/* oxlint-disable-next-line nextjs/no-img-element -- consent-gated, already resized stamped images; never cache them in the Next image optimizer */}
+          <img
+            src={lot.image.url}
+            alt={
+              lot.image.sampleIllustration
+                ? t("sampleArtworkAlt")
+                : t("artworkImage")
+            }
+            width={lot.image.width}
+            height={lot.image.height}
+            className="h-auto w-full rounded-xl"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
+          />
+          {lot.image.sampleIllustration && (
+            <figcaption className="mt-1 text-sm text-ink-muted">
+              {t("sampleArtwork")}
+            </figcaption>
+          )}
+        </figure>
+      )}
     </>
   );
 }

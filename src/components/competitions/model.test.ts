@@ -10,6 +10,7 @@ import {
   fileRules,
   fromPublic,
   fromSample,
+  liveRegistrationMode,
   nextKeyDate,
   paragraphs,
   primaryAction,
@@ -126,6 +127,39 @@ describe("primaryAction", () => {
     expect(primaryAction("RESULTS_PUBLISHED")).toBe("results");
     expect(primaryAction("ARCHIVED")).toBe("results");
     expect(primaryAction("CANCELLED")).toBe("cancelled");
+  });
+});
+
+describe("liveRegistrationMode", () => {
+  const school = { route: "INSTITUTION", fee: 0 } as const;
+  const individual = { route: "INDIVIDUAL", fee: 0 } as const;
+  const realOpen = {
+    status: "REGISTRATION_OPEN",
+    sample: false,
+    routes: [school, individual],
+  } as const;
+
+  it("only offers the participation routes actually open to visitors", () => {
+    expect(liveRegistrationMode(realOpen)).toBe("both");
+    expect(liveRegistrationMode({ ...realOpen, routes: [school] })).toBe(
+      "school"
+    );
+    expect(liveRegistrationMode({ ...realOpen, routes: [individual] })).toBe(
+      "individual"
+    );
+    expect(liveRegistrationMode({ ...realOpen, routes: [] })).toBeNull();
+  });
+
+  it("preserves sample and non-open competition states", () => {
+    expect(liveRegistrationMode({ ...realOpen, sample: true })).toBeNull();
+    for (const status of [
+      "PUBLISHED",
+      "REGISTRATION_CLOSED",
+      "SCHOOL_JUDGING",
+      "CANCELLED",
+    ] as const) {
+      expect(liveRegistrationMode({ ...realOpen, status })).toBeNull();
+    }
   });
 });
 

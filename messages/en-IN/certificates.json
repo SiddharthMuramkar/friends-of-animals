@@ -1,7 +1,7 @@
 {
   "certificates": {
     "title": "Certificates",
-    "myLead": "Your certificates and those of children you manage. Download a PDF when it is ready.",
+    "myLead": "Your certificates and those of children you manage. Download a PDF or prepare a shareable image with the FOA logo when the PDF is ready.",
     "adminLead": "Review issued certificates, correct recipient details, revoke a certificate, or retry a PDF that failed to render.",
     "empty": "No certificates yet.",
     "competition": "Competition",
@@ -27,6 +27,11 @@
     "date": "Issued on",
     "recipient": "Recipient",
     "download": "Download PDF",
+    "prepareShare": "Prepare share image",
+    "downloadShare": "Download share image (PNG)",
+    "shareQueued": "Your share image is being prepared. Refresh this page in a moment.",
+    "refresh": "Refresh certificates",
+    "shareUnavailable": "This share image is not available.",
     "retry": "Retry PDF render",
     "success": "Retry requested.",
     "failure": "That certificate cannot be retried.",

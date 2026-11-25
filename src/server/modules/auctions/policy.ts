@@ -13,4 +13,5 @@ export const AUCTIONS_POLICY = {
   "auction.proceeds.read": role("finance"),
   "auction.proceeds.manage": stepUp(role("finance")),
   "auction.lot.run": system("worker"),
+  "auction.lot.read_image": () => ({ allowed: true, role: null }),
 } satisfies Policy<string>;

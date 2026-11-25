@@ -83,6 +83,7 @@ async function OpenCompetitions() {
                 data-status={tokens.status}
                 data-disciplines={tokens.disciplines}
                 data-ages={tokens.ages}
+                data-categories={tokens.pairs}
               >
                 <CompetitionCard competition={c} className="w-full" />
               </li>

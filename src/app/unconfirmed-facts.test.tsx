@@ -129,9 +129,17 @@ describe("/contact in production", () => {
   });
 
   it("still says what to write about and where to take a safeguarding concern", async () => {
-    const text = visibleText(await render(ContactPage, "production"));
+    const html = await render(ContactPage, "production");
+    const text = visibleText(html);
     expect(text).toContain(topics.title);
     expect(text).toContain(topics.safeguarding.title);
+    // The remaining cards use the available width instead of the empty
+    // details column.
+    expect(html).not.toContain(
+      "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+    );
+    expect(html).toContain("mx-auto max-w-5xl");
+    expect(html).toContain("sm:grid-cols-2");
   });
 });
 

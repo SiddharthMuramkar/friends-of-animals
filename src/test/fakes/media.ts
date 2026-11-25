@@ -37,12 +37,15 @@ import {
   type MediaProcessor,
   type MediaResult,
   type PdfDerivative,
+  type StampImageInput,
+  type StampedImage,
   type VideoInput,
   type VideoResult,
 } from "@/server/ports/media";
 import { sniffContentType } from "@/server/modules/files/domain/sniff";
 import { fakeRasterPdf } from "@/test/pdf-fixtures";
 import { minimalWebp } from "@/test/webp";
+import { STAMP_SETTINGS } from "@/server/modules/stamping/domain/variants";
 
 type Source = MediaResult["source"];
 
@@ -268,6 +271,34 @@ export class FakeMediaProcessor implements MediaProcessor {
   readonly videos: { sizeBytes: number; maxDurationMs: number }[] = [];
   /** Every PDF call, oldest first, failed ones included. */
   readonly pdfs: Uint8Array[] = [];
+  readonly stamps: StampImageInput[] = [];
+
+  async stampImage(input: StampImageInput): Promise<StampedImage> {
+    this.stamps.push(input);
+    const failure = this.failures.shift();
+    if (failure) throw new MediaError(failure);
+    const settings = STAMP_SETTINGS[input.variant];
+    const source =
+      input.variant === "certificate_share"
+        ? { width: 2200, height: 1556 }
+        : readSource("image/webp", input.bytes);
+    if (!source) throw new MediaError("media_decode_failed");
+    const scale = Math.min(
+      1,
+      settings.maxEdge / Math.max(source.width, source.height)
+    );
+    const width = Math.max(1, Math.round(source.width * scale));
+    const height = Math.max(1, Math.round(source.height * scale));
+    return {
+      width,
+      height,
+      contentType: settings.contentType,
+      bytes:
+        settings.contentType === "image/webp"
+          ? minimalWebp(width, height)
+          : Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    };
+  }
   private failures: MediaErrorCode[] = [];
   private probes: (Partial<VideoProbe> | "no_video_stream")[] = [];
 

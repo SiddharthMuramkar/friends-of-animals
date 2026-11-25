@@ -16,6 +16,7 @@ import type { EventOf } from "../../outbox/events";
 import { emit, type OutboxDeps } from "../../outbox";
 import { invalidInput } from "../../input";
 import { auctionConsentCredit } from "../consent/auction-credit";
+import { liveEntryStampSource, queueStamp } from "../stamping";
 import { releaseFromAuction } from "../physical-artwork/auction-hold";
 import {
   decideLotTransition,
@@ -135,7 +136,8 @@ async function move(
       command === "close" ||
       command === "settle_unsold"
     ) {
-      if (!(await currentLotConsent({ ...ctx, db: tx }, lot, true))) {
+      const consent = await currentLotConsent({ ...ctx, db: tx }, lot, true);
+      if (!consent) {
         await applyMove(
           tx,
           ctx,
@@ -145,6 +147,11 @@ async function move(
           "consent_withdrawn"
         );
         return { ok: false, error: "auction_consent_missing" } as const;
+      }
+      if (command === "schedule" || command === "open") {
+        const fileId = await liveEntryStampSource(tx, consent.entryId);
+        if (fileId)
+          await queueStamp(tx, ctx.clock, { fileId, variant: "gallery" });
       }
     }
     if (

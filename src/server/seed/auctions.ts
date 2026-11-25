@@ -14,6 +14,8 @@ import {
   consentDocument,
   consentEvent,
   entry,
+  entryFile,
+  fileAsset,
   participantProfile,
   physicalArtwork,
   registration,
@@ -31,7 +33,118 @@ import { postToLedger } from "../modules/ledger/post";
 import { auctionCaptureLines } from "../modules/auctions/domain/proceeds";
 import { PROFILE_PURPOSE } from "../modules/registration/student-profile";
 import { IDENTITY_HASH_PURPOSE } from "../modules/registration/domain/prepare-student";
-import type { Seeder } from "./types";
+import type { SeedDeps, Seeder } from "./types";
+import { seedEntryDerivatives } from "./entries";
+import { seedFilesLocation } from "./files";
+import { storageFor } from "../ports/storage-for";
+import { storageKeyFor } from "../modules/files/domain/storage-key";
+import { queueStamp, renderStamp } from "../modules/stamping";
+import { stampProcessor } from "../ports/media-stamp";
+import { unconfiguredMedia } from "../ports/media";
+
+async function seedLocalAuctionImage(
+  deps: SeedDeps,
+  input: {
+    entryId: string;
+    assetId: string;
+    entryFileId: string;
+    ownerId: string;
+  }
+) {
+  // No actual participant work in the demonstration; the same labeled
+  // illustration used by seed entries. Local seed scripts alone have a
+  // real disk store and image processor; a preview can drain its worker.
+  if (process.env.APP_ENV !== "local" || !process.env.APP_URL || !deps.storage)
+    return;
+  const storage = storageFor({
+    APP_ENV: "local",
+    APP_URL: process.env.APP_URL,
+    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+  });
+  const { db, clock } = deps;
+  const { bucket, keyPrefix: prefix } = seedFilesLocation();
+  const now = clock.now();
+  const queued = await db.transaction(async (tx) => {
+    const [other] = await tx
+      .select({ id: entryFile.id })
+      .from(entryFile)
+      .where(eq(entryFile.entryId, input.entryId))
+      .limit(1);
+    // Never overwrite a real upload or replacement in a reused seed DB.
+    if (other && other.id !== input.entryFileId) return false;
+    await tx
+      .insert(fileAsset)
+      .values({
+        id: input.assetId,
+        ownerUserId: input.ownerId,
+        purpose: "entry_image",
+        contentType: "image/webp",
+        sizeBytes: 112200,
+        bucket,
+        storageKey: storageKeyFor({
+          prefix,
+          purpose: "entry_image",
+          fileId: input.assetId,
+        }),
+        status: "clean",
+        scanResult: "generated_sample_illustration",
+        uploadedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing();
+    await tx
+      .insert(entryFile)
+      .values({
+        id: input.entryFileId,
+        entryId: input.entryId,
+        fileAssetId: input.assetId,
+        attemptNumber: 1,
+        kind: "image",
+        status: "live",
+        uploadCompletedAt: now,
+        becameLiveAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoNothing();
+    const [live] = await tx
+      .select({ id: entryFile.id })
+      .from(entryFile)
+      .where(
+        and(
+          eq(entryFile.id, input.entryFileId),
+          eq(entryFile.fileAssetId, input.assetId),
+          eq(entryFile.status, "live")
+        )
+      );
+    if (!live) return false;
+    await seedEntryDerivatives(tx, storage, {
+      bucket,
+      prefix,
+      fileId: input.assetId,
+      now,
+    });
+    return (
+      (await queueStamp(tx, clock, {
+        fileId: input.assetId,
+        variant: "gallery",
+      })) === "queued"
+    );
+  });
+  if (queued)
+    await renderStamp(
+      {
+        db,
+        clock,
+        storage,
+        media: { ...unconfiguredMedia, ...stampProcessor() },
+      },
+      { fileId: input.assetId, variant: "gallery" }
+    );
+}
 
 const id = (n: number) =>
   `01938a00-0000-7000-8000-000000131${String(n).padStart(3, "0")}`;
@@ -395,6 +508,32 @@ export const seedAuctions: Seeder = async (deps) => {
         })
         .onConflictDoNothing()
         .returning({ id: auctionLot.id });
+      if (
+        n <= 2 &&
+        process.env.APP_ENV === "local" &&
+        process.env.APP_URL &&
+        deps.storage
+      ) {
+        const [sample] = await db
+          .select()
+          .from(auctionLot)
+          .where(
+            and(
+              eq(auctionLot.id, id(40 + k)),
+              eq(auctionLot.consentEventId, consentId),
+              eq(auctionLot.status, status as "open" | "scheduled")
+            )
+          );
+        const { currentLotConsent } =
+          await import("../modules/auctions/lifecycle");
+        if (sample && (await currentLotConsent(deps, sample)))
+          await seedLocalAuctionImage(deps, {
+            entryId,
+            assetId: id(70 + n),
+            entryFileId: id(80 + n),
+            ownerId: giver,
+          });
+      }
       if (inserted && status === "open") {
         await db
           .insert(auctionBid)

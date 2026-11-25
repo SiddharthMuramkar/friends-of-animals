@@ -36,6 +36,7 @@ export type ContactFormLimits = Record<
 
 export type ContactFormLabels = {
   topic: { legend: string };
+  detailsLegend: string;
   safeguarding: { label: string; body: string; link: string };
   name: { label: string };
   email: { label: string; hint: string };
@@ -122,7 +123,7 @@ function ContactFormRound({
   // the button gets the action's own pending state.
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (sending) return;
+    if (sending || topic === SAFEGUARDING) return;
     const formData = new FormData(event.currentTarget);
     startTransition(() => formAction(formData));
   }
@@ -228,93 +229,97 @@ function ContactFormRound({
             {labels.safeguarding.link}
           </SiteLink>
         </output>
-      ) : (
-        <>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <TextField
-              id="contact-name"
-              name="name"
-              autoComplete="name"
-              required
-              maxLength={limits.name}
-              defaultValue={view.entered.name}
-              label={labels.name.label}
-              error={text.errors.name}
-            />
-            <TextField
-              id="contact-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              spellCheck={false}
-              required
-              maxLength={limits.email}
-              defaultValue={view.entered.email}
-              label={labels.email.label}
-              hint={labels.email.hint}
-              error={text.errors.email}
-            />
-          </div>
+      ) : null}
+      {/* Preserve the draft if someone changes topic and changes back.
+          Disabled fields are excluded from submission while safeguarding
+          is selected, and hidden fields cannot receive focus. */}
+      <fieldset
+        hidden={safeguarding}
+        disabled={safeguarding}
+        className={safeguarding ? "hidden" : "flex min-w-0 flex-col gap-6"}
+      >
+        <legend className="sr-only">{labels.detailsLegend}</legend>
+        <div className="grid gap-6 sm:grid-cols-2">
           <TextField
-            id="contact-organisation"
-            name="organisation"
-            autoComplete="organization"
-            maxLength={limits.organisation}
-            defaultValue={view.entered.organisation}
-            label={labels.organisation.label}
-            error={text.errors.organisation}
+            id="contact-name"
+            name="name"
+            autoComplete="name"
+            required
+            maxLength={limits.name}
+            defaultValue={view.entered.name}
+            label={labels.name.label}
+            error={text.errors.name}
           />
           <TextField
-            id="contact-subject"
-            name="subject"
+            id="contact-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            spellCheck={false}
             required
-            maxLength={limits.subject}
-            defaultValue={view.entered.subject}
-            label={labels.subject.label}
-            error={text.errors.subject}
+            maxLength={limits.email}
+            defaultValue={view.entered.email}
+            label={labels.email.label}
+            hint={labels.email.hint}
+            error={text.errors.email}
           />
-          <TextAreaField
-            id="contact-message"
-            name="message"
-            required
-            maxLength={limits.message}
-            rows={7}
-            defaultValue={view.entered.message}
-            label={labels.message.label}
-            hint={labels.message.hint}
-            error={text.errors.message}
-          />
+        </div>
+        <TextField
+          id="contact-organisation"
+          name="organisation"
+          autoComplete="organization"
+          maxLength={limits.organisation}
+          defaultValue={view.entered.organisation}
+          label={labels.organisation.label}
+          error={text.errors.organisation}
+        />
+        <TextField
+          id="contact-subject"
+          name="subject"
+          required
+          maxLength={limits.subject}
+          defaultValue={view.entered.subject}
+          label={labels.subject.label}
+          error={text.errors.subject}
+        />
+        <TextAreaField
+          id="contact-message"
+          name="message"
+          required
+          maxLength={limits.message}
+          rows={7}
+          defaultValue={view.entered.message}
+          label={labels.message.label}
+          hint={labels.message.hint}
+          error={text.errors.message}
+        />
 
-          {/* The honeypot: out of sight and out of reach (inert), so only
+        {/* The honeypot: out of sight and out of reach (inert), so only
               a bot fills it, and the server then drops the message. */}
-          <div
-            inert
-            className="absolute -left-[9999px] size-px overflow-hidden"
-          >
-            <label htmlFor="contact-website">{labels.honeypot}</label>
-            <input
-              id="contact-website"
-              name="website"
-              type="text"
-              tabIndex={-1}
-              autoComplete="off"
-              defaultValue=""
-            />
-          </div>
+        <div inert className="absolute -left-[9999px] size-px overflow-hidden">
+          <label htmlFor="contact-website">{labels.honeypot}</label>
+          <input
+            id="contact-website"
+            name="website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            defaultValue=""
+          />
+        </div>
 
-          <p className="text-sm text-ink-muted">
-            {labels.privacy}{" "}
-            <SiteLink href={ROUTES.privacy.path} className={LINK}>
-              {labels.privacyLink}
-            </SiteLink>
-          </p>
-          <div>
-            <SubmitButton pending={sending} pendingLabel={labels.sending}>
-              {labels.send}
-            </SubmitButton>
-          </div>
-        </>
-      )}
+        <p className="text-sm text-ink-muted">
+          {labels.privacy}{" "}
+          <SiteLink href={ROUTES.privacy.path} className={LINK}>
+            {labels.privacyLink}
+          </SiteLink>
+        </p>
+        <div>
+          <SubmitButton pending={sending} pendingLabel={labels.sending}>
+            {labels.send}
+          </SubmitButton>
+        </div>
+      </fieldset>
     </form>
   );
 }

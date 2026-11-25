@@ -20,5 +20,7 @@ export const CERTIFICATES_POLICY = {
   "certificates.retry_render": staff,
   "certificates.list_mine": signedIn,
   "certificate.download": owner,
+  "certificate.request_share": owner,
+  "certificate.download_share": owner,
   "certificates.verify": () => ({ allowed: true, role: null }),
 } satisfies Policy<string>;

@@ -771,6 +771,13 @@ for the pupils of one Institution registration. The worker creates it,
 and the coordinator or authorised person gets a Signed URL only while their
 institution and the entire archive manifest are still eligible.
 
+**Stamped copy**:
+A metadata-free private File derivative carrying the approved Friends of Animals
+mark, made from the safe resized copy of an entry image or a rasterized issued
+Certificate PDF. Gallery and social variants require their own live consent to
+be delivered. A Certificate share image is downloadable by its own holder or
+verified linked guardian; it is not a public gallery asset.
+
 ## Physical artwork
 
 **Physical artwork**:
