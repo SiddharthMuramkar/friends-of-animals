@@ -151,6 +151,37 @@ for (const [path, id] of [
       card.getByRole("heading", { name: "Plant a tree for birds" })
     ).toBeVisible();
   });
+
+  test(`${path} keeps a month picked before hydration`, async ({
+    page,
+    isMobile,
+  }) => {
+    const scripts = Promise.withResolvers<void>();
+    await page.route("**/_next/static/chunks/*.js", async (route) => {
+      await scripts.promise;
+      await route.continue();
+    });
+    const card = page.locator(`article#${id}`);
+    const currentMonth = monthNames.format(new Date());
+    const [name, title] = guides.find(([month]) => month !== currentMonth)!;
+    const picked = card.getByRole("radio", { name, exact: true });
+    try {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await expect(
+        card.getByRole("radio", { name: currentMonth, exact: true })
+      ).toBeChecked();
+      // The browser can select a native radio before React handles changes.
+      if (isMobile) await picked.tap();
+      else await picked.click();
+      await expect(picked).toBeChecked();
+      await expect(card.getByRole("heading", { name: title })).toHaveCount(0);
+    } finally {
+      scripts.resolve();
+    }
+    await expect(card.getByRole("heading", { name: title })).toBeVisible();
+    await expect(picked).toBeChecked();
+    await expect(card.getByRole("radio", { checked: true })).toHaveCount(1);
+  });
 }
 
 test("home gallery identifies each of its four illustrated prompts", async ({

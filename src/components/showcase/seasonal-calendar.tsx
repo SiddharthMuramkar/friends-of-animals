@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Month = {
   name: string;
@@ -9,6 +9,11 @@ type Month = {
   copy: ReactNode;
   media: ReactNode;
 };
+
+function monthValue(input: HTMLInputElement | null | undefined, count: number) {
+  const value = Number(input?.value);
+  return Number.isInteger(value) && value >= 1 && value <= count ? value : null;
+}
 
 export function SeasonalCalendar({
   id,
@@ -26,7 +31,21 @@ export function SeasonalCalendar({
   panelClassName: string;
 }) {
   const [month, setMonth] = useState(initialMonth);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const selected = months[month - 1]!;
+
+  // The native radios work before hydration on a slow connection. React
+  // preserves their checked state without necessarily firing a change
+  // event, so pick up any early selection when the calendar hydrates.
+  useEffect(() => {
+    const picked = monthValue(
+      pickerRef.current?.querySelector<HTMLInputElement>(
+        'input[type="radio"]:checked'
+      ),
+      months.length
+    );
+    if (picked !== null) setMonth(picked);
+  }, [months.length]);
 
   return (
     <article id={id} aria-labelledby={selected.titleId} className={className}>
@@ -35,9 +54,11 @@ export function SeasonalCalendar({
           {selected.name}
         </p>
         <div
+          ref={pickerRef}
           onChange={(event) => {
             if (event.target instanceof HTMLInputElement) {
-              setMonth(Number(event.target.value));
+              const picked = monthValue(event.target, months.length);
+              if (picked !== null) setMonth(picked);
             }
           }}
         >

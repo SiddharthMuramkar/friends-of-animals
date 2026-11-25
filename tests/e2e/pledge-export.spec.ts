@@ -8,7 +8,13 @@ test("a pledge exports only the current card, even while a previous PNG is encod
   page,
 }) => {
   await page.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.toBlob;
+    const original = Object.getOwnPropertyDescriptor(
+      HTMLCanvasElement.prototype,
+      "toBlob"
+    )!.value as (
+      this: HTMLCanvasElement,
+      ...args: Parameters<HTMLCanvasElement["toBlob"]>
+    ) => void;
     const pending: (() => void)[] = [];
     HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
       original.call(

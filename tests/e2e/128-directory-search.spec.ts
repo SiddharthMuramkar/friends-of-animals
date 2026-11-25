@@ -161,13 +161,13 @@ test("searches from the browser's location, the same as from its pin code", asyn
   expect(violations).toEqual([]);
 });
 
-test("a delayed location response cannot replace a more recent PIN search", async ({
-  page,
-}) => {
+/** Hold the browser's location response until the test releases it. */
+async function delayLocation(page: Page) {
   await page.addInitScript(() => {
     Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
       value(success: PositionCallback) {
         Object.defineProperty(window, "finishLocation", {
+          configurable: true,
           value: () =>
             success({
               coords: { latitude: 18.63021, longitude: 73.80044 },
@@ -176,13 +176,82 @@ test("a delayed location response cannot replace a more recent PIN search", asyn
       },
     });
   });
+  return () =>
+    page.evaluate(() =>
+      (window as unknown as { finishLocation: () => void }).finishLocation()
+    );
+}
+
+test("location search uses filters edited while the browser locates", async ({
+  page,
+}) => {
+  const finish = await delayLocation(page);
   await page.goto("/ngos");
   await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
   const search = page.getByRole("search", { name: "Search" });
   const locate = search.getByRole("button", { name: "Use my location" });
+  await locate.focus();
+  await locate.press("Enter");
+  await expect(locate).toBeDisabled();
+  await expect(locate).toBeFocused();
+
+  await search
+    .getByRole("combobox", { name: "Service" })
+    .selectOption("veterinary_care");
+  await search.getByRole("combobox", { name: "Distance" }).selectOption("25");
+  await expect(locate).toBeDisabled();
+  await finish();
+  await expect(page).toHaveURL(
+    "/ngos?lat=18.63&lng=73.80&service=veterinary_care&radius=25"
+  );
+  await expect(card(page, NGO)).toBeVisible();
+  await expect(card(page, RESCUER)).toHaveCount(0);
+});
+
+test("editing a PIN cancels a pending location request without clearing the existing location", async ({
+  page,
+}) => {
+  const finish = await delayLocation(page);
+  const existing = "/ngos?lat=18.53&lng=73.85&radius=10";
+  await page.goto(existing);
+  const search = page.getByRole("search", { name: "Search" });
+  await expect(
+    search.getByText(/Searching from your approximate location/)
+  ).toBeVisible();
+  const locate = search.getByRole("button", { name: "Use my location" });
   await locate.click();
   await expect(locate).toBeDisabled();
+  const pin = search.getByRole("textbox", { name: "Pin code" });
+  await pin.fill("411018");
+  await expect(locate).toBeEnabled();
+  await expect(pin).toBeFocused();
+  await finish();
+  await expect(page).toHaveURL(existing);
+  await expect(pin).toHaveValue("411018");
+
+  // Abandon the PIN edit and refine the previously selected point.
+  await pin.clear();
+  await search.getByRole("combobox", { name: "Distance" }).selectOption("25");
+  await search.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(
+    page.getByText(/checked listings? within 25 km of your location/)
+  ).toBeVisible();
+  const params = new URL(page.url()).searchParams;
+  expect(params.get("lat")).toBe("18.53");
+  expect(params.get("lng")).toBe("73.85");
+});
+
+test("a delayed location response cannot replace a more recent PIN search", async ({
+  page,
+}) => {
+  await delayLocation(page);
+  await page.goto("/ngos");
+  await expect(page.locator('div[hidden][id^="S:"]')).toHaveCount(0);
+  const search = page.getByRole("search", { name: "Search" });
+  const locate = search.getByRole("button", { name: "Use my location" });
   await search.getByRole("textbox", { name: "Pin code" }).fill("411018");
+  await locate.click();
+  await expect(locate).toBeDisabled();
 
   // Exercise the native submit event, holding only the browser's default
   // navigation so we can deliver the late location response on this page.
