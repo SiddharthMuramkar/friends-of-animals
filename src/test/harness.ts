@@ -45,6 +45,7 @@ import { FakeEmail } from "./fakes/email";
 import { FakeSms } from "./fakes/sms";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakePdfRenderer } from "./fakes/pdf";
 import { FakeMediaProcessor } from "./fakes/media";
 import { FakePaymentGateway } from "./fakes/payment-gateway";
 import { FakeStorage } from "./fakes/storage";
@@ -130,6 +131,7 @@ export interface Harness {
    * its inputs and fails the next ones with `failNext(n, code)`.
    */
   media: FakeMediaProcessor;
+  pdf: FakePdfRenderer;
   /**
    * The payment gateway with its webhook simulator: lists the orders it
    * made, plays the payer (`capture`, `fail`) and posts signed, badly
@@ -185,6 +187,7 @@ export async function createHarness(
   const storage = new FakeStorage(clock);
   const scanner = new FakeMalwareScanner();
   const media = new FakeMediaProcessor();
+  const pdf = new FakePdfRenderer();
   const gateway = new FakePaymentGateway("", clock);
   const deps: Deps = {
     appEnv: options.appEnv ?? "local",
@@ -206,6 +209,7 @@ export async function createHarness(
     files: TEST_FILES,
     scanner,
     media,
+    pdf,
     // The real check, made easy: a few hashes to solve (src/test/human-check.ts).
     humanCheck: proofOfWorkHumanCheck({
       secret: TEST_AUTH.secret,
@@ -296,6 +300,7 @@ export async function createHarness(
     storage,
     scanner,
     media,
+    pdf,
     gateway,
   };
   return harness;

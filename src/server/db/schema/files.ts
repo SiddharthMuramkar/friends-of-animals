@@ -40,9 +40,9 @@ export const fileAsset = pgTable(
      * The uploader. Restricted: deleting an account must delete its objects
      * and these rows first, or the objects would be left behind.
      */
-    ownerUserId: uuid("owner_user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "restrict" }),
+    ownerUserId: uuid("owner_user_id").references(() => user.id, {
+      onDelete: "restrict",
+    }),
     purpose: fileAssetPurpose().notNull(),
     /** As declared at presign, normalised; the object must match it. */
     contentType: text("content_type").notNull(),

@@ -1,4 +1,9 @@
 import {
+  certificateReadyRecipients,
+  certificateReadyValues,
+  CERTIFICATE_READY_VARIABLES,
+} from "../certificates/messages";
+import {
   PRIZE_VARIABLES,
   prizeRecipients,
   prizeValues,
@@ -319,6 +324,8 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "artwork.returned":
     case "results.release_due":
     case "results.prize_awarded":
+    case "certificate.render":
+    case "certificates.ready":
     case "results.published":
     case "auction.lot_created":
     case "auction.lot.open":
@@ -428,6 +435,10 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  certificate_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "certificates.ready" && cipher
+      ? certificateReadyRecipients(db, delivery.payload, cipher)
+      : [],
   prize_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "results.prize_awarded" && cipher
       ? prizeRecipients(db, delivery.payload, cipher)
@@ -943,6 +954,11 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, delivery) => prizeValues(db, delivery.payload),
   },
   "results.published": { names: [], load: async () => ({}) },
+  "certificate.render": { names: [], load: async () => ({}) },
+  "certificates.ready": {
+    names: CERTIFICATE_READY_VARIABLES,
+    load: (db, delivery) => certificateReadyValues(db, delivery.payload),
+  },
   "auction.lot_created": { names: [], load: async () => ({}) },
   "auction.lot.open": { names: [], load: async () => ({}) },
   "auction.lot.close": { names: [], load: async () => ({}) },

@@ -22,6 +22,7 @@ export const FILE_PURPOSES = [
   "entry_document",
   "offline_donation_proof",
   "artwork_condition_photo",
+  "certificate_pdf",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
@@ -219,6 +220,12 @@ export const PURPOSE_RULES = {
   artwork_condition_photo: {
     contentTypes: ["image/jpeg", "image/png", "image/heic", "image/heif"],
     maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  certificate_pdf: {
+    contentTypes: ["application/pdf"],
+    maxBytes: 10 * MiB,
     environments: "all",
     directUpload: false,
   },

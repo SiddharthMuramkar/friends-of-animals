@@ -69,3 +69,5 @@ export * from "./auctions";
 export * from "./round-results";
 
 export * from "./results";
+
+export * from "./certificates";

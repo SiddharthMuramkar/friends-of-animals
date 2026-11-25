@@ -1,3 +1,5 @@
+import { gotenbergPdfRenderer } from "../server/ports/pdf-gotenberg";
+import { unconfiguredPdfRenderer } from "../server/ports/pdf";
 // Puts the worker together for its mode, over injected I/O (./main.ts
 // supplies postgres.js, pg-boss, the system clock and the heartbeat file;
 // tests supply PGlite and fakes).
@@ -161,6 +163,10 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
     },
     scanner: io.scanner,
     media,
+    pdf:
+      isMedia && config.gotenbergUrl
+        ? gotenbergPdfRenderer({ baseUrl: config.gotenbergUrl })
+        : unconfiguredPdfRenderer,
     // Refunds (#80), through the adapter the app picks for this
     // environment and keys: the fallback lives in this database.
     payments: paymentGatewayFor(

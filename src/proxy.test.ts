@@ -94,6 +94,24 @@ describe("proxy: the signed-in nonce policy", () => {
     expect(pageHeaders(response).has(PATH_HEADER)).toBe(false);
   });
 
+  it("renders public certificate verification with request nonces but no session", async () => {
+    vi.stubEnv("APP_ENV", "local");
+    for (const path of ["/verify", "/verify/FOA-C-27-9XQ4M2T7KD"]) {
+      expect(
+        unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: path })
+      ).toBe(true);
+      const response = await proxy(request(path));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      const nonce = pageHeaders(response).get("x-nonce");
+      expect(nonce).toMatch(/^[A-Za-z0-9+/]{22}==$/);
+      expect(response.headers.get("content-security-policy")).toContain(
+        `nonce-${nonce}`
+      );
+      expect(pageHeaders(response).has(PATH_HEADER)).toBe(false);
+    }
+  });
+
   it("makes a fresh nonce for every request", async () => {
     const nonces = new Set(
       await Promise.all(

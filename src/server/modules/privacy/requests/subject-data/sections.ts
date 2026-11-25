@@ -155,6 +155,7 @@ export const PARTICIPANT_FILE_PURPOSES = [
   ...ENTRY_FILE_PURPOSES,
   "consent_form",
   "artwork_condition_photo",
+  "certificate_pdf",
 ] as const;
 
 /** The person's own rows, in the order the export lists them. */
@@ -306,6 +307,13 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: schema.certificate,
+    where: (scope) =>
+      within(schema.certificate.participantProfileId, profiles(scope)),
+    owners: ["participant_profile_id"],
+    withhold: ["revoked_by_user_id", "revoked_reason"],
+  },
+  {
     table: schema.resultAward,
     where: (scope) =>
       sql`${schema.resultAward.entryId} IN ${entryIdsOf(scope)} AND ${schema.resultAward.releaseId} IN (SELECT ${schema.resultRelease.id} FROM ${schema.resultRelease} WHERE ${schema.resultRelease.status} = 'published')`,
@@ -415,6 +423,7 @@ export const SECTIONS: readonly Section[] = [
           within(fileAsset.ownerUserId, users(scope)),
           notInArray(fileAsset.purpose, [...PARTICIPANT_FILE_PURPOSES])
         ),
+        sql`${fileAsset.id} IN (SELECT ${schema.certificate.pdfFileId} FROM ${schema.certificate} WHERE ${within(schema.certificate.participantProfileId, profiles(scope))})`,
         sql`${fileAsset.id} IN (SELECT ${artworkPhoto.fileAssetId} FROM ${artworkPhoto} INNER JOIN ${physicalArtwork} ON ${physicalArtwork.id} = ${artworkPhoto.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${entryFile.fileAssetId} FROM ${entryFile} WHERE ${entryFile.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${consentForm.fileAssetId} FROM ${consentForm} WHERE ${within(consentForm.participantProfileId, profiles(scope))})`
@@ -578,6 +587,7 @@ export const SECTIONS: readonly Section[] = [
 
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
+  certificate_ready_notice: "background_job",
   verification: "sign_in_secret",
   receipt_link: "receipt_bearer_link",
   otp_rate_limit: "keyed_hash_only",

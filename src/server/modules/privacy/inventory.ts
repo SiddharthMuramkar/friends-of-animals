@@ -759,6 +759,34 @@ const judgeConflictRecord = rowsOf("judge_conflict", {
 });
 const INVENTORY_FIELDS: readonly InventoryField[] = [
   ...[
+    "participant_profile_id",
+    "registration_id",
+    "number",
+    "name_snapshot",
+    "award_position",
+    "award_label",
+    "type",
+    "revoked_reason",
+    "pdf_file_id",
+  ].map((c) =>
+    rowsOf("certificate", {
+      subject: { kind: "participant_profile", via: "participant_profile_id" },
+      retention: JUDGING_RECORD,
+      onExpiry: "delete_row",
+    })(
+      c,
+      c === "name_snapshot" || c === "participant_profile_id"
+        ? "identity"
+        : "content"
+    )
+  ),
+  actorColumn("certificate", "revoked_by_user_id", STAFF_RECORD),
+  rowsOf("certificate_ready_notice", {
+    subject: { kind: "user", via: "recipient_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("recipient_user_id", "identity"),
+  ...[
     "created_by_user_id",
     "opened_by_user_id",
     "cancelled_by_user_id",

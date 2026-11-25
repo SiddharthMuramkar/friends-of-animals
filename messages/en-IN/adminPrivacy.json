@@ -720,6 +720,21 @@
           "award_position": "Records the position within the round’s award scheme",
           "suitable_for_auction": "Records the manager’s assessment of the work’s auction suitability, independently of consent"
         },
+        "certificate": {
+          "participant_profile_id": "Participant who earned the certificate.",
+          "registration_id": "Competition registration that earned the certificate.",
+          "number": "Unique number used to verify the certificate.",
+          "name_snapshot": "Name printed on the issued private certificate.",
+          "award_position": "Place recognised on the certificate.",
+          "award_label": "Award label recognised on the certificate.",
+          "type": "Type of achievement the certificate recognises.",
+          "revoked_reason": "Reason staff revoked or corrected a certificate.",
+          "pdf_file_id": "Private PDF generated from the certificate.",
+          "revoked_by_user_id": "Staff member who revoked or corrected the certificate."
+        },
+        "certificate_ready_notice": {
+          "recipient_user_id": "Account notified once its certificates were ready."
+        },
         "result_release": {
           "prepared_by_user_id": "Staff member who prepared the competition results release.",
           "approved_by_user_id": "Second staff member who approved the competition results release."

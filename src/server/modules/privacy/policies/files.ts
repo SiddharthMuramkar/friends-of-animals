@@ -70,6 +70,7 @@ export const QUARANTINED_FILES: RetentionPolicy = {
       .from(sql`(SELECT 1) AS one`);
     if (referenced) return "skipped";
 
+    if (!file.ownerUserId) return "skipped";
     const subjects = [{ type: "user", id: file.ownerUserId }];
     const holds = await db
       .select({ type: legalHold.subjectType, id: legalHold.subjectId })

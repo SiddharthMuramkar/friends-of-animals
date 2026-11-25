@@ -12,6 +12,9 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { issueCertificates } from "../modules/certificates/issue";
+import { renderCertificate } from "../modules/certificates/render";
+import type { PdfRenderer } from "../ports/pdf";
 import { publishResultsRelease } from "../modules/results/releases";
 import { sendFamilyPrize } from "../modules/results/messages";
 import {
@@ -124,6 +127,7 @@ export type OutboxDeps = {
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
   media: MediaProcessor;
+  pdf?: PdfRenderer;
   /** Sends approved refunds and reads them back (#80). */
   payments: PaymentGateway;
 } & Pick<Deps, "appEnv">;
@@ -155,6 +159,17 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "certificates.issue": async (deps, { payload }) => {
+    await issueCertificates(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
+  "certificate.render": (deps, { payload }) =>
+    renderCertificate(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    ),
   "results.publish": async (deps, delivery) => {
     await publishResultsRelease(
       { ...deps, actor: { kind: "system", process: "worker" } },

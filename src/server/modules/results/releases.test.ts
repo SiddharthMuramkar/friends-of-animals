@@ -226,7 +226,21 @@ describe("results publication", () => {
     const exported = JSON.stringify(publishedExport.document);
     expect(exported).not.toContain(w.otherEntryId);
     expect(exported).not.toContain(other!.profileId);
-    expect(publishedExport.files).toEqual(draftExport.files);
+    expect(publishedExport.files).toEqual(
+      expect.arrayContaining(draftExport.files)
+    );
+    expect(publishedExport.document.sections.certificate).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "participation" }),
+        expect.objectContaining({ type: "winner" }),
+      ])
+    );
+    expect(publishedExport.files.length).toBe(
+      draftExport.files.length +
+        publishedExport.document.files.filter(
+          (f) => f.purpose === "certificate_pdf"
+        ).length
+    );
     expect(await visitor.getPublicResults({ slug: comp.slug })).toMatchObject({
       awards: [],
     });
@@ -260,25 +274,45 @@ describe("results publication", () => {
         resultsPublishedAt: new Date(prepare.publishAt),
       },
     ]);
-    expect(
-      await h.db
-        .select()
-        .from(outbox)
-        .where(
-          and(
-            eq(outbox.eventType, "results.published"),
-            eq(outbox.aggregateId, competitionId)
-          )
+    const publicationDeliveries = await h.db
+      .select()
+      .from(outbox)
+      .where(
+        and(
+          eq(outbox.eventType, "results.published"),
+          eq(outbox.aggregateId, competitionId)
         )
-    ).toMatchObject([
-      {
-        payload: {
-          competitionId,
-          releaseId: made.releaseId,
-          publishedAt: prepare.publishAt,
-        },
-      },
-    ]);
+      );
+    expect(new Set(publicationDeliveries.map((d) => d.eventId)).size).toBe(1);
+    expect(publicationDeliveries.map((d) => d.handler)).toEqual(
+      expect.arrayContaining([
+        "artwork.open_results_window",
+        "certificates.issue",
+      ])
+    );
+    for (const delivery of publicationDeliveries)
+      expect(delivery.payload).toMatchObject({
+        competitionId,
+        releaseId: made.releaseId,
+        publishedAt: prepare.publishAt,
+      });
+    expect(await api.listCertificates({ competitionId })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "participation",
+          renderStatus: "rendered",
+        }),
+        expect.objectContaining({
+          type: "school_merit",
+          renderStatus: "rendered",
+        }),
+        expect.objectContaining({ type: "winner", renderStatus: "rendered" }),
+        expect.objectContaining({
+          type: "runner_up",
+          renderStatus: "rendered",
+        }),
+      ])
+    );
     expect(
       await h.db
         .select()

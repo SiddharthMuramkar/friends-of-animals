@@ -152,6 +152,7 @@ describe("consentLinkHeaders", () => {
     "/donate/thank-you",
     "/receipts/abc",
     "/receipts/request",
+    "/verify/FOA-C-27-9XQ4M2T7KD",
   ])("never caches, indexes or refers from %s", (path) => {
     const [rule, ...others] = matching(path);
     expect(others).toEqual([]);

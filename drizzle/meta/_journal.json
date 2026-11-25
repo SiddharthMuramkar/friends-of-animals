@@ -995,6 +995,27 @@
       "when": 1795595287340,
       "tag": "0141_132_auction_bid_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1795596093635,
+      "tag": "0142_100_pre_certificate_pdf",
+      "breakpoints": true
+    },
+    {
+      "idx": 143,
+      "version": "7",
+      "when": 1795596095584,
+      "tag": "0143_100_certificates",
+      "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1795596097489,
+      "tag": "0144_100_ready_messages",
+      "breakpoints": true
     }
   ]
 }
