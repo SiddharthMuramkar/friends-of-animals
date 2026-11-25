@@ -711,6 +711,25 @@ The assigned Entry’s code, discipline, category, age group and derived work, w
 **Score sheet**:
 One assigned judge’s scores against the round’s pinned Rubric and optional comment. A sheet is complete when every criterion has a score. Changes save incrementally; clearing a score makes the sheet incomplete again.
 
+**Round ranking**:
+A ranking of entries within one discipline and age group of a Judging round,
+by the exact average of judges' complete weighted Score sheets. Ties use
+criterion means, median sheet total, then shared rank. A locked round's rank
+and score are stored as an immutable snapshot.
+
+**Round lock**:
+The closing of an open Judging round when every assigned Score sheet is
+complete and eligible, or a Staff admin records a reason for overriding
+that requirement. No scores, assignments or round settings can be changed
+thereafter.
+
+**Round outcome**:
+A Competition manager's recognition of a ranked entry in a locked Judging
+round: winner, runner-up, finalist, special mention or none. An award
+position belongs to the round's award scheme; suitability for auction is a
+separate flag and never a substitute for auction consent. Winners,
+runners-up and finalists can advance to a subsequent Judging round.
+
 ## Physical artwork
 
 **Physical artwork**:

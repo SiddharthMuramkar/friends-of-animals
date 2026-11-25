@@ -1,13 +1,9 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
-import {
-  auditLog,
-  scoreSheet,
-  criterionScore,
-  judgingRound,
-} from "../../../db/schema";
+import { auditLog, scoreSheet, criterionScore } from "../../../db/schema";
 import { scoringWorld } from "../blind-testing";
+import { signedInWith } from "../testing";
 
 describe("saveScoreSheet", () => {
   it("persists partial and complete sheets, rejects bad scores atomically, and audits only completion and later changes", async () => {
@@ -206,10 +202,15 @@ describe("saveScoreSheet", () => {
       await judge.saveScoreSheet({ ...save, entryCode: w.otherCode })
     ).toEqual({ ok: false, error: "entry_not_found" });
     expect(await judge.saveScoreSheet(save)).toMatchObject({ ok: true });
-    await h.db
-      .update(judgingRound)
-      .set({ status: "locked" })
-      .where(eq(judgingRound.id, w.roundId));
+    const admin = h.as(
+      await signedInWith(h, { role: "staff_admin", scope: { type: "global" } })
+    );
+    expect(
+      await admin.lockJudgingRound({
+        roundId: w.roundId,
+        overrideReason: "Scoring test override",
+      })
+    ).toMatchObject({ ok: true });
     expect(await judge.getBlindEntry(input)).toMatchObject({
       ok: true,
       round: { status: "locked" },
@@ -221,17 +222,5 @@ describe("saveScoreSheet", () => {
     expect(
       await judge.saveScoreSheet({ ...save, entryCode: w.otherCode })
     ).toEqual({ ok: false, error: "entry_not_found" });
-    await h.db
-      .update(judgingRound)
-      .set({ status: "draft" })
-      .where(eq(judgingRound.id, w.roundId));
-    expect(await judge.getBlindEntry(input)).toEqual({
-      ok: false,
-      error: "entry_not_found",
-    });
-    expect(await judge.saveScoreSheet(save)).toEqual({
-      ok: false,
-      error: "entry_not_found",
-    });
   });
 });

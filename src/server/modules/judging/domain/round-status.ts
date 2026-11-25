@@ -1,9 +1,5 @@
 // The life of an FOA judging round (#95). A competition manager sets a
-// round up as a draft, opens it for judging, and may cancel it before it
-// is locked. Every status is defined now, because a value added to a
-// Postgres enum later can't be used in the same migration run; locking
-// arrives with the rankings ticket, which adds `open -> locked` and its
-// guard here.
+// round up as a draft, opens it for judging, and may cancel it before locking. The lock guard lives in round-lock.ts.
 //
 // Loads under plain Node (schema file, seed script): relative imports only.
 
@@ -21,7 +17,7 @@ const NEXT: Readonly<
   Record<JudgingRoundStatus, readonly JudgingRoundStatus[]>
 > = {
   draft: ["open", "cancelled"],
-  open: ["cancelled"],
+  open: ["cancelled", "locked"],
   locked: [],
   cancelled: [],
 };

@@ -9,7 +9,9 @@
 //
 // Loads under plain Node (seed script): relative imports only.
 
-export type JudgingRoundStatus = "draft" | "open" | "locked" | "cancelled";
+import { roundAllows } from "../../domain/round-lock";
+import type { JudgingRoundStatus } from "../../domain/round-status";
+export type { JudgingRoundStatus } from "../../domain/round-status";
 
 export type ScoringFacts = {
   /** `null` when there is no such round. */
@@ -42,7 +44,7 @@ export function decideScoringAccess(
   }
   if (!facts.onboarded) return { ok: false, code: "not_onboarded" };
   if (!facts.assigned) return { ok: false, code: "entry_not_found" };
-  if (intent === "write" && facts.roundStatus !== "open") {
+  if (intent === "write" && !roundAllows(facts.roundStatus, "score")) {
     return { ok: false, code: "round_locked" };
   }
   return { ok: true };

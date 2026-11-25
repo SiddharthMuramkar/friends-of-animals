@@ -569,6 +569,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/judging/rounds/[id]/pool",
   "/admin/judging/rounds/[id]/assignments",
   "/admin/judging/rounds/[id]/conflicts",
+  "/admin/judging/rounds/[id]/rankings",
   JUDGE_DASHBOARD,
   "/judge/rounds/[id]/onboarding",
   "/judge/rounds/[id]",
