@@ -138,6 +138,13 @@ export const SEED_ARTWORK_COMPETITION = {
   name: "Originals for Animals",
 } as const;
 
+export const SEED_SCORING_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000096001",
+  code: "JURY27",
+  slug: "kindness-in-art",
+  name: "Kindness in Art",
+} as const;
+
 /**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
@@ -196,6 +203,30 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           registration_closes: ist(-130, "23:59"),
           submissions_close: ist(-60, "23:59"),
           school_round_closes: ist(-30, "23:59"),
+        },
+      },
+    },
+    {
+      id: SEED_SCORING_COMPETITION.id,
+      slug: SEED_SCORING_COMPETITION.slug,
+      status: "foa_judging",
+      publishedAt: daysAgo(250),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: SEED_SCORING_COMPETITION.code,
+        name: SEED_SCORING_COMPETITION.name,
+        theme: "Show kindness to the animals that share our neighbourhood.",
+        participation: "individuals",
+        disciplines: ["drawing", "videography", "essay"],
+        ageGroups: [...AGE_GROUPS, ADULT_AGE_GROUP],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "not_required" },
+        keyDates: {
+          registration_opens: ist(-210, "09:00"),
+          registration_closes: ist(-120, "23:59"),
+          submissions_close: ist(-50, "23:59"),
+          school_round_closes: ist(-20, "23:59"),
         },
       },
     },
