@@ -30,6 +30,8 @@ import type { FieldCipher } from "../../../../crypto/field-cipher";
 import type { AppDb } from "../../../../db/app-db";
 import {
   account,
+  certificate,
+  certificateReadyNotice,
   auditLog,
   artworkPhoto,
   physicalArtwork,
@@ -381,8 +383,24 @@ export async function gatherErasure(
         )
       )
   ).map((row) => row.id);
+  const certificateFileIds = (
+    await db
+      .select({ id: certificate.pdfFileId })
+      .from(certificate)
+      .where(
+        and(
+          within(certificate.participantProfileId, profileIds),
+          isNotNull(certificate.pdfFileId)
+        )
+      )
+  ).map((r) => r.id!);
   const fileIds = [
-    ...new Set([...entryFileIds, ...artworkFileIds, ...uploadIds]),
+    ...new Set([
+      ...entryFileIds,
+      ...artworkFileIds,
+      ...uploadIds,
+      ...certificateFileIds,
+    ]),
   ];
 
   // A registration a payment, a refund or consent evidence names stays.
@@ -708,6 +726,12 @@ async function eraseRecords(
     .where(within(roundAssignment.entryId, entryIds));
   await tx.delete(judgeConflict).where(within(judgeConflict.entryId, entryIds));
   await tx.delete(roundEntry).where(within(roundEntry.entryId, entryIds));
+  await tx
+    .delete(certificateReadyNotice)
+    .where(within(certificateReadyNotice.recipientUserId, users));
+  await tx
+    .delete(certificate)
+    .where(within(certificate.participantProfileId, scope.profileIds));
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx

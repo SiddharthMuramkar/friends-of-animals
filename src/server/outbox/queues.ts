@@ -13,7 +13,12 @@
 import type { HandlerName } from "./events";
 
 export const DEDICATED_QUEUES = {
-  media: ["files.process_image", "files.process_video", "files.process_pdf"],
+  media: [
+    "files.process_image",
+    "files.process_video",
+    "files.process_pdf",
+    "certificate.render",
+  ],
 } as const satisfies Record<string, readonly HandlerName[]>;
 
 export type DedicatedQueue = keyof typeof DEDICATED_QUEUES;

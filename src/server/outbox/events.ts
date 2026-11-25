@@ -481,6 +481,20 @@ export type DomainEvent =
       };
     }
   | {
+      type: "certificate.render";
+      aggregate: { type: "certificate"; id: string };
+      payload: { certificateId: string };
+    }
+  | {
+      type: "certificates.ready";
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        recipientUserId: string;
+      };
+    }
+  | {
       type: "auction.lot_created";
       aggregate: { type: "auction_lot"; id: string };
       payload: { lotId: string };
@@ -1033,6 +1047,12 @@ export const EVENT_PAYLOADS = {
     releaseId: z.uuid(),
     publishedAt: z.iso.datetime(),
   }),
+  "certificate.render": z.object({ certificateId: z.uuid() }),
+  "certificates.ready": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    recipientUserId: z.uuid(),
+  }),
   "auction.lot_created": z.object({ lotId: z.uuid() }),
   "auction.lot.open": z.object({ lotId: z.uuid() }),
   "auction.lot.close": z.object({ lotId: z.uuid() }),
@@ -1276,7 +1296,9 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "results.send_family_prize",
   ],
-  "results.published": ["artwork.open_results_window"],
+  "results.published": ["artwork.open_results_window", "certificates.issue"],
+  "certificate.render": ["certificate.render"],
+  "certificates.ready": ["notifications.dispatch"],
   "artwork.retain_unrequested": ["artwork.retain_unrequested"],
   "auction.lot_created": ["notifications.dispatch"],
   "auction.lot.open": ["auctions.open_lot"],

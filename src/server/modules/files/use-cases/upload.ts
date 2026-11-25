@@ -179,10 +179,16 @@ export async function completeUpload(
   if (!parsed.success) return invalidInput(parsed.error);
   const { fileId } = parsed.data;
   const found = await findFile(ctx.db, fileId);
-  if (!found || isEntryFilePurpose(found.purpose)) {
+  if (
+    !found ||
+    found.purpose === "certificate_pdf" ||
+    isEntryFilePurpose(found.purpose)
+  ) {
     return { ok: false, error: "not_found" };
   }
-  await authorize(ctx, "file.complete", { ownerId: found.ownerUserId });
+  await authorize(ctx, "file.complete", {
+    ownerId: found.ownerUserId ?? undefined,
+  });
   if (found.status !== "pending_upload") return asItStands(found);
 
   // The row stays locked while the object moves and the status changes, so

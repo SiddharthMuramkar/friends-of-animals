@@ -30,6 +30,7 @@ const FILE_PURPOSES_WITH_BYTES = new Set([
   "entry_image",
   "consent_form",
   "test_upload",
+  "certificate_pdf",
 ]);
 
 const EXTENSIONS: Readonly<Record<string, string>> = {
