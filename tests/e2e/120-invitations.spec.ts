@@ -6,7 +6,7 @@ import {
   newDevice,
   signInByCode,
 } from "./support/sign-in";
-import { drainOutbox, readEmail } from "./support/mailbox";
+import { drainOutbox, readEmail, readCode } from "./support/mailbox";
 import { SEED_AUCTIONS } from "../../src/server/seed/auctions";
 
 test("a published competition invitation opens a private choice and actual community join", async ({
@@ -26,8 +26,18 @@ test("a published competition invitation opens a private choice and actual commu
     "Stay involved with Friends of Animals"
   );
   expect(message.text).toContain("/dashboard/invitations");
-  await signInByCode(page, request, artist.email);
+  // Follow the message as a signed-out recipient and return to the private
+  // invitation list after the normal OTP authority authenticates us.
   await page.goto("/dashboard/invitations");
+  await expect(page).toHaveURL(/\/sign-in\?next=%2Fdashboard%2Finvitations/);
+  await page.getByRole("textbox", { name: "Email address" }).fill(artist.email);
+  await page.getByRole("button", { name: "Email me a code" }).click();
+  await expect(page.getByRole("status")).toContainText(artist.email);
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(await readCode(request, artist.email));
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/invitations$/);
   await expect(
     page.getByRole("heading", { name: "Competition invitations" })
   ).toBeVisible();

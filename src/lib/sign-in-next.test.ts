@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { signInNext } from "./sign-in-next";
 
 describe("sign-in return paths", () => {
-  it("accepts only recognised event, auction and judge-invitation paths", () => {
+  it("accepts only recognised event, auction and invitation paths", () => {
     expect(signInNext("/events/compassion-workshop")).toBe(
       "/events/compassion-workshop"
     );
     expect(signInNext("/account/auctions")).toBe("/account/auctions");
+    expect(signInNext("/dashboard/invitations")).toBe("/dashboard/invitations");
     expect(signInNext("/account/auctions/LOT-27-5EED5")).toBe(
       "/account/auctions/LOT-27-5EED5"
     );
@@ -21,6 +22,8 @@ describe("sign-in return paths", () => {
       "/auctions/LOT-27-5EED1#x",
       "/auctions/../admin",
       "/admin",
+      "/dashboard/invitations?next=//example.test",
+      "/dashboard/invitations/more",
       "/events/safe-title?next=//example.test",
       "/events/../admin",
       "/events/UPPER-case",

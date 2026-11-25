@@ -7,7 +7,7 @@ import { OutcomeNotice } from "@/components/form/outcome-notice";
 import { ButtonLink } from "@/components/site/button-link";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { APP_ROUTES } from "@/lib/app-routes";
+import { APP_ROUTES, DASHBOARD_INVITATIONS } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { acceptAction } from "./actions";
@@ -33,7 +33,10 @@ export default async function Page(props: PageProps<"/dashboard/invitations">) {
 
 async function Content({ searchParams }: PageProps<"/dashboard/invitations">) {
   const actor = await currentActor();
-  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  if (actor.kind !== "user")
+    redirect(
+      `${ROUTES.signIn.path}?next=${encodeURIComponent(DASHBOARD_INVITATIONS)}`
+    );
   const [t, notices, query, invitations] = await Promise.all([
     getTranslations("competitionInvitations"),
     getTranslations("common.callout"),
