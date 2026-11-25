@@ -53,43 +53,37 @@ it("issues participation to a shortlist-only school's unuploaded pupil after the
     .update(competition)
     .set({ status: "results_published" })
     .where(eq(competition.id, competitionId));
-  await h.db
-    .insert(judgingRound)
-    .values({
-      id,
-      competitionId,
-      name: "Final",
-      nameKey: "final",
-      status: "locked",
-      lockedAt: now,
-      lockOverrideReason: "No complete scores",
-      tieBreakRule: TIE_BREAK_RULE,
-      createdAt: now,
-      updatedAt: now,
-    });
+  await h.db.insert(judgingRound).values({
+    id,
+    competitionId,
+    name: "Final",
+    nameKey: "final",
+    status: "locked",
+    lockedAt: now,
+    lockOverrideReason: "No complete scores",
+    tieBreakRule: TIE_BREAK_RULE,
+    createdAt: now,
+    updatedAt: now,
+  });
   const yesterday = new Date(now.getTime() - 86400000);
-  await h.db
-    .insert(resultRelease)
-    .values({
-      id: releaseId,
-      competitionId,
-      sourceRoundId: id,
-      status: "published",
-      preparedAt: yesterday,
-      approvedAt: yesterday,
-      publishAt: now,
-      publishedAt: now,
-      contentHash: "fixture",
-      deliveryNote: "FOA contacts families",
-    });
+  await h.db.insert(resultRelease).values({
+    id: releaseId,
+    competitionId,
+    sourceRoundId: id,
+    status: "published",
+    preparedAt: yesterday,
+    approvedAt: yesterday,
+    publishAt: now,
+    publishedAt: now,
+    contentHash: "fixture",
+    deliveryNote: "FOA contacts families",
+  });
   expect(
-    await h
-      .as(worker)
-      .issueCertificates({
-        competitionId,
-        releaseId,
-        publishedAt: now.toISOString(),
-      })
+    await h.as(worker).issueCertificates({
+      competitionId,
+      releaseId,
+      publishedAt: now.toISOString(),
+    })
   ).toEqual({ issued: 4 });
   const rows = await h.db
     .select()
