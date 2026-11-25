@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
 import { judgingRound, judgeInvitation, judgeOnboarding } from "../db/schema";
-import { SEED_JUDGING } from "./judging-rounds";
+import { seedFunctions } from "./builders";
+import { SEED_JUDGING, seedJudgingRounds } from "./judging-rounds";
 import { SEED_COMPETITION_MANAGER } from "./competitions";
+import { seedObjectives } from "./objectives";
+import { seedReports } from "./reports";
+import { seedResults } from "./results";
+import { seedScoring } from "./scoring";
 describe("judging round seeds", () => {
   it("seeds pilot rounds, a waiting global continuation and both stages of judge onboarding idempotently", async () => {
     const h = await createHarness();
@@ -67,7 +72,16 @@ describe("judging round seeds", () => {
       await h.db.select().from(judgeOnboarding),
     ];
     h.clock.advance({ days: 1 });
-    await h.seed.preview();
+    // The snapshot spans all rounds, invitations and onboarding rows, not
+    // just the pilot rounds. Rerun every seeder writing those tables in
+    // preview order, with the full preview's prerequisite rows still present.
+    await seedFunctions([
+      seedResults,
+      seedReports,
+      seedScoring,
+      seedJudgingRounds,
+      seedObjectives,
+    ]).seedPreview(h.deps);
     expect([
       await h.db.select().from(judgingRound),
       await h.db.select().from(judgeInvitation),

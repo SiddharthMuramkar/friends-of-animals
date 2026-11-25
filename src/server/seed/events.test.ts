@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
-import { SEED_EVENTS } from "./events";
+import { seedFunctions } from "./builders";
+import { SEED_EVENTS, seedEvents } from "./events";
 import { SEED_ACCOUNTS } from "./accounts";
 import { event, eventRegistration } from "../db/schema";
 import { asc } from "drizzle-orm";
@@ -38,7 +39,9 @@ it("seeds a full workshop, a campaign, an unpublished draft and past attendance,
     .select()
     .from(eventRegistration)
     .orderBy(asc(eventRegistration.id));
-  await h.seed.preview();
+  // The full preview already supplied the accounts and verified the event
+  // journeys; only the real event seeder writes the rows compared here.
+  await seedFunctions([seedEvents]).seedPreview(h.deps);
   expect(await h.db.select().from(event).orderBy(asc(event.id))).toEqual(first);
   expect(
     await h.db
