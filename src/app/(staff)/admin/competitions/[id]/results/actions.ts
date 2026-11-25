@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { APP_ROUTES, adminCompetitionResultsPath } from "@/lib/app-routes";
+import { secondFactorPath } from "@/lib/second-factor-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
@@ -41,15 +42,9 @@ export async function resultsAction(form: FormData) {
     }
   } catch (error) {
     if (error instanceof DomainError) {
-      if (error.code === "step_up_required")
-        redirect(
-          `${APP_ROUTES.stepUp}?${new URLSearchParams({ next: target })}`
-        );
+      const path = secondFactorPath(error.code, target);
+      if (path) redirect(path);
       if (error.code === "forbidden") done = "forbidden";
-      else if (error.code === "second_factor_required")
-        redirect(
-          `/auth/second-factor?${new URLSearchParams({ next: target })}`
-        );
       else throw error;
     } else throw error;
   }

@@ -25,7 +25,31 @@ async function Results({ params }: PageProps<"/competitions/[slug]/results">) {
     getTranslations("results"),
     getFormatter(),
   ]);
-  if (!results) notFound();
+  if (!results) {
+    // The public competition detail is cached independently of the worker's
+    // release job. This live waiting view makes the results link discoverable
+    // from any public competition without ever reading an unpublished snapshot.
+    const comp = await as(PUBLIC_READER).getPublishedCompetition({ slug });
+    if (!comp) notFound();
+    return (
+      <div className="grid gap-6">
+        <ButtonLink variant="quiet" href={slugHref("competition", slug)}>
+          {t("backCompetition")}
+        </ButtonLink>
+        <section className="rounded-3xl border-2 border-border bg-surface p-5">
+          <h2 className="text-h2 text-ink">
+            {t("publicTitle", { competition: comp.name })}
+          </h2>
+          <p className="mt-3 font-semibold text-ink">
+            {t(comp.status === "cancelled" ? "cancelled" : "waiting")}
+          </p>
+          <p className="mt-2 text-ink-muted">
+            {t(comp.status === "cancelled" ? "cancelledBody" : "waitingBody")}
+          </p>
+        </section>
+      </div>
+    );
+  }
   const groups = Map.groupBy(
     results.awards,
     (a) => `${a.discipline}/${a.category}`
@@ -52,7 +76,12 @@ async function Results({ params }: PageProps<"/competitions/[slug]/results">) {
       ) : (
         Array.from(groups, ([key, awards]) => (
           <section key={key} className="grid gap-4">
-            <h3 className="text-h3 text-ink">{`${t(`disciplines.${awards[0]!.discipline}`)} · ${awards[0]!.category}`}</h3>
+            <h3 className="text-h3 text-ink">
+              {t("categoryHeading", {
+                discipline: t(`disciplines.${awards[0]!.discipline}`),
+                category: awards[0]!.category,
+              })}
+            </h3>
             <ul className="grid gap-4 sm:grid-cols-2">
               {awards.map((award, index) => (
                 <li

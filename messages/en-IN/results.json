@@ -6,7 +6,7 @@
     "publicTitle": "Results: {competition}",
     "publicLead": "Published {at}",
     "backCompetition": "About this competition",
-    "consentNote": "Well done to every participant. We only display recognition where the participant or their guardian has agreed to public credit. Other results remain private.",
+    "consentNote": "We only display recognition where the participant or their guardian has agreed to public credit. Other results remain private.",
     "noPublicAwards": "There are no consented credits to show at present.",
     "loading": "Loading results…",
     "notFound": "Competition not found.",
@@ -83,6 +83,11 @@
       "bronze": "Bronze",
       "grade_a": "Grade A",
       "grade_b": "Grade B"
-    }
+    },
+    "waiting": "Results have not been published yet.",
+    "waitingBody": "Return to this page when judging and independent approval are complete. Only published recognition with consented credits appears here.",
+    "cancelled": "This competition was cancelled.",
+    "cancelledBody": "There are no published results for this competition.",
+    "categoryHeading": "{discipline} · {category}"
   }
 }

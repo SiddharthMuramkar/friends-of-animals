@@ -194,6 +194,18 @@ test("two staff release approved results, and visitors see only consented recogn
       ).toBeVisible();
       await expectAccessible(page, "prepare results");
       await expectAccessibleInDark(page, "prepare results");
+      // The ordinarily cached competition detail always links to the live
+      // results page during judging; no credit from the private lock leaks.
+      await page.goto(`/competitions/${c.slug}`);
+      await page.getByRole("link", { name: "Results", exact: true }).click();
+      await expect(
+        page.getByText("Results have not been published yet.")
+      ).toBeVisible();
+      await expect(page.getByText("Asha Rao", { exact: true })).toHaveCount(0);
+      await expectAccessible(page, "waiting for results");
+      await expectAccessibleInDark(page, "waiting for results");
+      await page.goto(path);
+
       await page
         .getByLabel("Locked final round (Required)")
         .selectOption(roundId);

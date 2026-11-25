@@ -227,7 +227,8 @@
         "shortlist": "Your school judges its entries first. Only its shortlist is sent online to our judges.",
         "schools": "Each school sends up to {count, plural, one {# entry} other {# entries}} in each category and picks its own {positions, plural, one {winner} other {top # places}}."
       },
-      "loading": "Opening the competition"
+      "loading": "Opening the competition",
+      "liveResultsLink": "Results"
     }
   }
 }
