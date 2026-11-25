@@ -24,6 +24,7 @@ import { PAYMENTS_POLICY } from "../modules/payments/policy";
 import { PARTICIPANTS_POLICY } from "../modules/participants/policy";
 import { GUARDIANS_POLICY } from "../modules/guardians/policy";
 import { LEDGER_POLICY } from "../modules/ledger/policy";
+import { TRANSPARENCY_POLICY } from "../modules/transparency/policy";
 import { ENTRIES_POLICY } from "../modules/entries/policy";
 import { ANNOUNCEMENTS_POLICY } from "../modules/announcements/policy";
 import { PRIVACY_POLICY } from "../modules/privacy/policy";
@@ -63,6 +64,7 @@ export const POLICY = composePolicies(
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
   LEDGER_POLICY,
+  TRANSPARENCY_POLICY,
   ENTRIES_POLICY,
   ANNOUNCEMENTS_POLICY,
   PRIVACY_POLICY,
