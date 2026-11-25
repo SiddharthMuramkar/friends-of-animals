@@ -65,11 +65,10 @@ test("a member joins, edits, leaves and rejoins with only one private milestone"
     page.getByText("Joined the FOA community", { exact: true })
   ).toHaveCount(1);
 });
-test("published results appear in adult and linked child timelines; community staff can list members", async ({
+test("published results appear in adult and linked child timelines", async ({
   page,
   request,
   browser,
-  seedAccount,
 }, info) => {
   await signInByCode(page, request, SEED_ACCOUNTS.members[0].email);
   await page.goto("/dashboard/timeline");
@@ -106,30 +105,29 @@ test("published results appear in adult and linked child timelines; community st
   } finally {
     await guardian.context().close();
   }
-  const staff = await newDevice(browser, info);
-  try {
-    const secret = generateTotpSecret();
-    const email = await seedAccount({
-      name: `Community staff ${info.project.name}`,
-      grants: [{ role: "community_manager", scope: { type: "global" } }],
-      totpSecret: secret,
-    });
-    await signInByCode(staff, request, email);
-    await staff.goto("/admin/community/members");
-    await expect(staff).toHaveURL(/\/auth\/second-factor\?next=/);
-    await staff
-      .getByRole("textbox", { name: "6-digit code" })
-      .fill(totpCode(secret, new Date()));
-    await staff.getByRole("button", { name: "Continue" }).click();
-    await expect(staff).toHaveURL(/\/admin\/community\/members$/);
-    await expect(
-      staff.getByRole("heading", { name: "Community members", level: 1 })
-    ).toBeVisible();
-    await expect(
-      staff.getByRole("heading", { name: "Asha Rao" })
-    ).toBeVisible();
-    await check(staff, "community member directory");
-  } finally {
-    await staff.context().close();
-  }
+});
+test("community staff can list private members after second factor", async ({
+  page: staff,
+  request,
+  seedAccount,
+}, info) => {
+  const secret = generateTotpSecret();
+  const email = await seedAccount({
+    name: `Community staff ${info.project.name}`,
+    grants: [{ role: "community_manager", scope: { type: "global" } }],
+    totpSecret: secret,
+  });
+  await signInByCode(staff, request, email);
+  await staff.goto("/admin/community/members");
+  await expect(staff).toHaveURL(/\/auth\/second-factor\?next=/);
+  await staff
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await staff.getByRole("button", { name: "Continue" }).click();
+  await expect(staff).toHaveURL(/\/admin\/community\/members$/);
+  await expect(
+    staff.getByRole("heading", { name: "Community members", level: 1 })
+  ).toBeVisible();
+  await expect(staff.getByRole("heading", { name: "Asha Rao" })).toBeVisible();
+  await check(staff, "community member directory");
 });
