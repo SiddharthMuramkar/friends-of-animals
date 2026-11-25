@@ -3,6 +3,9 @@ import { signInNext } from "./sign-in-next";
 
 describe("sign-in return paths", () => {
   it("accepts only exact local auction lots and existing judge invitations", () => {
+    expect(signInNext("/events/compassion-workshop")).toBe(
+      "/events/compassion-workshop"
+    );
     expect(signInNext("/account/auctions")).toBe("/account/auctions");
     expect(signInNext("/account/auctions/LOT-27-5EED5")).toBe(
       "/account/auctions/LOT-27-5EED5"
