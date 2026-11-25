@@ -15,11 +15,8 @@ export async function SurveyFeedback({ result }: { result: unknown }) {
   ] as const;
   const key = keys.find((k) => k === result);
   return key ? (
-    <p
-      role="status"
-      className="my-5 rounded-xl border border-border bg-surface p-4 text-ink"
-    >
+    <output className="block my-5 rounded-xl border border-border bg-surface p-4 text-ink">
       {t(key)}
-    </p>
+    </output>
   ) : null;
 }
