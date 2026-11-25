@@ -31,6 +31,10 @@ it("waits for the actual reminder times, reschedules changes, suppresses queued/
   await h.drain();
   expect(await count(ap)).toBe(1);
   expect(await count(bp)).toBe(0);
+  const reminders = () =>
+    h.email.sent.filter((message) => message.subject.startsWith("Reminder:"));
+  expect(reminders()).toMatchObject([{ to: a.email }]);
+  expect(h.sms.sent).toHaveLength(0);
   const moved = {
     ...input,
     startsAt: new Date(+input.startsAt + 24 * 3600_000),
@@ -52,6 +56,7 @@ it("waits for the actual reminder times, reschedules changes, suppresses queued/
   expect(await count(ap)).toBe(2);
   await h.drain();
   expect(await count(ap)).toBe(2);
+  expect(reminders()).toMatchObject([{ to: a.email }, { to: a.email }]);
   h.clock.set(moved.endsAt);
   await h.drain();
   expect(await manager.getEventForAdmin({ eventId })).toMatchObject({

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { SiteLink } from "@/components/site/site-link";
 import { Section } from "@/components/site/section";
 import { PageHeader } from "@/components/site/heading";
 import { ButtonLink, buttonStyles } from "@/components/site/button-link";
@@ -98,9 +99,12 @@ async function RegistrationPanel({ event }: { event: PublicEvent }) {
     <div className="mt-6 flex flex-col items-start gap-4">
       <p className="text-ink-muted">
         {t("safeguarding")}{" "}
-        <a className="text-link underline" href="/safeguarding">
+        <SiteLink
+          className="text-link underline"
+          href={ROUTES.safeguarding.path}
+        >
           {t("safeguardingLink")}
-        </a>
+        </SiteLink>
       </p>
       {mine ? (
         <>

@@ -12,7 +12,6 @@ import {
   guardianLink,
   participantProfile,
   user,
-  type EventRegistrationRow,
   type EventRow,
 } from "../../db/schema";
 import { DomainError } from "../../errors";
