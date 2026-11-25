@@ -23,10 +23,28 @@ it("requires a reason and competition-manager authority; revocation and reissue 
   const guardian = await h.signIn(
     await h.seed.member({ email: SEED_GUARDIANS.guardian.email })
   );
+  const unverifiedManager = await h.seed.member();
+  await h.seed.grant(unverifiedManager, managerOf(SEED_RESULTS.competitionId));
+  const withoutFactor = h.as(
+    await h.signIn(unverifiedManager, {}, { secondFactor: false })
+  );
   const api = h.as(manager);
   const [adult, another] = await h.as(participant).listMyCertificates();
   const child = (await h.as(guardian).listMyCertificates())[0]!;
   const verify = h.as(h.visitor());
+  await expect(
+    withoutFactor.revokeCertificate({
+      certificateId: adult!.id,
+      reason: "Issued in error",
+    })
+  ).rejects.toMatchObject({ code: "enrolment_required" });
+  await expect(
+    api.reissueCertificate({
+      certificateId: child.id,
+      reason: "Correction",
+      recipientName: "\u0000",
+    })
+  ).resolves.toMatchObject({ ok: false, error: "invalid_input" });
   expect(
     await verify.verifyCertificate({ number: adult!.number })
   ).toMatchObject({ outcome: "valid" });

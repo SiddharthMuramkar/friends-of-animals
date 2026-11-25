@@ -18,7 +18,7 @@ import { newDevice, signInByCode } from "./support/sign-in";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { drainOutbox, readCode } from "./support/mailbox";
 import { SEED_CERTIFICATE_SCHOOL } from "../../src/server/seed/certificate-school";
-import { SEED_COORDINATORS } from "../../src/server/seed/coordinators";
+import { readZip } from "../../src/server/modules/privacy/requests/subject-data/read-zip";
 import { institutionRegistrationPath } from "../../src/lib/app-routes";
 
 const code = () =>
@@ -274,15 +274,22 @@ test("publish an approved release, verify its certificate publicly, revoke and s
       // The trusted publication delivery has now issued the certificate.
       // The PDF carries this exact /verify/<number> QR target; validity
       // is immediate independently of the media worker's PDF readiness.
-      const [issued] = await db
-        .select()
-        .from(schema.certificate)
-        .where(
-          and(
-            eq(schema.certificate.registrationId, registrationId),
-            eq(schema.certificate.type, "participation")
-          )
-        );
+      let issued: typeof schema.certificate.$inferSelect | undefined;
+      await expect
+        .poll(async () => {
+          await drainOutbox(request);
+          [issued] = await db
+            .select()
+            .from(schema.certificate)
+            .where(
+              and(
+                eq(schema.certificate.registrationId, registrationId),
+                eq(schema.certificate.type, "participation")
+              )
+            );
+          return Boolean(issued);
+        })
+        .toBe(true);
       if (!issued) throw Error("Publication did not issue a certificate");
       const visitor = await newDevice(browser, info);
       try {
@@ -333,11 +340,24 @@ test("publish an approved release, verify its certificate publicly, revoke and s
 
 // The coordinator's archive board is reachable from the school dashboard.
 // PDF rendering runs on worker-media, not the web preview drain endpoint.
-test("a school coordinator sees only their own participation certificates on the archive board", async ({
+test("a school coordinator sees their pupils’ participation certificates on the archive board", async ({
   page,
   request,
+  seedAccount,
 }) => {
-  await signInByCode(page, request, SEED_COORDINATORS.coordinator.email);
+  const email = await seedAccount({
+    name: "Certificate archive coordinator",
+    grants: [
+      {
+        role: "institution_coordinator",
+        scope: {
+          type: "institution",
+          id: SEED_CERTIFICATE_SCHOOL.institutionId,
+        },
+      },
+    ],
+  });
+  await signInByCode(page, request, email);
   await expectAccessible(page, "coordinator account sessions");
   await page.goto(
     institutionRegistrationPath(
@@ -350,4 +370,55 @@ test("a school coordinator sees only their own participation certificates on the
   await expect(panel).toContainText(/of 2 valid certificates/);
   await expectAccessible(page, "student certificate archive board");
   await expectAccessibleInDark(page, "student certificate archive board");
+  // As in #100, ordinary CI has no renderer. In a preview or a local run
+  // with the real media worker, exercise the complete signed ZIP download.
+  // Both states have explicit assertions; the use-case tests always drain
+  // the jobs and inspect the complete ZIP with provider fakes.
+  const ready = panel.getByText("2 of 2 valid certificates have a ready PDF.");
+  if (await ready.isVisible()) {
+    const prepare = panel.getByRole("button", {
+      name: "Prepare certificate ZIP",
+    });
+    if (await prepare.isVisible()) {
+      await prepare.click();
+      await expect(panel).toContainText(/ZIP requested|ZIP is ready/);
+    }
+    const download = panel.getByRole("link", {
+      name: "Download certificate ZIP",
+    });
+    await expect
+      .poll(
+        async () => {
+          await page.reload();
+          return download.isVisible();
+        },
+        { timeout: 15_000 }
+      )
+      .toBe(true);
+    await expectAccessible(page, "downloadable student ZIP");
+    await expectAccessibleInDark(page, "downloadable student ZIP");
+    const href = await download.getAttribute("href");
+    const redirect = await page.request.get(href!, { maxRedirects: 0 });
+    expect(redirect.status()).toBe(302);
+    expect(redirect.headers()["cache-control"]).toContain("no-store");
+    const zip = await page.request.get(redirect.headers().location!);
+    expect(zip.ok()).toBe(true);
+    expect(zip.headers()["content-type"]).toContain("application/zip");
+    const names = readZip(new Uint8Array(await zip.body())).names;
+    expect(names).toHaveLength(2);
+    expect(
+      names.every((name) =>
+        /^FOA-C-\d{2}-[0-9A-HJKMNP-TV-Z]{10}\.pdf$/.test(name)
+      )
+    ).toBe(true);
+  } else {
+    await expect(
+      panel.getByText(
+        "All issued certificate PDFs must be ready before the ZIP can be prepared."
+      )
+    ).toBeVisible();
+    await expect(
+      panel.getByRole("button", { name: "Prepare certificate ZIP" })
+    ).toHaveCount(0);
+  }
 });

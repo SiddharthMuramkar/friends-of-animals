@@ -760,6 +760,17 @@ A unique random `FOA-C-{YY}-{10}` code, dated by India's calendar at issue time.
 Anyone may check its validity; a PDF download needs the participant's or a
 verified linked guardian's own session.
 
+**Certificate correction**:
+A Competition manager's reasoned revocation or reissue. Reissue corrects the
+printed recipient name while preserving the earned recognition; it creates
+a new Certificate number and permanently ends the old one.
+
+**Institution certificate ZIP**:
+A short-lived private archive of the current issued, rendered certificates
+for the pupils of one Institution registration. The worker creates it,
+and the coordinator or authorised person gets a Signed URL only while their
+institution and the entire archive manifest are still eligible.
+
 ## Physical artwork
 
 **Physical artwork**:

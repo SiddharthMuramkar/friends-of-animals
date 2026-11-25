@@ -10,14 +10,27 @@ import { DomainError } from "../../errors";
 import { invalidInput } from "../../input";
 import { emit } from "../../outbox/emit";
 import type { UseCaseContext } from "../../use-cases";
+import { lockSubject } from "../privacy/requests/submit";
 import { lockLiveSession } from "../second-factor/session-factor";
 import { assertCertificateTransition } from "./domain/status";
 import { invalidateCertificateArchives } from "./archive";
 import { insertCertificate } from "./issue";
 
+// Fold whitespace for the printed name; reject unprintable controls in
+// both fields (including NUL, which Postgres cannot store).
+const printable = (value: string) =>
+  [...value].every((c) => {
+    const code = c.codePointAt(0)!;
+    return (
+      code === 9 ||
+      code === 10 ||
+      code === 13 ||
+      (code >= 32 && (code < 127 || code > 159))
+    );
+  });
 const common = z.object({
   certificateId: z.uuid(),
-  reason: z.string().trim().min(1).max(1000),
+  reason: z.string().trim().min(1).max(1000).refine(printable),
 });
 const reissueInput = common.extend({
   recipientName: z
@@ -25,7 +38,8 @@ const reissueInput = common.extend({
     .trim()
     .min(1)
     .max(150)
-    .transform((name) => name.normalize("NFC")),
+    .refine(printable)
+    .transform((name) => name.normalize("NFC").replace(/\s+/gu, " ")),
 });
 type RevokeInput = z.input<typeof common>;
 type ReissueInput = z.input<typeof reissueInput>;
@@ -55,12 +69,17 @@ async function correct(
     const denied = () =>
       new DomainError("forbidden", "Certificate access denied");
     const [hint] = await tx
-      .select({ competitionId: certificate.competitionId })
+      .select({
+        competitionId: certificate.competitionId,
+        participantProfileId: certificate.participantProfileId,
+      })
       .from(certificate)
       .where(eq(certificate.id, input.certificateId));
     // Competition certificates only. Volunteer-service correction belongs
     // to its own authorised role, not a globally scoped competition manager.
     if (!hint?.competitionId || ctx.actor.kind !== "user") throw denied();
+    if (hint.participantProfileId)
+      await lockSubject(tx, hint.participantProfileId);
     await tx
       .select({ id: user.id })
       .from(user)
@@ -127,7 +146,7 @@ async function correct(
         payload: { certificateId: replacement.id },
       });
     }
-    await invalidateCertificateArchives({ ...ctx, db: tx }, row.id);
+    await invalidateCertificateArchives({ ...ctx, db: tx }, row.id, role);
     await recordAudit(tx, ctx, {
       action: replacement ? "certificate.reissued" : "certificate.revoked",
       entity: { type: "certificate", id: row.id },

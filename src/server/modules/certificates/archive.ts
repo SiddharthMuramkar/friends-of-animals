@@ -1,5 +1,16 @@
-import { and, arrayOverlaps, asc, desc, eq, gt, inArray } from "drizzle-orm";
+import { createHash } from "node:crypto";
+import {
+  and,
+  arrayOverlaps,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  ne,
+} from "drizzle-orm";
 import { z } from "zod";
+import type { Role } from "../../access/domain/roles";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
@@ -118,6 +129,7 @@ async function currentPdfs(db: AppDb, school: School) {
       key: fileAsset.storageKey,
       bucket: fileAsset.bucket,
       size: fileAsset.sizeBytes,
+      sha256: fileAsset.sha256,
     })
     .from(certificate)
     .innerJoin(
@@ -177,7 +189,8 @@ async function matchingArchive(
       )
     )
     .orderBy(desc(certificateArchive.createdAt));
-  return candidates.find((a) => matches(a, rows));
+  const matching = candidates.filter((a) => matches(a, rows));
+  return matching.find((a) => a.status !== "failed") ?? matching[0];
 }
 
 export async function getInstitutionCertificateArchive(
@@ -294,6 +307,58 @@ async function lockedArchive(db: AppDb, id: string) {
   return row;
 }
 
+async function storedPdf(storage: JobsContext["storage"], pdf: Pdfs[number]) {
+  if (!pdf.size || pdf.size > MAX_ARCHIVE_BYTES || !pdf.sha256)
+    throw new Error("Certificate PDF unavailable");
+  const reader = (
+    await storage.read({ bucket: pdf.bucket!, key: pdf.key! })
+  ).getReader();
+  const bytes = new Uint8Array(pdf.size);
+  let offset = 0;
+  try {
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) break;
+      if (offset + next.value.byteLength > bytes.length) {
+        await reader.cancel();
+        throw new Error("Certificate PDF unavailable");
+      }
+      bytes.set(next.value, offset);
+      offset += next.value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (
+    offset !== bytes.length ||
+    createHash("sha256").update(bytes).digest("hex") !== pdf.sha256
+  )
+    throw new Error("Certificate PDF unavailable");
+  return bytes;
+}
+
+async function setArchiveStatus(
+  ctx: JobsContext,
+  row: CertificateArchiveRow,
+  status: "invalidated" | "failed",
+  role: Role | null = null
+) {
+  await ctx.db
+    .update(certificateArchive)
+    .set({ status })
+    .where(eq(certificateArchive.id, row.id));
+  await recordAudit(ctx.db, ctx, {
+    action:
+      status === "failed"
+        ? "certificate.archive_failed"
+        : "certificate.archive_invalidated",
+    entity: { type: "certificate_archive", id: row.id },
+    before: { status: row.status },
+    after: { status },
+    actorRole: role,
+  });
+}
+
 export async function buildInstitutionCertificateArchive(
   ctx: JobsContext,
   { archiveId }: JobInput
@@ -313,21 +378,15 @@ export async function buildInstitutionCertificateArchive(
       return;
     const rows = await currentPdfs(tx, school);
     if (!(await verified(tx, school)) || !matches(row, rows)) {
-      await tx
-        .update(certificateArchive)
-        .set({ status: "invalidated" })
-        .where(eq(certificateArchive.id, row.id));
+      await setArchiveStatus({ ...ctx, db: tx }, row, "invalidated");
+      await queueExpiry({ ...ctx, db: tx }, row.id, ctx.clock.now());
       return;
     }
     try {
       const parts = [];
       let total = 0;
       for (const pdf of rows) {
-        const bytes = new Uint8Array(
-          await new Response(
-            await ctx.storage.read({ bucket: pdf.bucket!, key: pdf.key! })
-          ).arrayBuffer()
-        );
+        const bytes = await storedPdf(ctx.storage, pdf);
         total += bytes.byteLength;
         if (
           total > MAX_ARCHIVE_BYTES ||
@@ -345,10 +404,7 @@ export async function buildInstitutionCertificateArchive(
         contentType: "application/zip",
       });
     } catch {
-      await tx
-        .update(certificateArchive)
-        .set({ status: "failed" })
-        .where(eq(certificateArchive.id, row.id));
+      await setArchiveStatus({ ...ctx, db: tx }, row, "failed");
       return;
     }
     await tx
@@ -375,6 +431,11 @@ export async function getInstitutionCertificateArchiveLink(
       ? await registrationOf(tx, hint.institutionRegistrationId)
       : undefined;
     if (!school) throw archiveDenied();
+    await authorize(
+      { ...ctx, db: tx },
+      "certificates.institution_archive",
+      institutionResource(school.institutionId)
+    );
     await lockCompetition(tx, school.competitionId);
     const role = await scopedSchool({ ...ctx, db: tx }, school);
     const row = await lockedArchive(tx, archiveId);
@@ -438,10 +499,7 @@ async function held(db: AppDb, row: CertificateArchiveRow) {
 async function purge(ctx: JobsContext, row: CertificateArchiveRow) {
   if (await held(ctx.db, row)) {
     if (row.status !== "invalidated")
-      await ctx.db
-        .update(certificateArchive)
-        .set({ status: "invalidated" })
-        .where(eq(certificateArchive.id, row.id));
+      await setArchiveStatus(ctx, row, "invalidated");
     await queueExpiry(ctx, row.id, new Date(ctx.clock.now().getTime() + DAY));
     return;
   }
@@ -480,14 +538,24 @@ export async function expireInstitutionCertificateArchive(
  * purges the underlying ZIP promptly unless evidence must be kept. */
 export async function invalidateCertificateArchives(
   ctx: JobsContext,
-  certificateId: string
+  certificateId: string,
+  role: Role | null
 ) {
   const rows = await ctx.db
-    .update(certificateArchive)
-    .set({ status: "invalidated" })
-    .where(arrayOverlaps(certificateArchive.certificateIds, [certificateId]))
-    .returning({ id: certificateArchive.id });
-  for (const row of rows) await queueExpiry(ctx, row.id, ctx.clock.now());
+    .select()
+    .from(certificateArchive)
+    .where(
+      and(
+        arrayOverlaps(certificateArchive.certificateIds, [certificateId]),
+        ne(certificateArchive.status, "invalidated")
+      )
+    )
+    .orderBy(asc(certificateArchive.id))
+    .for("update");
+  for (const row of rows) {
+    await setArchiveStatus(ctx, row, "invalidated", role);
+    await queueExpiry(ctx, row.id, ctx.clock.now());
+  }
 }
 
 /** Erasure must remove the whole mixed-subject ZIP, not export its contents
