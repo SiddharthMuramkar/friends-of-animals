@@ -43,50 +43,11 @@ import { loadKnownPeriods } from "../modules/ledger/periods";
 import { SEED_LOCKED_MONTH } from "./ledger-periods";
 import type { SeedDeps } from "./types";
 
-const token = (fill: string) => fill.repeat(43).slice(0, 43);
-
-export const SEED_DONATIONS = {
-  captured: {
-    donationId: "01938a00-0000-7000-8000-000000106101",
-    donorId: "01938a00-0000-7000-8000-000000106111",
-    batchId: "01938a00-0000-7000-8000-000000106121",
-    name: "Priya Sharma",
-    email: "priya.donor@example.test",
-    amountMinor: 50_000n,
-    checkoutToken: token("SeedDonationCaptured_"),
-    receiptToken: token("SeedReceiptLinkValid_"),
-    expiredReceiptToken: token("SeedReceiptLinkOld_"),
-  },
-  csr: {
-    donationId: "01938a00-0000-7000-8000-000000106102",
-    donorId: "01938a00-0000-7000-8000-000000106112",
-    batchId: "01938a00-0000-7000-8000-000000106122",
-    name: "Kavita Iyer",
-    email: "csr@acme.example.test",
-    organisationName: "Acme Foundation",
-    amountMinor: 2_500_000n,
-    checkoutToken: token("SeedDonationCsr_"),
-  },
-  pending: {
-    donationId: "01938a00-0000-7000-8000-000000106103",
-    donorId: "01938a00-0000-7000-8000-000000106113",
-    batchId: "01938a00-0000-7000-8000-000000106123",
-    name: "Rahul Verma",
-    email: "rahul.donor@example.test",
-    amountMinor: 100_000n,
-    checkoutToken: token("SeedDonationPending_"),
-  },
-  foreign: {
-    donationId: "01938a00-0000-7000-8000-000000106104",
-    donorId: "01938a00-0000-7000-8000-000000106114",
-    batchId: "01938a00-0000-7000-8000-000000106124",
-    refundId: "01938a00-0000-7000-8000-000000106134",
-    name: "Emma Clarke",
-    email: "emma.donor@example.test",
-    amountMinor: 200_000n,
-    checkoutToken: token("SeedDonationForeign_"),
-  },
-} as const;
+import {
+  SEED_DONATIONS,
+  syntheticDonationToken as token,
+} from "./donation-samples";
+export { SEED_DONATIONS } from "./donation-samples";
 
 type Seeded = {
   donationId: string;

@@ -101,6 +101,12 @@ test("blind physical scoring, guarded lock and recognition", async ({
     await expectAccessible(judge, "blind assignments");
     await expect(judge.getByRole("link", { name: unavailable })).toHaveCount(0);
     await judge.getByRole("link", { name: code }).click();
+    // Wait for the destination heading and metadata; the preceding page's
+    // nonempty title can otherwise be replaced during the axe scan.
+    await expect(
+      judge.getByRole("heading", { level: 1, name: code })
+    ).toBeVisible();
+    await expect(judge).toHaveTitle(/Score this entry/);
     await expectAccessible(judge, "blind entry");
     await expectAccessibleInDark(judge, "blind entry");
     await expect(

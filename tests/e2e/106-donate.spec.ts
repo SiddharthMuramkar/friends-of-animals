@@ -1,6 +1,6 @@
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import { SEED_DONATIONS } from "../../src/server/seed/donations";
+import { SEED_DONATIONS } from "../../src/server/seed/donation-samples";
 import {
   generateTotpSecret,
   totpCode,

@@ -17,6 +17,7 @@ describe("the public pages' reader", () => {
     const list = (await reader.listPublishedCompetitions()).map(fromPublic);
 
     expect(list.map((c) => [c.slug, c.status, c.sample])).toEqual([
+      ["kindness-in-action", "RESULTS_PUBLISHED", false],
       ["originals-for-animals", "FOA_JUDGING", false],
       ["kindness-in-art", "FOA_JUDGING", false],
       ["art-for-kindness", "RESULTS_PUBLISHED", false],

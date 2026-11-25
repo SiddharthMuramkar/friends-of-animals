@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createHarness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
 import { eq } from "drizzle-orm";
 import {
   competition,
@@ -23,7 +24,7 @@ import { SEED_GUARDIANS } from "@/server/seed/guardians";
 describe("auction thank-you letters", () => {
   it("thanks the child's verified guardian, never their linked teen account", async () => {
     const h = await createHarness();
-    await h.seed.preview();
+    await seedAuctionResults(h.deps);
     const manager = h.as(await h.signIn(SEED_AUCTIONS.manager));
     const buyer = h.as(await h.signIn(await h.seed.member()));
     const worker = h.as({ kind: "system", process: "worker" });
