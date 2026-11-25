@@ -17,8 +17,16 @@ import {
 import {
   SEED_ARTWORK,
   SEED_ARTWORK_VERIFIER,
+  seedPhysicalArtwork,
 } from "@/server/seed/physical-artwork";
-import { SEED_COORDINATORS } from "@/server/seed/coordinators";
+import { seedFunctions } from "@/server/seed/builders";
+import { seedCompetitions } from "@/server/seed/competitions";
+import {
+  SEED_COORDINATORS,
+  seedCoordinators,
+} from "@/server/seed/coordinators";
+import { seedInstitutions } from "@/server/seed/institutions";
+import { seedRegistrations } from "@/server/seed/registration";
 import { createHarness } from "@/test/harness";
 import {
   conditionPhotos,
@@ -29,6 +37,15 @@ import {
   isPhysicallyReadyForJudging,
   physicallyReadyEntryIds,
 } from "./readiness";
+
+const { seedPreview: seedSchoolArtwork } = seedFunctions([
+  seedCompetitions,
+  seedInstitutions,
+  seedCoordinators,
+  // The ORIG27 school examples reuse the institution's seeded pupils.
+  seedRegistrations,
+  seedPhysicalArtwork,
+]);
 
 describe("artwork custody", () => {
   it("verifies only a received artwork with clean private front and back photos", async () => {
@@ -213,7 +230,7 @@ describe("artwork custody", () => {
 
   it("permits only the school's scoped coordinator to request return for its original", async () => {
     const h = await createHarness();
-    await h.seed.preview();
+    await seedSchoolArtwork(h.deps);
     const verifier = h.as(await h.signIn(SEED_ARTWORK_VERIFIER));
     const artwork = await verifier.getArtwork({
       artworkCode: SEED_ARTWORK.codes[6],
