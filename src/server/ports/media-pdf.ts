@@ -168,7 +168,10 @@ function renderPages(
       ],
       {
         cwd: folder,
-        env: { PATH: process.env.PATH ?? "/usr/bin:/bin" },
+        env: {
+          NODE_ENV: "production",
+          PATH: process.env.PATH ?? "/usr/bin:/bin",
+        },
         stdio: ["ignore", "ignore", "pipe"],
       }
     );
