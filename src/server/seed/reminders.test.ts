@@ -22,6 +22,7 @@ async function planned(h: Awaited<ReturnType<typeof createHarness>>) {
       id: reminderJob.id,
       subjectId: reminderJob.subjectId,
       offsetHours: reminderJob.offsetHours,
+      name: reminderJob.reminderName,
       status: reminderJob.status,
     })
     .from(reminderJob)
@@ -29,7 +30,7 @@ async function planned(h: Awaited<ReturnType<typeof createHarness>>) {
 }
 
 describe("the reminders seed", () => {
-  it("plans two submission reminders for each live competition with a deadline ahead", async () => {
+  it("plans submission, school shortlist and artwork dispatch reminders at their seeded deadlines", async () => {
     const h = await createHarness();
 
     await h.seed.preview();
@@ -43,17 +44,30 @@ describe("the reminders seed", () => {
       SEED_SCHOOL_SUBMISSIONS_COMPETITION.id,
     ].toSorted();
     expect(
-      rows.map(({ subjectId, offsetHours, status }) => [
+      rows.map(({ subjectId, offsetHours, status, name }) => [
         subjectId,
+        name,
         offsetHours,
         status,
       ])
-    ).toEqual(
-      subjects.flatMap((id) => [
-        [id, 72, "scheduled"],
-        [id, 24, "scheduled"],
-      ])
-    );
+    ).toEqual([
+      ...subjects.flatMap((id) => [
+        [id, "entry_submission_due", 72, "scheduled"],
+        [id, "entry_submission_due", 24, "scheduled"],
+        ...([NEIGH27, SEED_SCHOOL_SUBMISSIONS_COMPETITION.id].includes(id)
+          ? [
+              [id, "school_round_shortlist_due", 72, "scheduled"],
+              [id, "school_round_shortlist_due", 24, "scheduled"],
+            ]
+          : []),
+      ]),
+      [
+        "01938a00-0000-7000-8000-000000093033",
+        "artwork_dispatch_due",
+        72,
+        "scheduled",
+      ],
+    ]);
     const due = await h.db
       .select({ availableAt: outbox.availableAt })
       .from(outbox)

@@ -314,6 +314,18 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "to_status",
     "trigger",
   ],
+  physical_artwork: [
+    "id",
+    "competition_id",
+    "status",
+    "requested_at",
+    "dispatch_deadline",
+    "packaging_instructions",
+    "shipping_payer",
+    "facility_address",
+    "dispatched_at",
+    "received_at",
+  ],
   entry_verification: [
     "id",
     "decision",

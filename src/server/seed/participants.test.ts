@@ -79,6 +79,17 @@ describe("the participants seed", () => {
         registrationNumber: "NEIGH27-R-5EEDA1",
         amountDue: null,
       }),
+      expect.objectContaining({
+        competition: {
+          name: "Originals for Animals",
+          slug: "originals-for-animals",
+        },
+        route: "individual",
+        status: "confirmed",
+        participantCode: "FOA-P-265EED01",
+        registrationNumber: "ORIG27-R-5EED04",
+        amountDue: null,
+      }),
     ]);
     expect(ravis).toEqual(
       expect.arrayContaining([

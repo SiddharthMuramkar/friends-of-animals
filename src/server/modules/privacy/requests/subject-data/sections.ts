@@ -39,6 +39,7 @@ import {
   entryFile,
   entryTransition,
   entryVerification,
+  physicalArtwork,
   fileAsset,
   guardian,
   guardianInvitation,
@@ -280,6 +281,11 @@ export const SECTIONS: readonly Section[] = [
     table: entryTransition,
     where: (scope) => sql`${entryTransition.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],
+  },
+  {
+    table: physicalArtwork,
+    where: (scope) => sql`${physicalArtwork.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id", "registration_id"],
   },
   {
     table: entryVerification,

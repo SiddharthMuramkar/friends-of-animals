@@ -1020,6 +1020,17 @@ The individual route: an adult registers and pays for themselves, and a guardian
 - **Pages:** `/participant/register/[slug]`, `/participant/registrations/[id]/pay`, `/participant` (dashboard). **Gated:** minor flows only where `guardianFlowsActive()`.
 - **Tests:** `register-as-individual.test.ts`, `register-minor.test.ts`, `register-while-accepted.pg.test.ts`, `pay-for-my-registration.test.ts`; E2E `78-individual-registration.spec.ts`, `81-minor-registration.spec.ts`.
 
+### physical-artwork
+
+The original work of a digitally verified Entry, requested by a competition manager only where the competition's physical-artwork rule permits it (#93). One immutable Artwork ID per entry; top-N requests are serialized per competition.
+
+- Use cases: `requestPhysicalArtwork` (batch, all-or-nothing), `recordArtworkDispatch` (one or more entries belonging to the same sender), `markArtworkReceived`, and scoped staff and sender read models. A coordinator sends for their school; the participant or verified guardian sends an individual entry. A parcel that arrives without recorded dispatch can be received and is flagged.
+- `domain/status.ts` declares all eight custody statuses; #93 moves requested → dispatched → received, or requested → received. Later verification and the judging readiness check belong to #94.
+- Courier tracking is manual; the request snapshots its packaging instructions, shipping payer, facility address and IST dispatch deadline. The 14-day dispatch window and 72-hour reminder lead are runtime settings. A blank receiving address blocks production requests (HR-40); local/preview uses the explicitly fake sample address. SMS remains off until DLT approval.
+- `artwork.requested` and `artwork.received` notify the responsible sender; a minor's external messages go to verified guardians. The `artwork_dispatch_due` reminder uses the shared reminder registry, re-checking status and cancellation at run time. Each mutation is audited.
+- Pages: `/admin/artwork`, `/admin/artwork/[artworkCode]`, `/institution/artwork`, `/dashboard/artwork`. ORIG27 seed examples show overdue, requested, dispatched and received artwork.
+- Tests: `physical-artwork/domain/*.test.ts`, `artwork.test.ts`, `artwork.pg.test.ts`, preview-seed test and `93-physical-artwork.spec.ts`.
+
 ### payments
 
 Payment batches, Checkout, the gateway webhook, offline payments, payments needing review, and refunds (`refunds/`). Gateway selection: [Payment gateway](#payment-gateway).

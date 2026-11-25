@@ -248,6 +248,12 @@ export const HANDLERS: Handlers = {
       );
     }
   },
+  "reminders.schedule_artwork": async (deps, { payload }) => {
+    await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "physical_artwork", subjectId: payload.artworkId }
+    );
+  },
   // Reminds whoever owes the deadline now (#84). Safe to repeat: each
   // message is claimed under the reminder's id.
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),

@@ -607,6 +607,17 @@
           "subject_id": "Names the account or child's profile that was erased",
           "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
           "profile_ids": "Names every participant profile the erasure covered, for the same reason"
+        },
+        "physical_artwork": {
+          "entry_id": "Links the original artwork to its verified digital entry.",
+          "registration_id": "Identifies the sender's registration.",
+          "institution_registration_id": "Identifies the school responsible for dispatch.",
+          "artwork_code": "Identifies the parcel throughout custody.",
+          "courier_name": "Records the courier used to dispatch the artwork.",
+          "tracking_number": "Tracks the parcel and resolves delivery discrepancies.",
+          "requested_by": "Identifies the staff member who requested the original.",
+          "dispatched_by": "Identifies the sender who recorded dispatch.",
+          "received_by": "Identifies the staff member who recorded receipt."
         }
       }
     },

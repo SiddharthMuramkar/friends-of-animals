@@ -1390,6 +1390,30 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   })("reason_text", "content"),
   actorColumn("entry_verification", "decided_by_user_id", ENTRY_RECORD),
   actorColumn("entry_verification", "resubmitted_by_user_id", ENTRY_RECORD),
+  ...(
+    [
+      "entry_id",
+      "registration_id",
+      "institution_registration_id",
+      "artwork_code",
+      "courier_name",
+      "tracking_number",
+    ] as const
+  ).map((column) =>
+    rowsOf("physical_artwork", {
+      subject: ENTRY_PARTICIPANT,
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(
+      column,
+      column === "courier_name" || column === "tracking_number"
+        ? "content"
+        : "identity"
+    )
+  ),
+  actorColumn("physical_artwork", "requested_by", ENTRY_RECORD),
+  actorColumn("physical_artwork", "dispatched_by", ENTRY_RECORD),
+  actorColumn("physical_artwork", "received_by", ENTRY_RECORD),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",
