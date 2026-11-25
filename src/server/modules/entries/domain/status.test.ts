@@ -35,6 +35,7 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   // back to where it was before the round was decided.
   ["school_shortlisted", "submitted"],
   ["submitted_to_foa", "submitted"],
+  ["sent_back", "submitted"],
   ["not_shortlisted", "processing"],
   ["not_shortlisted", "submitted"],
   ["not_shortlisted", "rejected"],

@@ -7,7 +7,7 @@ const BEFORE_DEADLINE = new Date("2027-02-27T04:30:00.000Z");
 
 function facts(overrides: Partial<ReopenFacts> = {}): ReopenFacts {
   return {
-    competitionInSchoolJudging: true,
+    competitionInJudging: true,
     roundStatus: "finalised",
     shortlistDeadline: DEADLINE,
     now: BEFORE_DEADLINE,
@@ -143,10 +143,10 @@ describe("planReopen", () => {
     });
   });
 
-  it("refuses outside school judging", () => {
-    expect(planReopen(facts({ competitionInSchoolJudging: false }))).toEqual({
+  it("refuses outside judging", () => {
+    expect(planReopen(facts({ competitionInJudging: false }))).toEqual({
       ok: false,
-      blockers: [{ code: "competition_not_in_school_judging" }],
+      blockers: [{ code: "competition_not_in_judging" }],
     });
   });
 
@@ -160,39 +160,37 @@ describe("planReopen", () => {
     }
   );
 
-  it.each(["foa_verified", "sent_back"] as const)(
-    "refuses while an entry of the round is %s",
-    (status) => {
-      const plan = planReopen(
-        facts({
-          entries: [
-            {
-              entryId: "fine",
-              status: "submitted_to_foa",
-              statusBefore: "submitted",
-              hasLiveFile: true,
-            },
-            {
-              entryId: "decided",
-              status,
-              statusBefore: "submitted",
-              hasLiveFile: true,
-            },
-          ],
-        })
-      );
+  it("refuses while an entry of the round is verified", () => {
+    const status = "foa_verified" as const;
+    const plan = planReopen(
+      facts({
+        entries: [
+          {
+            entryId: "fine",
+            status: "submitted_to_foa",
+            statusBefore: "submitted",
+            hasLiveFile: true,
+          },
+          {
+            entryId: "decided",
+            status,
+            statusBefore: "submitted",
+            hasLiveFile: true,
+          },
+        ],
+      })
+    );
 
-      expect(plan).toEqual({
-        ok: false,
-        blockers: [{ code: "entry_verified", entryId: "decided" }],
-      });
-    }
-  );
+    expect(plan).toEqual({
+      ok: false,
+      blockers: [{ code: "entry_verified", entryId: "decided" }],
+    });
+  });
 
   it("names every blocker at once", () => {
     const plan = planReopen(
       facts({
-        competitionInSchoolJudging: false,
+        competitionInJudging: false,
         roundStatus: "overdue",
         entries: [
           {
@@ -203,7 +201,7 @@ describe("planReopen", () => {
           },
           {
             entryId: "b",
-            status: "sent_back",
+            status: "foa_verified",
             statusBefore: "submitted",
             hasLiveFile: true,
           },
@@ -214,7 +212,7 @@ describe("planReopen", () => {
     expect(plan).toEqual({
       ok: false,
       blockers: [
-        { code: "competition_not_in_school_judging" },
+        { code: "competition_not_in_judging" },
         { code: "round_not_finished" },
         { code: "entry_verified", entryId: "a" },
         { code: "entry_verified", entryId: "b" },

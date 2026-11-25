@@ -39,7 +39,9 @@ const symbols = (n: number) =>
  * institution's.
  */
 export const test = base.extend<{
-  seedFinalisableRound: () => Promise<FinalisableRound>;
+  seedFinalisableRound: (options?: {
+    overdue?: boolean;
+  }) => Promise<FinalisableRound>;
 }>({
   seedFinalisableRound: async ({ baseURL, seedVerifiedInstitution }, use) => {
     const url = localSeedUrl(baseURL);
@@ -53,7 +55,7 @@ export const test = base.extend<{
     const db = drizzle({ client, schema });
     const registrationIds: string[] = [];
     try {
-      await use(async () => {
+      await use(async ({ overdue = false } = {}) => {
         const school = await seedVerifiedInstitution({
           adminName: "Round Coordinator",
           principalEmail: `principal-${randomUUID()}@example.test`,
@@ -106,7 +108,7 @@ export const test = base.extend<{
           id: roundId,
           competitionId,
           institutionRegistrationId: registrationId,
-          status: "open",
+          status: overdue ? "overdue" : "open",
           openedAt: now,
           createdAt: now,
           updatedAt: now,
@@ -119,6 +121,17 @@ export const test = base.extend<{
           actorKind: "system",
           at: now,
         });
+        if (overdue)
+          await db
+            .insert(schema.schoolRoundTransition)
+            .values({
+              id: uuidv7(now),
+              roundId,
+              fromStatus: "open",
+              toStatus: "overdue",
+              actorKind: "system",
+              at: now,
+            });
         await db.insert(schema.schoolRoundPanelMember).values({
           id: uuidv7(now),
           roundId,

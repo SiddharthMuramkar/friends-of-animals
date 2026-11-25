@@ -54,6 +54,8 @@ describe("the settings catalogue", () => {
       "adoption.minAdopterAgeYears": 18,
       "reminders.entrySubmissionDueFirstHours": 72,
       "reminders.entrySubmissionDueSecondHours": 24,
+      "reminders.schoolRoundShortlistDueFirstHours": 72,
+      "reminders.schoolRoundShortlistDueSecondHours": 24,
       "retention.enforce": false,
       "retention.expiredVerificationsDays": 1,
       "retention.expiredSessionsDays": 30,

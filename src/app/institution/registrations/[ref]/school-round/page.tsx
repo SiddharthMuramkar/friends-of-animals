@@ -164,7 +164,15 @@ async function RoundView({
           {t("reference", { reference: round.reference })}
         </p>
         <p className="mt-3 flex flex-wrap items-center gap-2">
-          <Chip tone={round.status === "open" ? "marigold" : "green"}>
+          <Chip
+            tone={
+              round.status === "overdue"
+                ? "pink"
+                : round.status === "open"
+                  ? "marigold"
+                  : "green"
+            }
+          >
             {t(`status.${round.status}`)}
           </Chip>
         </p>
@@ -192,8 +200,11 @@ async function RoundView({
         />
       ) : null}
 
+      {round.status === "overdue" ? (
+        <p className="text-ink font-semibold">{t("overdueNotice")}</p>
+      ) : null}
       <PanelSection round={round} hidden={hidden} />
-      {round.finalised ? (
+      {round.finalised || round.closed ? (
         <ResultSection round={round} />
       ) : (
         <>
@@ -574,6 +585,14 @@ async function ResultSection({ round }: { round: SchoolRoundView }) {
             : finalise("finalisedByFormer", {
                 date: format.dateTime(finalised.at, "longDateTime"),
               })}
+        </p>
+      ) : null}
+      {round.closed ? (
+        <p className="mt-3 text-ink">
+          {t("closed", {
+            date: format.dateTime(round.closed.at, "longDateTime"),
+            reason: round.closed.reason,
+          })}
         </p>
       ) : null}
       {all.every((each) => !each.picked) ? (

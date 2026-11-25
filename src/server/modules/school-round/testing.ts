@@ -227,5 +227,5 @@ export async function emailOf(h: Harness, userId: string): Promise<string> {
     .select({ email: user.email })
     .from(user)
     .where(eq(user.id, userId));
-  return row!.email;
+  return row!.email!;
 }

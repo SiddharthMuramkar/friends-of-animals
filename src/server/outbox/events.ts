@@ -375,13 +375,23 @@ export type DomainEvent =
       /** An entry was shortlisted in a finalised school round (#89). */
       type: "entry.school_shortlisted";
       aggregate: { type: "entry"; id: string };
-      payload: { entryId: string; registrationId: string; roundId: string };
+      payload: {
+        entryId: string;
+        registrationId: string;
+        roundId: string;
+        position?: number | null;
+      };
     }
   | {
       /** An entry was not shortlisted in a finalised school round (#89). */
       type: "entry.not_shortlisted";
       aggregate: { type: "entry"; id: string };
-      payload: { entryId: string; registrationId: string; roundId: string };
+      payload: {
+        entryId: string;
+        registrationId: string;
+        roundId: string;
+        position?: number | null;
+      };
     }
   | {
       /** An institution registered for a competition (#75). */
@@ -660,6 +670,7 @@ const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
   entryId: z.uuid(),
   registrationId: z.uuid(),
   roundId: z.uuid(),
+  position: z.int().min(1).nullable().optional(),
 });
 
 const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });

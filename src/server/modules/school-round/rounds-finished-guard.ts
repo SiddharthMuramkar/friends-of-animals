@@ -9,25 +9,38 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
+import { eq } from "drizzle-orm";
+import { schoolRound } from "../../db/schema";
 import type { CompetitionTransitionGuard } from "../competitions/domain/transition-block";
 import { checkSchoolRoundsFinished } from "./domain/deadline";
 import { confirmedRegistrations } from "./store";
 
-export const foaJudgingNeedsFinishedSchoolRounds: CompetitionTransitionGuard =
-  {
-    from: "school_judging",
-    to: "foa_judging",
-    retryOn: ["school_round.shortlist_finalised", "school_round.closed_on_behalf"],
-    async check(db, guarded) {
-      const schools = await confirmedRegistrations(db, guarded.id);
-      const verdict = checkSchoolRoundsFinished(
-        schools.map((school) => ({
-          institutionRegistrationId: school.id,
-          roundStatus: school.roundStatus,
-        }))
-      );
-      return verdict.pass
-        ? null
-        : { reason: verdict.reason, ...verdict.details };
-    },
-  };
+export const foaJudgingNeedsFinishedSchoolRounds: CompetitionTransitionGuard = {
+  from: "school_judging",
+  to: "foa_judging",
+  retryOn: [
+    "school_round.shortlist_finalised",
+    "school_round.closed_on_behalf",
+  ],
+  async check(db, guarded) {
+    const confirmed = await confirmedRegistrations(db, guarded.id);
+    const rounds = await db
+      .select({
+        id: schoolRound.institutionRegistrationId,
+        roundStatus: schoolRound.status,
+      })
+      .from(schoolRound)
+      .where(eq(schoolRound.competitionId, guarded.id));
+    const schools = [
+      ...rounds,
+      ...confirmed.filter((school) => school.roundStatus === null),
+    ];
+    const verdict = checkSchoolRoundsFinished(
+      schools.map((school) => ({
+        institutionRegistrationId: school.id,
+        roundStatus: school.roundStatus,
+      }))
+    );
+    return verdict.pass ? null : { reason: verdict.reason, ...verdict.details };
+  },
+};

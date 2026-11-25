@@ -220,6 +220,8 @@ export const SETTINGS = {
   // and the hourly reminder sync plans any new time.
   "reminders.entrySubmissionDueFirstHours": reminderHours(72),
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
+  "reminders.schoolRoundShortlistDueFirstHours": reminderHours(72),
+  "reminders.schoolRoundShortlistDueSecondHours": reminderHours(24),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel

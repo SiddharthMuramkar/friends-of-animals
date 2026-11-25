@@ -571,6 +571,7 @@ async function schoolJudgingBlockOf(
     );
   if (!row) return null;
   const block = TRANSITION_BLOCK.parse({ ...row.details, reason: row.reason });
+  if (block.reason !== "rubrics_missing") return null;
   return { blockedAt: row.blockedAt, missing: block.missingDisciplines };
 }
 

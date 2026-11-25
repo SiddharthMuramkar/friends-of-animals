@@ -134,6 +134,7 @@ describe("the shortlist deadline", () => {
     ]);
     expect(toCoordinator[0]!.text).toContain("Test School");
     expect(toCoordinator[0]!.text).toContain("still finalise");
+    if (manager.kind !== "user") throw new Error("Expected a manager");
     const managerEmail = await emailOf(h, manager.userId);
     const toManager = sent.filter((m) => m.to === managerEmail);
     expect(toManager).toHaveLength(1);
@@ -215,5 +216,36 @@ describe("the shortlist deadline", () => {
         details: { missing: 0, open: 0, overdue: 1 },
       },
     ]);
+  });
+});
+
+describe("reminding school rounds before the shortlist deadline", () => {
+  it("reminds the coordinator who owes a shortlist, and not once the round is finalised", async () => {
+    const h = await createHarness();
+    const school = await schoolInJudging(h);
+    await h.as({ kind: "system", process: "worker" }).scheduleReminders({
+      subjectType: "competition",
+      subjectId: school.competition.id,
+    });
+    const before = h.email.sent.length;
+    h.clock.advance({ days: 7 });
+    await h.drain();
+    const address = await emailOf(h, school.coordinator.userId);
+    const reminder = h.email.sent
+      .slice(before)
+      .filter((m) => m.subject.startsWith("Reminder: school shortlists"));
+    expect(reminder.map((m) => m.to)).toEqual([address]);
+    await readyRound(h, school);
+    await h
+      .as(school.coordinator.actor)
+      .finaliseSchoolRound({ ...school.ref, judgingAttested: true });
+    const after = h.email.sent.length;
+    h.clock.advance({ days: 1 });
+    await h.drain();
+    expect(
+      h.email.sent
+        .slice(after)
+        .filter((m) => m.subject.startsWith("Reminder: school shortlists"))
+    ).toEqual([]);
   });
 });

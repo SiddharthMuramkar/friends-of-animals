@@ -19,6 +19,7 @@ import {
   nextRoundRowId,
   recordRoundTransition,
 } from "./store";
+import { retryBlockedMoves } from "../competitions/advance-status";
 import { markRoundsOverdue, shortlistDeadlineOf } from "./overdue";
 
 const WORKER: Actor = { kind: "system", process: "worker" };
@@ -29,7 +30,7 @@ export async function openSchoolRounds(
   { competitionId }: { competitionId: string },
   actor: Actor = WORKER
 ): Promise<number> {
-  return deps.db.transaction(async (tx) => {
+  const opened = await deps.db.transaction(async (tx) => {
     const [held] = await tx
       .select({ status: competition.status })
       .from(competition)
@@ -70,4 +71,6 @@ export async function openSchoolRounds(
     }
     return opened;
   });
+  if (opened > 0) await retryBlockedMoves(deps, { competitionId });
+  return opened;
 }

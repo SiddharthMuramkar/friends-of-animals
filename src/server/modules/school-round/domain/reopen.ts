@@ -1,7 +1,7 @@
 // What reopening a decided school round does, decided without touching the
 // database. A competition manager reopens a round the school finalised, or
-// one closed on its behalf, while the competition is still in school
-// judging and before FOA has decided on any of its entries. Every entry
+// one closed on its behalf, while the competition is still in judging
+// and before FOA has verified any of its entries. Every entry
 // goes back to where it was before the round was decided; the saved picks
 // stay as the school's draft, and families hear nothing until the round is
 // decided again.
@@ -25,13 +25,14 @@ const DECIDED: readonly EntryStatus[] = [
   "school_shortlisted",
   "not_shortlisted",
   "submitted_to_foa",
+  "sent_back",
 ];
 
-/** FOA has decided on the entry: the round's outcome is relied on. */
-const VERIFIED: readonly EntryStatus[] = ["foa_verified", "sent_back"];
+/** FOA verified the entry: the round's outcome is relied on. */
+const VERIFIED: readonly EntryStatus[] = ["foa_verified"];
 
 export type ReopenFacts = {
-  competitionInSchoolJudging: boolean;
+  competitionInJudging: boolean;
   roundStatus: RoundStatus;
   /** The competition's shortlist deadline, if it has one. */
   shortlistDeadline: Date | null;
@@ -49,11 +50,11 @@ export type ReopenFacts = {
 
 /** Why the round can't be reopened. */
 export type ReopenBlocker =
-  /** Reopening is only possible during school judging. */
-  | { code: "competition_not_in_school_judging" }
+  /** Reopening is only possible during school or FOA judging. */
+  | { code: "competition_not_in_judging" }
   /** The round is still open or overdue: there is nothing to reopen. */
   | { code: "round_not_finished" }
-  /** FOA has verified the entry or sent it back. */
+  /** FOA has verified the entry. */
   | { code: "entry_verified"; entryId: string };
 
 /** One entry's move back to where it was before the round was decided. */
@@ -94,8 +95,8 @@ function revertTarget(entry: ReopenFacts["entries"][number]): EntryStatus {
  */
 export function planReopen(facts: ReopenFacts): ReopenPlan {
   const blockers: ReopenBlocker[] = [];
-  if (!facts.competitionInSchoolJudging) {
-    blockers.push({ code: "competition_not_in_school_judging" });
+  if (!facts.competitionInJudging) {
+    blockers.push({ code: "competition_not_in_judging" });
   }
   if (facts.roundStatus === "open" || facts.roundStatus === "overdue") {
     blockers.push({ code: "round_not_finished" });

@@ -105,13 +105,12 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
     to: "submitted",
     trigger: "school_round_reopened",
   },
-  ...(["processing", "submitted", "rejected", "failed"] as const).map(
-    (to) => ({
-      from: "not_shortlisted" as const,
-      to,
-      trigger: "school_round_reopened" as const,
-    })
-  ),
+  { from: "sent_back", to: "submitted", trigger: "school_round_reopened" },
+  ...(["processing", "submitted", "rejected", "failed"] as const).map((to) => ({
+    from: "not_shortlisted" as const,
+    to,
+    trigger: "school_round_reopened" as const,
+  })),
 ];
 
 export type EntryFileTrigger =
