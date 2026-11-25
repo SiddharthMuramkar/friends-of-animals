@@ -16,7 +16,9 @@
       "privacyRequests": "Privacy requests",
       "judging": "Judging rounds",
       "auctions": "Auctions",
-      "community": "Community"
+      "community": "Community",
+      "home": "Home",
+      "reports": "Reports"
     },
     "loading": "Loading…",
     "denied": {

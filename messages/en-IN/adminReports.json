@@ -1,0 +1,31 @@
+{
+  "adminReports": {
+    "title": "Competition reports",
+    "lead": "Participation and fee totals for each competition your roles cover.",
+    "empty": "No competitions to report on.",
+    "back": "Back to competition reports",
+    "download": "Download CSV",
+    "downloadHint": "The CSV contains aggregate totals only, not participant details.",
+    "reportTitle": "{name} — competition report",
+    "metricsTitle": "Participation by route and age group",
+    "metricsHint": "Registrations are confirmed registrations; entries have live work; shortlisted counts current school picks; verified entries have passed FOA verification; certificates are currently issued, whether or not their PDFs are ready.",
+    "notApplicable": "— means not applicable: the individual route has no school shortlist.",
+    "route": "Route",
+    "ageGroup": "Age group",
+    "institution": "School route",
+    "individual": "Individual route",
+    "allRoutes": "All routes",
+    "allAges": "All age groups",
+    "registrations": "Registrations",
+    "entries": "Entries",
+    "shortlisted": "Shortlisted",
+    "verified": "Verified",
+    "certificates": "Certificates",
+    "feesTitle": "Registration fees (INR)",
+    "feesHint": "Accepted fee payments and completed fee refunds; duplicate payment returns are not fee refunds. Pending payments and refunds are excluded.",
+    "captured": "Captured",
+    "refunded": "Refunded",
+    "net": "Net",
+    "noAgeGroups": "No age groups are set for this competition."
+  }
+}

@@ -11,6 +11,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_HOME,
   ADMIN_ADOPTIONS,
   ADMIN_AUCTIONS,
   ADMIN_JUDGING_ROUNDS,
@@ -162,7 +163,7 @@ async function Areas() {
               title={name(link)}
               className="min-w-0 wrap-anywhere"
             />
-            {link.area !== "judge" ? (
+            {link.area !== "judge" && link.area !== "admin" ? (
               <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
             ) : null}
           </div>
@@ -214,9 +215,10 @@ async function AreaBody({
   auction: boolean;
   verifier: boolean;
 }) {
-  const [t, registration] = await Promise.all([
+  const [t, registration, adminHome] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("institutionRegistration.competitions"),
+    getTranslations("adminHome"),
   ]);
   const links = (items: { href: string; label: string }[]): ReactNode => (
     <ul className="mt-3 flex flex-col">
@@ -262,6 +264,7 @@ async function AreaBody({
         : null}
       {area === "admin"
         ? links([
+            { href: ADMIN_HOME, label: adminHome("title") },
             { href: APP_ROUTES.adminRoles, label: t("admin.roles") },
             { href: APP_ROUTES.adminAudit, label: t("admin.audit") },
             ...(competitions
