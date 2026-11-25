@@ -20,66 +20,104 @@ const monthNames = new Intl.DateTimeFormat("en-IN", {
   timeZone: "Asia/Kolkata",
 });
 
-test("lets visitors browse all twelve illustrated kindness guides", async ({
-  page,
-  isMobile,
-}) => {
-  await page.goto("/awareness");
+for (const [path, cardId] of [
+  ["/awareness", "now"],
+  ["/", "home-seasonal"],
+] as const) {
+  test(`${path} lets visitors browse all twelve illustrated kindness guides`, async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto(path);
 
-  const section = page.locator("#month");
-  const card = section.getByRole("article");
-  const currentMonth = monthNames.format(new Date());
-  await expect(
-    card.getByRole("radio", { name: currentMonth, exact: true })
-  ).toBeChecked();
-
-  const artDescriptions = new Set<string | null>();
-  for (const [name, title] of guides) {
-    const radio = card.getByRole("radio", { name, exact: true });
-    if (isMobile) {
-      await radio.tap();
-    } else {
-      await radio.click();
-    }
-
-    await expect(radio).toBeChecked();
-    await expect(card.getByRole("heading", { name: title })).toBeVisible();
-    const illustration = card.getByRole("img", { name: /^AI illustration:/ });
-    await expect(illustration).toBeVisible();
-    artDescriptions.add(await illustration.getAttribute("alt"));
-  }
-  expect(artDescriptions.size).toBe(12);
-
-  if (!isMobile) {
-    await card
-      .getByRole("radio", { name: "December", exact: true })
-      .press("ArrowRight");
+    const card = page.locator(`#${cardId}`);
+    const currentMonth = monthNames.format(new Date());
     await expect(
-      card.getByRole("radio", { name: "January", exact: true })
+      card.getByText("Choose a month", { exact: true })
+    ).toBeVisible();
+    await expect(card.getByRole("radio")).toHaveCount(12);
+    await expect(
+      card.getByRole("radio", { name: currentMonth, exact: true })
     ).toBeChecked();
-  } else {
-    await card.getByRole("radio", { name: "January", exact: true }).tap();
-  }
-  await expect(
-    card.getByRole("heading", { name: /Kite season/ })
-  ).toBeVisible();
-  await card.getByText("For grown-ups", { exact: true }).click();
-  await expect(
-    card.getByRole("link", {
-      name: "AWBI letter on harmful kite threads, 11 Jan 2026",
-    })
-  ).toBeVisible();
 
-  await card.getByRole("radio", { name: "November", exact: true }).click();
-  await expect(
-    card.getByRole("heading", { name: /Puppy season/ })
-  ).toBeVisible();
-  await expect(
-    card.getByText("Do not touch the puppies or go near them.")
-  ).toBeVisible();
-  await expect(
-    card.getByRole("link", { name: /AWBI letter on harmful kite threads/ })
-  ).toHaveCount(0);
+    const artDescriptions = new Set<string | null>();
+    for (const [name, title] of guides) {
+      const radio = card.getByRole("radio", { name, exact: true });
+      if (isMobile) {
+        await radio.tap();
+      } else {
+        await radio.click();
+      }
+
+      await expect(radio).toBeChecked();
+      await expect(radio.locator("..").locator("svg")).toBeVisible();
+      await expect(card.locator("label svg:visible")).toHaveCount(1);
+      await expect(card.getByRole("heading", { name: title })).toBeVisible();
+      const illustration = card.getByRole("img", { name: /^AI illustration:/ });
+      await expect(illustration).toBeVisible();
+      artDescriptions.add(await illustration.getAttribute("alt"));
+    }
+    expect(artDescriptions.size).toBe(12);
+
+    if (!isMobile) {
+      await card
+        .getByRole("radio", { name: "December", exact: true })
+        .press("ArrowRight");
+      await expect(
+        card.getByRole("radio", { name: "January", exact: true })
+      ).toBeChecked();
+      await expect(
+        card.getByRole("radio", { name: "January", exact: true })
+      ).toBeFocused();
+    } else {
+      await card.getByRole("radio", { name: "January", exact: true }).tap();
+    }
+    await expect(
+      card.getByRole("heading", { name: /Kite season/ })
+    ).toBeVisible();
+    await card.getByText("For grown-ups", { exact: true }).click();
+    await expect(
+      card.getByRole("link", {
+        name: "AWBI letter on harmful kite threads, 11 Jan 2026",
+      })
+    ).toBeVisible();
+
+    await card.getByRole("radio", { name: "November", exact: true }).click();
+    await expect(
+      card.getByRole("heading", { name: /Puppy season/ })
+    ).toBeVisible();
+    await expect(
+      card.getByText("Do not touch the puppies or go near them.")
+    ).toBeVisible();
+    await expect(
+      card.getByRole("link", { name: /AWBI letter on harmful kite threads/ })
+    ).toHaveCount(0);
+    if (path === "/") {
+      await expect(
+        page.getByRole("link", { name: "More ways to help animals" })
+      ).toHaveAttribute("href", "/awareness");
+    }
+  });
+}
+
+test("the homepage calendar fits a compact phone with usable month controls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/");
+  const card = page.locator("#home-seasonal");
+  await expect(card).toBeVisible();
+  for (const radio of await card.getByRole("radio").all()) {
+    const box = await radio.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(48);
+    expect(box?.height).toBeGreaterThanOrEqual(48);
+  }
+  await expect
+    .poll(() => card.evaluate((el) => el.scrollWidth - el.clientWidth))
+    .toBeLessThanOrEqual(0);
+  await expect(card.getByText("Jan", { exact: true })).toBeVisible();
+  await expect(card.getByText("Jun", { exact: true })).toBeVisible();
+  await expect(card.getByText("Jul", { exact: true })).toBeVisible();
 });
 
 test("home gallery identifies each of its four illustrated prompts", async ({
