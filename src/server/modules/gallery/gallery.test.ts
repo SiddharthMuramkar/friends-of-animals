@@ -13,6 +13,8 @@ import {
 import { desc, eq, like } from "drizzle-orm";
 import { expect, it } from "vitest";
 import { createHarness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
+import { seedGallery, SEED_GALLERY } from "../../seed/gallery";
 import { consentCompetition } from "../consent/testing";
 import { confirmedChild, submittedImage } from "../entries/testing";
 import { signedInWith, managerOf } from "../judging/testing";
@@ -323,8 +325,8 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
 
 it("guards public reports and keeps a durable overdue purge visible without exposing the artist", async () => {
   const h = await createHarness();
-  await h.seed.preview();
-  const { SEED_GALLERY } = await import("../../seed/gallery");
+  await seedAuctionResults(h.deps);
+  await seedGallery(h.deps);
   const itemId = SEED_GALLERY.items[0];
   const actor = h.visitor();
   const visitor = h.as(actor);
