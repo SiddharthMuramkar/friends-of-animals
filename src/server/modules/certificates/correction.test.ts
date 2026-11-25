@@ -1,6 +1,8 @@
 import { expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { createHarness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
+import { seedCertificates } from "../../seed/certificates";
 import { auditLog, certificate, resultRelease } from "../../db/schema";
 import { SEED_RESULTS } from "../../seed/results";
 import { SEED_ACCOUNTS } from "../../seed/accounts";
@@ -10,7 +12,9 @@ import { managerOf, signedInWith } from "../judging/testing";
 const worker = { kind: "system", process: "worker" } as const;
 it("requires a reason and competition-manager authority; revocation and reissue end the old number permanently", async () => {
   const h = await createHarness();
-  await h.seed.preview();
+  // Issue the actual published competition awards, without unrelated preview jobs.
+  await seedAuctionResults(h.deps);
+  await seedCertificates(h.deps);
   await h.drain();
   const manager = await signedInWith(h, managerOf(SEED_RESULTS.competitionId));
   const other = await signedInWith(
