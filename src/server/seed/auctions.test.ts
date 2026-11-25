@@ -19,6 +19,8 @@ describe("preview auction lots", () => {
           { lotCode: SEED_AUCTIONS.scheduled, status: "scheduled" },
           { lotCode: SEED_AUCTIONS.unsold, status: "unsold" },
           { lotCode: SEED_AUCTIONS.cancelled, status: "cancelled" },
+          { lotCode: SEED_AUCTIONS.paymentOffer, status: "awaiting_payment" },
+          { lotCode: SEED_AUCTIONS.paid, status: "sold" },
         ].map((x) => expect.objectContaining(x))
       )
     );
@@ -47,6 +49,13 @@ describe("preview auction lots", () => {
     expect(publicJson).not.toContain("reservePricePaise");
     expect(publicJson).not.toContain(SEED_ACCOUNTS.members[1].id);
     expect(publicJson).not.toContain(SEED_ACCOUNTS.members[1].name);
+    const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
+    expect(
+      await buyer.getMyAuctionOffer({ lotCode: SEED_AUCTIONS.paymentOffer })
+    ).toMatchObject({ status: "open" });
+    expect(
+      await buyer.getMyAuctionOffer({ lotCode: SEED_AUCTIONS.paid })
+    ).toMatchObject({ status: "paid", deliveryStatus: "receipt_confirmed" });
     await h.seed.preview();
     expect(await visitor.getLot({ lotCode: SEED_AUCTIONS.open })).toMatchObject(
       { currentBidPaise: SEED_AUCTIONS.openBidPaise }

@@ -112,7 +112,11 @@ async function Details({
         <div className={row}>
           <dt className="font-semibold">{t("case.details.competition")}</dt>
           <dd className="wrap-anywhere">
-            {reviewCase.competitionName ?? t("case.details.donation")}
+            {reviewCase.purpose === "auction_sale"
+              ? t("case.details.auction", {
+                  lotCode: reviewCase.auctionLotCode ?? "",
+                })
+              : (reviewCase.competitionName ?? t("case.details.donation"))}
           </dd>
         </div>
         <div className={row}>
@@ -165,6 +169,8 @@ async function Details({
           >
             {t("case.details.donationLink")}
           </SiteLink>
+        ) : reviewCase.purpose === "auction_sale" ? (
+          <span>{t("case.details.auctionHelp")}</span>
         ) : (
           <SiteLink
             href={adminPaymentBatchPath(reviewCase.batchId)}

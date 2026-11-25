@@ -515,3 +515,22 @@ describe("proxy: the page's path, for the staff gate (#60)", () => {
     );
   });
 });
+
+describe("private auction checkout link", () => {
+  it("carries only the exact local auction return through sign-in", async () => {
+    const response = await proxy(request("/account/auctions/LOT-27-5EED5"));
+    expect(response.headers.get("location")).toBe(
+      "https://foa.example.test/sign-in?next=%2Faccount%2Fauctions%2FLOT-27-5EED5"
+    );
+    expect(
+      (await proxy(request("/account/auctions/not-an-offer"))).headers.get(
+        "location"
+      )
+    ).toBe("https://foa.example.test/sign-in");
+    expect(
+      pageHeaders(
+        await proxy(request("/account/auctions/LOT-27-5EED5", SESSION))
+      ).get("x-nonce")
+    ).toEqual(expect.any(String));
+  });
+});

@@ -573,7 +573,10 @@ export async function settleRefunded(
     aggregate: { type: "refund", id: row.id },
     payload: {
       refundId: row.id,
-      payerUserId: fees ? (batch.payerUserId ?? null) : null,
+      payerUserId:
+        fees || batch?.purpose === "auction_sale"
+          ? (batch.payerUserId ?? null)
+          : null,
     },
   });
 }

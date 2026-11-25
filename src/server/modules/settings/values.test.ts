@@ -181,6 +181,8 @@ describe("resolveAllSettings", () => {
       ["auctions.enabled", false, "default"],
       ["auctions.minIncrementPaise", 5000, "default"],
       ["auctions.antiSnipingWindowMinutes", 5, "default"],
+      ["auctions.paymentWindowHours", 72, "default"],
+      ["auctions.maxPaymentOffers", 3, "default"],
       ["artwork.returnWindowDays", 30, "default"],
       ["artwork.dispatchReminderLeadHours", 72, "default"],
       [

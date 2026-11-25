@@ -19,6 +19,7 @@ import {
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
+import { signInNext } from "@/lib/sign-in-next";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
@@ -244,7 +245,14 @@ export function createProxy({
     // straight to sign in. With one, the page checks the session itself.
     if (isSignedInPath(pathname)) {
       if (!hasSessionCookie(request.headers)) {
-        return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+        const signIn = new URL(ROUTES.signIn.path, request.url);
+        // A winning offer link must return the authenticated buyer to the
+        // exact private checkout, not the generic account dashboard.
+        if (pathname.startsWith("/account/auctions")) {
+          const next = signInNext(pathname);
+          if (next) signIn.searchParams.set("next", next);
+        }
+        return NextResponse.redirect(signIn);
       }
       if (!isSignedInPage(pathname)) return missingSignedInPage(request);
       // The individual register form names a public competition (#78):

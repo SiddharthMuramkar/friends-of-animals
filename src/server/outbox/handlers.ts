@@ -1,3 +1,5 @@
+import { sendSaleFamilyLetter } from "../modules/auctions/messages";
+import { expireAuctionOffer } from "../modules/auctions/offers";
 import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 // What each handler named in ./events.ts SUBSCRIBERS does with a delivery.
 // A handler may run more than once for one delivery (a worker that dies
@@ -305,6 +307,12 @@ export const HANDLERS: Handlers = {
     runOpenLot(deps, payload).then(() => undefined),
   "auctions.close_lot": (deps, { payload }) =>
     runCloseLot(deps, payload).then(() => undefined),
+  "auctions.send_family_letter": sendSaleFamilyLetter,
+  "auctions.expire_offer": (deps, { payload }) =>
+    expireAuctionOffer(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    ).then(() => undefined),
   "auctions.settle_closed": (deps, { payload }) =>
     runSettleClosedLot(deps, payload).then(() => undefined),
   "auctions.withdraw_consent": (deps, { payload }) =>

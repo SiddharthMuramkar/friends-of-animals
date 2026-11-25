@@ -243,6 +243,7 @@ async function AreaBody({
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
             { href: DASHBOARD_DONATIONS, label: t("member.donations") },
+            { href: APP_ROUTES.accountAuctions, label: t("member.auctions") },
           ])
         : null}
       {area === "judge"

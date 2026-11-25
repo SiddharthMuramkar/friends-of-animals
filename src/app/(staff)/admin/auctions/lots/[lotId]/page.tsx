@@ -9,7 +9,11 @@ import { ADMIN_AUCTIONS, adminAuctionLotPath } from "@/lib/app-routes";
 import { as, currentActor } from "@/server/app";
 import { AdminDenied } from "../../../_components/admin-denied";
 import { adminCall } from "../../../_lib/boundary";
-import { scheduleAuctionLot, cancelAuctionLot } from "../../_lib/actions";
+import {
+  scheduleAuctionLot,
+  cancelAuctionLot,
+  moveAuctionDelivery,
+} from "../../_lib/actions";
 import { formatPaise } from "@/app/auctions/_lot-details";
 
 export const instant = false;
@@ -39,6 +43,11 @@ export default async function Page({
   );
   if (loaded.ok && !loaded.value) notFound();
   const lot = loaded.ok ? loaded.value : null;
+  const purchase =
+    lot?.status === "sold"
+      ? await as(actor).getAdminAuctionOffer({ lotId })
+      : null;
+  const saleWords = await getTranslations("auctions.purchase");
   const when = (value: Date) =>
     format.dateTime(value, {
       dateStyle: "medium",
@@ -109,6 +118,121 @@ export default async function Page({
               </div>
             </dl>
           </article>
+          {purchase?.deliveryStatus ? (
+            <section
+              aria-labelledby="delivery-heading"
+              className="mt-6 max-w-2xl space-y-4 rounded-3xl border-2 border-border bg-surface p-5"
+            >
+              <h2 id="delivery-heading" className="text-h3 text-ink">
+                {saleWords("delivery")}
+              </h2>
+              <p className="font-semibold text-ink">
+                {saleWords(`statuses.${purchase.deliveryStatus}`)}
+              </p>
+              <p>
+                {saleWords("amount")}: {formatPaise(purchase.amountPaise)}
+              </p>
+              <dl>
+                <dt className="font-semibold">{saleWords("addressTitle")}</dt>
+                <dd className="wrap-anywhere">
+                  {purchase.address
+                    ? [
+                        purchase.address.recipientName,
+                        purchase.address.line1,
+                        purchase.address.line2,
+                        purchase.address.city,
+                        purchase.address.state,
+                        purchase.address.pincode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
+                    : saleWords("missingAddress")}
+                </dd>
+              </dl>
+              {purchase.courier ? (
+                <p>
+                  {saleWords("courier")}: {purchase.courier}
+                </p>
+              ) : null}
+              {purchase.trackingNumber ? (
+                <p className="wrap-anywhere">
+                  {saleWords("trackingNumber")}: {purchase.trackingNumber}
+                </p>
+              ) : null}
+              {purchase.deliveryStatus === "pending_dispatch" ||
+              purchase.deliveryStatus === "dispatched" ? (
+                <form
+                  action={moveAuctionDelivery.bind(
+                    null,
+                    lot.id,
+                    purchase.id,
+                    purchase.deliveryStatus === "pending_dispatch"
+                      ? "dispatch"
+                      : "update_tracking"
+                  )}
+                  className="space-y-3"
+                  aria-labelledby="tracking-title"
+                >
+                  <h3 id="tracking-title" className="font-semibold">
+                    {saleWords("trackingNumber")}
+                  </h3>
+                  <label htmlFor="courier" className="block">
+                    {saleWords("courier")}
+                  </label>
+                  <input
+                    id="courier"
+                    name="courier"
+                    className={inputStyles}
+                    required
+                    maxLength={100}
+                    defaultValue={purchase.courier ?? ""}
+                  />
+                  <label htmlFor="trackingNumber" className="block">
+                    {saleWords("trackingNumber")}
+                  </label>
+                  <input
+                    id="trackingNumber"
+                    name="trackingNumber"
+                    className={inputStyles}
+                    required
+                    maxLength={100}
+                    defaultValue={purchase.trackingNumber ?? ""}
+                  />
+                  <button type="submit" className={buttonStyles()}>
+                    {saleWords(
+                      purchase.deliveryStatus === "pending_dispatch"
+                        ? "dispatch"
+                        : "updateTracking"
+                    )}
+                  </button>
+                </form>
+              ) : null}
+              {purchase.deliveryStatus === "dispatched" ||
+              purchase.deliveryStatus === "delivered" ? (
+                <form
+                  action={moveAuctionDelivery.bind(
+                    null,
+                    lot.id,
+                    purchase.id,
+                    purchase.deliveryStatus === "dispatched"
+                      ? "mark_delivered"
+                      : "record_receipt"
+                  )}
+                >
+                  <button
+                    type="submit"
+                    className={buttonStyles({ variant: "secondary" })}
+                  >
+                    {saleWords(
+                      purchase.deliveryStatus === "dispatched"
+                        ? "markDelivered"
+                        : "recordReceipt"
+                    )}
+                  </button>
+                </form>
+              ) : null}
+            </section>
+          ) : null}
           {lot.status === "draft" && lot.creatorCredit ? (
             <form
               action={scheduleAuctionLot.bind(null, lot.id)}

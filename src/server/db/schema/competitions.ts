@@ -107,6 +107,9 @@ export const competition = pgTable(
     physicalArtworkTopN: integer("physical_artwork_top_n"),
     publicDisplay: boolean("public_display").notNull().default(false),
     auctionPermitted: boolean("auction_permitted").notNull().default(false),
+    auctionCreatorShareBps: integer("auction_creator_share_bps")
+      .notNull()
+      .default(0),
     status: competitionStatusEnum().notNull().default("draft"),
     publishedAt: timestamptz("published_at"),
     /** When a super admin cancelled it (#80); null unless cancelled. */
@@ -122,6 +125,10 @@ export const competition = pgTable(
     updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
+    check(
+      "competition_auction_creator_share",
+      sql`${table.auctionCreatorShareBps} BETWEEN 0 AND 10000`
+    ),
     unique("competition_code_unique").on(table.code),
     unique("competition_slug_unique").on(table.slug),
     check(

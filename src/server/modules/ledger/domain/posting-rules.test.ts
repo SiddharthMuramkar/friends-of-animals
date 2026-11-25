@@ -180,6 +180,8 @@ describe("ledger source types", () => {
       "donation",
       "foreign_donation",
       "recurring_after_cancel",
+      "auction_sale",
+      "auction_review",
       "manual",
       "reversal",
     ]);

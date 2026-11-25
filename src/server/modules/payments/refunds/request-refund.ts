@@ -137,6 +137,9 @@ export async function requestRefund(
         // One request at a time per batch, so two can't list one student.
         const batch = await lockBatch(tx, batchId);
         if (!batch) return { ok: false, error: "not_found" };
+        // Sale reversals are not registration refunds; no silent adjustment of the creator liability.
+        if (batch.purpose === "auction_sale")
+          return { ok: false, error: "nothing_to_refund" };
         const available = await refundableBatch(tx, batch);
         if (available.kind === "dashboard") {
           return { ok: false, error: "dashboard_managed" };
