@@ -258,6 +258,19 @@ it("protects assigned work, verifies a teen certificate privately with current g
   const cert = await teen.requestVolunteerCertificate();
   if (!cert.ok) throw Error("Cannot request certificate");
   await h.drain();
+  expect((await guardian.listInbox()).map((item) => item.title)).toEqual(
+    expect.arrayContaining([
+      "A volunteer task is assigned to your linked child",
+      "Your linked child has approved volunteer hours",
+    ])
+  );
+  expect(
+    h.email.sent.some(
+      (message) =>
+        message.subject === "Volunteer hours approved" ||
+        message.subject === "Your linked child has approved volunteer hours"
+    )
+  ).toBe(false);
   expect(await guardian.listMyCertificates()).toMatchObject([
     { id: cert.certificateId, participantProfileId: family.profileId },
   ]);
@@ -396,6 +409,9 @@ it("rechecks role and staff factor, allows past work within assignment history, 
     minutes: 35,
   });
   if (!entry.ok) throw Error("Earlier assignment lost");
+  expect(await second.listVolunteerHours()).toMatchObject([
+    { id: entry.entryId, status: "submitted", minutes: 35 },
+  ]);
   await expect(
     manager.approveVolunteerHours({ entryId: entry.entryId })
   ).rejects.toMatchObject({ code: "forbidden" });
@@ -405,6 +421,16 @@ it("rechecks role and staff factor, allows past work within assignment history, 
   expect(
     await second.approveVolunteerHours({ entryId: entry.entryId })
   ).toEqual({ ok: true });
+  expect(await second.cancelVolunteerTask({ taskId })).toMatchObject({
+    ok: true,
+  });
+  expect(
+    await manager.logVolunteerHours({
+      taskId,
+      workedOn: istDate(h.clock.now()),
+      minutes: 5,
+    })
+  ).toEqual({ ok: false, error: "task_not_accepting_hours" });
   await h.drain();
   expect((await manager.listInbox()).map((x) => x.title)).toContain(
     "Volunteer hours approved"
