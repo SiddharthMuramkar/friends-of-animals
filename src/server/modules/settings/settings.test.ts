@@ -410,6 +410,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "auctions.enabled",
+        value: false,
+        defaultValue: false,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "artwork.returnWindowDays",
         value: 30,
         defaultValue: 30,

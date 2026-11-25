@@ -29,10 +29,11 @@ describe("physical artwork preview", () => {
     expect(await school.listMyArtworks()).toMatchObject({
       ok: true,
       artworks: [
-        { status: "requested" },
-        { status: "dispatched" },
-        { status: "received" },
-        { status: "verified" },
+        { status: "requested", artworkCode: "ORIG27-A-5EED01" },
+        { status: "dispatched", artworkCode: "ORIG27-A-5EED02" },
+        { status: "received", artworkCode: "ORIG27-A-5EED04" },
+        { status: "verified", artworkCode: "ORIG27-A-5EED07" },
+        { status: "retained", artworkCode: "AUCT27-A-5EED01" },
       ],
     });
     const guardian = h.as(await h.signIn(SEED_GUARDIANS.guardian));
@@ -40,11 +41,13 @@ describe("physical artwork preview", () => {
       ok: true,
       artworks: [
         { status: "requested", artworkCode: "ORIG27-A-5EED03" },
+        { status: "verified", artworkCode: "AUCT27-A-5EED04" },
         {
           status: "verified",
           artworkCode: "ORIG27-A-5EED06",
           returnRequested: true,
         },
+        { status: "on_exhibition", artworkCode: "AUCT27-A-5EED02" },
       ],
     });
     const verifier = h.as(await h.signIn(SEED_ARTWORK_VERIFIER));
