@@ -82,6 +82,11 @@ describe("round rankings and lock", () => {
     expect(
       await score(h, w.judge, w.roundId, w.otherCode, [7, 7, 7, 7])
     ).toMatchObject({ ok: true, progress: "complete" });
+    const original = await h
+      .as(w.judge)
+      .getBlindEntry({ ...input, entryCode: w.code });
+    if (!original.ok) throw new Error(original.error);
+    const criterionId = original.criteria[0]!.id;
     const expected = [
       {
         entryId: w.entryId,
@@ -97,7 +102,7 @@ describe("round rankings and lock", () => {
         scoreNumerator: "69",
         scoreDenominator: "1",
         sheetsCounted: 2,
-        decidedBy: { criterionId: expect.any(String) },
+        decidedBy: { criterionId },
       },
     ];
     expect(await staff.getRoundRankings(input)).toMatchObject({
@@ -106,6 +111,26 @@ describe("round rankings and lock", () => {
       unscoredCount: 0,
       assignedCount: 3,
     });
+    // Clearing a criterion after completion invalidates the lock guard even
+    // though the first-completion timestamp has already been recorded.
+    expect(
+      await h
+        .as(w.judge)
+        .saveScoreSheet({
+          ...input,
+          entryCode: w.code,
+          baseVersion: original.sheet.version,
+          scores: { [criterionId]: null },
+        })
+    ).toMatchObject({ ok: true, progress: "in_progress" });
+    expect(await staff.lockJudgingRound(input)).toMatchObject({
+      ok: false,
+      error: "unscored_assignments",
+      unscoredCount: 1,
+    });
+    expect(
+      await score(h, w.judge, w.roundId, w.code, [9, 6, 6, 6])
+    ).toMatchObject({ ok: true, progress: "complete" });
     const tag = {
       entryId: w.entryId,
       outcome: "finalist" as const,
@@ -289,7 +314,7 @@ it("omits physical works that become unavailable after admission, including from
   expect(await staff.getRoundRankings(input)).toMatchObject({
     ok: true,
     ranked: expect.arrayContaining(
-      codes.map((code) => expect.objectContaining({ code }))
+      codes.map((code) => expect.objectContaining({ code, rank: 1 }))
     ),
     unscored: [],
     unscoredCount: 0,
