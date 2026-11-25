@@ -10,7 +10,7 @@ import {
 } from "../../../../db/schema";
 import { lockSubject } from "../submit";
 
-export async function donationStartAllowed(
+export async function financialStartAllowed(
   db: AppDb,
   userId: string,
   startedAt: Date
@@ -58,11 +58,14 @@ export async function donationStartAllowed(
 }
 
 /** Recheck while serialised with the erasure worker, before a gift is saved. */
-export async function lockDonationStart(
+export async function lockFinancialStart(
   db: AppDb,
   userId: string,
   startedAt: Date
 ) {
   await lockSubject(db, userId);
-  return donationStartAllowed(db, userId, startedAt);
+  return financialStartAllowed(db, userId, startedAt);
 }
+
+export const donationStartAllowed = financialStartAllowed;
+export const lockDonationStart = lockFinancialStart;

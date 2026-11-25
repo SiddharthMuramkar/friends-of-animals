@@ -233,6 +233,20 @@ export const SETTINGS = {
   }),
   // HR-63: auctioning original art is opt-in after FOA and counsel approve.
   "auctions.enabled": booleanSetting({ default: false }),
+  // FOA may adjust both defaults without deploying. No production auctions
+  // until the sale terms and eligibility have been approved (HR-63).
+  "auctions.minIncrementPaise": integerSetting({
+    default: 5000,
+    min: 1,
+    max: 100_000_000,
+    unit: "paise",
+  }),
+  "auctions.antiSnipingWindowMinutes": integerSetting({
+    default: 5,
+    min: 0,
+    max: 60,
+    unit: "minutes",
+  }),
   "artwork.returnWindowDays": integerSetting({
     default: 30,
     min: 1,

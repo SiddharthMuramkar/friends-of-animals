@@ -967,6 +967,20 @@
       "when": 1795593032375,
       "tag": "0137_131_auction_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1795593903097,
+      "tag": "0138_132_auction_bids",
+      "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1795594075152,
+      "tag": "0139_132_auction_bid_messages",
+      "breakpoints": true
     }
   ]
 }

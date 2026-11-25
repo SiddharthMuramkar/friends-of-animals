@@ -1,8 +1,8 @@
 // Whether a signed-in account is known to be a minor's (#106): adults only
-// may give (#55). An account is a minor's when its own participant profile
+// may give or bid (#55). An account is a minor's when its own participant profile
 // (#78), or the child profile it signs in to as a teen (#81), holds a date
 // of birth under 18 on India's calendar at `now`. An account with neither
-// is not known to be a minor's: the donor still declares being an adult.
+// is not known to be a minor's: a donor or bidder still declares being an adult.
 //
 // Loads under plain Node: relative imports only.
 

@@ -52,6 +52,7 @@ export const ERASURE_CATEGORIES = [
   "guardian_record",
   "uploads",
   "entries",
+  "auction_bids",
   "registrations",
   "guardian_links",
   "directory_listings",
@@ -104,6 +105,7 @@ export type ErasureFacts = {
   guardianRecords: number;
   uploads: number;
   entries: number;
+  auctionBids: number;
   freeRegistrations: number;
   keptRegistrations: number;
   guardianLinks: number;
@@ -149,6 +151,7 @@ export function planErasure(facts: ErasureFacts): ErasurePlan {
     category("guardian_record", "delete", facts.guardianRecords),
     category("uploads", "delete", facts.uploads),
     category("entries", "delete", facts.entries),
+    category("auction_bids", "anonymise", facts.auctionBids),
     category("registrations", "delete", facts.freeRegistrations),
     category("guardian_links", "delete", facts.guardianLinks),
     category("directory_publication", "withdraw", facts.directoryPublications),

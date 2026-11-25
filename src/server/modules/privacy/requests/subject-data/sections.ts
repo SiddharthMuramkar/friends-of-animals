@@ -50,6 +50,7 @@ import {
   artworkPhoto,
   artworkCustodyEvent,
   auctionLot,
+  auctionBid,
   artworkDiscrepancy,
   artworkReturnRequest,
   artworkVerification,
@@ -336,6 +337,11 @@ export const SECTIONS: readonly Section[] = [
     table: judgeOnboarding,
     where: (scope) => within(judgeOnboarding.judgeUserId, users(scope)),
     owners: ["judge_user_id"],
+  },
+  {
+    table: auctionBid,
+    where: (scope) => within(auctionBid.bidderUserId, users(scope)),
+    owners: ["bidder_user_id"],
   },
   {
     table: auctionLot,

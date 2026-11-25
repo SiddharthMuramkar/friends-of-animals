@@ -16,7 +16,9 @@ export type SettingUnit =
   | "days"
   | "months"
   | "years"
-  | "rupees";
+  | "rupees"
+  | "paise"
+  | "minutes";
 
 /** How the settings screen asks for a value. */
 export type SettingInput =

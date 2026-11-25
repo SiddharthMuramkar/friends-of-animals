@@ -7,6 +7,7 @@ import {
   auctionLot,
   physicalArtwork,
   consentEvent,
+  outbox,
   type AuctionLotRow,
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
@@ -21,6 +22,7 @@ import {
   type LotCommand,
 } from "./domain/lot-status";
 import { readSetting } from "../settings/read";
+import { closedWinningBid } from "./bid-history";
 import { validateLotTerms } from "./domain/lot-terms";
 import type { Role } from "../../access/domain/roles";
 
@@ -96,8 +98,21 @@ async function move(
     if (command === "open" && (time < lot.opensAt || time >= lot.closesAt))
       return { ok: false, error: "not_due" } as const;
     if (command === "close" && time < lot.closesAt) {
-      // #132 extends closesAt. The old job cannot close the extended lot.
-      if (lot.status === "open")
+      // A stale close delivery cannot prematurely close an extended lot.
+      // A replay must not queue another job for the same current deadline.
+      const [replacement] = await tx
+        .select({ id: outbox.id })
+        .from(outbox)
+        .where(
+          and(
+            eq(outbox.eventType, "auction.lot.close"),
+            eq(outbox.aggregateId, lot.id),
+            eq(outbox.status, "pending"),
+            eq(outbox.availableAt, lot.closesAt)
+          )
+        )
+        .limit(1);
+      if (!replacement)
         await emit(
           tx,
           ctx.clock,
@@ -134,6 +149,11 @@ async function move(
     ) {
       await applyMove(tx, ctx, lot, "cancel", role, "auctions_disabled");
       return { ok: false, error: "auctions_disabled" } as const;
+    }
+    if (command === "settle_unsold" && (await closedWinningBid(tx, lot))) {
+      // Leave a reserve-met winner and its original reserved in `closed`.
+      // #133 will atomically take this handoff to awaiting_payment.
+      return { ok: true, status: "closed" } as const;
     }
     return applyMove(tx, ctx, lot, command, role, reason);
   });

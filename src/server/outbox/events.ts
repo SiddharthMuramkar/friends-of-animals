@@ -491,6 +491,11 @@ export type DomainEvent =
       payload: { lotId: string };
     }
   | {
+      type: "auction.bid_outbid";
+      aggregate: { type: "auction_bid"; id: string };
+      payload: { previousBidId: string; lotCode: string };
+    }
+  | {
       type: "auction.lot_cancelled";
       aggregate: { type: "auction_lot"; id: string };
       payload: { lotId: string };
@@ -1013,6 +1018,10 @@ export const EVENT_PAYLOADS = {
   "auction.lot.close": z.object({ lotId: z.uuid() }),
   "auction.lot_opened": z.object({ lotId: z.uuid() }),
   "auction.lot_closed": z.object({ lotId: z.uuid() }),
+  "auction.bid_outbid": z.object({
+    previousBidId: z.uuid(),
+    lotCode: z.string().regex(/^LOT-\d{2}-[0-9A-HJKMNP-TV-Z]{5}$/),
+  }),
   "auction.lot_cancelled": z.object({ lotId: z.uuid() }),
   "artwork.retain_unrequested": z.object({ competitionId: z.uuid() }),
   "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
@@ -1253,6 +1262,7 @@ export const SUBSCRIBERS = {
   "auction.lot.close": ["auctions.close_lot"],
   "auction.lot_opened": ["notifications.dispatch"],
   "auction.lot_closed": ["auctions.settle_closed"],
+  "auction.bid_outbid": ["notifications.dispatch"],
   "auction.lot_cancelled": ["notifications.dispatch"],
 
   "entry.foa_verified": ["notifications.dispatch"],
