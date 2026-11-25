@@ -320,6 +320,13 @@ purpose is the donation, and has exactly one Receipt once captured. Adults
 only; foreign money is returned while FOA isn't registered under FCRA.
 _Avoid_: Contribution, gift record, payment
 
+**Recurring donation**:
+A signed-in adult's monthly mandate with the payment gateway. Each
+successful charge is a separate Donation with its own Receipt. The donor
+can request immediate cancellation; any captured charge after that
+request is returned and receives no Receipt.
+_Avoid_: Subscription gift, membership fee
+
 **Donor**:
 Who gave a Donation, as they gave it: a person, or a company or CSR partner
 with a contact person, which chooses whether its name may be shown in

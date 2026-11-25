@@ -154,6 +154,7 @@ describe("resolveAllSettings", () => {
       ["org.registrationNumber", "", "default"],
       ["org.pan", "", "default"],
       ["donations.enabled", false, "default"],
+      ["donations.recurringEnabled", false, "default"],
       ["donations.allowGuest", true, "default"],
       ["donations.minAmountRupees", 100, "default"],
       ["donations.maxAmountRupees", 100_000, "default"],

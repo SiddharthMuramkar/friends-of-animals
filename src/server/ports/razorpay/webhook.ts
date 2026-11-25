@@ -36,6 +36,7 @@ const eventBody = z.object({
         })
         .optional(),
       order: z.object({ entity: entityWithId }).optional(),
+      subscription: z.object({ entity: entityWithId }).optional(),
       refund: z
         .object({
           entity: z.object({
@@ -84,6 +85,9 @@ export function readRazorpayWebhook(
     type: event,
     orderId:
       payload?.payment?.entity.order_id ?? payload?.order?.entity.id ?? null,
+    ...(payload?.subscription
+      ? { subscriptionId: payload.subscription.entity.id }
+      : {}),
     ...(refund
       ? { refund: { refundId: refund.id, paymentId: refund.payment_id } }
       : {}),

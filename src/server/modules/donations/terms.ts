@@ -7,6 +7,7 @@ import type { UseCaseContext } from "../../use-cases";
 
 export type DonationTerms = {
   open: boolean;
+  recurringEnabled: boolean;
   guestsAllowed: boolean;
   minAmountMinor: bigint;
   maxAmountMinor: bigint;
@@ -15,6 +16,7 @@ export type DonationTerms = {
 /** What the page shows while the terms can't be read: closed. */
 export const CLOSED_TERMS: DonationTerms = {
   open: false,
+  recurringEnabled: false,
   guestsAllowed: false,
   minAmountMinor: 10_000n,
   maxAmountMinor: 10_000_000n,
@@ -32,14 +34,17 @@ export async function getDonationTerms(
   ctx: UseCaseContext
 ): Promise<DonationTerms> {
   await authorize(ctx, "donation.start");
-  const [open, guestsAllowed, minRupees, maxRupees] = await Promise.all([
-    ctx.settings.get("donations.enabled"),
-    ctx.settings.get("donations.allowGuest"),
-    ctx.settings.get("donations.minAmountRupees"),
-    ctx.settings.get("donations.maxAmountRupees"),
-  ]);
+  const [open, recurringEnabled, guestsAllowed, minRupees, maxRupees] =
+    await Promise.all([
+      ctx.settings.get("donations.enabled"),
+      ctx.settings.get("donations.recurringEnabled"),
+      ctx.settings.get("donations.allowGuest"),
+      ctx.settings.get("donations.minAmountRupees"),
+      ctx.settings.get("donations.maxAmountRupees"),
+    ]);
   return {
     open,
+    recurringEnabled,
     guestsAllowed,
     minAmountMinor: BigInt(minRupees) * 100n,
     maxAmountMinor: BigInt(Math.max(minRupees, maxRupees)) * 100n,

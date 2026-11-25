@@ -64,6 +64,9 @@ export default async function Page({
 
   return (
     <DonationsFrame title={t("title")} lead={t("lead")}>
+      <ButtonLink href="/admin/donations/recurring" variant="secondary">
+        {t("recurring")}
+      </ButtonLink>
       <search>
         <form action={ADMIN_DONATIONS} method="get" className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

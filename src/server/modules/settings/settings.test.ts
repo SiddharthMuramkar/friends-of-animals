@@ -170,6 +170,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "donations.recurringEnabled",
+        value: false,
+        defaultValue: false,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "donations.allowGuest",
         value: true,
         defaultValue: true,

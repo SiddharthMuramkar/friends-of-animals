@@ -792,6 +792,27 @@
       "when": 1795582796174,
       "tag": "0112_130_adoption_application_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1795586564966,
+      "tag": "0113_107_recurring_donations",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1795586783796,
+      "tag": "0114_107_refund_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1795586837526,
+      "tag": "0115_107_recurring_messages",
+      "breakpoints": true
     }
   ]
 }

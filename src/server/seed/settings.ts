@@ -25,6 +25,7 @@ const SEEDED: { [K in SettingKey]?: SettingValue<K> } = {
   "ledger.accountantExport": true,
   // Local runs and previews pay through the test checkout (#106).
   "donations.enabled": true,
+  "donations.recurringEnabled": true,
   // Erasure (#115b) waits for counsel in production (HR-30); seeded data
   // is fake, so a local run or preview can try it end to end.
   "privacy.erasureEnabled": true,

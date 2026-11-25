@@ -42,4 +42,10 @@ export const DONATIONS_POLICY = {
   "donation.refund.request": role("finance", "staff_admin", "super_admin"),
   // Expiring donations left unpaid: the worker's schedule, or the CLI.
   "donation.expire": system("worker", "cli"),
+  "recurring_donation.start": signedIn,
+  "recurring_donation.read_own": owner,
+  "recurring_donation.cancel": anyOf(owner, role("finance")),
+  "recurring_donation.list_mine": signedIn,
+  "recurring_donation.list": role("finance"),
+  "recurring_donation.expire": system("worker", "cli"),
 } satisfies Policy<string>;

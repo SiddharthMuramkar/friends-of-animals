@@ -812,6 +812,14 @@ One-time online donations in INR with receipts (#106). Recurring (#107), offline
 - **Seams:** #107 and #108 start donations with their own `origin` and number receipts through `receipts/issue.ts`; #108 adds the receipt's tax block and the donor's PAN behind `org.has80G`; #110 reads the 42xx accounts and `donor.disclose_organisation`. **Open:** HR-15 (live keys), HR-47 (chart, receipt layout, FY token, the foreign test), HR-50 (copy), HR-51 (amounts, expiry), HR-16 (80G).
 - **Tests:** `start-donation.test.ts`, `capture-donation.test.ts`, `foreign-donation.test.ts`, `refund-and-expiry.test.ts`, `receipt-links.test.ts`, `admin-and-outcome.test.ts`, `receipt-numbers.pg.test.ts`, `domain/*.test.ts`, `src/server/seed/donations.test.ts`; E2E `106-donate.spec.ts`.
 
+#### Monthly recurring donations (#107)
+
+- `recurring_donation` links a signed-in adult to a gateway mandate, its monthly amount and status. `gateway_plan` reuses the plan per gateway/amount. The cancellation request and confirmed cancellation are deliberately separate; an outbox delivery retries a refused provider request.
+- `startRecurringDonation`, `confirmRecurringCheckout`, `getMyRecurringDonation`, `listMyRecurringDonations`, `cancelRecurringDonation` are the donor seams. Finance can use `listRecurringDonations` and cancel; the worker's `expireAbandonedRecurringDonations` handles unauthorised mandates. All gateway signals fetch authoritative subscription and charge records.
+- One captured charge passes through the donation capture transaction and receives a receipt and the usual donation ledger posting. A failed cycle sends one notice and consumes no receipt number. A charge after cancellation request is returned through the system refund path and the 2100 liability account, with no donation or receipt.
+- Pages: `/dashboard/donations`, `/dashboard/donations/recurring/[id]`, `/donate/checkout/monthly/[id]`, `/admin/donations/recurring`. The public donate page links to monthly giving while enabled. Previews simulate the first charge through the fallback gateway; seeded members demonstrate active, past-due and cancelled mandates.
+- Default off: `donations.recurringEnabled`. HR-09/15 gateway test/live subscription approval, HR-51 amount bounds (₹100–₹15,000), 120 monthly cycles and 24-hour authorisation window, HR-50 message wording and HR-47 liability accounting remain owner decisions.
+
 ### entries
 
 An **Entry** is the work one confirmed individual registration submits for a competition: a picture, a video (#86) or an essay, typed or as a PDF (#86). A registration has at most one Entry. Its first completed upload (or typed essay) creates the row and the **Entry ID**. Later submissions retry a failed first file or replace the **live file**. The words travel with the file: there is no draft. Why every status value exists before any judging uses it: ADR 0004.
