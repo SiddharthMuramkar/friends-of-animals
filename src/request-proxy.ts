@@ -325,6 +325,14 @@ export function createProxy({
         : NextResponse.rewrite(new URL(MISSING, request.url));
       result.headers.set("Cache-Control", "private, no-store, max-age=0");
       result.headers.set("CDN-Cache-Control", "no-store");
+      // The validated, same-origin stamp can be discovered from the response
+      // headers before the live gallery component streams. The media route
+      // still checks the grant independently; no storage key is preloaded.
+      if (known && segments.length === 3)
+        result.headers.set(
+          "Link",
+          `</media/gallery/${id}?size=thumb>; rel=preload; as=image; media="(max-width: 639px)"; fetchpriority=high, </media/gallery/${id}>; rel=preload; as=image; media="(min-width: 640px)"; fetchpriority=high`
+        );
       return result;
     }
     const [, section, raw = ""] = pathname.split("/");

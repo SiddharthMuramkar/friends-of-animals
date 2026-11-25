@@ -45,6 +45,20 @@ function reviewText(input: unknown) {
     return failure("story_too_long");
   return { ok: true, title, story, featured: parsed.data.featured } as const;
 }
+async function queueGalleryStamps(
+  tx: AppDb,
+  clock: UseCaseContext["clock"],
+  fileId: string
+) {
+  const full = await queueStamp(tx, clock, { fileId, variant: "gallery" });
+  if (full === "unavailable") return full;
+  const small = await queueStamp(tx, clock, {
+    fileId,
+    variant: "gallery_thumb",
+  });
+  if (small === "unavailable") return small;
+  return full === "ready" && small === "ready" ? "ready" : "queued";
+}
 async function lockedItem(tx: AppDb, itemId: string) {
   if (!z.uuid().safeParse(itemId).success) return null;
   const [row] = await tx
@@ -106,10 +120,7 @@ export async function pickGalleryEntry(
       .for("update");
     if (prior && prior.status !== "unpublished")
       return failure("already_picked");
-    const stamp = await queueStamp(tx, ctx.clock, {
-      fileId: source.fileId,
-      variant: "gallery",
-    });
+    const stamp = await queueGalleryStamps(tx, ctx.clock, source.fileId);
     if (stamp === "unavailable") return failure("no_safe_image");
     const now = ctx.clock.now();
     const itemId = prior?.id ?? uuidv7(now);
@@ -221,11 +232,8 @@ export async function publishGalleryItem(
     )
       return failure("source_changed");
     if (!row.reviewed) return failure("review_required");
-    if (!source.image) {
-      await queueStamp(tx, ctx.clock, {
-        fileId: row.fileId,
-        variant: "gallery",
-      });
+    if (!source.image || !source.thumbnail) {
+      await queueGalleryStamps(tx, ctx.clock, row.fileId);
       return failure("stamp_pending");
     }
     const now = ctx.clock.now();
@@ -264,7 +272,10 @@ export async function listGalleryItemsForAdmin(ctx: UseCaseContext) {
         reason: row.reason,
         credit: source.eligible ? source.credit : null,
         stampReady:
-          source.eligible && !!source.image && source.fileId === row.fileId,
+          source.eligible &&
+          !!source.image &&
+          !!source.thumbnail &&
+          source.fileId === row.fileId,
         eligible:
           source.eligible &&
           source.consentEventId === row.consentEventId &&
@@ -321,10 +332,7 @@ export async function restoreGalleryItem(
     const row = await lockedItem(tx, input.itemId);
     if (!row || row.status !== "hidden") return failure("invalid_transition");
     if (!source.eligible) return failure(source.reason);
-    const stamp = await queueStamp(tx, ctx.clock, {
-      fileId: source.fileId,
-      variant: "gallery",
-    });
+    const stamp = await queueGalleryStamps(tx, ctx.clock, source.fileId);
     if (stamp === "unavailable") return failure("no_safe_image");
     await tx
       .update(galleryItem)

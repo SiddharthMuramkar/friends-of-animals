@@ -25,7 +25,7 @@ import {
   renderStamp,
   stampedImage,
 } from "../modules/stamping";
-import { stampProcessor } from "../ports/media-stamp";
+import { seedStampProcessor } from "./stamped-art";
 import { unconfiguredMedia } from "../ports/media";
 import { eligibleEntry } from "../modules/gallery/evidence";
 import { resizedArt } from "./resized-art";
@@ -226,9 +226,10 @@ export const seedGallery: Seeder = async (deps) => {
       source.fileId !== fileId
     )
       continue;
-    if (!source.image) {
+    for (const variant of ["gallery", "gallery_thumb"] as const) {
+      if (await stampedImage(deps, { fileId, variant })) continue;
       const queued = await db.transaction((tx) =>
-        queueStamp(tx, clock, { fileId, variant: "gallery" })
+        queueStamp(tx, clock, { fileId, variant })
       );
       if (queued === "unavailable") continue;
       await renderStamp(
@@ -236,12 +237,16 @@ export const seedGallery: Seeder = async (deps) => {
           db,
           clock,
           storage,
-          media: { ...unconfiguredMedia, ...stampProcessor() },
+          media: { ...unconfiguredMedia, ...seedStampProcessor },
         },
-        { fileId, variant: "gallery" }
+        { fileId, variant }
       );
     }
-    if (!(await stampedImage(deps, { fileId, variant: "gallery" }))) continue;
+    if (
+      !(await stampedImage(deps, { fileId, variant: "gallery" })) ||
+      !(await stampedImage(deps, { fileId, variant: "gallery_thumb" }))
+    )
+      continue;
     await db
       .insert(galleryItem)
       .values({

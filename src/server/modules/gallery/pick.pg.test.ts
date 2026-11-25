@@ -82,4 +82,7 @@ it("serializes two curators picking the same eligible entry into one draft and s
   expect(
     world.media.stamps.filter((s) => s.variant === "gallery")
   ).toHaveLength(1);
+  expect(
+    world.media.stamps.filter((s) => s.variant === "gallery_thumb")
+  ).toHaveLength(1);
 });

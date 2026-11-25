@@ -7,11 +7,13 @@ export function classifyGalleryMedia(
 ): "site" | "stamp" | "private" | "unknown" {
   let decoded = raw;
   try {
-    for (let i = 0; i < 2 && /^%2f/i.test(decoded); i++)
+    for (let i = 0; i < 2 && /^%2[35f]/i.test(decoded); i++)
       decoded = decodeURIComponent(decoded);
   } catch {
     return "unknown";
   }
+  // Encoded SVG filters are same-document references, not media URLs.
+  if (/^#[a-z0-9_-]+$/i.test(decoded)) return "site";
   const url = new URL(decoded, origin);
   if (
     /(?:X-Amz-|signature=|presign)/i.test(url.href) ||
@@ -35,7 +37,10 @@ export function classifyGalleryMedia(
     ) === "site"
       ? "site"
       : "private";
-  if (/^\/media\/gallery\/[a-f0-9-]{36}$/i.test(url.pathname) && !url.search)
+  if (
+    /^\/media\/gallery\/[a-f0-9-]{36}$/i.test(url.pathname) &&
+    (url.search === "" || url.search === "?size=thumb")
+  )
     return "stamp";
   if (
     /^\/(?:_next\/static\/|brand\/|images\/|favicon\.ico$|apple-touch-icon)/.test(

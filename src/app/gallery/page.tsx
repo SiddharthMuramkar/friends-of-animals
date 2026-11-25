@@ -19,10 +19,19 @@ export async function generateMetadata() {
 export default async function Page({ searchParams }: PageProps<"/gallery">) {
   const t = await getTranslations("gallery");
   return (
-    <Section hue="pink" tone="tint" width="wide" className="pt-10 sm:pt-14">
+    <Section
+      hue="pink"
+      tone="tint"
+      width="wide"
+      className="min-h-svh pt-10 sm:pt-14"
+    >
       <PageHeader title={t("title")} lead={t("lead")} />
       <Suspense
-        fallback={<p className="mt-8 text-ink-muted">{t("loading")}</p>}
+        fallback={
+          <output className="mt-8 block min-h-120 text-ink-muted">
+            {t("loading")}
+          </output>
+        }
       >
         <Gallery searchParams={searchParams} />
       </Suspense>

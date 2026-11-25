@@ -43,6 +43,9 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
   const visitor = h.as(h.visitor());
   const guardian = h.as(family.actor);
   const manager = h.as(await signedInWith(h, managerOf(competition.id)));
+  await expect(visitor.listGalleryItemsForAdmin()).rejects.toMatchObject({
+    code: "forbidden",
+  });
   await expect(visitor.pickGalleryEntry({ entryId })).rejects.toMatchObject({
     code: "forbidden",
   });
@@ -109,12 +112,18 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
     title: "A dog and a cup of tea",
     story: "Kindness can be quiet.",
     credit: { name: "Isha D." },
-    image: { url: `/media/gallery/${ref.itemId}` },
+    image: {
+      url: `/media/gallery/${ref.itemId}`,
+      thumbnailUrl: `/media/gallery/${ref.itemId}?size=thumb`,
+    },
   });
   expect(await visitor.readGalleryImage(ref)).toMatchObject({
     ok: true,
     contentType: "image/webp",
   });
+  expect(
+    await visitor.readGalleryImage({ ...ref, size: "thumb" })
+  ).toMatchObject({ ok: true, contentType: "image/webp" });
   expect((await visitor.getPublicGalleryItem(ref))?.credit).toEqual({
     name: "Isha D.",
   });
@@ -213,10 +222,14 @@ it("curates a verified, consented entry; a visitor cannot curate and a withdrawn
       "/gallery",
       `/gallery/${ref.itemId}`,
       `/media/gallery/${ref.itemId}`,
+      `/media/gallery/${ref.itemId}?size=thumb`,
       `/gallery/${ref.itemId}/report`,
       `/gallery-report/${ref.itemId}`,
     ],
   ]);
+  await expect(manager.restoreGalleryItem(ref)).rejects.toMatchObject({
+    code: "forbidden",
+  });
   expect(await curator.restoreGalleryItem(ref)).toMatchObject({ ok: true });
   expect(
     await curator.editGalleryItem({
@@ -331,6 +344,15 @@ it("guards public reports and keeps a durable overdue purge visible without expo
     code: "forbidden",
   });
   await expect(worker.issueGalleryPlainProof()).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(worker.getPublicGalleryItem({ itemId })).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(worker.featuredGalleryItems()).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  await expect(worker.readGalleryImage({ itemId })).rejects.toMatchObject({
     code: "forbidden",
   });
   await expect(worker.listPublicGallery()).rejects.toMatchObject({

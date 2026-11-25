@@ -8,6 +8,8 @@ import { liveGallerySource } from "./evidence";
 
 export const galleryPath = (itemId: string) => `/gallery/${itemId}`;
 export const galleryMediaPath = (itemId: string) => `/media/gallery/${itemId}`;
+export const galleryThumbnailPath = (itemId: string) =>
+  `${galleryMediaPath(itemId)}?size=thumb`;
 export async function galleryRow(
   ctx: Pick<UseCaseContext, "db">,
   itemId: string
@@ -36,6 +38,7 @@ async function toPublic(ctx: UseCaseContext, row: GalleryItemRow) {
     credit: source.credit,
     image: {
       url: galleryMediaPath(row.id),
+      thumbnailUrl: galleryThumbnailPath(row.id),
       width: source.image.width,
       height: source.image.height,
       sampleIllustration: source.image.sampleIllustration,
@@ -115,23 +118,29 @@ export async function getPublicGalleryItem(
 }
 export async function readGalleryImage(
   ctx: UseCaseContext,
-  input: { itemId: string }
+  input: { itemId: string; size?: "thumb" }
 ) {
   await authorize(ctx, "gallery.read_published");
   const missing = { ok: false, error: "not_found" } as const;
   const row = await galleryRow(ctx, input.itemId);
   const source = row && (await liveGallerySource(ctx, row));
-  if (!source?.image) return missing;
+  const image =
+    input.size === undefined
+      ? source?.image
+      : input.size === "thumb"
+        ? source?.thumbnail
+        : null;
+  if (!image) return missing;
   try {
     const body = await ctx.storage.read({
-      bucket: source.image.bucket,
-      key: source.image.key,
+      bucket: image.bucket,
+      key: image.key,
     });
     return {
       ok: true,
       body,
-      contentType: source.image.contentType,
-      sizeBytes: source.image.sizeBytes,
+      contentType: image.contentType,
+      sizeBytes: image.sizeBytes,
     } as const;
   } catch (error) {
     if (error instanceof ObjectMissingError) return missing;

@@ -15,7 +15,9 @@ it("batches only same-origin public HTTPS routes; the provider confirms each bat
     expect(new Headers(init?.headers).get("authorization")).toBe(
       "Bearer synthetic-token"
     );
-    const { files } = JSON.parse(String(init?.body)) as { files: string[] };
+    if (typeof init?.body !== "string")
+      throw Error("Expected JSON request body");
+    const { files } = JSON.parse(init.body) as { files: string[] };
     requests.push({ url, files });
     return Response.json({ success: true });
   };

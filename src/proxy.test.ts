@@ -7,7 +7,7 @@ import { NextRequest, type NextResponse } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { individualLink } from "@/app/participate/_lib/individual-link";
-import { APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
+import { ADMIN_HOME, APP_ROUTES, SIGNED_IN_PREFIXES } from "@/lib/app-routes";
 import { publicCsp } from "@/lib/csp";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { cspContext } from "@/lib/csp-sources";
@@ -175,7 +175,6 @@ describe("proxy: the signed-in nonce policy", () => {
       "/account",
       "/account/nope",
       "/account/sessions/x",
-      "/admin",
       "/admin/competitions/x",
       "/admin/competitions/x/delete",
       "/admin/competitions/x/edit/more",
@@ -272,9 +271,25 @@ describe("proxy: the signed-in nonce policy", () => {
       );
     });
 
+    it("serves the new admin home with the staff nonce and requires a session", async () => {
+      vi.stubEnv("APP_ENV", "preview");
+      const response = await proxy(request(ADMIN_HOME, SESSION));
+      expect(getRewrittenUrl(response)).toBeNull();
+      const policy = response.headers.get("content-security-policy");
+      expect(policy).toMatch(/script-src 'self' 'nonce-[^']+'/);
+      expect(pageHeaders(response).get("x-nonce")).toBe(
+        getScriptNonceFromHeader(policy!)
+      );
+      const guest = await proxy(request(ADMIN_HOME));
+      expect(guest.status).toBe(307);
+      expect(guest.headers.get("location")).toBe(
+        "https://foa.example.test/sign-in"
+      );
+    });
+
     it("answers a path with no page with the static 404", async () => {
       vi.stubEnv("APP_ENV", "preview");
-      for (const path of ["/admin", "/admin/nope"]) {
+      for (const path of ["/admin/nope", "/admin/home/nope"]) {
         const response = await proxy(request(path, SESSION));
 
         expect(getRewrittenUrl(response), path).toBe(
@@ -533,4 +548,31 @@ describe("private auction checkout link", () => {
       ).get("x-nonce")
     ).toEqual(expect.any(String));
   });
+});
+
+it("preloads only a freshly visible gallery stamp, with no cache or original URL", async () => {
+  const id = "01938a00-0000-7000-8000-000000103001";
+  let visible = true;
+  const gallery = createProxy({
+    isPublishedCompetitionSlug: async () => false,
+    isPublicPostSlug: async () => false,
+    isPublicGalleryItem: async (itemId) => visible && itemId === id,
+  });
+  const path = `/gallery/${id}`;
+  expect(
+    unstable_doesMiddlewareMatch({ config, nextConfig: {}, url: path })
+  ).toBe(true);
+  const response = await gallery(request(path));
+  expect(response.headers.get("Link")).toBe(
+    `</media/gallery/${id}?size=thumb>; rel=preload; as=image; media="(max-width: 639px)"; fetchpriority=high, </media/gallery/${id}>; rel=preload; as=image; media="(min-width: 640px)"; fetchpriority=high`
+  );
+  expect(response.headers.get("Cache-Control")).toContain("no-store");
+  const list = await gallery(request("/gallery"));
+  expect(list.headers.get("Link")).toBeNull();
+  visible = false;
+  const withdrawn = await gallery(request(path));
+  expect(getRewrittenUrl(withdrawn)).toBe(
+    "https://foa.example.test/__not-found"
+  );
+  expect(withdrawn.headers.get("Link")).toBeNull();
 });

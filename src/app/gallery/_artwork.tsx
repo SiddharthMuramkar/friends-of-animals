@@ -38,18 +38,21 @@ export async function ArtworkDetails({
         ) : null}
       </div>
       <figure className="mt-5">
-        <Image
-          src={item.image.url}
-          width={item.image.width}
-          height={item.image.height}
-          alt={t(item.image.sampleIllustration ? "aiAlt" : "artAlt", {
-            title: item.title,
-          })}
-          unoptimized
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : "auto"}
-          className="h-auto w-full rounded-2xl border border-border"
-        />
+        <picture>
+          <source media="(max-width: 639px)" srcSet={item.image.thumbnailUrl} />
+          <Image
+            src={item.image.url}
+            width={item.image.width}
+            height={item.image.height}
+            alt={t(item.image.sampleIllustration ? "aiAlt" : "artAlt", {
+              title: item.title,
+            })}
+            unoptimized
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            className="h-auto w-full rounded-2xl border border-border"
+          />
+        </picture>
         {item.image.sampleIllustration ? (
           <figcaption className="mt-2 text-xs text-ink-muted">
             {t("illustration")}
