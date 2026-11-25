@@ -195,11 +195,20 @@ export const SETTINGS = {
   // still names its payer. Off deletes the account; the payment rows stay
   // either way (HR-30, HR-47).
   "privacy.erasureKeepsPayerAccount": booleanSetting({ default: true }),
+  // Clubs (#121): keep off until safeguarding sign-off (HR-55).
+  // The cap is provisional (HR-57).
+  "clubs.enabled": booleanSetting({ default: false }),
+  "clubs.maxPerInstitution": integerSetting({
+    default: 1,
+    min: 1,
+    max: 20,
+    unit: "clubs",
+  }),
+  "surveys.enabled": booleanSetting({ default: false }),
   // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
   // and counsel sign M6 off (HR-55) and police checks are in place
   // (HR-38); local runs and previews are seeded open. The age rules are
   // FOA's defaults until leadership confirms them (HR-57).
-  "surveys.enabled": booleanSetting({ default: false }),
   "volunteers.applicationsOpen": booleanSetting({ default: false }),
   "volunteers.minAgeYears": integerSetting({
     default: VOLUNTEER_AGE_RULE_DEFAULTS.minAgeYears,
@@ -343,6 +352,12 @@ export const SETTINGS = {
   }),
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.clubMembershipsDays": retentionDays(
+    RETENTION_PERIODS.clubMemberships
+  ),
+  "retention.clubApplicationsDays": retentionDays(
+    RETENTION_PERIODS.clubApplications
   ),
   "retention.surveyResponsesDays": retentionDays(
     RETENTION_PERIODS.surveyResponses

@@ -53,6 +53,8 @@ export const RETENTION_PERIODS = {
   /** Former member profile text, from departure. */
   surveyResponses: { defaultDays: 365 },
   communityMembers: { defaultDays: 365 },
+  clubMemberships: { defaultDays: 730 },
+  clubApplications: { defaultDays: 730 },
   /**
    * Adoption applications (#130), from when they closed; one behind a
    * published success story stays while the story is up.

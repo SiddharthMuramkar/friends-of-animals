@@ -35,6 +35,9 @@ import {
   certificate,
   surveyInvitation,
   communityMember,
+  club,
+  clubDecision,
+  clubMembership,
   event,
   eventRegistration,
   engagementMilestone,
@@ -573,6 +576,18 @@ export async function gatherErasure(
       (await n(
         db
           .select({ n: count() })
+          .from(clubMembership)
+          .where(within(clubMembership.userId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(club)
+          .where(within(club.applicantUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
           .from(eventRegistration)
           .where(
             or(
@@ -862,6 +877,29 @@ async function eraseRecords(
         within(communityMember.subjectProfileId, scope.profileIds)
       )
     );
+  await tx.delete(clubMembership).where(within(clubMembership.userId, users));
+  await tx
+    .update(clubDecision)
+    .set({ reasonCiphertext: null })
+    .where(
+      sql`${clubDecision.clubId} IN (SELECT ${club.id} FROM ${club} WHERE ${within(club.applicantUserId, users)})`
+    );
+  await tx
+    .update(clubDecision)
+    .set({ decidedByUserId: null })
+    .where(within(clubDecision.decidedByUserId, users));
+  // An application without an applicant cannot be approved. Existing clubs
+  // may continue as an institution record with no link to the erased person.
+  await tx
+    .update(club)
+    .set({ status: "withdrawn", updatedAt: deps.clock.now() })
+    .where(
+      and(within(club.applicantUserId, users), eq(club.status, "applied"))
+    );
+  await tx
+    .update(club)
+    .set({ applicantUserId: null })
+    .where(within(club.applicantUserId, users));
   const erasedEventPlaces = await tx
     .delete(eventRegistration)
     .where(
