@@ -80,63 +80,55 @@ test("FOA resolves a discrepancy, verifies with private condition photos and rec
     if (!account || !group)
       throw new Error("Missing test account or age group");
     await db.transaction(async (tx) => {
-      await tx
-        .insert(schema.participantProfile)
-        .values({
-          id: profileId,
-          ownerKind: "self",
-          ownerUserId: account.id,
-          fullName: "Artwork creator",
-          dobCiphertext: cipher.encrypt(PROFILE_PURPOSE.dob, "1995-02-01"),
-          identityHash: randomUUID(),
-          createdAt: now,
-          updatedAt: now,
-        });
-      await tx
-        .insert(schema.registration)
-        .values({
-          id: registrationId,
-          participantProfileId: profileId,
-          competitionId,
-          ageGroupId: group.id,
-          route: "individual",
-          status: "confirmed",
-          registrationNumber: `ORIG27-R-${symbols()}`,
-          createdAt: now,
-          updatedAt: now,
-        });
-      await tx
-        .insert(schema.entry)
-        .values({
-          id: entryId,
-          code: `ORIG27-E-${symbols()}`,
-          competitionId,
-          registrationId,
-          participantProfileId: profileId,
-          discipline: "drawing",
-          title: "A home for a bird",
-          description: "A drawing of a bird shelter",
-          status: "foa_verified",
-          submittedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        });
-      await tx
-        .insert(schema.physicalArtwork)
-        .values({
-          id: artworkId,
-          entryId,
-          registrationId,
-          competitionId,
-          artworkCode,
-          status: "received",
-          requestedAt: now,
-          dispatchDeadline: new Date(now.getTime() + 86400000),
-          packagingInstructions: "Protect the artwork",
-          shippingPayer: "sender",
-          facilityAddress: "Sample FOA address",
-          receivedAt: now,
-        });
+      await tx.insert(schema.participantProfile).values({
+        id: profileId,
+        ownerKind: "self",
+        ownerUserId: account.id,
+        fullName: "Artwork creator",
+        dobCiphertext: cipher.encrypt(PROFILE_PURPOSE.dob, "1995-02-01"),
+        identityHash: randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.registration).values({
+        id: registrationId,
+        participantProfileId: profileId,
+        competitionId,
+        ageGroupId: group.id,
+        route: "individual",
+        status: "confirmed",
+        registrationNumber: `ORIG27-R-${symbols()}`,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.entry).values({
+        id: entryId,
+        code: `ORIG27-E-${symbols()}`,
+        competitionId,
+        registrationId,
+        participantProfileId: profileId,
+        discipline: "drawing",
+        title: "A home for a bird",
+        description: "A drawing of a bird shelter",
+        status: "foa_verified",
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.physicalArtwork).values({
+        id: artworkId,
+        entryId,
+        registrationId,
+        competitionId,
+        artworkCode,
+        status: "received",
+        requestedAt: now,
+        dispatchDeadline: new Date(now.getTime() + 86400000),
+        packagingInstructions: "Protect the artwork",
+        shippingPayer: "sender",
+        facilityAddress: "Sample FOA address",
+        receivedAt: now,
+      });
       await tx
         .insert(schema.artworkCustodyEvent)
         .values({ id: randomUUID(), artworkId, kind: "received", at: now });
