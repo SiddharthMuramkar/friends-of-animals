@@ -31,6 +31,7 @@
     "leavingNote": "Leaving ends your membership. Your earned milestones remain in your private journey.",
     "working": "Saving…",
     "childOwnLogin": "This child signs in with their own account and manages their own membership.",
+    "ambassadorsLink": "FOA Ambassadors",
     "timelineLink": "View your engagement timeline",
     "communityLink": "Manage your community membership",
     "timeline": {
@@ -90,6 +91,7 @@
       "intro": "Private membership records for the community team. This view does not show members’ introductions or contact details.",
       "nav": "Community administration",
       "members": "Members",
+      "ambassadors": "Ambassador applications",
       "clubs": "Clubs",
       "filter": "Filter membership status",
       "apply": "Apply filter",

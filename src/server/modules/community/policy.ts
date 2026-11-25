@@ -8,6 +8,10 @@ import {
 } from "../../access/domain/policy";
 
 export const COMMUNITY_POLICY = {
+  "ambassador.read": signedIn,
+  "ambassador.apply": signedIn,
+  "ambassador.review": role("community_manager", "super_admin"),
+  "ambassador.decide": role("community_manager", "super_admin"),
   "community.join": signedIn,
   "community.profile.update": signedIn,
   "community.leave": signedIn,

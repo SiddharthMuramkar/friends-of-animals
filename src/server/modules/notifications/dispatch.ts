@@ -527,7 +527,8 @@ export async function deliverInApp(
     const title = content.subject ?? "";
     // An announcement's copy can name personal help contacts (#84).
     const copy =
-      message.delivery.eventType === "competition.announcement_sent"
+      message.delivery.eventType === "competition.announcement_sent" ||
+      message.delivery.eventType === "ambassador.application_declined"
         ? {
             title: "",
             body: "",

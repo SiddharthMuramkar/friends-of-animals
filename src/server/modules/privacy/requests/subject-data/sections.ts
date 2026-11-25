@@ -1,3 +1,4 @@
+import { AMBASSADOR_DECLINE_PURPOSE } from "../../../community/ambassadors/fields";
 // What a subject data export holds (#115b), table by table.
 //
 // The data inventory (../../inventory.ts) says which columns of which
@@ -209,6 +210,14 @@ export const SECTIONS: readonly Section[] = [
       "checked_in_by_user_id",
       "waitlist_order",
     ],
+  },
+  {
+    table: schema.ambassadorApplication,
+    where: (scope) =>
+      within(schema.ambassadorApplication.applicantUserId, users(scope)),
+    owners: ["applicant_user_id"],
+    decrypt: { decline_reason_ciphertext: AMBASSADOR_DECLINE_PURPOSE },
+    withhold: ["decided_by_user_id"],
   },
   {
     table: communityMember,

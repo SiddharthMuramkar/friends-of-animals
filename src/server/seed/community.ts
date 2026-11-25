@@ -81,7 +81,11 @@ export const seedCommunity: Seeder = async ({ db, clock, cipher }) => {
             ),
             aboutCiphertext: null,
             status: "active",
-            joinedAt: now,
+            // Asha is an established community member in the synthetic preview.
+            joinedAt:
+              sample.subject.kind === "user"
+                ? new Date(now.getTime() - 91 * 86_400_000)
+                : now,
             createdAt: now,
             updatedAt: now,
           })
