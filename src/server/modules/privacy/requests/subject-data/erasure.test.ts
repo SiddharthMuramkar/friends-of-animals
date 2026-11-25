@@ -613,12 +613,10 @@ describe("executeErasure", () => {
       },
     });
     expect(
-      await h
-        .as(listing.staff)
-        .reinstateListing({
-          listingId: listing.listingId,
-          reason: "Try to reinstate",
-        })
+      await h.as(listing.staff).reinstateListing({
+        listingId: listing.listingId,
+        reason: "Try to reinstate",
+      })
     ).toEqual({ ok: false, error: "transition_not_allowed" });
     expect(
       await h.db.select().from(user).where(eq(user.id, listing.person.id))
