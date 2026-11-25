@@ -1,6 +1,7 @@
 import { and, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { authorize, can } from "../../../access/can";
+import type { AppDb } from "../../../db/app-db";
 import { recurringDonation } from "../../../db/schema";
 import { emit } from "../../../outbox/emit";
 import type { ScheduleDefinition } from "../../../outbox/schedules";
@@ -14,47 +15,55 @@ import {
   type SyncContext,
 } from "./sync";
 
+/** Record the cancellation cutoff and its retry delivery in the caller's transaction. */
+export async function requestRecurringCancel(
+  tx: AppDb,
+  ctx: SyncContext,
+  id: string,
+  by: "donor" | "finance" | "system"
+) {
+  const [row] = await tx
+    .select()
+    .from(recurringDonation)
+    .where(eq(recurringDonation.id, id))
+    .for("update");
+  if (!row) return null;
+  if (!canCancelRecurring(row.status) || row.cancelRequestedAt) return row;
+  const now = ctx.clock.now();
+  // Provider timestamps are second-resolution: any unrecorded charge in
+  // the cancellation second is uncertain, so return it rather than keep it.
+  const requestedAt = new Date(Math.floor(now.getTime() / 1000) * 1000);
+  await tx
+    .update(recurringDonation)
+    .set({
+      cancelRequestedAt: requestedAt,
+      cancelRequestedBy: by,
+      nextChargeAt: null,
+      updatedAt: now,
+    })
+    .where(eq(recurringDonation.id, id));
+  await recurringAudit(
+    tx,
+    ctx,
+    id,
+    "cancel_requested",
+    { status: row.status },
+    { status: row.status, by }
+  );
+  await emit(tx, ctx.clock, {
+    type: "recurring_donation.cancel_requested",
+    aggregate: { type: "recurring_donation", id },
+    payload: { id },
+  });
+  return row;
+}
+
 async function requestCancel(
   ctx: SyncContext,
   id: string,
   by: "donor" | "finance" | "system"
 ) {
-  return ctx.db.transaction(async (tx) => {
-    const [row] = await tx
-      .select()
-      .from(recurringDonation)
-      .where(eq(recurringDonation.id, id))
-      .for("update");
-    if (!row) return null;
-    if (!canCancelRecurring(row.status) || row.cancelRequestedAt) return row;
-    const now = ctx.clock.now();
-    // Provider timestamps are second-resolution: any unrecorded charge in
-    // the cancellation second is uncertain, so return it rather than keep it.
-    const requestedAt = new Date(Math.floor(now.getTime() / 1000) * 1000);
-    await tx
-      .update(recurringDonation)
-      .set({
-        cancelRequestedAt: requestedAt,
-        cancelRequestedBy: by,
-        nextChargeAt: null,
-        updatedAt: now,
-      })
-      .where(eq(recurringDonation.id, id));
-    await recurringAudit(
-      tx,
-      ctx,
-      id,
-      "cancel_requested",
-      { status: row.status },
-      { status: row.status, by }
-    );
-    await emit(tx, ctx.clock, {
-      type: "recurring_donation.cancel_requested",
-      aggregate: { type: "recurring_donation", id },
-      payload: { id },
-    });
-    return row;
-  });
+  return ctx.db.transaction((tx) => requestRecurringCancel(tx, ctx, id, by));
 }
 
 export async function sendRecurringCancel(ctx: SyncContext, id: string) {
@@ -65,23 +74,24 @@ export async function sendRecurringCancel(ctx: SyncContext, id: string) {
   if (!row || !row.cancelRequestedAt) return null;
   if (row.gateway !== ctx.payments.name)
     throw new Error("Recurring gateway unavailable");
-  const remote = await ctx.payments.fetchSubscription(
-    row.gatewaySubscriptionId
-  );
+  let remote = await ctx.payments.fetchSubscription(row.gatewaySubscriptionId);
   if (!ENDED_SUBSCRIPTION_STATUSES.has(remote.status)) {
     try {
-      await ctx.payments.cancelSubscription(row.gatewaySubscriptionId, {
-        atCycleEnd: false,
-      });
+      remote = await ctx.payments.cancelSubscription(
+        row.gatewaySubscriptionId,
+        {
+          atCycleEnd: false,
+        }
+      );
     } catch (error) {
       // Either our previous call succeeded with its answer lost, or another
       // delivery cancelled it concurrently; adopt the verified terminal state.
-      const fresh = await ctx.payments.fetchSubscription(
-        row.gatewaySubscriptionId
-      );
-      if (!ENDED_SUBSCRIPTION_STATUSES.has(fresh.status)) throw error;
+      remote = await ctx.payments.fetchSubscription(row.gatewaySubscriptionId);
+      if (!ENDED_SUBSCRIPTION_STATUSES.has(remote.status)) throw error;
     }
   }
+  if (!ENDED_SUBSCRIPTION_STATUSES.has(remote.status))
+    throw new Error("Recurring cancellation not confirmed");
   return syncRecurringDonation(ctx, row.gatewaySubscriptionId);
 }
 

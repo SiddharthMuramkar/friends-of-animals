@@ -163,7 +163,7 @@
       "submit": "Carry out this erasure",
       "pending": "Erasing…",
       "failures": {
-        "plan_changed": "The records changed after the erasure was approved, so it didn't run. Check the plan again and approve it.",
+        "plan_changed": "The records changed after the erasure was approved, so it could not finish. Check the plan again and approve it.",
         "erasure_disabled": "Erasures were switched off before this one ran. It didn't run."
       }
     },
@@ -184,6 +184,9 @@
       "kept_profile": "Participant profile with a paid registration",
       "paid_registrations": "Paid registrations",
       "payments": "Payments",
+      "donor_recognition": "Donor public disclosure choices",
+      "recurring_mandates": "Recurring donation mandates (stop future charges)",
+      "donation_records": "Donation, receipt and recurring mandate records",
       "children": "Children they look after",
       "consent_records": "Consent log and evidence",
       "audit_log": "Audit log entries",

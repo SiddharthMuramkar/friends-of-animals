@@ -35,6 +35,10 @@ import {
   consentEvent,
   consentForm,
   consentLink,
+  donation,
+  donor,
+  receipt,
+  recurringDonation,
   entry,
   entryFile,
   entryTransition,
@@ -73,6 +77,7 @@ import {
   userRole,
 } from "../../../../db/schema";
 import { USER_PHONE } from "../../../../identity/stored-phone";
+import { DONOR_PURPOSE } from "../../../donations/donors";
 import { LINK_CONTACT } from "../../../consent-links/repository";
 import { GUARDIAN_PURPOSE } from "../../../guardians/guardian-record";
 import {
@@ -100,6 +105,8 @@ export type Section = {
   owners: readonly string[];
   /** Encrypted columns and the purpose each is decrypted for. */
   decrypt?: Readonly<Record<string, string>>;
+  /** Explicit export field allowlist (SQL names); new financial columns stay private by default. */
+  include?: readonly string[];
   /** Columns left out: sign-in secrets, keyed hashes, storage keys. */
   withhold?: readonly string[];
 };
@@ -122,6 +129,13 @@ const paidBatchesOf = (scope: SubjectScope) =>
 /** The person's registrations. */
 const registrationIdsOf = (scope: SubjectScope) =>
   sql`(SELECT ${registration.id} FROM ${registration} WHERE ${within(registration.participantProfileId, profiles(scope))})`;
+
+/** Ownership comes from the account link, never a matching email address. */
+const donorIdsOf = (scope: SubjectScope) =>
+  sql`(SELECT ${donor.id} FROM ${donor} WHERE ${within(donor.userId, users(scope))})`;
+
+const donationIdsOf = (scope: SubjectScope) =>
+  sql`(SELECT ${donation.id} FROM ${donation} WHERE ${donation.donorId} IN ${donorIdsOf(scope)})`;
 
 const PROFILE_DECRYPT = {
   dob_ciphertext: PROFILE_PURPOSE.dob,
@@ -419,6 +433,96 @@ export const SECTIONS: readonly Section[] = [
     owners: ["batch_id"],
   },
   {
+    table: donor,
+    where: (scope) => within(donor.userId, users(scope)),
+    owners: ["user_id"],
+    include: [
+      "id",
+      "user_id",
+      "type",
+      "name_ciphertext",
+      "email_ciphertext",
+      "pan_ciphertext",
+      "organisation_name",
+      "disclose_organisation",
+      "created_at",
+    ],
+    decrypt: {
+      name_ciphertext: DONOR_PURPOSE.name,
+      email_ciphertext: DONOR_PURPOSE.email,
+      pan_ciphertext: DONOR_PURPOSE.pan,
+    },
+  },
+  {
+    table: recurringDonation,
+    where: (scope) =>
+      or(
+        within(recurringDonation.userId, users(scope)),
+        sql`${recurringDonation.donorId} IN ${donorIdsOf(scope)}`
+      )!,
+    owners: ["user_id", "donor_id"],
+    include: [
+      "id",
+      "donor_id",
+      "user_id",
+      "amount_minor",
+      "status",
+      "show_on_wall",
+      "wall_name",
+      "next_charge_at",
+      "cancel_requested_at",
+      "cancel_requested_by",
+      "cancelled_at",
+      "cancelled_by",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  {
+    table: donation,
+    where: (scope) => sql`${donation.donorId} IN ${donorIdsOf(scope)}`,
+    owners: ["donor_id"],
+    // No checkout hash, gateway identifiers, or internal finance proof.
+    include: [
+      "id",
+      "donor_id",
+      "origin",
+      "status",
+      "amount_minor",
+      "currency",
+      "show_on_wall",
+      "wall_name",
+      "declared_adult",
+      "declared_indian_source",
+      "payment_batch_id",
+      "recurring_donation_id",
+      "expires_at",
+      "offline_method",
+      "offline_reference",
+      "offline_received_on",
+      "captured_at",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  {
+    table: receipt,
+    where: (scope) => sql`${receipt.donationId} IN ${donationIdsOf(scope)}`,
+    owners: ["donation_id"],
+    // Frozen printed receipt, not the bearer links that open it.
+    include: [
+      "id",
+      "donation_id",
+      "fy",
+      "seq",
+      "number",
+      "issued_at",
+      "snapshot",
+      "template_version",
+      "cancelled_at",
+    ],
+  },
+  {
     table: privacyRequest,
     where: (scope) =>
       or(
@@ -453,6 +557,7 @@ export const SECTIONS: readonly Section[] = [
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   verification: "sign_in_secret",
+  receipt_link: "receipt_bearer_link",
   otp_rate_limit: "keyed_hash_only",
   form_rate_limit: "keyed_hash_only",
   captured_message: "test_capture",

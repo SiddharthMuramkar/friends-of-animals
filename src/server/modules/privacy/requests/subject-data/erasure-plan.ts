@@ -19,11 +19,11 @@
 //   an upload another record keeps).
 // - A guardian's children are their own people: their records stay until
 //   someone files an erasure for them.
-// - A legal hold keeps everything (but still withdraws consents and pauses
-//   publication of a directory listing).
+// - A legal hold keeps evidence (but still withdraws consents and pauses
+//   directory/donor publication and recurring mandates).
 //
 // The fingerprint covers every kind's action and basis, whether the person
-// has any of it or not, never counts, ids or dates: a message delivered
+// has any of it or not, plus the stable donor and mandate counts: a message delivered
 // between preview and run doesn't change it, but a new payment (which
 // keeps the account) or a legal hold does.
 //
@@ -61,6 +61,9 @@ export const ERASURE_CATEGORIES = [
   "kept_profile",
   "paid_registrations",
   "payments",
+  "donor_recognition",
+  "recurring_mandates",
+  "donation_records",
   "children",
   "consent_records",
   "audit_log",
@@ -111,6 +114,9 @@ export type ErasureFacts = {
   keptProfileBasis: "financial_record" | "consent_proof";
   payments: number;
   paymentsUntil: Date | null;
+  donorRecognition: number;
+  recurringMandates: number;
+  donationRecords: number;
   children: number;
   consentRecords: number;
   auditEntries: number;
@@ -170,6 +176,14 @@ export function planErasure(facts: ErasureFacts): ErasurePlan {
       "financial_floor",
       facts.paymentsUntil
     ),
+    category("donor_recognition", "withdraw", facts.donorRecognition),
+    category("recurring_mandates", "withdraw", facts.recurringMandates),
+    category(
+      "donation_records",
+      "retain",
+      facts.donationRecords,
+      "financial_record"
+    ),
     category("children", "retain", facts.children, "separate_subject"),
     category(
       "consent_records",
@@ -211,6 +225,11 @@ export function fingerprintOf(categories: readonly ErasureCategory[]): string {
     each.key,
     each.action,
     each.basis,
+    // Stable through cancellation retries and charges reconciled during the
+    // erasure, but a new donor/mandate calls for a fresh approval.
+    each.key === "donor_recognition" || each.key === "recurring_mandates"
+      ? each.count
+      : null,
   ]);
   return createHash("sha256")
     .update(JSON.stringify(decisions))

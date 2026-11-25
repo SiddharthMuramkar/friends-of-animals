@@ -91,6 +91,12 @@ import {
   lockUserSubject,
   type ConsentSubject,
 } from "../../../consent/repository";
+import {
+  donationErasureTargets,
+  prepareDonationErasure,
+  confirmDonationErasure,
+  withdrawDonationRecognition,
+} from "../../../donations/erasure";
 import { eraseOwnedListings } from "../../../directory/erase-owner";
 import {
   renderEmailHtml,
@@ -141,6 +147,7 @@ type ConsentToWithdraw = {
 export type ErasureTargets = {
   scope: SubjectScope;
   facts: ErasureFacts;
+  donations: Awaited<ReturnType<typeof donationErasureTargets>>;
   users: string[];
   consents: ConsentToWithdraw[];
   entryIds: string[];
@@ -452,8 +459,12 @@ export async function gatherErasure(
   // Read through `db`: inside a transaction, the settings port's own
   // connection would wait for it.
   const keepPayer = await readSetting(db, "privacy.erasureKeepsPayerAccount");
+  const donations = await donationErasureTargets(db, users);
   const facts: ErasureFacts = {
     onLegalHold,
+    donorRecognition: donations.donorIds.length,
+    recurringMandates: donations.mandateIds.length,
+    donationRecords: donations.records,
     givenConsents: consents.length,
     accounts: users.length,
     accountKeeper: await accountKeeper(db, users, fileIds, keepPayer, now),
@@ -598,6 +609,7 @@ export async function gatherErasure(
   return {
     scope: live,
     facts,
+    donations,
     users,
     consents,
     entryIds,
@@ -677,6 +689,10 @@ async function eraseRecords(
       actorRole: null,
     });
   }
+  if (targets.donations.liveMandateIds.length > 0) {
+    throw new Error("Recurring donation cancellation not confirmed");
+  }
+  await withdrawDonationRecognition(tx, targets.donations);
   await eraseOwnedListings(tx, deps, targets.users, targets.facts.onLegalHold);
   if (targets.facts.onLegalHold) return;
 
@@ -891,7 +907,7 @@ export async function executeErasure(
 
 export type ErasureJobDeps = Pick<
   OutboxDeps,
-  "db" | "clock" | "cipher" | "storage" | "settings" | "email"
+  "db" | "clock" | "cipher" | "storage" | "settings" | "email" | "payments"
 > & { errors?: ErrorReporter };
 
 async function deleteObjects(
@@ -1008,18 +1024,61 @@ export async function runExecuteErasure(
     await refuseApproval(deps, row.id, "erasure_disabled");
     return;
   }
-  const first = await gatherErasure(deps.db, row, deps.clock.now());
-  const firstPlan = planErasure(first.facts);
-  if (firstPlan.fingerprint !== row.erasureFingerprint) {
-    await refuseApproval(deps, row.id, "plan_changed");
-    return;
-  }
   if (row.erasureApprovedByUserId === null) {
     // The approving officer's account is gone: someone approves again.
     await refuseApproval(deps, row.id, "plan_changed");
     return;
   }
   const approver = row.erasureApprovedByUserId;
+  // Commit cancellation cutoffs before contacting the provider, and withdraw
+  // optional publicity immediately. A provider outage must leave the account
+  // and the approved request intact; both deliveries can then safely retry.
+  const preflight = await deps.db.transaction(async (tx) => {
+    const locked = await lockRequest(tx, row.id);
+    if (
+      !locked ||
+      locked.status !== "in_progress" ||
+      locked.erasureFingerprint !== row.erasureFingerprint ||
+      locked.erasureApprovedByUserId !== approver
+    )
+      return null;
+    const scope = await subjectScope(tx, locked);
+    for (const id of [...scope.userIds, ...scope.profileIds])
+      await lockSubject(tx, id);
+    const targets = await gatherErasure(tx, locked, deps.clock.now());
+    if (planErasure(targets.facts).fingerprint !== locked.erasureFingerprint) {
+      return "changed" as const;
+    }
+    const cancelling = await prepareDonationErasure(
+      tx,
+      { ...deps, actor: WORKER },
+      targets.donations
+    );
+    return { targets, cancelling };
+  });
+  if (preflight === null) return;
+  if (preflight === "changed") {
+    await refuseApproval(deps, row.id, "plan_changed");
+    return;
+  }
+  await confirmDonationErasure(
+    { ...deps, actor: WORKER },
+    preflight.cancelling
+  );
+  // A reconciled pre-cutoff charge may change the reason an account must
+  // stay. Recheck before deleting files or account data.
+  const first =
+    preflight.cancelling.length === 0
+      ? preflight.targets
+      : await gatherErasure(deps.db, row, deps.clock.now());
+  const firstPlan = planErasure(first.facts);
+  if (firstPlan.fingerprint !== row.erasureFingerprint) {
+    await refuseApproval(deps, row.id, "plan_changed");
+    return;
+  }
+  if (first.donations.liveMandateIds.length > 0) {
+    throw new Error("Recurring donation cancellation not confirmed");
+  }
   const accountGoes = !firstPlan.categories.some(
     (each) => each.key === "account" && each.action === "retain"
   );

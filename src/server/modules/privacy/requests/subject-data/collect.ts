@@ -112,10 +112,12 @@ export async function collectSubjectData(
     if (name === "file_asset") fileRows.push(...raw);
     if (raw.length === 0) continue;
     const withheld = new Set(section.withhold ?? []);
+    const included = section.include && new Set(section.include);
     sections[name] = raw.map((row) => {
       const out: Record<string, unknown> = {};
       for (const [column, value] of Object.entries(row)) {
-        if (withheld.has(column)) continue;
+        if (withheld.has(column) || (included && !included.has(column)))
+          continue;
         const purpose = section.decrypt?.[column];
         if (purpose !== undefined) {
           out[column.replace(/_ciphertext$/, "")] =
