@@ -142,3 +142,46 @@ it("authorizes every administrative use case, rejects invalid transitions, and p
     })
   ).toMatchObject({ ok: true, settled: false });
 });
+
+it("audits changed operational fields without copying editor text", async () => {
+  const h = await createHarness();
+  const staff = h.as(await staffActor(h, "content_manager"));
+  const input = details(h.clock.now());
+  const made = await staff.createEvent(input);
+  if (!made.ok) throw Error(made.error);
+  const startsAt = new Date(+input.startsAt + 3600_000);
+  const endsAt = new Date(+input.endsAt + 3600_000);
+  await staff.updateEvent({
+    eventId: made.eventId,
+    ...input,
+    startsAt,
+    endsAt,
+    description: "Some edited text",
+    capacity: 3,
+  });
+  const { auditLog } = await import("../../db/schema");
+  const { and, eq } = await import("drizzle-orm");
+  const [entry] = await h.db
+    .select()
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.entityId, made.eventId),
+        eq(auditLog.action, "event.updated")
+      )
+    );
+  expect(entry).toMatchObject({
+    before: {
+      startsAt: input.startsAt.toISOString(),
+      endsAt: input.endsAt.toISOString(),
+      capacity: 2,
+    },
+    after: {
+      startsAt: startsAt.toISOString(),
+      endsAt: endsAt.toISOString(),
+      capacity: 3,
+      changed: ["description", "startsAt", "endsAt", "capacity"],
+    },
+  });
+  expect(JSON.stringify(entry)).not.toContain("Some edited text");
+});

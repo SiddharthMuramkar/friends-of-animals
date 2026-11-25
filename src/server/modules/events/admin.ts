@@ -242,17 +242,35 @@ export async function updateEvent(
       if (+row.endsAt !== +updated.endsAt) await queueEnd(db, ctx, updated);
       await promoteWaitlist(db, ctx, updated);
     }
-    const changed = Object.keys(parsed.data).filter((key) => {
-      const k = key as keyof typeof parsed.data;
-      return row[k] instanceof Date || parsed.data[k] instanceof Date
-        ? String(row[k]) !== String(parsed.data[k])
-        : row[k] !== parsed.data[k];
-    });
+    const keys = Object.keys(parsed.data) as (keyof typeof parsed.data)[];
+    const stamp = (value: Date | string | number | boolean | null) =>
+      value instanceof Date ? value.toISOString() : value;
+    const changed = keys.filter(
+      (key) => stamp(row[key]) !== stamp(parsed.data[key])
+    );
+    // The audit shows operational changes, without copying any editor's
+    // free text or venue/URL into the private append-only audit log.
+    const structured = new Set<keyof typeof parsed.data>([
+      "kind",
+      "startsAt",
+      "endsAt",
+      "capacity",
+      "audience",
+      "registrationOpensAt",
+      "registrationClosesAt",
+      "waitlistEnabled",
+    ]);
+    const snapshot = (source: typeof parsed.data) =>
+      Object.fromEntries(
+        changed
+          .filter((key) => structured.has(key))
+          .map((key) => [key, stamp(source[key])])
+      );
     await recordAudit(db, ctx, {
       action: "event.updated",
       entity: { type: "event", id: row.id },
-      before: null,
-      after: { changed },
+      before: snapshot(row),
+      after: { ...snapshot(parsed.data), changed },
       actorRole: role,
     });
     return { ok: true } as const;
