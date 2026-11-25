@@ -1276,7 +1276,10 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "results.send_family_prize",
   ],
-  "results.published": ["artwork.open_results_window"],
+  "results.published": [
+    "artwork.open_results_window",
+    "community.record_results",
+  ],
   "artwork.retain_unrequested": ["artwork.retain_unrequested"],
   "auction.lot_created": ["notifications.dispatch"],
   "auction.lot.open": ["auctions.open_lot"],

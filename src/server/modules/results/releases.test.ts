@@ -243,25 +243,29 @@ describe("results publication", () => {
         resultsPublishedAt: new Date(prepare.publishAt),
       },
     ]);
-    expect(
-      await h.db
-        .select()
-        .from(outbox)
-        .where(
-          and(
-            eq(outbox.eventType, "results.published"),
-            eq(outbox.aggregateId, competitionId)
-          )
+    const resultEvents = await h.db
+      .select()
+      .from(outbox)
+      .where(
+        and(
+          eq(outbox.eventType, "results.published"),
+          eq(outbox.aggregateId, competitionId)
         )
-    ).toMatchObject([
-      {
-        payload: {
-          competitionId,
-          releaseId: made.releaseId,
-          publishedAt: prepare.publishAt,
-        },
-      },
-    ]);
+      );
+    expect(new Set(resultEvents.map((row) => row.eventId)).size).toBe(1);
+    expect(resultEvents.map((row) => row.handler)).toEqual(
+      expect.arrayContaining([
+        "artwork.open_results_window",
+        "community.record_results",
+      ])
+    );
+    for (const row of resultEvents) {
+      expect(row.payload).toEqual({
+        competitionId,
+        releaseId: made.releaseId,
+        publishedAt: prepare.publishAt,
+      });
+    }
     expect(
       await h.db
         .select()

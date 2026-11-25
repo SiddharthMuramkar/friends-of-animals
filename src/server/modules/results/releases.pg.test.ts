@@ -96,7 +96,13 @@ it("serializes duplicate scheduled publication and emits exactly one trusted eve
         eq(outbox.eventType, "results.published")
       )
     );
-  expect(events).toHaveLength(1);
+  expect(new Set(events.map((event) => event.eventId)).size).toBe(1);
+  expect(events.map((event) => event.handler)).toEqual(
+    expect.arrayContaining([
+      "artwork.open_results_window",
+      "community.record_results",
+    ])
+  );
   expect(events[0]?.payload).toEqual({
     ...input,
     publishedAt: world.clock.now().toISOString(),
@@ -148,6 +154,12 @@ it("serializes cancellation against publication, never publishing a cancelled co
     expect(cancelled).toMatchObject({ ok: false, error: "results_published" });
     expect(c?.status).toBe("results_published");
     expect(release?.status).toBe("published");
-    expect(events).toHaveLength(1);
+    expect(new Set(events.map((event) => event.eventId)).size).toBe(1);
+    expect(events.map((event) => event.handler)).toEqual(
+      expect.arrayContaining([
+        "artwork.open_results_window",
+        "community.record_results",
+      ])
+    );
   }
 });

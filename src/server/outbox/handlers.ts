@@ -12,6 +12,7 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { recordPublishedEngagement } from "../modules/community/results";
 import { publishResultsRelease } from "../modules/results/releases";
 import { sendFamilyPrize } from "../modules/results/messages";
 import {
@@ -155,6 +156,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "community.record_results": async (deps, { payload }) => {
+    await recordPublishedEngagement(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
   "results.publish": async (deps, delivery) => {
     await publishResultsRelease(
       { ...deps, actor: { kind: "system", process: "worker" } },
