@@ -778,6 +778,24 @@ Certificate PDF. Gallery and social variants require their own live consent to
 be delivered. A Certificate share image is downloadable by its own holder or
 verified linked guardian; it is not a public gallery asset.
 
+**Gallery item**:
+A content manager's reviewed presentation of a finished Entry. Its opaque public
+ID names the presentation, not the participant or private file. Publication binds
+the current public-display consent grant and live image; a withdrawal unpublishes
+it and a moderator may hide it. Restoring it never publishes without fresh review.
+_Avoid_: Entry, original artwork, public file asset
+
+**Public credit**:
+The participant's name and, for a minor, only separately opted-in school and city,
+computed from current consent. A minor's name defaults to first name plus surname
+initial. It is derived, never copied into the Gallery item or social export queue.
+_Avoid_: Full profile, artist identity snapshot
+
+**Gallery purge**:
+A durable request to evict the gallery's public routes when a credit is withdrawn
+or an item leaves publication. The item's live eligibility is checked even before
+that request runs; the private Stamped copy is not itself a cacheable public object.
+
 ## Physical artwork
 
 **Physical artwork**:

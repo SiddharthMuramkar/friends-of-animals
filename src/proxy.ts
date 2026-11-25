@@ -17,6 +17,12 @@ const handle = createProxy({
   isAdoptableSlug: adoptableSlugLookup,
   isPublicAuctionLot: publicAuctionLot,
   isPublicEventSlug: publicEventSlugLookup,
+  isPublicGalleryItem: async (itemId) => {
+    const { as } = await import("@/server/app");
+    const { PUBLIC_READER } =
+      await import("@/app/competitions/_lib/public-reader");
+    return (await as(PUBLIC_READER).getPublicGalleryItem({ itemId })) !== null;
+  },
 });
 
 export function proxy(request: NextRequest): Promise<NextResponse> {
@@ -49,6 +55,9 @@ export const config = {
     "/adopt/:slug",
     "/auctions/:lotCode",
     "/events/:slug",
+    "/gallery",
+    "/gallery/:path*",
+    "/gallery-report/:path*",
     "/ngos/register/:path*",
     "/judge",
     "/judge/:path*",

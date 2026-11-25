@@ -17,7 +17,9 @@
       "judging": "Judging rounds",
       "auctions": "Auctions",
       "events": "Events",
-      "community": "Community"
+      "community": "Community",
+      "home": "Home",
+      "reports": "Reports"
     },
     "loading": "Loading…",
     "denied": {

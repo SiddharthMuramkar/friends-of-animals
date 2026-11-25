@@ -11,6 +11,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_HOME,
   ADMIN_ADOPTIONS,
   ADMIN_AUCTIONS,
   ADMIN_JUDGING_ROUNDS,
@@ -109,6 +110,9 @@ async function Areas() {
   );
   // Adoption coordinators handle adoption applications (#130).
   const verifier = grants.some((grant) => grant.role === "foa_verifier");
+  const gallery = grants.some((g) =>
+    ["content_manager", "staff_admin", "super_admin"].includes(g.role)
+  );
   const auction = grants.some((g) => g.role === "auction_manager");
   const adoption = grants.some(
     (grant) => grant.role === "adoption_coordinator"
@@ -145,6 +149,7 @@ async function Areas() {
             <li key={link.section} className="max-w-full">
               <SiteLink
                 href={link.href}
+                prefetch={link.area === "admin" ? false : undefined}
                 className="inline-flex min-h-11 max-w-full items-center rounded-full border-2 border-border-strong bg-surface px-4 py-1.5 font-semibold text-ink wrap-anywhere hover:border-ink"
               >
                 {name(link)}
@@ -167,7 +172,7 @@ async function Areas() {
               title={name(link)}
               className="min-w-0 wrap-anywhere"
             />
-            {link.area !== "judge" ? (
+            {link.area !== "judge" && link.area !== "admin" ? (
               <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
             ) : null}
           </div>
@@ -183,6 +188,7 @@ async function Areas() {
             community={community}
             managesEvents={managesEvents}
             adoption={adoption}
+            gallery={gallery}
             auction={auction}
             verifier={verifier}
           />
@@ -206,6 +212,7 @@ async function AreaBody({
   managesEvents,
   adoption,
   auction,
+  gallery,
   verifier,
 }: {
   area: DashboardLink["area"];
@@ -220,17 +227,23 @@ async function AreaBody({
   managesEvents: boolean;
   adoption: boolean;
   auction: boolean;
+  gallery: boolean;
   verifier: boolean;
 }) {
-  const [t, registration] = await Promise.all([
+  const [t, registration, adminHome] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("institutionRegistration.competitions"),
+    getTranslations("adminHome"),
   ]);
   const links = (items: { href: string; label: string }[]): ReactNode => (
     <ul className="mt-3 flex flex-col">
       {items.map((item) => (
         <li key={item.href}>
-          <SiteLink href={item.href} className={LINK}>
+          <SiteLink
+            href={item.href}
+            prefetch={item.href === ADMIN_HOME ? false : undefined}
+            className={LINK}
+          >
             {item.label}
           </SiteLink>
         </li>
@@ -271,6 +284,7 @@ async function AreaBody({
         : null}
       {area === "admin"
         ? links([
+            { href: ADMIN_HOME, label: adminHome("title") },
             { href: APP_ROUTES.adminRoles, label: t("admin.roles") },
             { href: APP_ROUTES.adminAudit, label: t("admin.audit") },
             ...(competitions
@@ -328,6 +342,9 @@ async function AreaBody({
               : []),
             ...(verifier
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
+              : []),
+            ...(gallery
+              ? [{ href: APP_ROUTES.adminGallery, label: t("admin.gallery") }]
               : []),
             ...(auction
               ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]

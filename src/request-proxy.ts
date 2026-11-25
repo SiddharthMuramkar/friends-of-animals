@@ -4,6 +4,7 @@ import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
   CERTIFICATE_VERIFY_PREFIX,
+  GALLERY_REPORT_PREFIX,
   CONSENT_LINK_PREFIX,
   DONATION_CHECKOUT_PREFIX,
   individualRegisterSlug,
@@ -112,6 +113,7 @@ export type RequestProxyDeps = {
   /** Fresh auction visibility check; never cache consent across requests. */
   isPublicAuctionLot?: SlugLookup;
   isPublicEventSlug?: SlugLookup;
+  isPublicGalleryItem?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -123,6 +125,7 @@ export function createProxy({
   isAdoptableSlug = async () => false,
   isPublicAuctionLot = async () => false,
   isPublicEventSlug = async () => false,
+  isPublicGalleryItem = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -281,6 +284,49 @@ export function createProxy({
       return withNonceCsp(request);
     }
 
+    if (pathname.startsWith(GALLERY_REPORT_PREFIX + "/")) {
+      const id = decodedSlug(pathname.split("/")[2] ?? "");
+      if (!(await isPublicGalleryItem(id))) return missingSignedInPage(request);
+      const response = withNonceCsp(request);
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+    if (pathname === "/gallery" || pathname.startsWith("/gallery/")) {
+      const segments = pathname.split("/");
+      const id = decodedSlug(segments[2] ?? "");
+      if (
+        segments.length === 5 &&
+        segments[3] === "report" &&
+        segments[4] === "plain"
+      )
+        return NextResponse.redirect(
+          new URL(
+            `${GALLERY_REPORT_PREFIX}/${encodeURIComponent(id)}`,
+            request.url
+          )
+        );
+      let known = pathname === "/gallery";
+      if (
+        !known &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id
+        ) &&
+        (segments.length === 3 ||
+          (segments.length === 4 && segments[3] === "report"))
+      ) {
+        try {
+          known = await isPublicGalleryItem(id);
+        } catch {
+          known = false;
+        }
+      }
+      const result = known
+        ? NextResponse.next()
+        : NextResponse.rewrite(new URL(MISSING, request.url));
+      result.headers.set("Cache-Control", "private, no-store, max-age=0");
+      result.headers.set("CDN-Cache-Control", "no-store");
+      return result;
+    }
     const [, section, raw = ""] = pathname.split("/");
     const known =
       section === "blog"

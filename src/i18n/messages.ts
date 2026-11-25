@@ -1,3 +1,4 @@
+import gallery from "../../messages/en-IN/gallery.json";
 import certificatePdf from "../../messages/en-IN/certificatePdf.json";
 import certificates from "../../messages/en-IN/certificates.json";
 import results from "../../messages/en-IN/results.json";
@@ -10,6 +11,8 @@ import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
 import adminInbox from "../../messages/en-IN/adminInbox.json";
 import adminSettings from "../../messages/en-IN/adminSettings.json";
+import adminHome from "../../messages/en-IN/adminHome.json";
+import adminReports from "../../messages/en-IN/adminReports.json";
 import admin from "../../messages/en-IN/admin.json";
 import adminAudit from "../../messages/en-IN/adminAudit.json";
 import adminTemplates from "../../messages/en-IN/adminTemplates.json";
@@ -112,6 +115,8 @@ export const NAMESPACES = [
   "adminInbox",
   "adminSettings",
   "admin",
+  "adminHome",
+  "adminReports",
   "adminAudit",
   "adminTemplates",
   "adminRoles",
@@ -176,6 +181,7 @@ export const NAMESPACES = [
   "certificatePdf",
   "artworkCustody",
   "auctions",
+  "gallery",
   "error",
   "files",
   "footer",
@@ -220,6 +226,8 @@ export const messages = {
   ...adminInbox,
   ...adminSettings,
   ...admin,
+  ...adminHome,
+  ...adminReports,
   ...adminAudit,
   ...adminTemplates,
   ...adminRoles,
@@ -283,6 +291,7 @@ export const messages = {
   ...certificatePdf,
   ...artworkCustody,
   ...auctions,
+  ...gallery,
   ...error,
   ...files,
   ...footer,

@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { Suspense, type ComponentProps } from "react";
 
 import {
+  ADMIN_HOME,
+  ADMIN_REPORTS,
   ADMIN_ADOPTIONS,
   ADMIN_AUCTIONS,
   ADMIN_JUDGING_ROUNDS,
@@ -45,6 +47,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const nav = {
     label: t("label"),
     links: [
+      { href: ADMIN_HOME, label: t("home") },
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
       { href: ADMIN_BREACHES, label: t("breaches") },
@@ -84,9 +87,24 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 
 async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
   const actor = await currentActor();
+  const access = actor.kind === "user" ? await as(actor).myAccess() : null;
+  const reports = access?.grants.some((g) =>
+    ["super_admin", "staff_admin", "finance", "competition_manager"].includes(
+      g.role
+    )
+  );
+  const tNav = await getTranslations("admin.nav");
+  const links = reports
+    ? [
+        nav.links[0]!,
+        { href: ADMIN_REPORTS, label: tNav("reports") },
+        ...nav.links.slice(1),
+      ]
+    : nav.links;
   const finance =
-    actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
-  if (!finance) return <AdminNav {...nav} />;
+    access !== null &&
+    (await showLedgerNavigation(() => Promise.resolve(access)));
+  if (!finance) return <AdminNav {...nav} links={links} />;
 
   const [t, donations] = await Promise.all([
     getTranslations("adminLedger.list"),
@@ -96,7 +114,7 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
     <AdminNav
       label={nav.label}
       links={[
-        ...nav.links,
+        ...links,
         { href: ADMIN_LEDGER, label: t("title") },
         // Finance's donations (#106).
         { href: ADMIN_DONATIONS, label: donations("nav") },

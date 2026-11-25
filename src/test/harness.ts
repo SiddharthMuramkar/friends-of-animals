@@ -48,6 +48,7 @@ import { FakeMalwareScanner } from "./fakes/malware-scanner";
 import { FakePdfRenderer } from "./fakes/pdf";
 import { FakeMediaProcessor } from "./fakes/media";
 import { FakePaymentGateway } from "./fakes/payment-gateway";
+import { FakeCdnPurger } from "./fakes/cdn-purger";
 import { FakeStorage } from "./fakes/storage";
 import { TestSettings } from "./settings";
 
@@ -131,6 +132,7 @@ export interface Harness {
    * its inputs and fails the next ones with `failNext(n, code)`.
    */
   media: FakeMediaProcessor;
+  cdn: FakeCdnPurger;
   pdf: FakePdfRenderer;
   /**
    * The payment gateway with its webhook simulator: lists the orders it
@@ -219,6 +221,7 @@ export async function createHarness(
     codeRequestLimits: CODE_REQUEST_LIMITS,
     payments: gateway,
   };
+  const cdn = new FakeCdnPurger();
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,
@@ -235,6 +238,7 @@ export async function createHarness(
     cookies,
     errors,
     deps,
+    cdn,
     as: (actor) => app.as(actor),
     visitor: (overrides) => ({ kind: "visitor", meta: meta(overrides) }),
     currentActor: (overrides, cookie = cookies.header()) =>
@@ -296,7 +300,7 @@ export async function createHarness(
       totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
     // Every queue, worker-media's included.
-    drain: () => drainUntilIdle(deps, { queue: "all" }),
+    drain: () => drainUntilIdle({ ...deps, cdn }, { queue: "all" }),
     storage,
     scanner,
     media,

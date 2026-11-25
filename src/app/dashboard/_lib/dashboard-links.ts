@@ -4,7 +4,7 @@
 // /dashboard; #73 (institutions), #95 (judging) and the rest point
 // theirs at real routes here.
 
-import { APP_ROUTES, JUDGE_DASHBOARD } from "@/lib/app-routes";
+import { ADMIN_HOME, APP_ROUTES, JUDGE_DASHBOARD } from "@/lib/app-routes";
 import type { Dashboard } from "@/server/access";
 
 export type DashboardLink = {
@@ -31,6 +31,8 @@ export function dashboardLinks(dashboards: Dashboard[]): DashboardLink[] {
     switch (dashboard.area) {
       case "institution":
         return linkTo("institution", dashboard.institutionId);
+      case "admin":
+        return { ...linkTo("admin"), href: ADMIN_HOME };
       case "judge":
         return { ...linkTo("judge"), href: JUDGE_DASHBOARD };
       case "organisation":

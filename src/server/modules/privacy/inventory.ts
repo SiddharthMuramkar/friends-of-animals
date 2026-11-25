@@ -1551,6 +1551,30 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   consentLink("institution_registration_id", "technical"),
   consentLink("competition_id", "technical"),
   actorColumn("consent_link", "sent_by_user_id", COMPETITION_CONSENT_RECORD),
+  // Gallery curation is attached to the entry; erasure cascades to the item
+  // and its encrypted reports. Purge bookkeeping contains only route IDs.
+  ...["entry_id", "consent_event_id", "file_id", "title", "story"].map(
+    (column) =>
+      rowsOf("gallery_item", {
+        subject: ENTRY_PARTICIPANT,
+        retention: ENTRY_RECORD,
+        onExpiry: "delete_row",
+      })(
+        column,
+        column === "title" || column === "story" ? "content" : "identity"
+      )
+  ),
+  ...["details_ciphertext", "contact_ciphertext"].map((column) =>
+    rowsOf("gallery_report", {
+      subject: {
+        kind: "participant_profile",
+        via: "item_id → gallery_item.entry_id → entry.participant_profile_id",
+      },
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(column, column === "details_ciphertext" ? "content" : "contact")
+  ),
+  actorColumn("gallery_report", "handled_by_user_id", STAFF_RECORD),
   // Competition entries (#85): the work, its uploads and its history.
   entry("code", "identity"),
   entry("registration_id", "identity"),

@@ -27,6 +27,8 @@ export const APP_ROUTES = {
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
+  adminGallery: "/admin/gallery",
+  adminGalleryReports: "/admin/gallery/reports",
   adminTemplates: "/admin/templates",
   institutionRegister: "/institutions/register",
   myInstitution: "/institution",
@@ -101,6 +103,16 @@ export function adminPaymentReviewCasePath(caseId: string): string {
  * Refunds (#80): the finance queue and each refund's page. Listed with
  * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
  */
+/** Role-scoped home and aggregate competition reports (#117). */
+export const ADMIN_HOME = "/admin";
+export const ADMIN_REPORTS = "/admin/reports";
+export const adminQueuePath = (key: string) =>
+  `/admin/queues/${encodeURIComponent(key)}`;
+export const adminCompetitionReportPath = (code: string) =>
+  `${ADMIN_REPORTS}/competitions/${encodeURIComponent(code)}`;
+export const adminCompetitionReportCsvPath = (code: string) =>
+  `${adminCompetitionReportPath(code)}/export.csv`;
+
 export const ADMIN_REFUNDS = "/admin/refunds";
 
 export const ADMIN_LEDGER = "/admin/ledger";
@@ -285,6 +297,7 @@ export const isJudgeInvitationPage = (path: string) =>
 
 /** Public request-time verification, never signed in or cached. */
 export const CERTIFICATE_VERIFY_PREFIX = "/verify";
+export const GALLERY_REPORT_PREFIX = "/gallery-report";
 export const ADMIN_CERTIFICATES = "/admin/certificates";
 export const MY_CERTIFICATES = "/dashboard/certificates";
 export const ADMIN_ARTWORK = "/admin/artwork";
@@ -598,6 +611,11 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_HOME,
+  ADMIN_REPORTS,
+  "/admin/queues/[key]",
+  "/admin/reports/competitions/[code]",
+  "/admin/reports/competitions/[code]/export.csv",
   ADMIN_JUDGING_ROUNDS,
   "/admin/judging/rounds/new",
   "/admin/judging/rounds/[id]",
