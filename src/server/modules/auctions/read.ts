@@ -9,6 +9,7 @@ import {
   type AuctionLotRow,
 } from "../../db/schema";
 import type { UseCaseContext } from "../../use-cases";
+import { publishedRecognitionForEntry } from "../results/read-published";
 import { auctionConsentCredit } from "../consent/auction-credit";
 import { PUBLIC_LOT_STATUSES } from "./domain/lot-status";
 import { parseLotCode } from "./domain/lot-code";
@@ -52,8 +53,8 @@ async function toPublic(
     ),
     opensAt: row.opensAt,
     closesAt: row.closesAt,
-    // #99: only published award metadata; #102: only a stamped public asset.
-    award: null as string | null,
+    award: await publishedRecognitionForEntry(ctx.db, consent.entryId),
+    // #102: only a stamped public asset.
     image: null as { url: string; alt: string } | null,
   };
 }
@@ -99,6 +100,7 @@ async function adminView(ctx: UseCaseContext, lot: AuctionLotRow) {
     .select({
       artworkCode: physicalArtwork.artworkCode,
       registrationId: physicalArtwork.registrationId,
+      entryId: physicalArtwork.entryId,
       title: entry.title,
     })
     .from(physicalArtwork)
@@ -112,7 +114,9 @@ async function adminView(ctx: UseCaseContext, lot: AuctionLotRow) {
     artworkCode: artwork?.artworkCode ?? null,
     title: artwork?.title ?? null,
     creatorCredit: credit?.credit.name ?? null,
-    award: null as string | null,
+    award: artwork
+      ? await publishedRecognitionForEntry(ctx.db, artwork.entryId)
+      : null,
   };
 }
 export async function listLotsForAdmin(ctx: UseCaseContext) {
