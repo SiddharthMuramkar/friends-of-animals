@@ -28,6 +28,7 @@ import { uuidv7 } from "../../ids";
 import { invalidInput, type InvalidInput } from "../../input";
 import { normaliseEmailAddress } from "../../ports/email";
 import type { UseCaseContext } from "../../use-cases";
+import { lockDonationStart } from "../privacy/requests/subject-data/financial-start";
 import { initialDonationStatus } from "./domain/donation-status";
 import {
   defaultWallName,
@@ -168,6 +169,9 @@ export async function startDonation(
   const payerUserId = actor.kind === "user" ? actor.userId : null;
 
   return ctx.db.transaction(async (tx): Promise<StartDonationResult> => {
+    if (payerUserId && !(await lockDonationStart(tx, payerUserId, now))) {
+      return { ok: false, error: "donations_closed" };
+    }
     const has80G = await readSetting(tx, "org.has80G");
     const pan = has80G ? normalizePan(given.pan) : null;
     if (has80G && !pan)
