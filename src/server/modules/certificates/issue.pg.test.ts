@@ -47,14 +47,14 @@ it("concurrent release deliveries issue once and concurrent PDF jobs store once"
     return { a, b };
   });
   expect(await Promise.all([calls.a, calls.b])).toEqual(
-    expect.arrayContaining([{ issued: 8 }, { issued: 0 }])
+    expect.arrayContaining([{ issued: 14 }, { issued: 0 }])
   );
   const rows = await world.db
     .select()
     .from(certificate)
     .where(eq(certificate.sourceReleaseId, release.id));
-  expect(rows).toHaveLength(8);
-  expect(new Set(rows.map((x) => x.number)).size).toBe(8);
+  expect(rows).toHaveLength(14);
+  expect(new Set(rows.map((x) => x.number)).size).toBe(14);
   const id = rows[0]!.id;
   const renders = await world.sql.begin(async (blocker) => {
     await blocker`select id from competition where id=${release.competitionId} for update`;
