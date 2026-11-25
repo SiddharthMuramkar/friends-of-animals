@@ -144,6 +144,40 @@ export const test = base.extend<{
     } finally {
       try {
         if (schoolRegistrationId) {
+          const uploaded = await db
+            .select({ id: schema.consentFormUpload.fileAssetId })
+            .from(schema.consentFormUpload)
+            .innerJoin(
+              schema.registration,
+              eq(
+                schema.consentFormUpload.registrationId,
+                schema.registration.id
+              )
+            )
+            .where(
+              eq(
+                schema.registration.institutionRegistrationId,
+                schoolRegistrationId
+              )
+            );
+          // Only this fixture's scans and forms; remove them before the
+          // institution/account fixtures clean up the student and uploader.
+          await db
+            .delete(schema.consentForm)
+            .where(
+              eq(
+                schema.consentForm.institutionRegistrationId,
+                schoolRegistrationId
+              )
+            );
+          if (uploaded.length > 0) {
+            await db.delete(schema.fileAsset).where(
+              inArray(
+                schema.fileAsset.id,
+                uploaded.map(({ id }) => id)
+              )
+            );
+          }
           const fixtureLinks = eq(
             schema.consentLink.institutionRegistrationId,
             schoolRegistrationId
