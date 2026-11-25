@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { expect, it } from "vitest";
 
 import {
@@ -20,27 +20,12 @@ import { nextPeriodMonth, periodStart } from "./domain/period";
 // would commit first and the trigger would refuse the capture outright.
 //
 // The test database is shared and keeps its rows, and locked months must
-// stay a prefix, so each run locks the month after the last run's, far in
-// the past where no other test posts. Other test files may also seed a
-// pending lock request; advance this world's fake clock past it before
-// requesting our own lock, rather than changing another test's fixture.
+// stay a prefix, so each run locks the month after the last locked one.
+// Files that load the preview seed (`world.seed.preview()`) lock its month
+// and leave a lock request pending on the next, so a test that lands on
+// that month approves the waiting request instead of asking again.
 
 async function nextUnlockedMonth(world: PgWorld) {
-  const [pending] = await world.db
-    .select({ expiresAt: financeApproval.expiresAt })
-    .from(financeApproval)
-    .where(
-      and(
-        eq(financeApproval.operation, "period_lock"),
-        eq(financeApproval.status, "pending")
-      )
-    )
-    .orderBy(desc(financeApproval.expiresAt))
-    .limit(1);
-  if (pending && pending.expiresAt > world.clock.now()) {
-    world.clock.set(pending.expiresAt);
-  }
-
   const [latest] = await world.db
     .select({ month: ledgerPeriod.month })
     .from(ledgerPeriod)
@@ -48,6 +33,29 @@ async function nextUnlockedMonth(world: PgWorld) {
     .orderBy(desc(ledgerPeriod.month))
     .limit(1);
   return latest ? nextPeriodMonth(latest.month) : "2001-01";
+}
+
+async function lockRequest(
+  world: PgWorld,
+  requester: Awaited<ReturnType<typeof financeUser>>,
+  month: string
+) {
+  const requested = await world.as(requester).requestPeriodLock({ month });
+  if (requested.ok) return requested.requestId;
+  if (requested.error !== "request_pending")
+    throw new Error(JSON.stringify(requested));
+  const [pending] = await world.db
+    .select({ id: financeApproval.id })
+    .from(financeApproval)
+    .where(
+      and(
+        eq(financeApproval.status, "pending"),
+        eq(financeApproval.operation, "period_lock"),
+        sql`${financeApproval.payload} ->> 'month' = ${month}`
+      )
+    );
+  if (!pending) throw new Error(`No pending lock request for ${month}`);
+  return pending.id;
 }
 
 async function financeUser(world: PgWorld) {
@@ -92,8 +100,7 @@ it("makes a lock approval wait for a capture already posting into that month, th
     const month = await nextUnlockedMonth(world);
     const requester = await financeUser(world);
     const approver = await financeUser(world);
-    const requested = await world.as(requester).requestPeriodLock({ month });
-    if (!requested.ok) throw new Error(JSON.stringify(requested));
+    const requestId = await lockRequest(world, requester, month);
     const { batchId, gatewayPaymentId } = await captureIn(world, month);
 
     // Another request holds the capture's journal key uncommitted, so the
@@ -111,9 +118,7 @@ it("makes a lock approval wait for a capture already posting into that month, th
         .as({ kind: "system", process: "worker" })
         .postPaymentCapture({ batchId });
       await world.waitForLockWaiters(1);
-      const approval = world
-        .as(approver)
-        .approveFinanceRequest({ requestId: requested.requestId });
+      const approval = world.as(approver).approveFinanceRequest({ requestId });
       await world.waitForLockWaiters(2);
       await blocker`rollback`;
 
@@ -159,13 +164,10 @@ it("sends a capture for a month locked before it posts past the lock line", asyn
     const month = await nextUnlockedMonth(world);
     const requester = await financeUser(world);
     const approver = await financeUser(world);
-    const requested = await world.as(requester).requestPeriodLock({ month });
-    if (!requested.ok) throw new Error(JSON.stringify(requested));
+    const requestId = await lockRequest(world, requester, month);
     const { batchId, gatewayPaymentId } = await captureIn(world, month);
     expect(
-      await world
-        .as(approver)
-        .approveFinanceRequest({ requestId: requested.requestId })
+      await world.as(approver).approveFinanceRequest({ requestId })
     ).toMatchObject({ ok: true });
 
     expect(

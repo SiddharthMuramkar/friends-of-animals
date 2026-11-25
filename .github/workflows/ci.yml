@@ -81,17 +81,19 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm format:check
 
-  # The slowest shard sets the wall time of every PR run, so eight: about
-  # 70 s a shard, against 100-120 s with four. Change the name, the matrix
-  # and the --shard total together.
+  # The slowest shard sets the wall time of every PR run, and a crowded
+  # shard slows every file in it: at 94 files a shard (eight shards, #55
+  # part 1) the seed tests ran past Vitest's 5 s limit. Ten keeps a shard
+  # near 75 files. Change the name, the matrix and the --shard total
+  # together.
   vitest:
-    name: Vitest (shard ${{ matrix.shard }}/8)
+    name: Vitest (shard ${{ matrix.shard }}/10)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -99,7 +101,7 @@ jobs:
       - uses: ./.github/actions/setup
       - env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm exec vitest run --shard="$SHARD/8"
+        run: pnpm exec vitest run --shard="$SHARD/10"
 
   integrity:
     name: Test integrity
