@@ -92,6 +92,7 @@ function Terms({
       hint: t("form.contactName.hint"),
     },
     email: { label: t("form.email.label"), hint: t("form.email.hint") },
+    pan: { label: t("form.pan.label"), hint: t("form.pan.hint") },
     organisation: {
       label: t("form.organisation.label"),
       hint: t("form.organisation.hint"),
@@ -133,7 +134,7 @@ function Terms({
         lead={t("form.lead")}
       />
       <div className="mt-8">
-        <DonateForm labels={labels} />
+        <DonateForm labels={labels} has80G={terms.has80G} />
       </div>
     </div>
   );

@@ -792,6 +792,27 @@
       "when": 1795582796174,
       "tag": "0112_130_adoption_application_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1795586650486,
+      "tag": "0113_108_pre_offline_donation_proof",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1795586658306,
+      "tag": "0114_108_offline_donations",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1795586802934,
+      "tag": "0115_108_donor_pan",
+      "breakpoints": true
     }
   ]
 }

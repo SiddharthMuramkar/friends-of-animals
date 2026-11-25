@@ -8,7 +8,11 @@ import { TextField } from "@/components/form/text-field";
 import { ButtonLink, buttonStyles } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
-import { ADMIN_DONATIONS, adminDonationPath } from "@/lib/app-routes";
+import {
+  ADMIN_DONATIONS,
+  ADMIN_OFFLINE_DONATION,
+  adminDonationPath,
+} from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
@@ -64,6 +68,9 @@ export default async function Page({
 
   return (
     <DonationsFrame title={t("title")} lead={t("lead")}>
+      <ButtonLink href={ADMIN_OFFLINE_DONATION}>
+        {t("offline.title")}
+      </ButtonLink>
       <search>
         <form action={ADMIN_DONATIONS} method="get" className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

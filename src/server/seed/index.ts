@@ -20,6 +20,7 @@ import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
 import { seedDonations } from "./donations";
+import { seedOfflineDonations } from "./offline-donations";
 import { seedDirectory } from "./directory";
 import { seedAdoption } from "./adoption";
 import { seedAdoptionApplications } from "./adoption-applications";
@@ -110,6 +111,7 @@ const seeders: readonly Seeder[] = [
   seedGuardians,
   // Before the ledger seed, whose reconcile posts its donations (#106).
   seedDonations,
+  seedOfflineDonations,
   seedLedger,
   // After the ledger seed: its postings are in open months (#109).
   seedLedgerPeriods,

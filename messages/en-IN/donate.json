@@ -138,7 +138,8 @@
         "organisationName": "Enter the company's name.",
         "disclose": "Choose whether we may name your company.",
         "declarations": "Tick both statements to give.",
-        "wallName": "Use 60 characters or fewer."
+        "wallName": "Use 60 characters or fewer.",
+        "pan": "Enter a valid 10-character PAN, for example ABCDE1234F."
       },
       "alerts": {
         "donations_closed": "Online giving isn't open yet. Nothing was charged.",
@@ -150,7 +151,11 @@
         "title": "Ask a grown-up to give",
         "back": "See the competitions"
       },
-      "loading": "Loading the donation form…"
+      "loading": "Loading the donation form…",
+      "pan": {
+        "label": "Donor PAN",
+        "hint": "Enter the 10-character PAN for the 80G receipt. This is encrypted and never shown publicly."
+      }
     }
   }
 }

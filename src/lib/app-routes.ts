@@ -140,6 +140,7 @@ export function adminRefundPath(refundId: string): string {
 
 /** Finance's donations (#106): the list and each donation's page. */
 export const ADMIN_DONATIONS = "/admin/donations";
+export const ADMIN_OFFLINE_DONATION = `${ADMIN_DONATIONS}/offline` as const;
 
 export function adminDonationPath(donationId: string): string {
   return `${ADMIN_DONATIONS}/${encodeURIComponent(donationId)}`;
