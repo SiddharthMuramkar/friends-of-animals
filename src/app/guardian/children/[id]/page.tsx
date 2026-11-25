@@ -16,6 +16,7 @@ import {
   APP_ROUTES,
   guardianChildConsentsPath,
   guardianChildVolunteerPath,
+  guardianChildTimelinePath,
 } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -203,6 +204,12 @@ async function Child({
             variant="secondary"
           >
             {t("consents")}
+          </ButtonLink>
+          <ButtonLink
+            href={guardianChildTimelinePath(child.id)}
+            variant="secondary"
+          >
+            {t("timeline")}
           </ButtonLink>
           {child.login === "linked" ? (
             // A teen with their own login can apply to volunteer (#123).

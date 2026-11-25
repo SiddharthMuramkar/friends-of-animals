@@ -20,7 +20,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, count, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../../access/can";
@@ -31,6 +31,9 @@ import type { AppDb } from "../../../../db/app-db";
 import {
   account,
   certificate,
+  communityMember,
+  engagementMilestone,
+  timelineEntry,
   certificateReadyNotice,
   auditLog,
   artworkPhoto,
@@ -546,6 +549,40 @@ export async function gatherErasure(
       )),
     uploads: uploadIds.length,
     entries: entryIds.length,
+    communityHistory:
+      (await n(
+        db
+          .select({ n: count() })
+          .from(communityMember)
+          .where(
+            or(
+              within(communityMember.subjectUserId, users),
+              within(communityMember.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(engagementMilestone)
+          .where(
+            or(
+              within(engagementMilestone.subjectUserId, users),
+              within(engagementMilestone.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(timelineEntry)
+          .where(
+            or(
+              within(timelineEntry.subjectUserId, users),
+              within(timelineEntry.subjectProfileId, profileIds)
+            )
+          )
+      )),
     auctionBids: await n(
       db
         .select({ n: count() })
@@ -722,6 +759,37 @@ async function eraseRecords(
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
+  // A paid account or profile can remain for a statutory floor, but its
+  // community history is not a financial record. Erase both subject keys.
+  await tx
+    .delete(timelineEntry)
+    .where(
+      or(
+        within(timelineEntry.subjectUserId, users),
+        within(timelineEntry.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx
+    .delete(engagementMilestone)
+    .where(
+      or(
+        within(engagementMilestone.subjectUserId, users),
+        within(engagementMilestone.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx
+    .delete(communityMember)
+    .where(
+      or(
+        within(communityMember.subjectUserId, users),
+        within(communityMember.subjectProfileId, scope.profileIds)
+      )
+    );
+  // A retained guardian account is not the member's identity.
+  await tx
+    .update(communityMember)
+    .set({ joinedByUserId: null })
+    .where(within(communityMember.joinedByUserId, users));
   // Preserve accepted amounts and deadlines, even for an account retained
   // only for other financial records. Erasure never lowers the lot's price.
   await tx

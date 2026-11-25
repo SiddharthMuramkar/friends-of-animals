@@ -12,6 +12,7 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { recordPublishedEngagement } from "../modules/community/results";
 import { issueCertificates } from "../modules/certificates/issue";
 import { renderCertificate } from "../modules/certificates/render";
 import type { PdfRenderer } from "../ports/pdf";
@@ -159,6 +160,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "community.record_results": async (deps, { payload }) => {
+    await recordPublishedEngagement(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
   "certificates.issue": async (deps, { payload }) => {
     await issueCertificates(
       { ...deps, actor: { kind: "system", process: "worker" } },

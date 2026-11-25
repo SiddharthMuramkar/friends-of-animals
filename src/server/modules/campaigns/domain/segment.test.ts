@@ -61,7 +61,8 @@ describe("segmentDefinitionSchema", () => {
   it.each([
     ["a staff role", { roles: ["community_manager"] }],
     ["a role that doesn't exist", { roles: ["ambassador"] }],
-    ["an unknown criterion", { milestones: ["volunteer"] }],
+    ["an unknown criterion", { unsupported: ["volunteer"] }],
+    ["an unknown milestone", { milestones: ["never_a_rung"] }],
     ["a blank city", { cities: ["   "] }],
     [
       "a city that is too long",
