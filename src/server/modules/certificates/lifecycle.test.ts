@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { createHarness, type Harness } from "@/test/harness";
+import { seedAuctionResults } from "@/test/seed-auction-results";
+import { seedCertificates } from "../../seed/certificates";
+import { seedVolunteers } from "../../seed/volunteers";
+import { seedVolunteerWork } from "../../seed/volunteer-work";
 import {
   auditLog,
   certificate,
@@ -17,7 +21,11 @@ import { SEED_ACCOUNTS } from "../../seed/accounts";
 import { managerOf, signedInWith } from "../judging/testing";
 const worker = { kind: "system", process: "worker" } as const;
 async function seeded(h: Harness) {
-  await h.seed.preview();
+  await seedAuctionResults(h.deps);
+  await seedCertificates(h.deps);
+  // Keep the service certificate: the render and file counts include it.
+  await seedVolunteers(h.deps);
+  await seedVolunteerWork(h.deps);
   const [release] = await h.db
     .select()
     .from(resultRelease)
