@@ -17,6 +17,8 @@ export const REPORTS_POLICY = {
       subject.grants.find((g) => isStaffRole(g.role));
     return grant ? { allowed: true, role: grant.role } : { allowed: false };
   },
+  "reports.objectives.read": role("super_admin", "staff_admin"),
+  "reports.objectives.export": role("super_admin", "staff_admin"),
   "reports.competition.read": reportReader,
   "reports.competition.export": reportReader,
 } satisfies Policy<string>;

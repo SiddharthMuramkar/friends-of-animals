@@ -10,7 +10,16 @@ import {
   exportCompetitionReportCsv,
   type CompetitionReportInput,
 } from "./competition-report";
+import {
+  getObjectiveReport,
+  exportObjectiveReportCsv,
+  type ObjectivePeriodInput,
+} from "./objectives";
 export const reportsUseCases = (ctx: UseCaseContext) => ({
+  getObjectiveReport: (input: ObjectivePeriodInput) =>
+    getObjectiveReport(ctx, input),
+  exportObjectiveReportCsv: (input: ObjectivePeriodInput) =>
+    exportObjectiveReportCsv(ctx, input),
   listReportCompetitions: () => listReportCompetitions(ctx),
   getCompetitionReport: (input: CompetitionReportInput) =>
     getCompetitionReport(ctx, input),
