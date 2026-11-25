@@ -1,8 +1,8 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { fieldCryptoFor } from "@/server/crypto/keys";
-import { user } from "@/server/db/schema";
+import { user, communityMember } from "@/server/db/schema";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 
@@ -96,6 +96,12 @@ describe("seedPreview", () => {
       ({ email }) => email === "member1@example.test"
     );
     expect(account?.id).toBe(existing.id);
+    expect(
+      await deps.db
+        .select()
+        .from(communityMember)
+        .where(eq(communityMember.subjectUserId, existing.id))
+    ).toEqual([]);
   });
 });
 

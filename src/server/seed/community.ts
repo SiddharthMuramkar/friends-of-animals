@@ -1,6 +1,7 @@
 // Demo data only. Historic competition engagement is rebuilt from the same
 // real published release as the worker, not manufactured result milestones.
-import { communityMember } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { communityMember, participantProfile, user } from "../db/schema";
 import {
   recordEngagement,
   communityMemberFor,
@@ -50,10 +51,25 @@ export const seedCommunity: Seeder = async ({ db, clock, cipher }) => {
   ];
   await db.transaction(async (tx) => {
     for (const sample of members) {
+      // Identity seeding intentionally leaves an account alone if another
+      // person already holds a demo email. Never attach a demo membership to
+      // that account, or insert a foreign key for a missing seed identity.
+      const [joiner] = await tx
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.id, sample.joinedBy));
+      if (!joiner) continue;
+      if (sample.subject.kind === "profile") {
+        const [profile] = await tx
+          .select({ id: participantProfile.id })
+          .from(participantProfile)
+          .where(eq(participantProfile.id, sample.subject.profileId));
+        if (!profile) continue;
+      }
       const now = clock.now();
-      const existing = await communityMemberFor(tx, sample.subject);
+      let existing = await communityMemberFor(tx, sample.subject);
       if (!existing) {
-        await tx
+        const [inserted] = await tx
           .insert(communityMember)
           .values({
             id: sample.id,
@@ -69,8 +85,11 @@ export const seedCommunity: Seeder = async ({ db, clock, cipher }) => {
             createdAt: now,
             updatedAt: now,
           })
-          .onConflictDoNothing();
+          .onConflictDoNothing()
+          .returning();
+        existing = inserted ?? null;
       }
+      if (!existing) continue;
       await recordEngagement(
         tx,
         { clock, actor: { kind: "system", process: "seed" } },
@@ -79,9 +98,9 @@ export const seedCommunity: Seeder = async ({ db, clock, cipher }) => {
           subject: sample.subject,
           kind: "community_member",
           competitionId: null,
-          occurredAt: existing?.joinedAt ?? now,
+          occurredAt: existing.joinedAt,
           sourceType: "community_member",
-          sourceId: existing?.id ?? sample.id,
+          sourceId: existing.id,
         }
       );
     }
