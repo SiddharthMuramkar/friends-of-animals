@@ -121,6 +121,23 @@ export function fieldKey(parse: (value: string) => unknown) {
 }
 
 /** Secrets the app server reads. */
+const msg91Variables = {
+  /**
+   * MSG91, production's SMS provider: the account's auth key and the id of
+   * the DLT-approved sign-in code template. Optional: without them
+   * production refuses to send SMS (sign-in by phone stays switched off
+   * until DLT approval), and other environments never call MSG91.
+   */
+  MSG91_AUTH_KEY: z.string().optional(),
+  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
+  /**
+   * The MSG91 id of the DLT-approved coordinator invitation template (#74,
+   * HR-14). Optional: without it, phone invitations fail to send in
+   * production; they stay refused there anyway while `sms.enabled` is off.
+   */
+  MSG91_COORDINATOR_INVITATION_TEMPLATE_ID: z.string().optional(),
+};
+
 const secretVariables = {
   /**
    * Signs session cookies and keys the sign-in rate limits (Better Auth).
@@ -142,20 +159,7 @@ const secretVariables = {
    */
   FIELD_ENCRYPTION_KEYS: fieldKey(parseKeyRing),
   FIELD_HMAC_KEY: fieldKey(parseBlindIndexKey),
-  /**
-   * MSG91, production's SMS provider: the account's auth key and the id of
-   * the DLT-approved sign-in code template. Optional: without them
-   * production refuses to send SMS (sign-in by phone stays switched off
-   * until DLT approval), and other environments never call MSG91.
-   */
-  MSG91_AUTH_KEY: z.string().optional(),
-  MSG91_OTP_TEMPLATE_ID: z.string().optional(),
-  /**
-   * The MSG91 id of the DLT-approved coordinator invitation template (#74,
-   * HR-14). Optional: without it, phone invitations fail to send in
-   * production; they stay refused there anyway while `sms.enabled` is off.
-   */
-  MSG91_COORDINATOR_INVITATION_TEMPLATE_ID: z.string().optional(),
+  ...msg91Variables,
 };
 
 /**
@@ -735,6 +739,12 @@ export type ScanJobEnv = z.output<typeof scanJobEnvSchema>;
 export const refundJobEnvSchema = z
   .object(razorpayVariables)
   .superRefine(requireWholeRazorpayConfig);
+
+/** The default worker dispatches through the same notification providers
+ * as the app, after their owner-controlled production setup. */
+export const notificationJobEnvSchema = z
+  .object({ ...sesVariables, ...msg91Variables })
+  .superRefine(requireWholeSesConfig);
 
 /**
  * Parses an env-like object, usually process.env, against `schema`. Empty
