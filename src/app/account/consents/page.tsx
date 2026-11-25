@@ -21,7 +21,7 @@ import { legalKeyForConsentPurpose } from "@/server/modules/cms/domain/documents
 import type { MyConsent } from "@/server/modules/consent";
 
 import { ChangeNotice } from "./_components/change-notice";
-import { giveConsentAction, withdrawConsentAction } from "./_lib/actions";
+import { giveConsentAction, withdrawConsentAction, withdrawAuctionConsentAction } from "./_lib/actions";
 import { CONSENT_NOTICES } from "./_lib/notice";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -71,11 +71,12 @@ function doneOf(done: string | string[] | undefined) {
 async function Consents({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, callout, format, consents, policy, { done }] = await Promise.all([
+  const [t, callout, format, consents, auctionConsents, policy, { done }] = await Promise.all([
     getTranslations("consent"),
     getTranslations("common.callout"),
     getFormatter(),
     as(actor).myConsents(),
+    as(actor).myAuctionConsents(),
     // The messages consent rests on the privacy policy (#111).
     loadLegalVersion(legalKeyForConsentPurpose("messages")),
     searchParams,
@@ -153,6 +154,15 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
         </div>
       </section>
 
+      {auctionConsents.length>0?<section aria-labelledby="auction-consents" className={CARD}>
+        <h2 id="auction-consents" className="text-lead font-bold text-ink">{t("auction.title")}</h2>
+        <p className="mt-3 text-ink">{t("auction.lead")}</p>
+        <ul className="mt-4 space-y-4">{auctionConsents.map(item=><li key={item.competitionId}>
+          <p className="font-semibold text-ink">{item.title}</p>
+          <p className="text-ink">{t(`auction.${item.state}`)}</p>
+          {item.state==="given"?<form className="mt-2" action={withdrawAuctionConsentAction.bind(null,item.competitionId)}><SubmitButton pendingLabel={t("saving")}>{t("auction.withdraw")}</SubmitButton></form>:null}
+        </li>)}</ul>
+      </section>:null}
       {currentDocument ? (
         <section aria-labelledby="consent-document">
           <SectionHeading id="consent-document" title={t("documentTitle")} />

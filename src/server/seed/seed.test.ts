@@ -36,6 +36,7 @@ describe("seedPreview", () => {
       "adopter3@example.test",
       "adoption-coordinator@example.test",
       "artwork-verifier@example.test",
+      "auction-manager@example.test",
       "community-manager@example.test",
       "competition-manager-2@example.test",
       "competition-manager@example.test",

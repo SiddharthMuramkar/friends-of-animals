@@ -49,6 +49,7 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedAuctions } from "./auctions";
 import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
 import { seedSettings } from "./settings";
@@ -125,6 +126,7 @@ const seeders: readonly Seeder[] = [
   // NEIGH27 (#82).
   seedChildConsents,
   seedPhysicalArtwork,
+  seedAuctions,
   seedJudgingRounds,
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).

@@ -11,6 +11,7 @@ import { invalidInput } from "../../input";
 import { auctionConsentCredit } from "../consent/auction-credit";
 import { releaseFromAuction } from "../physical-artwork/auction-hold";
 import { decideLotTransition, ACTIVE_LOT_STATUSES, type LotCommand } from "./domain/lot-status";
+import { readSetting } from "../settings/read";
 import { validateLotTerms } from "./domain/lot-terms";
 import type { Role } from "../../access/domain/roles";
 
@@ -20,10 +21,11 @@ const cancelInput=lotInput.extend({reason:z.string().trim().min(1).max(500)});
 export type LotInput=z.input<typeof lotInput>;
 export type CancelLotInput=z.input<typeof cancelInput>;
 
-export async function currentLotConsent(ctx:Pick<UseCaseContext,"db"|"cipher"|"clock">,lot:AuctionLotRow) {
+export async function currentLotConsent(ctx:Pick<UseCaseContext,"db"|"cipher"|"clock">,lot:AuctionLotRow, lock=false) {
   const [artwork]=await ctx.db.select({registrationId:physicalArtwork.registrationId,status:physicalArtwork.status}).from(physicalArtwork).where(eq(physicalArtwork.id,lot.artworkId));
   if (!artwork || artwork.status!==lot.artworkStatusBeforeListing) return null;
-  return auctionConsentCredit(ctx,artwork.registrationId);
+  const consent=await auctionConsentCredit(ctx,artwork.registrationId,lock);
+  return consent?.consentEventId===lot.consentEventId?consent:null;
 }
 
 export async function auctionsEnabled(ctx: Pick<UseCaseContext,"settings">) {
@@ -42,7 +44,7 @@ async function move(ctx: LotContext, input:LotInput, command:LotCommand, reason?
     if(!lot) return {ok:false,error:"not_found"} as const;
     const time=ctx.clock.now();
     if(command==="schedule"){
-      if(!await auctionsEnabled(ctx)) return {ok:false,error:"auctions_disabled"} as const;
+      if(!await readSetting(tx,"auctions.enabled",{lock:"share"})) return {ok:false,error:"auctions_disabled"} as const;
       const valid=validateLotTerms(lot,time);
       if(!valid.ok) return {ok:false,error:"invalid_terms",errors:valid.errors} as const;
     }
@@ -55,12 +57,12 @@ async function move(ctx: LotContext, input:LotInput, command:LotCommand, reason?
     const decision=decideLotTransition({from:lot.status,command});
     if(!decision.ok) return decision;
     if(command==="schedule" || command==="open" || command==="close" || command==="settle_unsold") {
-      if(!await currentLotConsent({...ctx,db:tx},lot)) {
+      if(!await currentLotConsent({...ctx,db:tx},lot,true)) {
         await applyMove(tx,ctx,lot,"withdraw_consent",role,"consent_withdrawn");
         return {ok:false,error:"auction_consent_missing"} as const;
       }
     }
-    if(command==="open" && !await auctionsEnabled(ctx)) {
+    if(command==="open" && !await readSetting(tx,"auctions.enabled",{lock:"share"})) {
       await applyMove(tx,ctx,lot,"cancel",role,"auctions_disabled");
       return {ok:false,error:"auctions_disabled"} as const;
     }

@@ -1499,6 +1499,15 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "delete_row"
   ),
   actorColumn("artwork_return_request", "requested_by", ENTRY_RECORD),
+  // Auction lots (#131): a creator's submitted work and auction consent.
+  ...(["artwork_id", "consent_event_id", "lot_code", "story", "cancellation_reason"] as const).map((column) =>
+    rowsOf("auction_lot", {
+      subject: {kind:"participant_profile", via:"artwork_id → physical_artwork.entry_id → entry.participant_profile_id"},
+      retention:ENTRY_RECORD,
+      onExpiry:"delete_row",
+    })(column,column==="story"||column==="cancellation_reason"?"content":"technical")
+  ),
+  actorColumn("auction_lot","created_by",ENTRY_RECORD),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",

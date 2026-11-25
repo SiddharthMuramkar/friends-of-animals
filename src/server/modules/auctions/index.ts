@@ -27,7 +27,7 @@ async function eligibility(ctx: Pick<UseCaseContext,"db"|"cipher"|"clock">, artw
   const facts=await artworkAuctionFacts(ctx.db,artworkId,lock);
   if(!facts) return null;
   const [comp]=await ctx.db.select({auctionPermitted:competition.auctionPermitted}).from(competition).where(eq(competition.id,facts.work.competitionId));
-  const consent=await auctionConsentCredit(ctx,facts.work.registrationId);
+  const consent=await auctionConsentCredit(ctx,facts.work.registrationId,lock && !facts.inActiveLot);
   const eligibility=assessLotEligibility({artworkStatus:facts.work.status,openDiscrepancy:facts.openDiscrepancy,openReturnRequest:facts.openReturnRequest,inActiveLot:facts.inActiveLot,
     competitionAllowsAuction:!!comp?.auctionPermitted, creatorIsMinor:consent?.minor??false,
     auctionConsent:consent?{state:"given",by:consent.minor?"guardian":"creator",guardianVerified:true}:{state:"none"}});

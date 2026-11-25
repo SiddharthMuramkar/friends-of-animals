@@ -9,12 +9,15 @@ import { activeLinkOf, verifiedLink } from "../guardians/child-access";
 import { isAdultAt } from "../participants/domain/age";
 import { competitionSetup } from "./child-consent";
 import { nameParts, resolvePublicCredit } from "./domain/public-credit";
+import { lockProfileSubject, lockUserSubject } from "./repository";
 import { schoolPublicConsents } from "./school-route-use";
 
-export async function auctionConsentCredit(ctx: Pick<UseCaseContext,"db"|"cipher"|"clock">, registrationId: string) {
-  const [row] = await ctx.db.select({ profile:participantProfile, registration }).from(registration)
+export async function auctionConsentCredit(ctx: Pick<UseCaseContext,"db"|"cipher"|"clock">, registrationId: string, lock=false) {
+  async function read(){return ctx.db.select({ profile:participantProfile, registration }).from(registration)
     .innerJoin(participantProfile, eq(participantProfile.id,registration.participantProfileId))
-    .where(eq(registration.id,registrationId));
+    .where(eq(registration.id,registrationId));}
+  let [row]=await read();
+  if(lock && row){await lockProfileSubject(ctx.db,row.profile.id); [row]=await read();}
   if(!row || !["confirmed","enrolled"].includes(row.registration.status)) return null;
   const {profile, registration: reg} = row;
   const setup = await competitionSetup(ctx.db,reg.competitionId);
@@ -26,11 +29,12 @@ export async function auctionConsentCredit(ctx: Pick<UseCaseContext,"db"|"cipher
   const creatorUserId = profile.ownerKind === "self" ? profile.ownerUserId : profile.loginUserId;
   const subjectId = minor ? profile.id : creatorUserId;
   if(!subjectId) return null;
+  if(lock && !minor) await lockUserSubject(ctx.db,subjectId);
   const subjectType = minor ? "participant_profile" : "user";
   const [latest] = await ctx.db.select().from(consentEvent).where(and(
     eq(consentEvent.subjectType,subjectType), eq(consentEvent.subjectId,subjectId),
     eq(consentEvent.competitionId,reg.competitionId), eq(consentEvent.purpose,"auction")
-  )).orderBy(desc(consentEvent.id)).limit(1);
+  )).orderBy(...(minor?[desc(consentEvent.id)]:[desc(consentEvent.occurredAt),desc(consentEvent.id)])).limit(1);
   if(!latest || latest.action !== "given" || latest.documentId !== document.id) return null;
   if (!minor) {
     if(latest.giverUserId !== creatorUserId || latest.method !== "web_form") return null;

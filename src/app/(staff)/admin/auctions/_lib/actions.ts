@@ -23,7 +23,8 @@ export async function createAuctionLot(form:FormData){
 export async function scheduleAuctionLot(lotId:string){
   const path=adminAuctionLotPath(lotId);
   const result=await adminCall(async()=>as(await currentActor()).scheduleLot({lotId}),path);
-  redirect(path+"?result="+(result.ok&&result.value.ok?"ok":result.ok&&result.value.error==="auctions_disabled"?"disabled":"error"));
+  const outcome = !result.ok ? "error" : result.value.ok ? "ok" : result.value.error === "auctions_disabled" ? "disabled" : "error";
+  redirect(path+"?result="+outcome);
 }
 export async function cancelAuctionLot(lotId:string,form:FormData){
   const path=adminAuctionLotPath(lotId);
