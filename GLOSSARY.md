@@ -778,6 +778,24 @@ Certificate PDF. Gallery and social variants require their own live consent to
 be delivered. A Certificate share image is downloadable by its own holder or
 verified linked guardian; it is not a public gallery asset.
 
+**Gallery item**:
+A content manager's reviewed presentation of a finished Entry. Its opaque public
+ID names the presentation, not the participant or private file. Publication binds
+the current public-display consent grant and live image; a withdrawal unpublishes
+it and a moderator may hide it. Restoring it never publishes without fresh review.
+_Avoid_: Entry, original artwork, public file asset
+
+**Public credit**:
+The participant's name and, for a minor, only separately opted-in school and city,
+computed from current consent. A minor's name defaults to first name plus surname
+initial. It is derived, never copied into the Gallery item or social export queue.
+_Avoid_: Full profile, artist identity snapshot
+
+**Gallery purge**:
+A durable request to evict the gallery's public routes when a credit is withdrawn
+or an item leaves publication. The item's live eligibility is checked even before
+that request runs; the private Stamped copy is not itself a cacheable public object.
+
 ## Physical artwork
 
 **Physical artwork**:
@@ -1078,3 +1096,11 @@ registration)
 **Volunteer hours entry** — A volunteer's integer minutes of service performed on one Indian calendar date against an actual assignment. Only approved entries count toward service totals and engagement.
 
 **Volunteer service certificate** — A numbered, verifiable certificate snapshot of the volunteer's approved service minutes at the time of issue. Not a competition award.
+
+### Event and event campaign
+
+A scheduled FOA activity people attend. An event campaign is a community activity, not a Campaign message sent to a Segment. An Organiser (content or community manager) publishes its details and registration window.
+
+### Event registration
+
+A private place on an Event, for the attendee (their own account or a distinct linked participant profile). Registered and Checked in hold a place. Waitlisted waits in booking order; a freed place promotes the next person automatically. Cancelled and No-show are terminal. A Check-in is an organiser's confirmation of actual attendance, which appears on the attendee's Engagement timeline.

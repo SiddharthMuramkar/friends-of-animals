@@ -1,6 +1,7 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import {
   competition,
+  event,
   engagementMilestone,
   timelineEntry,
 } from "../../db/schema";
@@ -35,6 +36,7 @@ export async function getTimeline(
       kind: timelineEntry.kind,
       occurredAt: timelineEntry.occurredAt,
       competitionName: competition.name,
+      eventTitle: event.title,
       refType: timelineEntry.refType,
       refId: timelineEntry.refId,
       competitionId: engagementMilestone.competitionId,
@@ -47,6 +49,10 @@ export async function getTimeline(
     .leftJoin(
       competition,
       eq(competition.id, engagementMilestone.competitionId)
+    )
+    .leftJoin(
+      event,
+      and(eq(timelineEntry.refType, "event"), eq(timelineEntry.refId, event.id))
     )
     .where(belongsTo(keys, timelineEntry))
     .orderBy(asc(timelineEntry.occurredAt), asc(timelineEntry.id));

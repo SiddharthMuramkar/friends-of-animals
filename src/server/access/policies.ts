@@ -18,6 +18,7 @@ import { COORDINATORS_POLICY } from "../modules/institutions/coordinators/policy
 import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
+import { EVENTS_POLICY } from "../modules/events/policy";
 import { COMMUNITY_POLICY } from "../modules/community/policy";
 import { CERTIFICATES_POLICY } from "../modules/certificates/policy";
 import { RESULTS_POLICY } from "../modules/results/policy";
@@ -43,6 +44,7 @@ import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
 import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
 import { VERIFICATION_POLICY } from "../modules/verification/policy";
+import { GALLERY_POLICY } from "../modules/gallery/policy";
 import { AUCTIONS_POLICY } from "../modules/auctions/policy";
 import { REPORTS_POLICY } from "../modules/reports/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
@@ -68,6 +70,7 @@ export const POLICY = composePolicies(
   JUDGING_POLICY,
   RESULTS_POLICY,
   COMMUNITY_POLICY,
+  EVENTS_POLICY,
   CERTIFICATES_POLICY,
   COMPETITION_TERMS_POLICY,
   PAYMENTS_POLICY,
@@ -90,6 +93,7 @@ export const POLICY = composePolicies(
   SCHOOL_ROUND_POLICY,
   VERIFICATION_POLICY,
   PHYSICAL_ARTWORK_POLICY,
+  GALLERY_POLICY,
   AUCTIONS_POLICY,
   REPORTS_POLICY
 );

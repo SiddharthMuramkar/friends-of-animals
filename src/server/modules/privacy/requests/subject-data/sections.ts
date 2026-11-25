@@ -33,6 +33,7 @@ import * as schema from "../../../../db/schema";
 import {
   account,
   communityMember,
+  eventRegistration,
   engagementMilestone,
   timelineEntry,
   auditLog,
@@ -170,6 +171,20 @@ export const PARTICIPANT_FILE_PURPOSES = [
 
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
+  {
+    table: eventRegistration,
+    where: (scope) =>
+      or(
+        within(eventRegistration.subjectUserId, users(scope)),
+        within(eventRegistration.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    withhold: [
+      "registered_by_user_id",
+      "checked_in_by_user_id",
+      "waitlist_order",
+    ],
+  },
   {
     table: communityMember,
     where: (scope) =>
@@ -387,6 +402,13 @@ export const SECTIONS: readonly Section[] = [
       reject_reason_ciphertext: WORK_PURPOSES.reason,
     },
     withhold: ["decided_by_user_id"],
+  },
+  {
+    table: schema.galleryItem,
+    where: (scope) =>
+      sql`${schema.galleryItem.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
+    withhold: ["file_id", "consent_event_id"],
   },
   {
     table: schema.certificate,
@@ -686,6 +708,7 @@ export const SECTIONS: readonly Section[] = [
 
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
+  gallery_report: "third_party_confidential_report",
   certificate_ready_notice: "background_job",
   certificate_archive: "mixed_subject_temporary_archive",
   verification: "sign_in_secret",

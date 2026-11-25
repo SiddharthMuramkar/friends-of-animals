@@ -98,7 +98,8 @@ export type Message = InboxMessage & { recipient: Recipient };
 
 export async function dispatchEvent(
   deps: OutboxDeps,
-  delivery: Delivery
+  delivery: Delivery,
+  templateKey?: string
 ): Promise<void> {
   if (delivery.eventType === PRINCIPAL_NOTICE) {
     await dispatchBreachNotice(deps, delivery);
@@ -110,7 +111,8 @@ export async function dispatchEvent(
     .where(
       and(
         eq(messageRoute.eventType, delivery.eventType),
-        eq(messageRoute.enabled, true)
+        eq(messageRoute.enabled, true),
+        templateKey ? eq(messageRoute.templateKey, templateKey) : undefined
       )
     )
     .orderBy(asc(messageRoute.templateKey), asc(messageRoute.audience));

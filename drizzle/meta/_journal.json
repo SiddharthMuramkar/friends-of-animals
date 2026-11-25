@@ -1058,6 +1058,34 @@
       "when": 1795599048925,
       "tag": "0150_101_certificate_archives",
       "breakpoints": true
+    },
+    {
+      "idx": 151,
+      "version": "7",
+      "when": 1795600702183,
+      "tag": "0151_103_gallery",
+      "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1795600704446,
+      "tag": "0152_103_gallery_notification_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1795602393748,
+      "tag": "0153_125_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "7",
+      "when": 1795602395944,
+      "tag": "0154_125_event_messages",
+      "breakpoints": true
     }
   ]
 }

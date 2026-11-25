@@ -1,3 +1,4 @@
+import gallery from "../../messages/en-IN/gallery.json";
 import certificatePdf from "../../messages/en-IN/certificatePdf.json";
 import certificates from "../../messages/en-IN/certificates.json";
 import results from "../../messages/en-IN/results.json";
@@ -61,6 +62,7 @@ import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
+import events from "../../messages/en-IN/events.json";
 import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -167,6 +169,7 @@ export const NAMESPACES = [
   "adoption",
   "adoptionApplications",
   "community",
+  "events",
   "donate",
   "donationCheckout",
   "donorDashboard",
@@ -179,6 +182,7 @@ export const NAMESPACES = [
   "certificatePdf",
   "artworkCustody",
   "auctions",
+  "gallery",
   "error",
   "files",
   "footer",
@@ -276,6 +280,7 @@ export const messages = {
   ...adoption,
   ...adoptionApplications,
   ...community,
+  ...events,
   ...donate,
   ...donationCheckout,
   ...donorDashboard,
@@ -288,6 +293,7 @@ export const messages = {
   ...certificatePdf,
   ...artworkCustody,
   ...auctions,
+  ...gallery,
   ...error,
   ...files,
   ...footer,

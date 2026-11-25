@@ -769,6 +769,23 @@
           "courier": "Courier used to send the original artwork.",
           "tracking_number": "Courier tracking number for fulfilment and delivery confirmation."
         },
+        "event": {
+          "created_by_user_id": "The organiser account that created the event."
+        },
+        "event_registration": {
+          "subject_user_id": "The attendee's own account",
+          "subject_profile_id": "The attendee's participant profile",
+          "registered_by_user_id": "The account booking a place",
+          "checked_in_by_user_id": "The organiser confirming attendance",
+          "event_id": "The event the person registered for",
+          "status": "Whether the person has a place, waits, cancels, attends or is absent",
+          "registered_at": "When the person booked",
+          "waitlisted_at": "When the person began waiting",
+          "waitlist_order": "The order in which this person joined the queue",
+          "promoted_at": "When a place was confirmed",
+          "cancelled_at": "When the booking was cancelled",
+          "checked_in_at": "When the person's attendance was recorded"
+        },
         "community_member": {
           "subject_user_id": "The account whose private FOA journey this belongs to",
           "subject_profile_id": "The participant whose private FOA journey this belongs to",
@@ -805,6 +822,18 @@
           "note_ciphertext": "Volunteer’s description of completed work",
           "reject_reason_ciphertext": "Manager’s explanation for declining logged hours",
           "decided_by_user_id": "Records which manager reviewed the hours"
+        },
+        "gallery_item": {
+          "entry_id": "Links the curated item to the participant’s submitted work",
+          "consent_event_id": "Records the public-display permission used to curate the item",
+          "file_id": "Identifies the approved private source of the public stamped copy",
+          "title": "Reviewed public title or draft title before publication",
+          "story": "Reviewed public story before publication"
+        },
+        "gallery_report": {
+          "details_ciphertext": "Stores the reporter’s concern about a gallery item securely",
+          "contact_ciphertext": "Lets the content manager contact the reporter if they supplied an address",
+          "handled_by_user_id": "Records which staff member handled the report"
         }
       }
     },

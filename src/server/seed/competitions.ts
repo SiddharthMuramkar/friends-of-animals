@@ -274,6 +274,7 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         ageCutoffDate: "2027-01-01",
         physicalArtwork: { kind: "all_shortlisted" },
         auctionPermitted: true,
+        publicDisplay: true,
         keyDates: {
           registration_opens: ist(-200, "09:00"),
           registration_closes: ist(-110, "23:59"),

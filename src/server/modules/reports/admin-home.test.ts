@@ -29,6 +29,7 @@ describe("admin home", () => {
       "institutions_to_verify",
       "artwork_arriving",
       "results_to_approve",
+      "reports_to_review",
     ]);
     const page = await staff.listQueueItems({
       key: "institutions_to_verify",
@@ -125,12 +126,31 @@ it("matches the actual preview work queues, and separates safeguarding and scope
   expect(home.queues.map((q) => q.key)).toEqual([
     "institutions_to_verify",
     "results_to_approve",
+    "reports_to_review",
   ]);
   expect(home.queues.find((q) => q.key === "results_to_approve")?.count).toBe(
     1
   );
   await expect(
     admin.listQueueItems({ key: "safeguarding_reports_to_review" })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  const curator = h.as(
+    await signedInWith(h, {
+      role: "content_manager",
+      scope: { type: "global" },
+    })
+  );
+  expect((await curator.getAdminHome()).queues).toMatchObject([
+    { key: "reports_to_review", count: 2 },
+  ]);
+  const gallery = await curator.listQueueItems({ key: "reports_to_review" });
+  if (!gallery.ok) throw Error(gallery.error);
+  expect(gallery.items).toHaveLength(2);
+  expect(JSON.stringify(gallery)).not.toContain(
+    "Sample report for staff review"
+  );
+  await expect(
+    lead.listQueueItems({ key: "reports_to_review" })
   ).rejects.toMatchObject({ code: "forbidden" });
   const resultItems = await admin.listQueueItems({ key: "results_to_approve" });
   if (!resultItems.ok) throw Error(resultItems.error);

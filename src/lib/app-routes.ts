@@ -27,6 +27,8 @@ export const APP_ROUTES = {
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
+  adminGallery: "/admin/gallery",
+  adminGalleryReports: "/admin/gallery/reports",
   adminTemplates: "/admin/templates",
   institutionRegister: "/institutions/register",
   myInstitution: "/institution",
@@ -170,6 +172,17 @@ export function adminDonationPath(donationId: string): string {
  * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
  * rather than in APP_ROUTES, like the payments pages.
  */
+export const DASHBOARD_EVENTS = "/dashboard/events";
+export const ADMIN_EVENTS = "/admin/events";
+export const ADMIN_NEW_EVENT = "/admin/events/new";
+export const adminEventPath = (id: string) =>
+  `${ADMIN_EVENTS}/${encodeURIComponent(id)}`;
+export const eventRegistrationsPath = (id: string) =>
+  `${adminEventPath(id)}/registrations`;
+export const eventCheckInPath = (id: string) =>
+  `${adminEventPath(id)}/check-in`;
+export const guardianChildEventsPath = (id: string) =>
+  `${guardianChildPath(id)}/events`;
 export const DASHBOARD_COMMUNITY = "/dashboard/community";
 export const DASHBOARD_TIMELINE = "/dashboard/timeline";
 export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
@@ -289,6 +302,7 @@ export const isJudgeInvitationPage = (path: string) =>
 
 /** Public request-time verification, never signed in or cached. */
 export const CERTIFICATE_VERIFY_PREFIX = "/verify";
+export const GALLERY_REPORT_PREFIX = "/gallery-report";
 export const ADMIN_CERTIFICATES = "/admin/certificates";
 export const MY_CERTIFICATES = "/dashboard/certificates";
 export const ADMIN_ARTWORK = "/admin/artwork";
@@ -700,6 +714,13 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
   "/guardian/children/[id]/volunteer",
+  DASHBOARD_EVENTS,
+  ADMIN_EVENTS,
+  ADMIN_NEW_EVENT,
+  "/admin/events/[id]",
+  "/admin/events/[id]/registrations",
+  "/admin/events/[id]/check-in",
+  "/guardian/children/[id]/events",
   DASHBOARD_COMMUNITY,
   DASHBOARD_TIMELINE,
   ADMIN_COMMUNITY_MEMBERS,

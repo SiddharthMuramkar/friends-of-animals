@@ -4,6 +4,7 @@ import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
   CERTIFICATE_VERIFY_PREFIX,
+  GALLERY_REPORT_PREFIX,
   CONSENT_LINK_PREFIX,
   DONATION_CHECKOUT_PREFIX,
   individualRegisterSlug,
@@ -26,6 +27,7 @@ import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
 import { parseLotCode } from "@/server/modules/auctions/domain/lot-code";
 import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
+import { EVENT_SLUG_PATTERN } from "@/server/modules/events/domain/slug";
 import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
@@ -110,6 +112,8 @@ export type RequestProxyDeps = {
   isAdoptableSlug?: SlugLookup;
   /** Fresh auction visibility check; never cache consent across requests. */
   isPublicAuctionLot?: SlugLookup;
+  isPublicEventSlug?: SlugLookup;
+  isPublicGalleryItem?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -120,6 +124,8 @@ export function createProxy({
   isPublicListingSlug = async () => false,
   isAdoptableSlug = async () => false,
   isPublicAuctionLot = async () => false,
+  isPublicEventSlug = async () => false,
+  isPublicGalleryItem = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -209,6 +215,16 @@ export function createProxy({
       return false;
     }
   }
+  async function isEvent(raw: string) {
+    const slug = decodedSlug(raw);
+    if (!EVENT_SLUG_PATTERN.test(slug)) return false;
+    try {
+      return await isPublicEventSlug(slug);
+    } catch {
+      console.error("Proxy: could not verify event visibility.");
+      return false;
+    }
+  }
   // Unlisted slugs render at request time, and the header's <Suspense>
   // starts streaming before the page's notFound() runs, so they would keep
   // a 200 status (cacheComponents rules out dynamicParams = false).
@@ -268,6 +284,49 @@ export function createProxy({
       return withNonceCsp(request);
     }
 
+    if (pathname.startsWith(GALLERY_REPORT_PREFIX + "/")) {
+      const id = decodedSlug(pathname.split("/")[2] ?? "");
+      if (!(await isPublicGalleryItem(id))) return missingSignedInPage(request);
+      const response = withNonceCsp(request);
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+    if (pathname === "/gallery" || pathname.startsWith("/gallery/")) {
+      const segments = pathname.split("/");
+      const id = decodedSlug(segments[2] ?? "");
+      if (
+        segments.length === 5 &&
+        segments[3] === "report" &&
+        segments[4] === "plain"
+      )
+        return NextResponse.redirect(
+          new URL(
+            `${GALLERY_REPORT_PREFIX}/${encodeURIComponent(id)}`,
+            request.url
+          )
+        );
+      let known = pathname === "/gallery";
+      if (
+        !known &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id
+        ) &&
+        (segments.length === 3 ||
+          (segments.length === 4 && segments[3] === "report"))
+      ) {
+        try {
+          known = await isPublicGalleryItem(id);
+        } catch {
+          known = false;
+        }
+      }
+      const result = known
+        ? NextResponse.next()
+        : NextResponse.rewrite(new URL(MISSING, request.url));
+      result.headers.set("Cache-Control", "private, no-store, max-age=0");
+      result.headers.set("CDN-Cache-Control", "no-store");
+      return result;
+    }
     const [, section, raw = ""] = pathname.split("/");
     const known =
       section === "blog"
@@ -278,7 +337,9 @@ export function createProxy({
             ? await isAdoptable(raw)
             : section === "auctions"
               ? await isAuctionLot(raw)
-              : await isPublishedCompetition(raw);
+              : section === "events"
+                ? await isEvent(raw)
+                : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };

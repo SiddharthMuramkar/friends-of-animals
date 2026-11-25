@@ -495,6 +495,26 @@ export type DomainEvent =
       };
     }
   | {
+      type: "gallery.reported";
+      aggregate: { type: "gallery_report"; id: string };
+      payload: { reportId: string };
+    }
+  | {
+      type: "gallery.purge_overdue";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
+      type: "gallery.purge_failed";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
+      type: "gallery.purge_requested";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
       type: "stamping.requested";
       aggregate: { type: "file_asset"; id: string };
       payload: { fileId: string; variant: StampVariant };
@@ -898,6 +918,50 @@ export type DomainEvent =
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string; competitionId: string };
     }
+  | {
+      type: "event.places_changed";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.published";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.cancelled";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.changed";
+      aggregate: { type: "event"; id: string };
+      payload: {
+        eventId: string;
+        changes: ("time" | "place")[];
+        startMoved: boolean;
+      };
+    }
+  | {
+      type: "event.end_due";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string; endsAt: string };
+    }
+  | {
+      type: "event.registration_created";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string; status: "registered" | "waitlisted" };
+    }
+  | {
+      type: "event.waitlist_promoted";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string };
+    }
+  | {
+      type: "event.registration_cancelled";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string };
+    }
   // Volunteer applications (#123): a 14- to 17-year-old applied and their
   // guardians are asked; an application reached the community team; a
   // community manager approved it (the volunteer role is granted) or
@@ -983,6 +1047,21 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "event.places_changed": z.object({ eventId: z.uuid() }),
+  "event.published": z.object({ eventId: z.uuid() }),
+  "event.cancelled": z.object({ eventId: z.uuid() }),
+  "event.changed": z.object({
+    eventId: z.uuid(),
+    changes: z.array(z.enum(["time", "place"])),
+    startMoved: z.boolean(),
+  }),
+  "event.end_due": z.object({ eventId: z.uuid(), endsAt: z.iso.datetime() }),
+  "event.registration_created": z.object({
+    registrationId: z.uuid(),
+    status: z.enum(["registered", "waitlisted"]),
+  }),
+  "event.waitlist_promoted": z.object({ registrationId: z.uuid() }),
+  "event.registration_cancelled": z.object({ registrationId: z.uuid() }),
   "community.member_joined": z.object({ memberId: z.uuid() }),
   "engagement.milestone_recorded": z.object({ milestoneId: z.uuid() }),
   "consent.form_reviewed": z.object({
@@ -1118,6 +1197,10 @@ export const EVENT_PAYLOADS = {
     releaseId: z.uuid(),
     publishedAt: z.iso.datetime(),
   }),
+  "gallery.reported": z.object({ reportId: z.uuid() }),
+  "gallery.purge_overdue": z.object({ purgeId: z.uuid() }),
+  "gallery.purge_failed": z.object({ purgeId: z.uuid() }),
+  "gallery.purge_requested": z.object({ purgeId: z.uuid() }),
   "stamping.requested": z.object({
     fileId: z.uuid(),
     variant: z.enum(STAMP_VARIANTS),
@@ -1270,6 +1353,14 @@ export function parseStoredEventPayload(
  * none.
  */
 export const SUBSCRIBERS = {
+  "event.places_changed": ["events.refill_places"],
+  "event.published": ["reminders.schedule_event"],
+  "event.cancelled": ["reminders.schedule_event", "notifications.dispatch"],
+  "event.changed": ["reminders.schedule_event", "notifications.dispatch"],
+  "event.end_due": ["events.settle"],
+  "event.registration_created": ["notifications.dispatch"],
+  "event.waitlist_promoted": ["notifications.dispatch"],
+  "event.registration_cancelled": ["notifications.dispatch"],
   // No route sends a message for these yet; the domain facts are durable.
   "community.member_joined": ["notifications.dispatch"],
   "engagement.milestone_recorded": ["notifications.dispatch"],
@@ -1278,7 +1369,11 @@ export const SUBSCRIBERS = {
   "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
-  "consent.withdrawn": ["notifications.dispatch", "auctions.withdraw_consent"],
+  "consent.withdrawn": [
+    "notifications.dispatch",
+    "auctions.withdraw_consent",
+    "gallery.withdraw_consent",
+  ],
   "consent.link_sent": ["consent_links.deliver"],
   // files.process_image runs in worker-media only: the media queue
   // (./queues.ts). An entry's file follows each step of its own (#85):
@@ -1391,6 +1486,10 @@ export const SUBSCRIBERS = {
     "certificates.issue",
     "community.record_results",
   ],
+  "gallery.reported": ["notifications.dispatch"],
+  "gallery.purge_overdue": ["notifications.dispatch"],
+  "gallery.purge_failed": ["notifications.dispatch"],
+  "gallery.purge_requested": ["gallery.purge"],
   "stamping.requested": ["stamping.render"],
   "certificate.render": ["certificate.render"],
   "certificate.archive_requested": ["certificates.build_archive"],

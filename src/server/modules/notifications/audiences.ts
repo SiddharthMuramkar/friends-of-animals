@@ -1,4 +1,10 @@
 import {
+  eventNoticeRecipients,
+  eventNoticeValues,
+  eventReminderRecipients,
+  EVENT_NOTICE_VARIABLES,
+} from "../events/notices";
+import {
   offeredBuyer,
   offerValues,
   creatorRecipients,
@@ -217,6 +223,10 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The invitee may have no account yet: the invitation goes to the
       // invited address by its own handler (#74), not by a route row.
       return null;
+    case "gallery.reported":
+    case "gallery.purge_requested":
+    case "gallery.purge_overdue":
+    case "gallery.purge_failed":
     case "safeguarding.report_submitted":
       // About a child, never about a user: only the leads hear of it.
       return null;
@@ -337,6 +347,14 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "results.release_due":
     case "results.prize_awarded":
     case "stamping.requested":
+    case "event.places_changed":
+    case "event.published":
+    case "event.cancelled":
+    case "event.changed":
+    case "event.end_due":
+    case "event.registration_created":
+    case "event.registration_cancelled":
+    case "event.waitlist_promoted":
     case "community.member_joined":
     case "engagement.milestone_recorded":
     case "certificate.archive_requested":
@@ -479,6 +497,20 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  event_registrants: eventNoticeRecipients,
+  event_reminder_recipients: eventReminderRecipients,
+  content_managers: async (db) =>
+    (
+      await db
+        .selectDistinct({ userId: userRole.userId })
+        .from(userRole)
+        .where(
+          and(
+            eq(userRole.role, "content_manager"),
+            eq(userRole.scopeType, "global")
+          )
+        )
+    ).map((row) => row.userId),
   certificate_reissued_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "certificate.reissued" && cipher
       ? reissueRecipients(db, delivery.payload.certificateId, cipher)
@@ -901,6 +933,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   // Nothing of the report: the alert says only that one came in (#116).
   "safeguarding.report_submitted": { names: [], load: async () => ({}) },
+  "gallery.reported": { names: [], load: async () => ({}) },
+  "gallery.purge_requested": { names: [], load: async () => ({}) },
+  "gallery.purge_overdue": { names: [], load: async () => ({}) },
+  "gallery.purge_failed": { names: [], load: async () => ({}) },
   "cms.post_scheduled": { names: [], load: async () => ({}) },
   "cms.post_published": { names: [], load: async () => ({}) },
   "rubric.published": { names: [], load: async () => ({}) },
@@ -1119,6 +1155,23 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ANNOUNCEMENT_VARIABLES,
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
+  },
+  "event.places_changed": { names: [], load: async () => ({}) },
+  "event.published": { names: [], load: async () => ({}) },
+  "event.end_due": { names: [], load: async () => ({}) },
+  "event.changed": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.cancelled": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.registration_created": {
+    names: EVENT_NOTICE_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.registration_cancelled": {
+    names: EVENT_NOTICE_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.waitlist_promoted": {
+    names: EVENT_NOTICE_VARIABLES,
+    load: eventNoticeValues,
   },
   "volunteer.guardian_approval_requested": {
     names: APPLICATION_VARIABLES,

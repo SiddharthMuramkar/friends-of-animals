@@ -8,6 +8,7 @@ import {
   SEED_ENTRY_COMPETITIONS,
   SEED_SCHOOL_SUBMISSIONS_COMPETITION,
 } from "./competitions";
+import { SEED_EVENTS } from "./events";
 import { SEED_SCHOOL_ROUND } from "./school-round";
 
 // #84 84b AC11: the preview seed plans the seeded live competitions'
@@ -78,6 +79,8 @@ describe("the reminders seed", () => {
         72,
         "scheduled",
       ],
+      [SEED_EVENTS.campaign.id, "event_starts", 24, "scheduled"],
+      [SEED_EVENTS.campaign.id, "event_starts", 2, "scheduled"],
     ]);
     const due = await h.db
       .select({ availableAt: outbox.availableAt })

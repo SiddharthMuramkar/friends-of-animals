@@ -1,3 +1,8 @@
+import type { CdnPurger } from "../ports/cdn-purger";
+import {
+  runGalleryPurge,
+  withdrawGalleryConsent,
+} from "../modules/gallery/purge";
 import { renderStamp } from "../modules/stamping";
 import { sendSaleFamilyLetter } from "../modules/auctions/messages";
 import { expireAuctionOffer } from "../modules/auctions/offers";
@@ -85,6 +90,8 @@ import {
   runExpireExport,
 } from "../modules/privacy/requests/subject-data/export";
 import { runExecuteErasure } from "../modules/privacy/requests/subject-data/erasure";
+import { refillPlaces } from "../modules/events/registrations";
+import { settleEndedEvent } from "../modules/events/end";
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
@@ -111,6 +118,7 @@ import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
+  cdn?: CdnPurger;
   appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
@@ -180,6 +188,9 @@ export const HANDLERS: Handlers = {
       payload
     );
   },
+  "gallery.withdraw_consent": withdrawGalleryConsent,
+  "gallery.purge": (deps, { payload }) =>
+    runGalleryPurge(deps, payload.purgeId),
   "certificates.build_archive": (deps, delivery) =>
     buildInstitutionCertificateArchive(
       { ...deps, actor: { kind: "system", process: "worker" } },
@@ -339,6 +350,23 @@ export const HANDLERS: Handlers = {
     openArtworkResultsWindow(deps, payload),
   "artwork.retain_unrequested": (deps, { payload }) =>
     retainUnrequested(deps, payload),
+  "reminders.schedule_event": async (deps, { payload }) => {
+    await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "event", subjectId: payload.eventId }
+    );
+  },
+  "events.refill_places": async (deps, { payload }) =>
+    refillPlaces(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload.eventId
+    ),
+  "events.settle": async (deps, { payload }) => {
+    await settleEndedEvent(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
   "reminders.schedule_artwork": async (deps, { payload }) => {
     await scheduleReminders(
       { ...deps, actor: { kind: "system", process: "worker" } },

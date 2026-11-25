@@ -31,6 +31,7 @@ import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
+import { eventsUseCases } from "./modules/events";
 import { communityUseCases } from "./modules/community";
 import { certificateUseCases } from "./modules/certificates";
 import { resultsUseCases } from "./modules/results";
@@ -56,13 +57,16 @@ import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
 import { schoolRoundUseCases } from "./modules/school-round";
+import { galleryUseCases } from "./modules/gallery";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
 import { reportsUseCases } from "./modules/reports";
 import { composeUseCases } from "./use-cases";
 
-const useCases = composeUseCases(
+// Keep each composition shallow enough for TypeScript's instantiation
+// ceiling; composing the groups still checks duplicate names across them.
+const coreUseCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
@@ -83,10 +87,13 @@ const useCases = composeUseCases(
   judgingUseCases,
   resultsUseCases,
   communityUseCases,
+  eventsUseCases,
   certificateUseCases,
   competitionTermsUseCases,
   registrationUseCases,
-  paymentsUseCases,
+  paymentsUseCases
+);
+const operationUseCases = composeUseCases(
   participantsUseCases,
   guardiansUseCases,
   ledgerUseCases,
@@ -108,8 +115,10 @@ const useCases = composeUseCases(
   verificationUseCases,
   physicalArtworkUseCases,
   auctionsUseCases,
+  galleryUseCases,
   reportsUseCases
 );
+const useCases = composeUseCases(coreUseCases, operationUseCases);
 
 /** Every use case, by name, bound to one actor. */
 export type UseCases = ReturnType<typeof useCases>;

@@ -205,6 +205,14 @@
         }
       },
       "reminders": {
+        "eventStartsFirstHours": {
+          "label": "First event reminder",
+          "description": "Hours before an event starts to remind confirmed attendees. Use 0 to disable."
+        },
+        "eventStartsSecondHours": {
+          "label": "Second event reminder",
+          "description": "Hours before an event starts to send a second reminder. Use 0 to disable."
+        },
         "entrySubmissionDueFirstHours": {
           "label": "First reminder before submissions close",
           "description": "How many hours before a competition's submission deadline the first reminder goes to everyone who still owes an entry: an adult who entered, a child's guardian, or a school's coordinators. Use 0 for no first reminder. A change applies to reminders not yet sent."
@@ -326,6 +334,16 @@
         "shippingPayer": {
           "label": "FOA pays shipping",
           "description": "When off, the sender pays shipping."
+        }
+      },
+      "gallery": {
+        "withdrawalPurgeMinutes": {
+          "label": "Gallery withdrawal purge deadline",
+          "description": "Minutes from a guardian’s public-display withdrawal to confirmed cache purge. The gallery immediately refuses the item before this deadline."
+        },
+        "reportsPerIpPerHour": {
+          "label": "Gallery reports per hour",
+          "description": "Maximum gallery reports from one network each hour."
         }
       },
       "auctions": {

@@ -51,6 +51,7 @@
         "ambassador": "Ambassador"
       },
       "kinds": {
+        "event": { "attended": "Attended an FOA event" },
         "milestone": {
           "participant": "Took part in a competition",
           "school_winner": "Earned a school position",

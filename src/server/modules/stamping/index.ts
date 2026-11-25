@@ -89,6 +89,10 @@ export async function liveEntryStampSource(db: AppDb, entryId: string) {
   return live?.fileId ?? null;
 }
 
+/** Trusted availability check for curation. No key or signed URL escapes. */
+export async function stampSourceAvailable(db: AppDb, input: StampInput) {
+  return (await sourceOf(db, input)) !== null;
+}
 export async function stampedImage(ctx: { db: AppDb }, input: StampInput) {
   if (!(await sourceOf(ctx.db, input))) return null;
   const settings = STAMP_SETTINGS[input.variant];
@@ -167,7 +171,9 @@ export async function queueStamp(
 /** At-least-once job: serialize per source and store the same immutable
  * versioned key. A purge cannot race the source lock to create a new row. */
 export async function renderStamp(
-  ctx: Pick<OutboxDeps, "db" | "clock" | "storage" | "media">,
+  ctx: Pick<OutboxDeps, "db" | "clock" | "media"> & {
+    storage: Pick<ObjectStorage, "read" | "write">;
+  },
   input: StampInput
 ) {
   await ctx.db.transaction(async (tx) => {

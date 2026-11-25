@@ -20,6 +20,8 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { retireGalleryItem } from "../../../gallery/curation";
+import { galleryItem } from "../../../../db/schema";
 import { and, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -32,6 +34,8 @@ import {
   account,
   certificate,
   communityMember,
+  event,
+  eventRegistration,
   engagementMilestone,
   timelineEntry,
   certificateReadyNotice,
@@ -562,6 +566,17 @@ export async function gatherErasure(
       (await n(
         db
           .select({ n: count() })
+          .from(eventRegistration)
+          .where(
+            or(
+              within(eventRegistration.subjectUserId, users),
+              within(eventRegistration.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
           .from(communityMember)
           .where(
             or(
@@ -837,6 +852,36 @@ async function eraseRecords(
         within(communityMember.subjectProfileId, scope.profileIds)
       )
     );
+  const erasedEventPlaces = await tx
+    .delete(eventRegistration)
+    .where(
+      or(
+        within(eventRegistration.subjectUserId, users),
+        within(eventRegistration.subjectProfileId, scope.profileIds)
+      )
+    )
+    .returning({ eventId: eventRegistration.eventId });
+  await tx
+    .update(eventRegistration)
+    .set({ registeredByUserId: null })
+    .where(within(eventRegistration.registeredByUserId, users));
+  await tx
+    .update(eventRegistration)
+    .set({ checkedInByUserId: null })
+    .where(within(eventRegistration.checkedInByUserId, users));
+  await tx
+    .update(event)
+    .set({ createdByUserId: null })
+    .where(within(event.createdByUserId, users));
+  // Refill freed places via a trusted, ID-only job; erasure holds subject
+  // locks, while all place decisions serialize on their event lock.
+  for (const eventId of new Set(erasedEventPlaces.map((row) => row.eventId))) {
+    await emit(tx, deps.clock, {
+      type: "event.places_changed",
+      aggregate: { type: "event", id: eventId },
+      payload: { eventId },
+    });
+  }
   // A retained guardian account is not the member's identity.
   await tx
     .update(communityMember)
@@ -920,6 +965,14 @@ async function eraseRecords(
         within(certificate.recipientUserId, users)
       )
     );
+  // The entry cascade deletes the item and its reports. Queue the public
+  // route purge first in the same transaction so it survives erasure.
+  for (const row of await tx
+    .select()
+    .from(galleryItem)
+    .where(within(galleryItem.entryId, entryIds))
+    .for("update"))
+    await retireGalleryItem(ctx, row, "unpublished", "erasure", null);
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx

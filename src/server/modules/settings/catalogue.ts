@@ -224,6 +224,8 @@ export const SETTINGS = {
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
   "reminders.schoolRoundShortlistDueFirstHours": reminderHours(72),
   "reminders.schoolRoundShortlistDueSecondHours": reminderHours(24),
+  "reminders.eventStartsFirstHours": reminderHours(24),
+  "reminders.eventStartsSecondHours": reminderHours(2),
   // Physical artwork (#93), HR-40: no requests until FOA supplies the address.
   "artwork.dispatchDays": integerSetting({
     default: 14,
@@ -232,6 +234,18 @@ export const SETTINGS = {
     unit: "days",
   }),
   // HR-63: auctioning original art is opt-in after FOA and counsel approve.
+  "gallery.withdrawalPurgeMinutes": integerSetting({
+    default: 15,
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  }),
+  "gallery.reportsPerIpPerHour": integerSetting({
+    default: 10,
+    min: 1,
+    max: 100,
+    unit: "reports",
+  }),
   "auctions.enabled": booleanSetting({ default: false }),
   // FOA may adjust both defaults without deploying. No production auctions
   // until the sale terms and eligibility have been approved (HR-63).

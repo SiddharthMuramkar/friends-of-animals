@@ -4,6 +4,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 import { umamiRewrites } from "./src/lib/analytics/umami";
 import {
   CERTIFICATE_VERIFY_PREFIX,
+  GALLERY_REPORT_PREFIX,
   CONSENT_LINK_PREFIX,
   DONATION_CHECKOUT_PREFIX,
   SIGNED_IN_PREFIXES,
@@ -57,6 +58,7 @@ const nextConfig: NextConfig = {
       ...cspHeaderRules(cspContext(), [
         ...SIGNED_IN_PREFIXES,
         CERTIFICATE_VERIFY_PREFIX,
+        GALLERY_REPORT_PREFIX,
         CONSENT_LINK_PREFIX,
         DONATION_CHECKOUT_PREFIX,
       ]),
