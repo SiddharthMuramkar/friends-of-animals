@@ -80,3 +80,4 @@ export * from "./clubs";
 export * from "./surveys";
 
 export * from "./social-export";
+export * from "./competition-invitations";

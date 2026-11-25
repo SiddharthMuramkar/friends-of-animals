@@ -155,7 +155,21 @@ export async function collectSubjectData(
         ![row.bid_id, row.batch_id].some(
           (id) => typeof id === "string" && allowed.has(id)
         );
+      const recipientOnlyInvitation =
+        name === "competition_invitation" &&
+        !scope.profileIds.includes(String(row.participant_profile_id));
       for (const [column, value] of Object.entries(row)) {
+        if (
+          recipientOnlyInvitation &&
+          [
+            "participant_profile_id",
+            "competition_id",
+            "release_id",
+            "accepted_actions",
+            "trigger",
+          ].includes(column)
+        )
+          continue;
         if (
           creatorOnlyAuction &&
           [

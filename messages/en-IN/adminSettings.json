@@ -390,6 +390,12 @@
           "description": "Number of distinct buyers offered payment before the original is released for relisting."
         }
       },
+      "invitations": {
+        "enabled": {
+          "label": "Post-competition invitations",
+          "description": "Invite consenting competition participants after results publish. Keep off until FOA approves HR-58."
+        }
+      },
       "surveys": {
         "enabled": {
           "label": "Competition feedback surveys",

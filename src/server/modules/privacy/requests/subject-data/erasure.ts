@@ -34,6 +34,7 @@ import {
   account,
   certificate,
   surveyInvitation,
+  competitionInvitation,
   communityMember,
   club,
   clubDecision,
@@ -576,6 +577,20 @@ export async function gatherErasure(
       (await n(
         db
           .select({ n: count() })
+          .from(competitionInvitation)
+          .where(
+            or(
+              within(
+                competitionInvitation.participantProfileId,
+                scope.profileIds
+              ),
+              within(competitionInvitation.recipientUserId, users)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
           .from(clubMembership)
           .where(within(clubMembership.userId, users))
       )) +
@@ -866,6 +881,17 @@ async function eraseRecords(
         within(engagementMilestone.subjectProfileId, scope.profileIds)
       )
     );
+  await tx
+    .delete(competitionInvitation)
+    .where(
+      within(competitionInvitation.participantProfileId, scope.profileIds)
+    );
+  // Clearing a guardian's recipient reference must not delete a separate
+  // child's chosen actions or their durable one-invitation evidence.
+  await tx
+    .update(competitionInvitation)
+    .set({ recipientUserId: null, status: "skipped" })
+    .where(within(competitionInvitation.recipientUserId, users));
   await tx
     .delete(surveyInvitation)
     .where(within(surveyInvitation.userId, users));

@@ -368,6 +368,7 @@ export function adoptableAnimalPath(slug: string): string {
 
 /** Campaigns to consented segments (#126): the list, the composer, each one. */
 export const ADMIN_SURVEYS = "/admin/surveys";
+export const DASHBOARD_INVITATIONS = "/dashboard/invitations";
 export const DASHBOARD_SURVEYS = "/dashboard/surveys";
 export const FEEDBACK_PREFIX = "/feedback";
 export function adminSurveyPath(id: string) {
@@ -703,6 +704,7 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_SURVEYS,
   "/admin/surveys/export.csv",
   DASHBOARD_SURVEYS,
+  DASHBOARD_INVITATIONS,
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",

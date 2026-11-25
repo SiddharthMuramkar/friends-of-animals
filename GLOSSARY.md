@@ -1053,6 +1053,12 @@ A person's private dated history of their competitions, recognitions,
 community life, events and volunteering. A Guardian sees the journey of
 each linked child separately from their own.
 
+**Post-competition invitation**:
+A private optional invitation after actual result publication, sent once to a
+consenting adult participant or the verified Guardian who currently consents
+for a child. Each selected opportunity is recorded as interest, not enrolment
+or an earned Engagement milestone.
+
 ## Events and campaigns
 
 **Event**:

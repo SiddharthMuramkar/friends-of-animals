@@ -32,7 +32,8 @@
       "clubs": "FOA clubs",
       "timeline": "Engagement timeline",
       "events": "My event registrations",
-      "surveys": "Feedback surveys"
+      "surveys": "Feedback surveys",
+      "invitations": "Competition invitations"
     },
     "admin": {
       "gallery": "Gallery curation",

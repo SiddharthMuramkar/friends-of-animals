@@ -52,6 +52,7 @@ describe("the settings catalogue", () => {
       "clubs.enabled": false,
       "clubs.maxPerInstitution": 1,
       "surveys.enabled": false,
+      "invitations.enabled": false,
       "volunteers.applicationsOpen": false,
       "volunteers.minAgeYears": 14,
       "volunteers.guardianApprovalBelowAgeYears": 18,

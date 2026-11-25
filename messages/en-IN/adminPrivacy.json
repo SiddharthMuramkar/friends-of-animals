@@ -863,6 +863,16 @@
           "contact_ciphertext": "Lets the content manager contact the reporter if they supplied an address",
           "handled_by_user_id": "Records which staff member handled the report"
         },
+        "competition_invitation": {
+          "participant_profile_id": "Identify the participant whose invitation this is.",
+          "competition_id": "Identify the competition whose results prompted this invitation.",
+          "release_id": "Verify the immutable publication that prompted this invitation.",
+          "accepted_actions": "Record the participant's chosen engagement opportunities.",
+          "created_at": "Record when the participant was invited.",
+          "status": "Record whether the invitation was sent or skipped.",
+          "trigger": "Distinguish a publication invitation from the approved pilot backfill.",
+          "recipient_user_id": "Identify the consenting adult or verified guardian who received the invitation."
+        },
         "survey_invitation": {
           "user_id": "The person invited to answer once",
           "survey_id": "The competition survey they were invited to answer",

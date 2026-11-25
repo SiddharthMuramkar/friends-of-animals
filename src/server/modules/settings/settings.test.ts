@@ -350,6 +350,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "invitations.enabled",
+        value: false,
+        defaultValue: false,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "boolean" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "volunteers.applicationsOpen",
         value: false,
         defaultValue: false,

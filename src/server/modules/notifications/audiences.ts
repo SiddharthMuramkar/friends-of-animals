@@ -341,6 +341,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       // About an application or service (#123/#124): `volunteer_applicant`,
       // `volunteer_guardians` and `community_managers` find who hears.
       return null;
+    case "competition_invitation.due":
     case "survey.invitation_due":
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
@@ -765,6 +766,7 @@ export const AUDIENCES = {
    * resolver grants no recipients.
    */
   survey_invitation: async () => [],
+  competition_invitation: async () => [],
   campaign_recipient: async () => [],
 } satisfies Record<string, Audience>;
 
@@ -1214,6 +1216,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: DECLINED_VARIABLES,
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
+  },
+  "competition_invitation.due": {
+    names: ["invitation.link"],
+    load: async () => ({}),
   },
   "survey.invitation_due": {
     names: ["survey.title", "survey.link"],

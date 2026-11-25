@@ -884,6 +884,11 @@ export type DomainEvent =
       };
     }
   | {
+      type: "competition_invitation.due";
+      aggregate: { type: "competition_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       type: "survey.invitation_due";
       aggregate: { type: "survey_invitation"; id: string };
       payload: { invitationId: string };
@@ -1310,6 +1315,7 @@ export const EVENT_PAYLOADS = {
     overdue: z.int().min(1),
     assignedToYou: z.int().min(0),
   }),
+  "competition_invitation.due": z.object({ invitationId: z.uuid() }),
   "survey.invitation_due": z.object({ invitationId: z.uuid() }),
   "campaign.message_due": z.object({
     campaignId: z.uuid(),
@@ -1495,6 +1501,7 @@ export const SUBSCRIBERS = {
     "results.send_family_prize",
   ],
   "results.published": [
+    "invitations.queue_published",
     "artwork.open_results_window",
     "certificates.issue",
     "community.record_results",
@@ -1608,6 +1615,7 @@ export const SUBSCRIBERS = {
   // The campaigns module plans its own channels on the consent each
   // message rests on, with its route's template (#126).
   "survey.invitation_due": ["surveys.deliver_invitation"],
+  "competition_invitation.due": ["invitations.deliver"],
   "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
