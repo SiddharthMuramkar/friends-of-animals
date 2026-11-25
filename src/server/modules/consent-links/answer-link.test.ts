@@ -138,15 +138,20 @@ describe("answerConsentLink", () => {
       method: "otp_link",
       consentLinkId: renewed.linkId,
     });
-    expect(withdrawn.outbox).toMatchObject([
-      {
-        payload: {
-          subjectId: world.studentId,
-          purpose: "public_display",
-          documentId: world.documents.public_display.id,
-        },
-      },
+    expect(withdrawn.outbox.map(({ handler }) => handler).sort()).toEqual([
+      "gallery.withdraw_consent",
+      "notifications.dispatch",
     ]);
+    for (const delivery of withdrawn.outbox) {
+      expect(delivery.payload).toEqual({
+        subjectType: "participant_profile",
+        subjectId: world.studentId,
+        competitionId: world.competition.id,
+        consentEventId: withdrawn.events.at(-1)?.id,
+        purpose: "public_display",
+        documentId: world.documents.public_display.id,
+      });
+    }
   });
 
   it("refuses stale choices after a document is repinned and lets the school replace the link", async () => {
