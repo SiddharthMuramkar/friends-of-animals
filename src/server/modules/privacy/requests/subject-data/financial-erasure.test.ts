@@ -116,12 +116,10 @@ async function approve({
     .previewErasure({ id: filed.requestId });
   if (!preview.ok) throw new Error("Could not preview erasure");
   expect(
-    await h
-      .as(officer.actor)
-      .executeErasure({
-        id: filed.requestId,
-        fingerprint: preview.preview.plan.fingerprint,
-      })
+    await h.as(officer.actor).executeErasure({
+      id: filed.requestId,
+      fingerprint: preview.preview.plan.fingerprint,
+    })
   ).toEqual({ ok: true });
   return preview.preview.plan;
 }
@@ -165,13 +163,11 @@ describe("financial records during erasure", () => {
       if (held) {
         const admin = await h.signIn(await h.seed.superAdmin());
         expect(
-          await h
-            .as(admin)
-            .placeLegalHold({
-              subjectType: "user",
-              subjectId: member.id,
-              reason: "Evidence preservation",
-            })
+          await h.as(admin).placeLegalHold({
+            subjectType: "user",
+            subjectId: member.id,
+            reason: "Evidence preservation",
+          })
         ).toMatchObject({ ok: true });
       }
       const plan = await approve(setup);
