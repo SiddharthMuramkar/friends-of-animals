@@ -1,3 +1,5 @@
+import { uuidv7 } from "../../ids";
+import { openArtworkResultsWindow } from "../physical-artwork/results-window";
 import { type Harness } from "@/test/harness";
 import { consentCompetition } from "../consent/testing";
 import {
@@ -16,7 +18,23 @@ import {
   signedInVerifier,
 } from "../verification/testing";
 
-export async function auctionArtwork(h: Harness, minor = false) {
+/** Open the real results window at a historical instant. Its retention job
+ * is deliberately left due; an auction can still reserve verified work at
+ * the exact cutoff before that worker changes the custody state. */
+export async function completedReturnWindow(h: Harness, competitionId: string) {
+  const publishedAt = new Date(+h.clock.now() - 30 * 86400000);
+  await openArtworkResultsWindow(h.deps, {
+    competitionId,
+    releaseId: uuidv7(publishedAt),
+    publishedAt: publishedAt.toISOString(),
+  });
+}
+
+export async function auctionArtwork(
+  h: Harness,
+  minor = false,
+  window: "closed" | "unpublished" = "closed"
+) {
   const competition = await consentCompetition(h, {
     fee: 0n,
     physicalArtwork: { kind: "all_shortlisted" },
@@ -54,6 +72,7 @@ export async function auctionArtwork(h: Harness, minor = false) {
     ).ok
   )
     throw new Error("Verification failed");
+  if (window === "closed") await completedReturnWindow(h, competitionId);
   return {
     artist,
     competition,

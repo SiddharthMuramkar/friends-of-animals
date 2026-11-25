@@ -20,6 +20,6 @@ export async function savePolicy(competitionId: string, form: FormData) {
   );
   redirect(
     ADMIN_AUCTION_PROCEEDS +
-      `?result=${result.ok && result.value.ok ? "ok" : "error"}`
+      `?result=${result.ok ? (result.value.ok ? "ok" : result.value.error) : "error"}`
   );
 }

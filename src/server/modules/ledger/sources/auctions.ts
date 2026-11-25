@@ -24,16 +24,43 @@ export async function postAuctionSale(
       amountPaise: auctionOffer.amountPaise,
       creatorShareBps: auctionOffer.creatorShareBps,
       paidAt: auctionOffer.paidAt,
+      batchId: auctionOffer.batchId,
+      paymentId: paymentBatch.gatewayPaymentId,
     })
     .from(auctionOffer)
+    .leftJoin(paymentBatch, eq(paymentBatch.id, auctionOffer.batchId))
     .where(and(eq(auctionOffer.id, offerId), eq(auctionOffer.status, "paid")));
   if (!offer?.paidAt) return { outcome: "ignored" } as const;
+  const [reviewed] =
+    offer.batchId && offer.paymentId
+      ? await tx
+          .select({ id: paymentReviewCase.id })
+          .from(paymentReviewCase)
+          .where(
+            and(
+              eq(paymentReviewCase.batchId, offer.batchId),
+              eq(paymentReviewCase.gatewayPaymentId, offer.paymentId),
+              eq(paymentReviewCase.reason, "auction_capture_time_unknown"),
+              eq(paymentReviewCase.outcome, "confirm")
+            )
+          )
+      : [];
+  // Timely evidence may settle a previously booked liability; recognize
+  // income once by transferring that liability, not debiting clearing twice.
+  // Backfill uses the identical path and first ensures the liability exists.
+  if (reviewed && offer.batchId && offer.paymentId)
+    await postAuctionReview(tx, ctx, offer.paymentId, offer.batchId);
+  const lines = auctionCaptureLines(offer).map((line) =>
+    reviewed && line.accountCode === CODES.gatewayClearing
+      ? { ...line, accountCode: CODES.auctionReviewLiability }
+      : line
+  );
   return postToLedger(tx, ctx, {
     source: { type: "auction_sale", id: offer.id },
     competitionId: offer.competitionId,
     occurredAt: offer.paidAt,
     description: postingDescription("auction_sale"),
-    lines: auctionCaptureLines(offer),
+    lines,
   });
 }
 export async function postAuctionReview(

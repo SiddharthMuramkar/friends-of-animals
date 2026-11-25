@@ -27,6 +27,8 @@
     "notice": {
       "given": "Done. We'll email you news and updates.",
       "withdrawn": "Done. We won't email you news and updates any more.",
+      "auctionGiven": "Done. You agreed to the current auction consent version.",
+      "auctionWithdrawn": "Done. You withdrew auction consent.",
       "publicationWithdrawn": "Permission withdrawn. FOA will no longer provide your artwork for this use.",
       "outdated": "We changed the text while you were reading. Read the new version below, then choose again.",
       "failed": "We couldn't save your choice, so nothing changed. Please try again."
@@ -60,10 +62,14 @@
     },
     "auction": {
       "title": "Auction consent",
-      "lead": "Withdraw your consent for a competition to stop any unsold auction lots of your original artwork.",
+      "lead": "Give or withdraw your consent on a competition’s current auction terms. A changed proceeds policy requires your agreement to the new version.",
       "given": "Given",
       "withdrawn": "Withdrawn",
-      "withdraw": "Withdraw auction consent"
+      "withdraw": "Withdraw auction consent",
+      "currentUnavailable": "Current auction terms are not available to renew. You can still withdraw your earlier consent.",
+      "renewal": "Review the currently attached auction terms before giving consent again.",
+      "read": "Read auction consent version {version}",
+      "renew": "Agree to these auction terms"
     }
   }
 }

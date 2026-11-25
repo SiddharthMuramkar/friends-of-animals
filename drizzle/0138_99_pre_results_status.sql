@@ -1,1 +1,1 @@
-ALTER TYPE "public"."competition_status" ADD VALUE 'results_published' BEFORE 'cancelled';
+ALTER TYPE "public"."competition_status" ADD VALUE IF NOT EXISTS 'results_published' BEFORE 'cancelled';

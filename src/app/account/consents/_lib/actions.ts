@@ -46,13 +46,33 @@ export async function withdrawConsentAction(): Promise<void> {
   backWith(result.ok ? "withdrawn" : "failed");
 }
 
+export async function giveAuctionConsentAction(
+  competitionId: string,
+  formData: FormData
+): Promise<void> {
+  const actor = await currentActor();
+  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  const documentId = formData.get("documentId");
+  const result = await as(actor).giveMyAuctionConsent({
+    competitionId,
+    documentId: typeof documentId === "string" ? documentId : "",
+  });
+  backWith(
+    result.ok
+      ? "auctionGiven"
+      : result.error === "document_outdated"
+        ? "outdated"
+        : "failed"
+  );
+}
+
 export async function withdrawAuctionConsentAction(
   competitionId: string
 ): Promise<void> {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const result = await as(actor).withdrawMyAuctionConsent({ competitionId });
-  backWith(result.ok ? "withdrawn" : "failed");
+  backWith(result.ok ? "auctionWithdrawn" : "failed");
 }
 
 export async function withdrawPublicUseConsentAction(

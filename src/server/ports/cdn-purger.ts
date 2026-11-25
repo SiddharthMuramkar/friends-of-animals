@@ -4,7 +4,38 @@ export interface CdnPurger {
 }
 /** The gallery uses live private streams with no-store; no CDN cache exists
  * by construction unless the owner explicitly enables a cache provider. */
-export const noStoreCdnPurger: CdnPurger = { purge: async () => undefined };
+export const noStoreCdnPurger: CdnPurger = {
+  purge: async (paths) => {
+    publicPurgePaths(paths);
+  },
+};
+
+function hasPathWhitespace(path: string) {
+  for (let i = 0; i < path.length; i++) {
+    const code = path.charCodeAt(i);
+    if (code <= 32 || code === 127) return true;
+  }
+  return false;
+}
+
+/** Check the entire request before any provider call. Return canonical public
+ * paths, as the provider receives them, with no fragment or other origin. */
+export function publicPurgePaths(paths: readonly string[]) {
+  const origin = new URL("https://cdn-path.test");
+  return paths.map((path) => {
+    if (
+      !path.startsWith("/") ||
+      path.startsWith("//") ||
+      path.includes("\\") ||
+      hasPathWhitespace(path)
+    )
+      throw new Error("Invalid public route");
+    const url = new URL(path, origin);
+    if (url.origin !== origin.origin || url.hash)
+      throw new Error("Invalid public route");
+    return url.pathname + url.search;
+  });
+}
 
 /** Opt-in adapter, deliberately not wired to any production credentials. */
 export function cloudflareCdnPurger(
@@ -22,18 +53,9 @@ export function cloudflareCdnPurger(
     throw new Error("Invalid CDN configuration");
   return {
     async purge(paths) {
-      const urls = paths.map((path) => {
-        if (
-          !path.startsWith("/") ||
-          path.startsWith("//") ||
-          path.includes("\\")
-        )
-          throw new Error("Invalid public route");
-        const url = new URL(path, origin);
-        if (url.origin !== origin.origin)
-          throw new Error("Invalid public route");
-        return url.href;
-      });
+      const urls = publicPurgePaths(paths).map(
+        (path) => new URL(path, origin).href
+      );
       for (let i = 0; i < urls.length; i += 30) {
         const response = await send(
           `https://api.cloudflare.com/client/v4/zones/${config.zoneId}/purge_cache`,

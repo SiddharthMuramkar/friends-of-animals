@@ -60,26 +60,56 @@ test("FOA resolves a discrepancy, verifies with private condition photos and rec
   const db = drizzle({ client, schema });
   const { cipher } = fieldCryptoFor(parseEnv(fieldKeyEnvSchema, process.env));
   const now = new Date();
-  const competitionId = SEED_AUCTION_COMPETITION.id;
+  // Use a separate just-published competition; auction examples now have
+  // closed return windows and must not share this journey's open window.
+  const competitionId = randomUUID();
+  const code = `RET${String.fromCharCode(65 + randomInt(26), 65 + randomInt(26), 65 + randomInt(26))}27`;
   const profileId = randomUUID(),
     registrationId = randomUUID(),
     entryId = randomUUID(),
     artworkId = randomUUID();
-  const artworkCode = `AUCT27-A-${symbols()}`;
+  const artworkCode = `${code}-A-${symbols()}`;
   const path = `${board}/${artworkCode}`;
   try {
     const [account] = await db
       .select({ id: schema.user.id })
       .from(schema.user)
       .where(eq(schema.user.email, owner));
+    const [sample] = await db
+      .select()
+      .from(schema.competition)
+      .where(eq(schema.competition.id, SEED_AUCTION_COMPETITION.id));
     const [group] = await db
-      .select({ id: schema.competitionAgeGroup.id })
+      .select()
       .from(schema.competitionAgeGroup)
-      .where(eq(schema.competitionAgeGroup.competitionId, competitionId))
+      .where(
+        eq(
+          schema.competitionAgeGroup.competitionId,
+          SEED_AUCTION_COMPETITION.id
+        )
+      )
       .limit(1);
-    if (!account || !group)
-      throw new Error("Missing test account or age group");
+    if (!account || !group || !sample)
+      throw new Error("Missing test account or competition fixture");
+    const ageGroupId = randomUUID();
     await db.transaction(async (tx) => {
+      await tx.insert(schema.competition).values({
+        ...sample,
+        id: competitionId,
+        code,
+        slug: `return-window-${competitionId}`,
+        name: `Return window ${code}`,
+        auctionPermitted: false,
+      });
+      await tx
+        .insert(schema.competitionAgeGroup)
+        .values({ ...group, id: ageGroupId, competitionId });
+      await tx.insert(schema.artworkResultsWindow).values({
+        competitionId,
+        releaseId: randomUUID(),
+        resultsPublishedAt: now,
+        closesAt: new Date(+now + 30 * 86400000),
+      });
       await tx.insert(schema.participantProfile).values({
         id: profileId,
         ownerKind: "self",
@@ -94,16 +124,16 @@ test("FOA resolves a discrepancy, verifies with private condition photos and rec
         id: registrationId,
         participantProfileId: profileId,
         competitionId,
-        ageGroupId: group.id,
+        ageGroupId,
         route: "individual",
         status: "confirmed",
-        registrationNumber: `AUCT27-R-${symbols()}`,
+        registrationNumber: `${code}-R-${symbols()}`,
         createdAt: now,
         updatedAt: now,
       });
       await tx.insert(schema.entry).values({
         id: entryId,
-        code: `AUCT27-E-${symbols()}`,
+        code: `${code}-E-${symbols()}`,
         competitionId,
         registrationId,
         participantProfileId: profileId,
@@ -275,6 +305,9 @@ test("FOA resolves a discrepancy, verifies with private condition photos and rec
     await db
       .delete(schema.participantProfile)
       .where(eq(schema.participantProfile.id, profileId));
+    await db
+      .delete(schema.competition)
+      .where(eq(schema.competition.id, competitionId));
     await client.end();
   }
 });

@@ -71,6 +71,7 @@ export async function syncBatch(
       : "awaiting_payment";
   }
   const payments = await ctx.payments.fetchOrderPayments(found.orderId);
+  const observedAt = ctx.clock.now();
 
   return ctx.db.transaction(async (tx): Promise<SyncOutcome> => {
     const batch = await lockBatchAndParticipation(tx, batchId);
@@ -82,7 +83,8 @@ export async function syncBatch(
         ctx,
         batch,
         payments,
-        actorRole
+        actorRole,
+        observedAt
       );
     }
     const decision = decideCapture(

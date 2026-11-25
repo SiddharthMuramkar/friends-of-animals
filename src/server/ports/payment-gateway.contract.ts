@@ -13,6 +13,8 @@ import {
 
 export type PaymentGatewayContractSetup = () => Promise<{
   gateway: PaymentGateway;
+  /** The simulator/adapter can return signature-verified capture timing. */
+  signedCaptureTiming?: true;
   /**
    * Has the payer pay `orderId` in full: the gateway records a captured
    * payment, and this returns what Checkout hands back to the browser.
@@ -29,6 +31,7 @@ export type PaymentGatewayContractSetup = () => Promise<{
     event: {
       type: string;
       orderId: string;
+      capture?: { paymentId: string; occurredBy: Date };
       /** For a refund event (#80): the refund and its payment. */
       refund?: { refundId: string; paymentId: string };
     },
@@ -159,16 +162,24 @@ export function paymentGatewayContract(
     });
 
     it("reads a webhook whose signature is genuine", async () => {
-      const { gateway, orderId, webhook } = await openOrder();
+      const { gateway, orderId, webhook, signedCaptureTiming } =
+        await openOrder();
+      const capture = signedCaptureTiming
+        ? {
+            paymentId: "pay_ProvenCapture123",
+            occurredBy: new Date("2027-01-01T12:00:00.999Z"),
+          }
+        : undefined;
       const { rawBody, headers } = webhook({
         type: "payment.captured",
         orderId,
+        ...(capture ? { capture } : {}),
       });
-
       expect(gateway.readWebhook(rawBody, headers)).toEqual({
         eventId: expect.stringMatching(/\S/),
         type: "payment.captured",
         orderId,
+        ...(capture ? { capture } : {}),
       });
     });
 

@@ -17,7 +17,8 @@
       "paid_while_in_review": "Paid again during review",
       "participation_consent_required": "Participation check",
       "participation_unavailable": "Minor participation paused",
-      "donation_expired": "Donation expired"
+      "donation_expired": "Donation expired",
+      "auction_capture_time_unknown": "Auction capture timing unverified"
     },
     "reasonBodies": {
       "already_paid": "These registrations were already paid for, so this money is a second payment.",
@@ -28,7 +29,8 @@
       "paid_while_in_review": "This full payment arrived while an earlier payment for the same registrations was being checked.",
       "participation_consent_required": "Accepting this payment requires guardian consent on the competition’s current participation document.",
       "participation_unavailable": "Individual participation for minors is paused. This payment cannot confirm the registration right now.",
-      "donation_expired": "This donation's money arrived after its checkout expired. Accepting it captures the donation and issues its receipt."
+      "donation_expired": "This donation's money arrived after its checkout expired. Accepting it captures the donation and issues its receipt.",
+      "auction_capture_time_unknown": "The gateway confirms the winning payment, but has not established that it was captured before the deadline. The original remains held until timely evidence arrives or finance resolves the case."
     },
     "outcomes": {
       "confirm": "Accept the money",

@@ -42,7 +42,11 @@ export function gotenbergPdfRenderer({
         );
         if (!response.ok) throw new PdfRenderError(response.status);
         const bytes = new Uint8Array(await response.arrayBuffer());
-        if (new TextDecoder().decode(bytes.subarray(0, 5)) !== "%PDF-")
+        const tail = new TextDecoder("latin1").decode(bytes.subarray(-1024));
+        if (
+          new TextDecoder().decode(bytes.subarray(0, 5)) !== "%PDF-" ||
+          !/startxref\s+\d+\s+%%EOF\s*$/.test(tail)
+        )
           throw new PdfRenderError();
         return bytes;
       } catch (error) {

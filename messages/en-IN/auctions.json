@@ -120,8 +120,12 @@
         "receipt_confirmed": "Receipt confirmed"
       },
       "proceedsTitle": "Auction proceeds policies",
-      "proceedsLead": "FOA retains the full amount by default. Set the creator share as a percentage; this is a payable liability, not an automatic payout. Changes apply to future payment offers.",
+      "proceedsLead": "FOA retains the full amount by default. The creator share must match the competition’s attached, versioned auction consent. Changing terms requires a new document and fresh consent from creators or guardians, and cannot change an unsettled lot. A creator share is a payable liability, not an automatic payout.",
       "share": "Creator share (%)",
+      "policyDocument": "Attached auction consent version {version}: {share}% creator share.",
+      "policyDocumentMissing": "Attach an auction consent document with valid proceeds terms first.",
+      "policyDocumentMismatch": "The percentage must match the attached auction consent version.",
+      "policyAuctionActive": "Settle or cancel the competition’s existing auction lots before changing the policy.",
       "shareHint": "Enter a percentage from 0 to 100, with up to two decimal places.",
       "savePolicy": "Save proceeds policy",
       "noPolicies": "No competitions allowing auctions.",

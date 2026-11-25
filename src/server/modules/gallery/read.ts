@@ -63,12 +63,19 @@ export async function listPublicGallery(
   await authorize(ctx, "gallery.read_published");
   const limit = options.limit ?? 24;
   const items: PublicGalleryItem[] = [];
-  let cursor = z.uuid().safeParse(input.cursor).success
-    ? input.cursor
+  const competitions = new Map<string, PublicGalleryItem["competition"]>();
+  const disciplines = new Set<string>();
+  const categories = new Set<string>();
+  const recognitions = new Set<string>();
+  const after = z.uuid().safeParse(input.cursor).success
+    ? input.cursor?.toLowerCase()
     : undefined;
-  // Paginate over visible results: rows that lost consent do not consume a
-  // slot or leak counts. Independent live reads proceed in small batches.
-  while (items.length <= limit) {
+  let cursor: string | undefined;
+  // Facets are global, not derived from the current page or its filters.
+  // Use the exact live projection gate for both, retaining only distinct
+  // public values and one page of items. Featured artwork needs no facets.
+  const collectFacets = !options.featured;
+  while (collectFacets || items.length <= limit) {
     const rows = await ctx.db
       .select()
       .from(galleryItem)
@@ -81,18 +88,30 @@ export async function listPublicGallery(
       )
       .orderBy(desc(galleryItem.id))
       .limit(12);
-    for (let i = 0; i < rows.length && items.length <= limit; i += 6) {
+    for (
+      let i = 0;
+      i < rows.length && (collectFacets || items.length <= limit);
+      i += 6
+    ) {
       const projected = await Promise.all(
         rows.slice(i, i + 6).map((r) => toPublic(ctx, r))
       );
       for (const item of projected) {
+        if (!item) continue;
+        const recognition = item.recognition?.value ?? "none";
+        if (collectFacets) {
+          competitions.set(item.competition.slug, item.competition);
+          disciplines.add(item.discipline);
+          categories.add(item.category);
+          recognitions.add(recognition);
+        }
         if (
-          item &&
+          items.length <= limit &&
+          (!after || item.itemId < after) &&
           (!input.competition || item.competition.slug === input.competition) &&
           (!input.discipline || item.discipline === input.discipline) &&
           (!input.category || item.category === input.category) &&
-          (!input.recognition ||
-            (item.recognition?.value ?? "none") === input.recognition)
+          (!input.recognition || recognition === input.recognition)
         )
           items.push(item);
       }
@@ -103,6 +122,14 @@ export async function listPublicGallery(
   return {
     items: items.slice(0, limit),
     nextCursor: items.length > limit ? items[limit - 1]!.itemId : null,
+    facets: {
+      competition: [...competitions.values()].sort(
+        (a, b) => a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug)
+      ),
+      discipline: [...disciplines].sort(),
+      category: [...categories].sort(),
+      recognition: [...recognitions].sort(),
+    },
   };
 }
 export async function featuredGalleryItems(ctx: UseCaseContext) {

@@ -1028,7 +1028,7 @@
       "idx": 146,
       "version": "7",
       "when": 1795597886691,
-      "tag": "0146_133_auction_payment_purpose",
+      "tag": "0146_133_pre_auction_payment_purpose",
       "breakpoints": true
     },
     {
@@ -1176,6 +1176,20 @@
       "version": "7",
       "when": 1795607609341,
       "tag": "0167_135_social_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 168,
+      "version": "7",
+      "when": 1795610606776,
+      "tag": "0168_133_pre_auction_capture_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1795610709815,
+      "tag": "0169_133_capture_evidence",
       "breakpoints": true
     }
   ]

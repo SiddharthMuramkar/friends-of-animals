@@ -62,6 +62,9 @@ export type GatewayWebhook = {
   /** The order it is about, or null for an event about no order. */
   orderId: string | null;
   subscriptionId?: string;
+  /** Positive signed capture-event evidence only. The adapter supplies the
+   * latest possible instant of the captured snapshot, not payment creation. */
+  capture?: { paymentId: string; occurredBy: Date };
   /** For a refund event (#80): the gateway's refund and the payment it
    * returns. Absent on every other event. */
   refund?: { refundId: string; paymentId: string };

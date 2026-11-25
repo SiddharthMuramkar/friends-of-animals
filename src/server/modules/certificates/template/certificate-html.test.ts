@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { Resvg } from "@resvg/resvg-js";
 import jsQR from "jsqr";
+import { fakeRasterPdf } from "@/test/pdf-fixtures";
 import { certificateHtml } from "./certificate-html";
 import { qrSvg } from "./qr";
 import type { CertificateDocument } from "../document";
@@ -41,7 +42,7 @@ it("posts self-contained HTML with A4 landscape and refuses provider failures", 
         typeof url === "string" ? url : url instanceof URL ? url.href : url.url
       ).toBe("http://pdf.test:3000/forms/chromium/convert/html");
       seen = req?.body as FormData;
-      return new Response("%PDF-1.7\n");
+      return new Response(Buffer.from(fakeRasterPdf()));
     },
   });
   expect(
@@ -50,7 +51,7 @@ it("posts self-contained HTML with A4 landscape and refuses provider failures", 
       version: 1,
       data: document,
     })
-  ).toEqual(new TextEncoder().encode("%PDF-1.7\n"));
+  ).toEqual(fakeRasterPdf());
   expect(seen?.get("paperSize")).toBe("A4");
   expect(seen?.get("landscape")).toBe("true");
   const file = seen?.get("files");

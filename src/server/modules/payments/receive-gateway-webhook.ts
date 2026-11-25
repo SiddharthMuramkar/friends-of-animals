@@ -12,6 +12,7 @@
 // of that payment instead (./refunds/sync-refund.ts). The stored row keeps
 // what it led to.
 
+import { captureFingerprint } from "./capture-evidence";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 
@@ -50,6 +51,30 @@ export async function receiveGatewayWebhook(
   if (!event) return { ok: false, error: "rejected" };
 
   const now = ctx.clock.now();
+  // Only the signature-verified provider snapshot can supply evidence.
+  // A future or malformed stamp is not proof; the event remains a sync hint.
+  const candidate =
+    event.type === "payment.captured" &&
+    event.orderId &&
+    event.capture &&
+    Number.isFinite(+event.capture.occurredBy) &&
+    +event.capture.occurredBy <= +now
+      ? event.capture
+      : null;
+  const [auction] =
+    candidate && event.orderId
+      ? await ctx.db
+          .select({ id: paymentBatch.id })
+          .from(paymentBatch)
+          .where(
+            and(
+              eq(paymentBatch.gateway, gateway.name),
+              eq(paymentBatch.gatewayOrderId, event.orderId),
+              eq(paymentBatch.purpose, "auction_sale")
+            )
+          )
+      : [];
+  const capture = auction ? candidate : null;
   const [stored] = await ctx.db
     .insert(gatewayWebhookEvent)
     .values({
@@ -58,6 +83,10 @@ export async function receiveGatewayWebhook(
       eventId: event.eventId,
       type: event.type,
       orderId: event.orderId,
+      capturePaymentFingerprint: capture
+        ? captureFingerprint(capture.paymentId)
+        : null,
+      captureOccurredBy: capture?.occurredBy ?? null,
       receivedAt: now,
     })
     .onConflictDoNothing()

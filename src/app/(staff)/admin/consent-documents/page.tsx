@@ -191,7 +191,10 @@ async function Documents({ searchParams }: { searchParams: SearchParams }) {
                     title: tf("title.label"),
                     source: {
                       label: tf("source.label"),
-                      hint: tf("source.hint"),
+                      hint:
+                        purpose === "auction"
+                          ? `${tf("source.hint")} ${tf("auctionProceedsHint")}`
+                          : tf("source.hint"),
                     },
                     preview: tf("preview"),
                     previewing: tf("previewing"),

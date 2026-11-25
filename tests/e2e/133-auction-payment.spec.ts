@@ -175,6 +175,60 @@ test("finance sees the per-competition proceeds policy and may change it with st
   });
   await policy.getByLabel("Creator share (%)").fill("25.01");
   await policy.getByRole("button", { name: "Save proceeds policy" }).click();
+  await expect(
+    page.getByText(
+      "The percentage must match the attached auction consent version."
+    )
+  ).toBeVisible();
+  await expect(policy.getByLabel("Creator share (%)")).toHaveValue("25");
+  await policy.getByRole("button", { name: "Save proceeds policy" }).click();
   await expect(page.getByText("Your changes were saved.")).toBeVisible();
-  await expect(policy.getByLabel("Creator share (%)")).toHaveValue("25.01");
+  await expect(policy.getByLabel("Creator share (%)")).toHaveValue("25");
+});
+
+test("an adult creator reviews the exact attached proceeds terms and renews their own consent", async ({
+  page,
+  request,
+}) => {
+  // Ravi's seeded original is unreserved; withdrawing/regranting leaves
+  // every open or paid sample lot intact for the other auction journeys.
+  const { SEED_ACCOUNTS } = await import("../../src/server/seed/accounts");
+  await signInByCode(page, request, SEED_ACCOUNTS.members[1].email);
+  await page.goto("/account/consents");
+  const auction = page.getByRole("region", { name: "Auction consent" });
+  await expect(auction.getByText("Art for kindness")).toBeVisible();
+  await both(page, "adult auction consent");
+  const terms = auction.getByRole("link", {
+    name: /Read auction consent version/,
+  });
+  await terms.click();
+  await expect(
+    page.getByText(
+      "The creator receives 25% of the auction proceeds; Friends of Animals receives the remainder.",
+      { exact: true }
+    )
+  ).toBeVisible();
+  await both(page, "exact versioned auction proceeds document");
+  await page.goto("/account/consents");
+  await auction
+    .getByRole("button", { name: "Withdraw auction consent" })
+    .click();
+  await expect(
+    page.getByText("Done. You withdrew auction consent.")
+  ).toBeVisible();
+  await expect(
+    auction.getByRole("button", { name: "Agree to these auction terms" })
+  ).toBeVisible();
+  await both(page, "withdrawn auction consent with renewal available");
+  await auction
+    .getByRole("button", { name: "Agree to these auction terms" })
+    .click();
+  await expect(
+    page.getByText("Done. You agreed to the current auction consent version.")
+  ).toBeVisible();
+  await expect(
+    auction.getByRole("button", { name: "Agree to these auction terms" })
+  ).toHaveCount(0);
+  await expect(terms).toBeVisible();
+  await both(page, "renewed auction consent");
 });

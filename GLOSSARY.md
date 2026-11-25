@@ -847,8 +847,10 @@ A public code identifying one Auction lot, such as `LOT-27-8H3TZ`. It is
 independent of the private Artwork ID.
 
 **Auction reservation**:
-An unfinished Auction lot’s exclusive hold on its original. It prevents another
-lot and conflicting custody moves without changing the physical status.
+An unfinished Auction lot’s exclusive hold on its original, only after the
+results return window closes. It prevents another lot and conflicting custody
+moves without changing the physical status; a timely family return defeats a
+legacy premature hold.
 Cancelling, settling unsold or relisting releases the original; selling it
 keeps that hold permanently.
 
@@ -871,14 +873,15 @@ _Avoid_: Grace period, overtime
 
 **Payment offer**:
 A winning Buyer’s exclusive opportunity to pay their accepted Bid before an
-exact deadline. On expiry the next qualifying distinct Buyer receives an offer;
+exact deadline. On expiry the next qualifying distinct Buyer receives an offer
+only after reconciliation finds no payable or unresolved captured payment;
 when candidates run out, the original can be relisted as a new Auction lot.
 Neither a Bid nor an expired offer transfers the artwork.
 
 **Auction sale**:
 The accepted full captured INR payment for one live Payment offer. The sale’s
-pinned proceeds policy splits exact paise into FOA income and creator shares
-payable. The original remains exclusively committed to the Buyer.
+pinned, acknowledged auction Consent version determines the proceeds policy,
+which splits exact paise into FOA income and creator shares payable. The original remains exclusively committed to the Buyer.
 
 **Auction delivery**:
 The fulfilment of an Auction sale, from the Buyer’s private delivery address

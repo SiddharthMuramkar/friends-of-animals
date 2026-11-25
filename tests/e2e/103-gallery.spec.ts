@@ -32,6 +32,25 @@ test("consented gallery, stamped image and anonymous report forms", async ({
   await expectAccessible(page, "gallery list");
   await expectAccessibleInDark(page, "gallery list");
   await expectNoSidewaysScrollAt320(page, "gallery list");
+  // Native named GET form keeps global valid choices and its selection after
+  // filtering, on both keyboard/mobile layouts.
+  await page.locator("summary").filter({ hasText: "Filter artworks" }).click();
+  const filters = page.getByRole("form", { name: "Filter artworks" });
+  await expect(filters.getByLabel("Competition")).toHaveValue("");
+  await filters
+    .getByLabel("Competition")
+    .selectOption({ label: "Art for kindness" });
+  await filters.getByLabel("Recognition").selectOption("first");
+  await filters.getByRole("button", { name: "Filter artworks" }).click();
+  await expect(filters.getByLabel("Recognition")).toHaveValue("first");
+  await expect(filters.getByLabel("Competition")).toHaveValue(
+    "art-for-kindness"
+  );
+  await expect(page.getByRole("link", { name: `View ${title}` })).toBeVisible();
+  await expectAccessible(page, "filtered gallery");
+  await expectAccessibleInDark(page, "filtered gallery");
+  await filters.getByRole("link", { name: "Clear filters" }).click();
+  await expect(page).toHaveURL(/\/gallery$/);
   await page.goto(path);
   const art = page.getByRole("img", { name: `AI illustration: ${title}` });
   await expect(art).toHaveAttribute("src", `/media/gallery/${id}`);

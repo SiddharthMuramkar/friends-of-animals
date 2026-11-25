@@ -1,3 +1,7 @@
+import {
+  resolveWithdrawalEvent,
+  consentEventFollows,
+} from "../consent/withdrawal-event";
 import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { recordAudit } from "../../audit/record";
@@ -5,7 +9,6 @@ import { consentEvent, galleryItem, galleryPurge } from "../../db/schema";
 import { uuidv7 } from "../../ids";
 import { emit } from "../../outbox/emit";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
-import { noStoreCdnPurger } from "../../ports/cdn-purger";
 import { readSetting } from "../settings/read";
 import { retireGalleryItem } from "./curation";
 import { galleryMediaPath, galleryPath, galleryThumbnailPath } from "./read";
@@ -61,20 +64,7 @@ export async function withdrawGalleryConsent(
   )
     return;
   await deps.db.transaction(async (tx) => {
-    const [withdrawal] = await tx
-      .select()
-      .from(consentEvent)
-      .where(
-        and(
-          eq(consentEvent.id, payload.consentEventId),
-          eq(consentEvent.action, "withdrawn"),
-          eq(consentEvent.subjectType, payload.subjectType),
-          eq(consentEvent.subjectId, payload.subjectId),
-          eq(consentEvent.competitionId, competitionId),
-          eq(consentEvent.purpose, payload.purpose),
-          eq(consentEvent.documentId, payload.documentId)
-        )
-      );
+    const withdrawal = await resolveWithdrawalEvent(tx, payload);
     if (!withdrawal) return;
     const items = await tx
       .select({ item: galleryItem, grant: consentEvent })
@@ -91,13 +81,7 @@ export async function withdrawGalleryConsent(
       )
       .for("update", { of: galleryItem });
     for (const { item, grant } of items) {
-      const afterGrant =
-        payload.subjectType === "participant_profile"
-          ? withdrawal.id > grant.id
-          : withdrawal.occurredAt > grant.occurredAt ||
-            (+withdrawal.occurredAt === +grant.occurredAt &&
-              withdrawal.id > grant.id);
-      if (!afterGrant) continue;
+      if (!consentEventFollows(withdrawal, grant)) continue;
       if (payload.purpose === "public_display")
         await retireGalleryItem(
           { ...deps, db: tx, actor },
@@ -163,7 +147,7 @@ export async function runGalleryPurge(deps: OutboxDeps, purgeId: string) {
       `/gallery-report/${row.itemId}`,
     ];
     try {
-      await (deps.cdn ?? noStoreCdnPurger).purge(paths);
+      await deps.cdn.purge(paths);
       await tx
         .update(galleryPurge)
         .set({

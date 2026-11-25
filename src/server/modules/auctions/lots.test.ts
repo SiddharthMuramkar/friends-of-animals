@@ -39,6 +39,7 @@ describe("auction lots", () => {
     expect(
       await h.as(verifier).markArtworkReceived({ artworkId })
     ).toMatchObject({ ok: true });
+    await completedReturnWindow(h, competitionId);
     const input = {
       artworkId,
       story: "A celebration of kindness",
@@ -79,7 +80,7 @@ import { competition, guardianLink } from "@/server/db/schema";
 import { SEED_AUCTIONS } from "@/server/seed/auctions";
 import { SEED_GUARDIANS } from "@/server/seed/guardians";
 import { SEED_AUCTION_COMPETITION } from "@/server/seed/competitions";
-import { auctionArtwork } from "./testing";
+import { auctionArtwork, completedReturnWindow } from "./testing";
 import { emit } from "@/server/outbox";
 import { uuidv7 } from "@/server/ids";
 
@@ -305,17 +306,6 @@ describe("auction lot lifecycle", () => {
     expect(await custody.getArtworkCustody({ artworkId })).toMatchObject({
       status: "on_exhibition",
     });
-    await emit(h.db, h.clock, {
-      type: "results.published",
-      aggregate: { type: "competition", id: w.competition.id },
-      payload: {
-        competitionId: w.competition.id,
-        releaseId: uuidv7(h.clock.now()),
-        publishedAt: h.clock.now().toISOString(),
-      },
-    });
-    await h.drain();
-    h.clock.advance({ days: 30 });
     await h.drain();
     expect(await custody.getArtworkCustody({ artworkId })).toMatchObject({
       status: "retained",
@@ -387,7 +377,7 @@ describe("published auction recognition", () => {
 describe("auction eligibility boundaries", () => {
   it("refuses invalid terms, a disabled competition and an outstanding return request", async () => {
     const h = await createHarness();
-    const w = await auctionArtwork(h);
+    const w = await auctionArtwork(h, false, "unpublished");
     const staff = h.as(w.auctioneer);
     expect(
       await staff.createLot({ ...w.input(), reservePricePaise: 1n })
@@ -410,7 +400,11 @@ describe("auction eligibility boundaries", () => {
     expect(await staff.createLot(w.input())).toMatchObject({
       ok: false,
       error: "ineligible",
-      reasons: ["competition_not_auctionable", "auction_consent_missing"],
+      reasons: [
+        "return_window_pending",
+        "competition_not_auctionable",
+        "auction_consent_missing",
+      ],
     });
     await h.db
       .update(competition)
@@ -434,7 +428,7 @@ describe("auction eligibility boundaries", () => {
     expect(await staff.createLot(w.input())).toMatchObject({
       ok: false,
       error: "ineligible",
-      reasons: ["return_requested"],
+      reasons: ["return_requested", "return_window_pending"],
     });
     expect(await staff.listEligibleArtwork()).toEqual([]);
   });
@@ -482,5 +476,137 @@ describe("auction eligibility boundaries", () => {
     expect(await visitor.getLot({ lotCode: SEED_AUCTIONS.open })).toMatchObject(
       { creatorCredit: "Asha Rao" }
     );
+  });
+});
+
+it("protects all 30 days of the family return window from auction reservations", async () => {
+  const h = await createHarness();
+  const w = await auctionArtwork(h, false, "unpublished");
+  const staff = h.as(w.auctioneer),
+    family = h.as(w.artist.actor);
+  const ref = { artworkId: w.artworkId };
+  expect(await staff.createLot(w.input())).toMatchObject({
+    ok: false,
+    error: "ineligible",
+    reasons: ["return_window_pending"],
+  });
+  const publishedAt = new Date(+h.clock.now() - 30 * 86400000 + 60_000);
+  await emit(h.db, h.clock, {
+    type: "results.published",
+    aggregate: { type: "competition", id: w.competition.id },
+    payload: {
+      competitionId: w.competition.id,
+      releaseId: uuidv7(publishedAt),
+      publishedAt: publishedAt.toISOString(),
+    },
+  });
+  await h.drain();
+  await h.settings.set("auctions.enabled", true);
+  expect(await staff.createLot(w.input())).toMatchObject({
+    ok: false,
+    error: "ineligible",
+    reasons: ["return_window_pending"],
+  });
+  expect(await staff.listEligibleArtwork()).toEqual([]);
+  await expect(staff.requestArtworkReturn(ref)).rejects.toMatchObject({
+    code: "forbidden",
+  });
+  expect(await family.requestArtworkReturn(ref)).toMatchObject({ ok: true });
+  h.clock.advance({ minutes: 1 });
+  await h.drain();
+  expect(await staff.createLot(w.input())).toMatchObject({
+    ok: false,
+    error: "ineligible",
+    reasons: ["return_requested"],
+  });
+});
+
+it("permits a new reservation at the exact closed return deadline, but never while the window is open", async () => {
+  const h = await createHarness();
+  const w = await auctionArtwork(h, false, "unpublished");
+  const staff = h.as(w.auctioneer),
+    family = h.as(w.artist.actor);
+  const publishedAt = new Date(+h.clock.now() - 30 * 86400000 + 1);
+  await emit(h.db, h.clock, {
+    type: "results.published",
+    aggregate: { type: "competition", id: w.competition.id },
+    payload: {
+      competitionId: w.competition.id,
+      releaseId: uuidv7(publishedAt),
+      publishedAt: publishedAt.toISOString(),
+    },
+  });
+  await h.drain();
+  expect(await staff.createLot(w.input())).toMatchObject({
+    ok: false,
+    reasons: ["return_window_pending"],
+  });
+  h.clock.set(new Date(+h.clock.now() + 1));
+  expect(
+    await family.requestArtworkReturn({ artworkId: w.artworkId })
+  ).toMatchObject({ ok: false, error: "return_window_closed" });
+  expect(await staff.createLot(w.input())).toMatchObject({ ok: true });
+});
+
+it("cancels a legacy premature draft in the rightful family's return transaction", async () => {
+  const h = await createHarness();
+  const w = await auctionArtwork(h, false, "unpublished");
+  const { auctionLot, consentEvent } = await import("@/server/db/schema");
+  const [grant] = await h.db
+    .select()
+    .from(consentEvent)
+    .where(eq(consentEvent.competitionId, w.competition.id))
+    .then((rows) => rows.filter((row) => row.purpose === "auction"));
+  if (!grant) throw new Error("Fixture consent missing");
+  const lotId = uuidv7(h.clock.now());
+  await h.db.insert(auctionLot).values({
+    ...w.input(),
+    id: lotId,
+    lotCode: "LOT-27-F1X01",
+    consentEventId: grant.id,
+    artworkStatusBeforeListing: "verified",
+    status: "draft",
+    createdAt: h.clock.now(),
+    updatedAt: h.clock.now(),
+  });
+  const publishedAt = h.clock.now();
+  await emit(h.db, h.clock, {
+    type: "results.published",
+    aggregate: { type: "competition", id: w.competition.id },
+    payload: {
+      competitionId: w.competition.id,
+      releaseId: uuidv7(publishedAt),
+      publishedAt: publishedAt.toISOString(),
+    },
+  });
+  await h.drain();
+  const family = h.as(w.artist.actor),
+    manager = h.as(w.auctioneer);
+  expect(await family.listMyArtworks()).toMatchObject({
+    ok: true,
+    artworks: expect.arrayContaining([
+      expect.objectContaining({
+        artworkId: w.artworkId,
+        mayRequestReturn: true,
+      }),
+    ]),
+  });
+  await expect(
+    manager.requestArtworkReturn({ artworkId: w.artworkId })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await family.requestArtworkReturn({ artworkId: w.artworkId })
+  ).toMatchObject({ ok: true });
+  expect(await manager.getLotForAdmin({ lotId })).toMatchObject({
+    status: "cancelled",
+  });
+  expect(
+    await h.as(w.verifier).getArtworkCustody({ artworkId: w.artworkId })
+  ).toMatchObject({
+    status: "verified",
+    returnRequest: { fulfilledAt: null },
+    events: expect.arrayContaining([
+      expect.objectContaining({ kind: "auction_released" }),
+    ]),
   });
 });

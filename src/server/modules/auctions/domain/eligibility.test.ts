@@ -12,6 +12,7 @@ const ELIGIBLE_ADULT: ArtworkAuctionFacts = {
   artworkStatus: "verified",
   openDiscrepancy: false,
   openReturnRequest: false,
+  returnWindowClosed: true,
   competitionAllowsAuction: true,
   creatorIsMinor: false,
   auctionConsent: { state: "given", by: "creator", guardianVerified: false },
@@ -144,6 +145,7 @@ describe("an artwork that may not become a lot", () => {
         artworkStatus: "received",
         openDiscrepancy: true,
         openReturnRequest: true,
+        returnWindowClosed: false,
         competitionAllowsAuction: false,
         creatorIsMinor: true,
         auctionConsent: {
@@ -159,6 +161,7 @@ describe("an artwork that may not become a lot", () => {
         "artwork_not_listable",
         "open_discrepancy",
         "return_requested",
+        "return_window_pending",
         "already_listed",
         "competition_not_auctionable",
         "guardian_not_verified",

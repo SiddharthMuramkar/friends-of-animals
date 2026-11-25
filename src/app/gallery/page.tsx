@@ -53,19 +53,13 @@ async function Gallery({
   );
   const api = as(PUBLIC_READER);
   const page = await api.listPublicGallery(filters);
-  const options = Object.keys(filters).length
-    ? (await api.listPublicGallery()).items
-    : page.items;
   const choices = {
-    competition: options.map((item) => [
-      item.competition.slug,
-      item.competition.name,
-    ]),
-    discipline: options.map((item) => [item.discipline, item.discipline]),
-    category: options.map((item) => [item.category, item.category]),
-    recognition: options.map((item) => [
-      item.recognition?.value ?? "none",
-      item.recognition?.value?.replaceAll("_", " ") ?? t("notAwarded"),
+    competition: page.facets.competition.map(({ slug, name }) => [slug, name]),
+    discipline: page.facets.discipline.map((value) => [value, value]),
+    category: page.facets.category.map((value) => [value, value]),
+    recognition: page.facets.recognition.map((value) => [
+      value,
+      value === "none" ? t("notAwarded") : value.replaceAll("_", " "),
     ]),
   };
   const more = page.nextCursor
@@ -76,12 +70,19 @@ async function Gallery({
       <h2 id="gallery-stories" className="text-h3 text-ink">
         {t("displayTitle")}
       </h2>
-      <details className="mt-4 rounded-2xl border border-border bg-surface p-4">
-        <summary className="font-semibold cursor-pointer min-h-11 flex items-center">
+      <details
+        open={Object.keys(filters).some((key) => key !== "cursor")}
+        className="mt-4 rounded-2xl border border-border bg-surface p-4"
+      >
+        <summary
+          id="gallery-filter-label"
+          className="font-semibold cursor-pointer min-h-11 flex items-center"
+        >
           {t("filter")}
         </summary>
         <form
           method="get"
+          aria-labelledby="gallery-filter-label"
           className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
           {(
@@ -106,11 +107,11 @@ async function Gallery({
                 className="min-h-12 min-w-0 rounded-xl border-2 border-border-strong bg-background px-3 text-ink"
               >
                 <option value="">{t("all")}</option>
-                {Array.from(
-                  new Map(
-                    choices[key].map(([value, label]) => [value!, label!])
-                  )
-                ).map(([value, label]) => (
+                {filters[key] &&
+                !choices[key].some(([value]) => value === filters[key]) ? (
+                  <option value={filters[key]}>{t("unavailableFilter")}</option>
+                ) : null}
+                {choices[key].map(([value, label]) => (
                   <option value={value} key={value}>
                     {label}
                   </option>

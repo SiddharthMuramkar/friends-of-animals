@@ -50,7 +50,8 @@ export async function getMyAuctionOffer(
     (!lot ||
       lot.status !== "awaiting_payment" ||
       ctx.clock.now() >= offer.expiresAt ||
-      !(await currentLotConsent(ctx, lot)) ||
+      (await currentLotConsent(ctx, lot))?.creatorShareBps !==
+        offer.creatorShareBps ||
       !(await ctx.settings.get("auctions.enabled")))
   )
     return null;
@@ -130,7 +131,7 @@ export async function lockOfferLot(tx: AppDb, offerId: string) {
       }
     : null;
 }
-export async function payableOffer(
+export async function eligibleOffer(
   ctx: Pick<UseCaseContext, "db" | "cipher" | "clock">,
   found: Awaited<ReturnType<typeof lockOfferLot>>
 ) {
@@ -142,19 +143,28 @@ export async function payableOffer(
   )
     return false;
   if (
-    !(await currentLotConsent(ctx, found.lot, true)) ||
+    (await currentLotConsent(ctx, found.lot, true))?.creatorShareBps !==
+      found.offer.creatorShareBps ||
     !(await readSetting(ctx.db, "auctions.enabled", { lock: "share" }))
   )
     return false;
   const now = ctx.clock.now();
   return (
-    now < found.offer.expiresAt &&
     (await financialStartAllowed(
       ctx.db,
       found.bid.bidderUserId,
       found.bid.placedAt
-    )) &&
-    !(await isKnownMinor(ctx.db, ctx.cipher, found.bid.bidderUserId, now)) &&
+    )) && !(await isKnownMinor(ctx.db, ctx.cipher, found.bid.bidderUserId, now))
+  );
+}
+export async function payableOffer(
+  ctx: Pick<UseCaseContext, "db" | "cipher" | "clock">,
+  found: Awaited<ReturnType<typeof lockOfferLot>>
+) {
+  return (
+    !!found &&
+    ctx.clock.now() < found.offer.expiresAt &&
+    (await eligibleOffer(ctx, found)) &&
     ctx.clock.now() < found.offer.expiresAt
   );
 }

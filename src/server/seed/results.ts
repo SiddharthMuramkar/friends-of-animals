@@ -140,9 +140,9 @@ export const seedResults: Seeder = async (deps) => {
       nameKey: "completed national final",
       judgesPhysical: true,
       status: "open",
-      createdAt: days(-40),
-      updatedAt: days(-40),
-      openedAt: days(-39),
+      createdAt: days(-80),
+      updatedAt: days(-80),
+      openedAt: days(-79),
       createdByUserId: SEED_COMPETITION_MANAGERS[0].id,
       openedByUserId: SEED_COMPETITION_MANAGERS[0].id,
     })
@@ -163,7 +163,7 @@ export const seedResults: Seeder = async (deps) => {
     const awardPosition = placed ? 1 : 2;
     await db
       .insert(roundEntry)
-      .values({ roundId, entryId: row.entryId, admittedAt: days(-38) });
+      .values({ roundId, entryId: row.entryId, admittedAt: days(-78) });
     await db.insert(roundResult).values({
       roundId,
       entryId: row.entryId,
@@ -219,7 +219,7 @@ export const seedResults: Seeder = async (deps) => {
     .update(judgingRound)
     .set({
       status: "locked",
-      lockedAt: days(-10),
+      lockedAt: days(-75),
       lockedByUserId: SEED_COMPETITION_MANAGERS[0].id,
       tieBreakRule: TIE_BREAK_RULE,
     })
@@ -229,8 +229,8 @@ export const seedResults: Seeder = async (deps) => {
     competitionId,
     sourceRoundId: roundId,
     preparedByUserId: SEED_COMPETITION_MANAGERS[0].id,
-    preparedAt: days(-3),
-    publishAt: days(-1),
+    preparedAt: days(-73),
+    publishAt: days(-71),
     deliveryNote: "FOA will contact the family to arrange prize collection.",
   };
   await db
@@ -242,10 +242,10 @@ export const seedResults: Seeder = async (deps) => {
     .set({
       status: "approved",
       approvedByUserId: SEED_COMPETITION_MANAGERS[1].id,
-      approvedAt: days(-2),
+      approvedAt: days(-72),
     })
     .where(eq(resultRelease.id, releaseId));
-  const historicalClock = { now: () => days(-1) };
+  const historicalClock = { now: () => days(-71) };
   const result = await publishResultsRelease(
     {
       db,
@@ -258,6 +258,6 @@ export const seedResults: Seeder = async (deps) => {
     throw new Error("Seed results could not publish");
   await openArtworkResultsWindow(
     { db, clock, settings: databaseSettings(db) },
-    { competitionId, releaseId, publishedAt: days(-1).toISOString() }
+    { competitionId, releaseId, publishedAt: days(-71).toISOString() }
   );
 };

@@ -7,6 +7,8 @@ export const CONSENT_NOTICES = [
   "given",
   "withdrawn",
   "publicationWithdrawn",
+  "auctionGiven",
+  "auctionWithdrawn",
   "outdated",
   "failed",
 ] as const;

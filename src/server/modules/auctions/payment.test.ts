@@ -70,7 +70,7 @@ describe("auction capture and delivery", () => {
     const competitionId = SEED_AUCTION_COMPETITION.id;
     expect(await finance.listAuctionProceedsPolicies()).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ competitionId, creatorShareBps: 0 }),
+        expect.objectContaining({ competitionId, creatorShareBps: 2500 }),
       ])
     );
     await expect(buyer.listAuctionProceedsPolicies()).rejects.toMatchObject({
@@ -103,7 +103,7 @@ describe("auction capture and delivery", () => {
         competitionId,
         creatorShareBps: 0,
       })
-    ).toMatchObject({ ok: true });
+    ).toMatchObject({ ok: false, error: "policy_document_mismatch" });
     expect(
       await stranger.openAuctionCheckout({ offerId: offer.id })
     ).toMatchObject({ ok: false });
@@ -439,10 +439,10 @@ it("reviews wrong-currency and mismatched captures and extra money without selli
   const order = await buyer.openAuctionCheckout({ offerId: offer.id }),
     secondOrder = await other.openAuctionCheckout({ offerId: secondOffer.id });
   if (!order.ok || !secondOrder.ok) throw new Error("Checkout refused");
-  h.gateway.capture(order.checkout.orderId, {
+  const foreign = h.gateway.capture(order.checkout.orderId, {
     amount: { amountMinor: 500n, currency: "USD" },
   });
-  h.gateway.capture(order.checkout.orderId, {
+  const wrong = h.gateway.capture(order.checkout.orderId, {
     amount: { amountMinor: 100n, currency: "INR" },
   });
   expect(
@@ -496,6 +496,23 @@ it("reviews wrong-currency and mismatched captures and extra money without selli
   ).toEqual([
     expect.objectContaining({ reason: "already_paid", amountMinor: 160101n }),
   ]);
+  const signedWrongAmounts = [foreign, wrong].map((paid) =>
+    h.gateway.webhook({
+      type: "payment.captured",
+      orderId: order.checkout.orderId,
+      capture: { paymentId: paid.paymentId, occurredBy: h.clock.now() },
+    })
+  );
+  h.clock.set(offer.expiresAt);
+  for (const hook of signedWrongAmounts)
+    expect(await visitor.receiveGatewayWebhook(hook)).toMatchObject({
+      ok: true,
+      outcome: "needs_review",
+    });
+  await h
+    .as({ kind: "system", process: "worker" })
+    .expireAuctionOffer({ offerId: offer.id });
+  expect(await buyer.getMyAuctionOffer(code)).toBeNull();
   const ledger = await finance.listPostings({});
   if (!ledger.ok) throw new Error("Ledger denied");
   expect(
@@ -504,4 +521,197 @@ it("reviews wrong-currency and mismatched captures and extra money without selli
   expect(
     ledger.postings.filter((p) => p.sourceType === "auction_review")
   ).toHaveLength(2);
+});
+
+it("reconciles a timely capture after expiry and never awards the next bidder while its timing is uncertain", async () => {
+  const h = await createHarness();
+  await seedAuctionResults(h.deps);
+  const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
+  const manager = h.as(await h.signIn(SEED_AUCTIONS.manager));
+  const worker = h.as({ kind: "system", process: "worker" });
+  const visitor = h.as(h.visitor());
+  const code = { lotCode: SEED_AUCTIONS.paymentOffer };
+  const offer = (await buyer.getMyAuctionOffer(code))!;
+  const checkout = await buyer.openAuctionCheckout({ offerId: offer.id });
+  if (!checkout.ok) throw new Error("Missing checkout fixture");
+  h.clock.set(new Date(+offer.expiresAt - 2000));
+  const paid = h.gateway.capture(checkout.checkout.orderId);
+  const timely = h.gateway.webhook({
+    type: "payment.captured",
+    orderId: checkout.checkout.orderId,
+    capture: { paymentId: paid.paymentId, occurredBy: h.clock.now() },
+  });
+  h.clock.set(offer.expiresAt);
+  await worker.expireAuctionOffer({ offerId: offer.id });
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("awaiting_payment");
+  const finance = h.as((await signInAs(h)).actor);
+  const reviews = await finance.listPaymentReviewCases({ state: "open" });
+  if (!reviews.ok) throw new Error("Review queue refused");
+  const review = reviews.cases.find((c) => c.batchId === checkout.batchId)!;
+  expect(review).toMatchObject({ reason: "auction_capture_time_unknown" });
+  // A signed after-cutoff event isn't evidence that capture was actually late;
+  // nor can evidence for some other payment on the order sell this lot.
+  for (const [paymentId, occurredBy] of [
+    [paid.paymentId, h.clock.now()],
+    ["another-payment", new Date(+offer.expiresAt - 2000)],
+  ] as const) {
+    const ambiguous = h.gateway.webhook({
+      type: "payment.captured",
+      orderId: checkout.checkout.orderId,
+      capture: { paymentId, occurredBy },
+    });
+    expect(await visitor.receiveGatewayWebhook(ambiguous)).toMatchObject({
+      ok: true,
+      outcome: "needs_review",
+    });
+    expect(
+      (await manager.listLotsForAdmin()).find(
+        (lot) => lot.lotCode === code.lotCode
+      )?.status
+    ).toBe("awaiting_payment");
+  }
+  const wrongOrder = h.gateway.webhook({
+    type: "payment.captured",
+    orderId: "another-order",
+    capture: {
+      paymentId: paid.paymentId,
+      occurredBy: new Date(+offer.expiresAt - 2000),
+    },
+  });
+  expect(await visitor.receiveGatewayWebhook(wrongOrder)).toMatchObject({
+    ok: true,
+    outcome: "ignored",
+  });
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("awaiting_payment");
+  expect(await visitor.receiveGatewayWebhook(timely)).toMatchObject({
+    ok: true,
+    outcome: "captured",
+  });
+  const { gatewayWebhookEvent } = await import("@/server/db/schema");
+  const { createHash } = await import("node:crypto");
+  const events = await h.db.select().from(gatewayWebhookEvent);
+  const fingerprint = createHash("sha256").update(paid.paymentId).digest("hex");
+  expect(events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        gateway: "fake",
+        type: "payment.captured",
+        orderId: checkout.checkout.orderId,
+        capturePaymentFingerprint: fingerprint,
+        captureOccurredBy: new Date(+offer.expiresAt - 2000),
+      }),
+    ])
+  );
+  expect(
+    events.find((event) => event.orderId === "another-order")
+  ).toMatchObject({ capturePaymentFingerprint: null, captureOccurredBy: null });
+  expect(JSON.stringify(events)).not.toContain(paid.paymentId);
+  expect(await visitor.receiveGatewayWebhook(timely)).toMatchObject({
+    ok: true,
+    outcome: "duplicate",
+  });
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("sold");
+  expect(await buyer.getMyAuctionOffer(code)).toMatchObject({ status: "paid" });
+  const ledger = await finance.listPostings({});
+  if (!ledger.ok) throw new Error("Ledger refused");
+  expect(
+    ledger.postings.filter((p) => p.sourceType === "auction_review")
+  ).toHaveLength(1);
+  const sales = ledger.postings.filter((p) => p.sourceType === "auction_sale");
+  expect(sales).toHaveLength(2);
+  const sale = await finance.getPosting(
+    sales.sort((a, b) => (a.seq > b.seq ? -1 : 1))[0]!.seq
+  );
+  expect(sale).toMatchObject({
+    ok: true,
+    posting: {
+      lines: expect.arrayContaining([
+        expect.objectContaining({
+          accountCode: "2210",
+          debitMinor: offer.amountPaise,
+        }),
+        expect.objectContaining({
+          accountCode: "2200",
+          creditMinor: offer.amountPaise / 4n,
+        }),
+      ]),
+    },
+  });
+  expect(await worker.expireAuctionOffer({ offerId: offer.id })).toMatchObject({
+    ok: false,
+    error: "not_open",
+  });
+});
+
+it("cannot fall back on provider outage; an ambiguous captured payment stays held until finance adjudicates it", async () => {
+  const h = await createHarness();
+  await seedAuctionResults(h.deps);
+  const buyer = h.as(await h.signIn(SEED_AUCTIONS.buyer));
+  const manager = h.as(await h.signIn(SEED_AUCTIONS.manager));
+  const worker = h.as({ kind: "system", process: "worker" });
+  const code = { lotCode: SEED_AUCTIONS.paymentOffer };
+  const offer = (await buyer.getMyAuctionOffer(code))!;
+  const checkout = await buyer.openAuctionCheckout({ offerId: offer.id });
+  if (!checkout.ok) throw new Error("Missing checkout fixture");
+  h.clock.set(offer.expiresAt);
+  h.gateway.failNextFetch();
+  await expect(
+    worker.expireAuctionOffer({ offerId: offer.id })
+  ).rejects.toThrow();
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("awaiting_payment");
+  h.gateway.capture(checkout.checkout.orderId);
+  await worker.expireAuctionOffer({ offerId: offer.id });
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("awaiting_payment");
+  const finance = h.as((await signInAs(h)).actor);
+  const reviews = await finance.listPaymentReviewCases({ state: "open" });
+  if (!reviews.ok) throw new Error("Review queue refused");
+  const review = reviews.cases.find((c) => c.batchId === checkout.batchId)!;
+  expect(review).toMatchObject({ reason: "auction_capture_time_unknown" });
+  await expect(
+    buyer.resolvePaymentReviewCase({
+      caseId: review.id,
+      outcome: "refund",
+      reason: "The capture deadline cannot be verified",
+    })
+  ).rejects.toMatchObject({ code: "forbidden" });
+  expect(
+    await finance.resolvePaymentReviewCase({
+      caseId: review.id,
+      outcome: "confirm",
+      reason: "The capture deadline cannot be verified",
+    })
+  ).toMatchObject({ ok: false, error: "outcome_not_allowed" });
+  expect(
+    await finance.resolvePaymentReviewCase({
+      caseId: review.id,
+      outcome: "refund",
+      reason: "The capture deadline cannot be verified",
+    })
+  ).toMatchObject({ ok: true });
+  await h.drain();
+  expect(
+    (await manager.listLotsForAdmin()).find(
+      (lot) => lot.lotCode === code.lotCode
+    )?.status
+  ).toBe("relisted");
 });

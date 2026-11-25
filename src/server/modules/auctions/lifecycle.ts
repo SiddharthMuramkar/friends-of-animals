@@ -1,4 +1,4 @@
-import { and, eq, asc, inArray, lt } from "drizzle-orm";
+import { and, eq, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
 import { recordAudit } from "../../audit/record";
@@ -15,9 +15,16 @@ import type { UseCaseContext } from "../../use-cases";
 import type { EventOf } from "../../outbox/events";
 import { emit, type OutboxDeps } from "../../outbox";
 import { invalidInput } from "../../input";
+import {
+  consentEventFollows,
+  resolveWithdrawalEvent,
+} from "../consent/withdrawal-event";
 import { auctionConsentCredit } from "../consent/auction-credit";
 import { liveEntryStampSource, queueStamp } from "../stamping";
-import { releaseFromAuction } from "../physical-artwork/auction-hold";
+import {
+  artworkAuctionFacts,
+  releaseFromAuction,
+} from "../physical-artwork/auction-hold";
 import {
   decideLotTransition,
   ACTIVE_LOT_STATUSES,
@@ -44,16 +51,17 @@ export async function currentLotConsent(
   lot: AuctionLotRow,
   lock = false
 ) {
-  const [artwork] = await ctx.db
-    .select({
-      registrationId: physicalArtwork.registrationId,
-      entryId: physicalArtwork.entryId,
-      status: physicalArtwork.status,
-    })
-    .from(physicalArtwork)
-    .where(eq(physicalArtwork.id, lot.artworkId));
-  if (!artwork || artwork.status !== lot.artworkStatusBeforeListing)
+  const facts = await artworkAuctionFacts(ctx.db, lot.artworkId);
+  if (
+    !facts ||
+    facts.work.status !== lot.artworkStatusBeforeListing ||
+    facts.openReturnRequest ||
+    facts.openDiscrepancy ||
+    !facts.returnWindowClosesAt ||
+    ctx.clock.now() < facts.returnWindowClosesAt
+  )
     return null;
+  const artwork = facts.work;
   const consent = await auctionConsentCredit(ctx, artwork.registrationId, lock);
   return consent?.consentEventId === lot.consentEventId
     ? { ...consent, entryId: artwork.entryId }
@@ -306,8 +314,10 @@ export async function withdrawAuctionConsent(
 ) {
   if (payload.purpose !== "auction" || payload.competitionId === null) return;
   const ctx = worker(deps);
+  const withdrawal = await resolveWithdrawalEvent(deps.db, payload);
+  if (!withdrawal) return;
   const rows = await deps.db
-    .select({ id: auctionLot.id })
+    .select({ id: auctionLot.id, grant: consentEvent })
     .from(auctionLot)
     .innerJoin(consentEvent, eq(consentEvent.id, auctionLot.consentEventId))
     .where(
@@ -319,10 +329,18 @@ export async function withdrawAuctionConsent(
         eq(consentEvent.subjectType, payload.subjectType),
         eq(consentEvent.subjectId, payload.subjectId),
         eq(consentEvent.competitionId, payload.competitionId),
-        lt(consentEvent.id, payload.consentEventId)
+        eq(consentEvent.purpose, "auction"),
+        eq(consentEvent.documentId, payload.documentId),
+        eq(consentEvent.action, "given")
       )
     )
     .orderBy(asc(auctionLot.id));
   for (const row of rows)
-    await move(ctx, { lotId: row.id }, "withdraw_consent", "consent_withdrawn");
+    if (consentEventFollows(withdrawal, row.grant))
+      await move(
+        ctx,
+        { lotId: row.id },
+        "withdraw_consent",
+        "consent_withdrawn"
+      );
 }

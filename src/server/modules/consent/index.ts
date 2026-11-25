@@ -8,7 +8,11 @@ import {
   withdrawMyPublicUseConsent,
   type OwnPublicPurpose,
 } from "./own-public-use";
-import { myAuctionConsents, withdrawMyAuctionConsent } from "./own-auction";
+import {
+  giveMyAuctionConsent,
+  myAuctionConsents,
+  withdrawMyAuctionConsent,
+} from "./own-auction";
 import type { UseCaseContext } from "../../use-cases";
 import {
   childConsentHistory,
@@ -107,6 +111,10 @@ export const consentUseCases = (ctx: UseCaseContext) => ({
     withdrawConsent(ctx, input),
   myConsents: () => myConsents(ctx),
   myAuctionConsents: () => myAuctionConsents(ctx),
+  giveMyAuctionConsent: (input: {
+    competitionId: string;
+    documentId: string;
+  }) => giveMyAuctionConsent(ctx, input),
   myPublicUseConsents: () => myPublicUseConsents(ctx),
   withdrawMyPublicUseConsent: (input: {
     competitionId: string;

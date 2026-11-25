@@ -95,6 +95,9 @@ async function eligibility(
     artworkStatus: facts.work.status,
     openDiscrepancy: facts.openDiscrepancy,
     openReturnRequest: facts.openReturnRequest,
+    returnWindowClosed:
+      facts.returnWindowClosesAt !== null &&
+      ctx.clock.now() >= facts.returnWindowClosesAt,
     inActiveLot: facts.inActiveLot,
     competitionAllowsAuction: !!comp?.auctionPermitted,
     creatorIsMinor: consent?.minor ?? false,
@@ -118,6 +121,17 @@ async function createLot(ctx: UseCaseContext, input: CreateLotInput) {
   if (!valid.ok)
     return { ok: false, error: "invalid_terms", errors: valid.errors } as const;
   return ctx.db.transaction(async (tx) => {
+    // Serialize pinned economics / policy updates before locking custody.
+    const [hint] = await tx
+      .select({ competitionId: physicalArtwork.competitionId })
+      .from(physicalArtwork)
+      .where(eq(physicalArtwork.id, artworkId));
+    if (!hint) return { ok: false, error: "not_found" } as const;
+    await tx
+      .select({ id: competition.id })
+      .from(competition)
+      .where(eq(competition.id, hint.competitionId))
+      .for("share");
     const facts = await eligibility({ ...ctx, db: tx }, artworkId, true);
     if (!facts) return { ok: false, error: "not_found" } as const;
     if (!facts.eligibility.eligible)

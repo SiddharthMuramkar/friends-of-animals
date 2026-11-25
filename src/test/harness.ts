@@ -190,6 +190,7 @@ export async function createHarness(
   const scanner = new FakeMalwareScanner();
   const media = new FakeMediaProcessor();
   const pdf = new FakePdfRenderer();
+  const cdn = new FakeCdnPurger();
   const gateway = new FakePaymentGateway("", clock);
   const deps: Deps = {
     appEnv: options.appEnv ?? "local",
@@ -212,6 +213,7 @@ export async function createHarness(
     scanner,
     media,
     pdf,
+    cdn,
     // The real check, made easy: a few hashes to solve (src/test/human-check.ts).
     humanCheck: proofOfWorkHumanCheck({
       secret: TEST_AUTH.secret,
@@ -221,7 +223,6 @@ export async function createHarness(
     codeRequestLimits: CODE_REQUEST_LIMITS,
     payments: gateway,
   };
-  const cdn = new FakeCdnPurger();
   const app = createApp(deps);
   const meta = (overrides: Partial<RequestMeta> = {}) => ({
     ...DEFAULT_META,
@@ -300,7 +301,7 @@ export async function createHarness(
       totpCode(base32Decode(SEED_TOTP_SECRET), at),
     seed: createSeedBuilders(deps),
     // Every queue, worker-media's included.
-    drain: () => drainUntilIdle({ ...deps, cdn }, { queue: "all" }),
+    drain: () => drainUntilIdle(deps, { queue: "all" }),
     storage,
     scanner,
     media,

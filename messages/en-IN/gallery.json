@@ -22,6 +22,7 @@
     "recognition": "Recognition",
     "filter": "Filter artworks",
     "all": "All",
+    "unavailableFilter": "Selection no longer available",
     "clear": "Clear filters",
     "next": "More artwork",
     "report": "Report this artwork",

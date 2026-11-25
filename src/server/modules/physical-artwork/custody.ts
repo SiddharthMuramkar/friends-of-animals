@@ -43,7 +43,8 @@ import {
   type VerificationInput,
   type ReturnVia,
 } from "./domain/custody";
-import { isHeldForAuction } from "./auction-hold";
+import { holdingAuctionLot, isHeldForAuction } from "./auction-hold";
+import { applyMove } from "../auctions/lifecycle";
 import { artworkTransition } from "./domain/status";
 
 export const nextCustodyId = monotonicUuidv7();
@@ -509,13 +510,42 @@ async function requestArtworkReturn(
   }
   return ctx.db.transaction(async (tx) => {
     const scoped = { ...ctx, db: tx };
-    const work = await getWork(tx, parsed.data.artworkId, true);
+    // Legacy pre-window reservations, if any, must yield to a rightful
+    // request. Lock lot → artwork (the same order as auction transitions),
+    // never the reverse. A new reservation cannot start before the cutoff.
+    const hint = await getWork(tx, parsed.data.artworkId);
     const { role } = await authorize(
       scoped,
       "artwork.request_return",
-      work ? await requesterResource(scoped, work) : {}
+      hint ? await requesterResource(scoped, hint) : {}
     );
+    if (!hint) return { ok: false, error: "not_found" } as const;
+    const lot = await holdingAuctionLot(tx, hint.id, true);
+    const work = await getWork(tx, hint.id, true);
     if (!work) return { ok: false, error: "not_found" } as const;
+    await authorize(
+      scoped,
+      "artwork.request_return",
+      await requesterResource(scoped, work)
+    );
+    const decision = decideCustody(
+      await stateOf(tx, work),
+      { kind: "request_return" },
+      ctx.clock.now()
+    );
+    if (!decision.ok) return { ok: false, error: decision.code } as const;
+    if (lot && lot.status !== "sold") {
+      const cancelled = await applyMove(
+        tx,
+        { ...scoped, actor: { kind: "system", process: "worker" } },
+        lot,
+        "withdraw_consent",
+        null,
+        "family_return_window"
+      );
+      if (!cancelled.ok)
+        throw new Error("Unable to release premature auction reservation");
+    }
     return applyCustody(scoped, work, { kind: "request_return" }, role);
   });
 }
@@ -546,7 +576,7 @@ export async function returnSummary(
     mayRequestReturn:
       allowed.allowed &&
       refusal.ok &&
-      !(await isHeldForAuction(ctx.db, work.id)),
+      (await holdingAuctionLot(ctx.db, work.id))?.status !== "sold",
   };
 }
 
