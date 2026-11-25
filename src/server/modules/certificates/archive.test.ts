@@ -207,7 +207,7 @@ it("expires an archive without delivering it while a subject is on legal hold, t
   const admin = h.as(await h.signIn(adminAccount));
   const hold = await admin.placeLegalHold({
     subjectType: "participant_profile",
-    subjectId: c.participantProfileId,
+    subjectId: c.participantProfileId!,
     reason: "Preserve evidence",
   });
   if (!hold.ok) throw Error("Legal hold unavailable");
@@ -259,7 +259,7 @@ it("erases a pupil's containing ZIP and never includes other pupils' PDFs in the
   const officer = h.as((await signedInOfficer(h)).actor);
   const access = await guardian.submitPrivacyRequest({
     type: "access",
-    subject: { kind: "child", childId: certs[0]!.participantProfileId },
+    subject: { kind: "child", childId: certs[0]!.participantProfileId! },
   });
   if (!access.ok) throw Error("Access request unavailable");
   await officer.startPrivacyRequest({ id: access.requestId });
@@ -279,7 +279,7 @@ it("erases a pupil's containing ZIP and never includes other pupils' PDFs in the
   ).toBe(true);
   const erase = await guardian.submitPrivacyRequest({
     type: "erasure",
-    subject: { kind: "child", childId: certs[0]!.participantProfileId },
+    subject: { kind: "child", childId: certs[0]!.participantProfileId! },
   });
   if (!erase.ok) throw Error("Erasure request unavailable");
   await officer.startPrivacyRequest({ id: erase.requestId });

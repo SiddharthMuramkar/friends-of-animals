@@ -46,7 +46,46 @@ export type {
   VolunteerApplicationView,
 } from "./read";
 
+import {
+  createVolunteerTask,
+  changeVolunteerTask,
+  listVolunteerTasks,
+  logVolunteerHours,
+  decideVolunteerHours,
+  getMyVolunteerRecord,
+  getChildVolunteerRecord,
+  listVolunteerHours,
+} from "./work";
+
+import { requestVolunteerCertificate } from "./certificate";
+
 export const volunteersUseCases = (ctx: UseCaseContext) => ({
+  requestVolunteerCertificate: () => requestVolunteerCertificate(ctx),
+  createVolunteerTask: (input: Parameters<typeof createVolunteerTask>[1]) =>
+    createVolunteerTask(ctx, input),
+  publishVolunteerTask: (input: { taskId: string }) =>
+    changeVolunteerTask(ctx, "publish", input),
+  assignVolunteerTask: (input: { taskId: string; volunteerUserId: string }) =>
+    changeVolunteerTask(ctx, "assign", input),
+  unassignVolunteerTask: (input: { taskId: string; volunteerUserId: string }) =>
+    changeVolunteerTask(ctx, "unassign", input),
+  cancelVolunteerTask: (input: { taskId: string }) =>
+    changeVolunteerTask(ctx, "cancel", input),
+  startVolunteerTask: (input: { taskId: string }) =>
+    changeVolunteerTask(ctx, "start", input),
+  completeVolunteerTask: (input: { taskId: string }) =>
+    changeVolunteerTask(ctx, "complete", input),
+  listVolunteerTasks: () => listVolunteerTasks(ctx),
+  logVolunteerHours: (input: Parameters<typeof logVolunteerHours>[1]) =>
+    logVolunteerHours(ctx, input),
+  approveVolunteerHours: (input: { entryId: string }) =>
+    decideVolunteerHours(ctx, input, "approve"),
+  rejectVolunteerHours: (input: { entryId: string; reason: string }) =>
+    decideVolunteerHours(ctx, input, "reject"),
+  getMyVolunteerRecord: () => getMyVolunteerRecord(ctx),
+  getChildVolunteerRecord: (input: { childId: string }) =>
+    getChildVolunteerRecord(ctx, input),
+  listVolunteerHours: () => listVolunteerHours(ctx),
   applyToVolunteer: (input: ApplyToVolunteerInput) =>
     applyToVolunteer(ctx, input),
   acceptVolunteerDeclarations: (input: AcceptedDeclarations) =>

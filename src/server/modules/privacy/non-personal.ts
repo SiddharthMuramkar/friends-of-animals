@@ -1184,6 +1184,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
   user: ["created_at", "email_verified", "id", "phone_verified", "updated_at"],
   user_role: ["granted_at", "id", "role", "scope_id", "scope_type"],
   verification: ["created_at", "expires_at", "id", "updated_at"],
+  volunteer_task: ["id", "status", "created_at", "updated_at"],
+  volunteer_task_assignment: ["id", "task_id", "assigned_at", "unassigned_at"],
+  volunteer_hours_entry: [
+    "id",
+    "assignment_id",
+    "status",
+    "decided_at",
+    "created_at",
+  ],
   volunteer_application: [
     "closed_at",
     "created_at",

@@ -8,6 +8,14 @@ import {
 } from "../../access/domain/policy";
 const staff = role("competition_manager", "staff_admin", "super_admin");
 export const CERTIFICATES_POLICY = {
+  "certificates.correct_volunteer": stepUp(
+    role("community_manager", "super_admin")
+  ),
+  "certificates.list_volunteer": role("community_manager", "super_admin"),
+  "certificates.retry_volunteer_render": role(
+    "community_manager",
+    "super_admin"
+  ),
   "certificates.correct": stepUp(role("competition_manager")),
   "certificates.institution_archive": role(
     "institution_coordinator",

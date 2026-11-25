@@ -192,6 +192,11 @@ export function guardianChildTimelinePath(childId: string): string {
 
 export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
 export const ADMIN_VOLUNTEERS = "/admin/volunteers";
+export const ADMIN_VOLUNTEER_TASKS = `${ADMIN_VOLUNTEERS}/tasks`;
+export const ADMIN_VOLUNTEER_HOURS = `${ADMIN_VOLUNTEERS}/hours`;
+export const DASHBOARD_VOLUNTEER_TASKS = `${DASHBOARD_VOLUNTEER}/tasks`;
+export const DASHBOARD_VOLUNTEER_HOURS = `${DASHBOARD_VOLUNTEER}/hours`;
+export const DASHBOARD_VOLUNTEER_CERTIFICATE = `${DASHBOARD_VOLUNTEER}/certificate`;
 
 export function adminVolunteerApplicationPath(applicationId: string): string {
   return `${ADMIN_VOLUNTEERS}/${encodeURIComponent(applicationId)}`;
@@ -722,6 +727,13 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]/timeline",
   DASHBOARD_VOLUNTEER,
   ADMIN_VOLUNTEERS,
+  ADMIN_VOLUNTEER_TASKS,
+  `${ADMIN_VOLUNTEER_TASKS}/new`,
+  `${ADMIN_VOLUNTEER_TASKS}/[taskId]`,
+  ADMIN_VOLUNTEER_HOURS,
+  DASHBOARD_VOLUNTEER_TASKS,
+  DASHBOARD_VOLUNTEER_HOURS,
+  DASHBOARD_VOLUNTEER_CERTIFICATE,
   "/admin/volunteers/[id]",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,

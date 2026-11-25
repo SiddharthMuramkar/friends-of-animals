@@ -42,6 +42,7 @@ function referencesBlockingAccountDeletion(): string[] {
 describe("deleting an account", () => {
   it("is refused only by the references erasure deals with first (#115b)", () => {
     expect(referencesBlockingAccountDeletion()).toEqual([
+      "certificate.recipient_user_id (no action)",
       "consent_event.reviewer_user_id (no action)",
       "consent_form.reviewed_by_user_id (restrict)",
       "consent_form.uploaded_by_user_id (restrict)",

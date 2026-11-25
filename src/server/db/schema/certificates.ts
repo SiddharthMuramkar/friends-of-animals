@@ -51,9 +51,11 @@ export const certificate = pgTable(
     status: certificateStatus().notNull().default("issued"),
     competitionId: uuid("competition_id").references(() => competition.id),
     registrationId: uuid("registration_id").references(() => registration.id),
-    participantProfileId: uuid("participant_profile_id")
-      .notNull()
-      .references(() => participantProfile.id),
+    participantProfileId: uuid("participant_profile_id").references(
+      () => participantProfile.id
+    ),
+    recipientUserId: uuid("recipient_user_id").references(() => user.id),
+    approvedMinutesSnapshot: integer("approved_minutes_snapshot"),
     entryId: uuid("entry_id").references(() => entry.id, {
       onDelete: "set null",
     }),
@@ -107,6 +109,25 @@ export const certificate = pgTable(
     uniqueIndex("certificate_foa_identity")
       .on(t.registrationId, t.type, t.roundId)
       .where(sql`${t.roundId} IS NOT NULL AND ${t.status} <> 'superseded'`),
+    uniqueIndex("certificate_volunteer_user_snapshot")
+      .on(t.recipientUserId, t.approvedMinutesSnapshot)
+      .where(
+        sql`${t.type} = 'volunteer_service' AND ${t.recipientUserId} IS NOT NULL AND ${t.status} <> 'superseded'`
+      ),
+    uniqueIndex("certificate_volunteer_profile_snapshot")
+      .on(t.participantProfileId, t.approvedMinutesSnapshot)
+      .where(
+        sql`${t.type} = 'volunteer_service' AND ${t.participantProfileId} IS NOT NULL AND ${t.status} <> 'superseded'`
+      ),
+    check(
+      "certificate_exact_holder",
+      sql`num_nonnulls(${t.participantProfileId}, ${t.recipientUserId}) = 1`
+    ),
+    check(
+      "certificate_service_snapshot",
+      sql`(${t.type} = 'volunteer_service' AND ${t.approvedMinutesSnapshot} IS NOT NULL AND ${t.approvedMinutesSnapshot} > 0 AND ${t.competitionId} IS NULL AND ${t.registrationId} IS NULL AND ${t.schoolRoundId} IS NULL AND ${t.roundId} IS NULL AND ${t.entryId} IS NULL AND ${t.sourceReleaseId} IS NULL AND ${t.awardPosition} IS NULL AND ${t.awardLabel} IS NULL) OR (${t.type} <> 'volunteer_service' AND ${t.approvedMinutesSnapshot} IS NULL AND ${t.recipientUserId} IS NULL AND ${t.participantProfileId} IS NOT NULL AND ${t.competitionId} IS NOT NULL AND ${t.registrationId} IS NOT NULL)`
+    ),
+    index("certificate_recipient_user_idx").on(t.recipientUserId),
     check(
       "certificate_number_format",
       sql`${t.number} ~ '^FOA-C-[0-9]{2}-[0-9A-HJKMNP-TV-Z]{10}$'`

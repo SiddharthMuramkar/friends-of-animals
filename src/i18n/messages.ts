@@ -79,6 +79,7 @@ import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import guardian from "../../messages/en-IN/guardian.json";
+import volunteerWork from "../../messages/en-IN/volunteerWork.json";
 import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
@@ -187,6 +188,7 @@ export const NAMESPACES = [
   "footer",
   "guardian",
   "volunteer",
+  "volunteerWork",
   "home",
   "impact",
   "transparency",
@@ -297,6 +299,7 @@ export const messages = {
   ...footer,
   ...guardian,
   ...volunteer,
+  ...volunteerWork,
   ...home,
   ...impact,
   ...transparency,

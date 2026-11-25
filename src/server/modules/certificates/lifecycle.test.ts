@@ -83,7 +83,12 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
       (c) => c.renderStatus === "rendered"
     )
   ).toBe(true);
-  expect(h.pdf.rendered).toHaveLength(16);
+  expect(
+    h.pdf.rendered.filter((j) => j.data.type !== "volunteer_service")
+  ).toHaveLength(16);
+  expect(
+    h.pdf.rendered.filter((j) => j.data.type === "volunteer_service")
+  ).toHaveLength(1);
   expect(
     h.pdf.rendered.every((j) =>
       j.data.verifyUrl.endsWith(`/verify/${j.data.number}`)
@@ -93,7 +98,7 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
   const childCerts = await h.as(guardian).listMyCertificates();
   expect(adultCerts).toHaveLength(2);
   expect(childCerts).toHaveLength(4);
-  expect(new Set(childCerts.map((c) => c.participantProfileId)).size).toBe(2);
+  expect(new Set(childCerts.map((c) => c.participantProfileId!)).size).toBe(2);
   const item = adultCerts[0]!;
   const result = await h
     .as(adult)
@@ -153,13 +158,24 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
   ).toHaveLength(1);
   await h.as(worker).renderCertificate({ certificateId: item.id });
   await h.drain();
-  expect(h.pdf.rendered).toHaveLength(16);
+  expect(
+    h.pdf.rendered.filter((j) => j.data.type !== "volunteer_service")
+  ).toHaveLength(16);
+  expect(
+    h.pdf.rendered.filter((j) => j.data.type === "volunteer_service")
+  ).toHaveLength(1);
   expect(await h.as(worker).issueCertificates(input)).toEqual({ issued: 0 });
   expect(
     await h.db
       .select()
       .from(fileAsset)
-      .where(eq(fileAsset.purpose, "certificate_pdf"))
+      .innerJoin(certificate, eq(certificate.pdfFileId, fileAsset.id))
+      .where(
+        and(
+          eq(fileAsset.purpose, "certificate_pdf"),
+          eq(certificate.competitionId, input.competitionId)
+        )
+      )
   ).toHaveLength(16);
   expect(
     await h.db
@@ -176,7 +192,10 @@ it("issues the seeded released awards once, renders private PDFs, and notifies a
     .update(guardianLink)
     .set({ revokedAt: h.clock.now() })
     .where(
-      eq(guardianLink.participantProfileId, childCerts[0]!.participantProfileId)
+      eq(
+        guardianLink.participantProfileId,
+        childCerts[0]!.participantProfileId!
+      )
     );
   await expect(
     h
@@ -222,12 +241,12 @@ it("separates validity from PDF failure, retries through staff, and limits publi
   await h.db
     .update(participantProfile)
     .set({ fullName: "Corrected private name" })
-    .where(eq(participantProfile.id, c.participantProfileId));
+    .where(eq(participantProfile.id, c.participantProfileId!));
   expect(await visitor.verifyCertificate({ number: c.number })).toMatchObject({
     outcome: "valid",
     credit: null,
   });
-  expect(JSON.stringify(valid)).not.toContain(c.participantProfileId);
+  expect(JSON.stringify(valid)).not.toContain(c.participantProfileId!);
   for (const forbidden of [
     "dateOfBirth",
     "storageKey",

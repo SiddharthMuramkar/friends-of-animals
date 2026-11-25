@@ -1078,6 +1078,20 @@ conduct. A 14- to 17-year-old's waits for their verified guardian's
 approval before a community manager approves or declines it.
 _Avoid_: Signup, volunteer form, registration
 
+**Volunteer task**:
+A work item the community team drafts, publishes, assigns and follows
+through to completion. Its assignment history identifies individual
+volunteers, separately from the task's shared status.
+
+**Volunteer hours entry**:
+A volunteer's integer minutes of service performed on one Indian calendar
+date against an actual assignment. Only approved entries count toward
+service totals and engagement.
+
+**Volunteer service certificate**:
+A numbered, verifiable Certificate snapshot of the volunteer's approved
+service minutes at the time of issue. Not a competition award.
+
 ## Taking part
 
 **School route**:

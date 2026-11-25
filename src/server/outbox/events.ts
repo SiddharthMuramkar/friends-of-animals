@@ -970,6 +970,21 @@ export type DomainEvent =
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
   | VolunteerApplicationEvent<"volunteer.application_declined">
+  | {
+      type: "volunteer.task_assigned";
+      aggregate: { type: "volunteer_task_assignment"; id: string };
+      payload: { assignmentId: string };
+    }
+  | {
+      type: "volunteer.hours_approved";
+      aggregate: { type: "volunteer_hours_entry"; id: string };
+      payload: { entryId: string };
+    }
+  | {
+      type: "volunteer.hours_rejected";
+      aggregate: { type: "volunteer_hours_entry"; id: string };
+      payload: { entryId: string };
+    }
   // Adoption applications (#130): one was made, the coordinator moved it,
   // the applicant withdrew it, or the animal's listing closed. The
   // applicant, the listing organisation and the coordinators are told.
@@ -1303,6 +1318,9 @@ export const EVENT_PAYLOADS = {
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
   "volunteer.application_declined": VOLUNTEER_APPLICATION,
+  "volunteer.task_assigned": z.object({ assignmentId: z.uuid() }),
+  "volunteer.hours_approved": z.object({ entryId: z.uuid() }),
+  "volunteer.hours_rejected": z.object({ entryId: z.uuid() }),
   "adoption.application_submitted": ADOPTION_APPLICATION,
   "adoption.application_under_review": ADOPTION_APPLICATION,
   "adoption.application_in_contact": ADOPTION_APPLICATION,
@@ -1592,6 +1610,9 @@ export const SUBSCRIBERS = {
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
   "volunteer.application_declined": ["notifications.dispatch"],
+  "volunteer.task_assigned": ["notifications.dispatch"],
+  "volunteer.hours_approved": ["notifications.dispatch"],
+  "volunteer.hours_rejected": ["notifications.dispatch"],
   // The applicant, the listing organisation's representatives and the
   // coordinators are told by route row (#130).
   "adoption.application_submitted": ["notifications.dispatch"],
