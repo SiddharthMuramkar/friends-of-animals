@@ -62,7 +62,10 @@ async function toPublic(
           url: `/media/auctions/${row.lotCode}`,
           width: copy.width,
           height: copy.height,
-          alt: "Artwork with the Friends of Animals logo",
+          alt:
+            (copy.sampleIllustration ? "AI illustration: " : "") +
+            "Artwork with the Friends of Animals logo",
+          sampleIllustration: copy.sampleIllustration,
         }
       : null,
   };

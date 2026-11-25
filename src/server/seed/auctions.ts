@@ -83,6 +83,7 @@ async function seedLocalAuctionImage(
           fileId: input.assetId,
         }),
         status: "clean",
+        scanResult: "generated_sample_illustration",
         uploadedAt: now,
         createdAt: now,
         updatedAt: now,
@@ -358,7 +359,7 @@ export const seedAuctions: Seeder = async (deps) => {
           story:
             work.story +
             (n <= 2
-              ? " Illustrative sample image; not actual participant artwork."
+              ? " AI illustration; sample image, not actual participant artwork."
               : ""),
           basePricePaise: 100000n,
           reservePricePaise: 150000n,

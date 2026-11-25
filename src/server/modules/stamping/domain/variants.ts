@@ -11,7 +11,7 @@ export type StampVariant = (typeof STAMP_VARIANTS)[number];
 export const STAMP_SETTINGS = {
   gallery: {
     kind: "stamp_gallery_v1",
-    maxEdge: 1200,
+    maxEdge: 800,
     contentType: "image/webp",
     extension: "webp",
   },

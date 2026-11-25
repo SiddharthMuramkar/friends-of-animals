@@ -67,8 +67,8 @@ it("makes a bounded clean WebP gallery copy from a resized GPS photo, not from i
     variant: "gallery",
   });
   expect(image).toMatchObject({
-    width: 1200,
-    height: 900,
+    width: 800,
+    height: 600,
     contentType: "image/webp",
   });
   expect(webpMetadata(image.bytes)).toEqual([]);

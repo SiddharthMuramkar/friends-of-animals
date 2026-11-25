@@ -203,7 +203,7 @@ export function stampProcessor(
           bytes:
             settings.contentType === "image/png"
               ? await output.png().toBuffer()
-              : await output.webp({ quality: 85 }).toBuffer(),
+              : await output.webp({ quality: 75 }).toBuffer(),
         };
       } catch (error) {
         if (error instanceof MediaError) throw error;

@@ -1,6 +1,8 @@
 {
   "auctions": {
     "artworkImage": "Artwork with the Friends of Animals logo",
+    "sampleArtworkAlt": "AI illustration: Artwork with the Friends of Animals logo",
+    "sampleArtwork": "AI illustration · sample, not actual participant artwork.",
     "title": "Artwork auctions",
     "lead": "Original artwork created for Friends of Animals, offered with the artist’s consent in support of animal welfare.",
     "upcoming": "Upcoming and open lots",

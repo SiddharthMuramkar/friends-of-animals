@@ -124,6 +124,8 @@ export async function stampedImage(ctx: { db: AppDb }, input: StampInput) {
     width: d.width,
     height: d.height,
     sizeBytes: d.sizeBytes,
+    sampleIllustration:
+      copy!.file_asset.scanResult === "generated_sample_illustration",
   };
 }
 

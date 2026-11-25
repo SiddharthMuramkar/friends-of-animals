@@ -118,11 +118,15 @@ test("only the stamped, no-store artwork is shown on a public lot", async ({
 }) => {
   await page.goto(`/auctions/${SEED_AUCTIONS.open}`);
   const image = page.getByRole("img", {
-    name: "Artwork with the Friends of Animals logo",
+    name: "AI illustration: Artwork with the Friends of Animals logo",
   });
   await expect(image).toBeVisible();
   const src = `/media/auctions/${SEED_AUCTIONS.open}`;
   await expect(image).toHaveAttribute("src", src);
+  await expect(image).toHaveAttribute("fetchpriority", "high");
+  await expect(
+    page.getByText("AI illustration · sample, not actual participant artwork.")
+  ).toBeVisible();
   const response = await request.get(src);
   expect(response.ok()).toBe(true);
   expect(response.headers()["cache-control"]).toContain("no-store");

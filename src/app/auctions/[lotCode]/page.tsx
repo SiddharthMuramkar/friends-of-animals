@@ -34,7 +34,7 @@ async function Lot({ params, searchParams }: PageProps<"/auctions/[lotCode]">) {
     <>
       <article className="mt-8 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6">
         <h2 className="text-h3 text-ink">{t("lot", { code: lot.lotCode })}</h2>
-        <LotDetails lot={lot} />
+        <LotDetails lot={lot} priority />
         <BidForm
           lot={lot}
           signedIn={actor.kind === "user"}
