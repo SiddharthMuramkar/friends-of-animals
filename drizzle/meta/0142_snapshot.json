@@ -1,6 +1,6 @@
 {
-  "id": "93c3f982-94fc-42b6-ac15-1c25b5d6a9d1",
-  "prevId": "0b2c7ad4-cac7-4c2c-aa85-9e4494f18bdb",
+  "id": "554dea00-d220-4ccf-a32f-c9c45dafb28a",
+  "prevId": "a41eb2e2-7963-4c35-b640-304a6c535000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -20991,8 +20991,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "registration_id": {
-          "name": "registration_id",
+        "recipient_user_id": {
+          "name": "recipient_user_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -21019,18 +21019,18 @@
           "onUpdate": "no action",
           "onDelete": "no action"
         },
-        "certificate_ready_notice_registration_id_registration_id_fk": {
-          "name": "certificate_ready_notice_registration_id_registration_id_fk",
+        "certificate_ready_notice_recipient_user_id_user_id_fk": {
+          "name": "certificate_ready_notice_recipient_user_id_user_id_fk",
           "tableFrom": "certificate_ready_notice",
           "columnsFrom": [
-            "registration_id"
+            "recipient_user_id"
           ],
-          "tableTo": "registration",
+          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
           "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -21039,7 +21039,7 @@
           "name": "certificate_ready_notice_identity",
           "columns": [
             "release_id",
-            "registration_id"
+            "recipient_user_id"
           ],
           "nullsNotDistinct": false
         }

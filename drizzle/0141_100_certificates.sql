@@ -35,9 +35,9 @@ CREATE TABLE "certificate" (
 --> statement-breakpoint
 CREATE TABLE "certificate_ready_notice" (
 	"release_id" uuid NOT NULL,
-	"registration_id" uuid NOT NULL,
+	"recipient_user_id" uuid NOT NULL,
 	"created_at" timestamp with time zone NOT NULL,
-	CONSTRAINT "certificate_ready_notice_identity" UNIQUE("release_id","registration_id")
+	CONSTRAINT "certificate_ready_notice_identity" UNIQUE("release_id","recipient_user_id")
 );
 --> statement-breakpoint
 ALTER TABLE "file_asset" ALTER COLUMN "owner_user_id" DROP NOT NULL;--> statement-breakpoint
@@ -52,7 +52,7 @@ ALTER TABLE "certificate" ADD CONSTRAINT "certificate_source_release_id_result_r
 ALTER TABLE "certificate" ADD CONSTRAINT "certificate_revoked_by_user_id_user_id_fk" FOREIGN KEY ("revoked_by_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "certificate" ADD CONSTRAINT "certificate_superseded_by_id_certificate_id_fk" FOREIGN KEY ("superseded_by_id") REFERENCES "public"."certificate"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "certificate_ready_notice" ADD CONSTRAINT "certificate_ready_notice_release_id_result_release_id_fk" FOREIGN KEY ("release_id") REFERENCES "public"."result_release"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "certificate_ready_notice" ADD CONSTRAINT "certificate_ready_notice_registration_id_registration_id_fk" FOREIGN KEY ("registration_id") REFERENCES "public"."registration"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "certificate_ready_notice" ADD CONSTRAINT "certificate_ready_notice_recipient_user_id_user_id_fk" FOREIGN KEY ("recipient_user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "certificate_earned_unique" ON "certificate" USING btree ("registration_id","type","school_round_id","round_id") WHERE "certificate"."status" <> 'superseded' AND "certificate"."registration_id" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX "certificate_participation_identity" ON "certificate" USING btree ("registration_id","type") WHERE "certificate"."registration_id" IS NOT NULL AND "certificate"."school_round_id" IS NULL AND "certificate"."round_id" IS NULL AND "certificate"."status" <> 'superseded';--> statement-breakpoint
 CREATE UNIQUE INDEX "certificate_school_identity" ON "certificate" USING btree ("registration_id","type","school_round_id") WHERE "certificate"."school_round_id" IS NOT NULL AND "certificate"."status" <> 'superseded';--> statement-breakpoint
