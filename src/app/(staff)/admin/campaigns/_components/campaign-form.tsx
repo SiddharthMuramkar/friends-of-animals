@@ -21,6 +21,8 @@ export type CampaignFormLabels = {
   segmentLead: string;
   roles: string;
   rolesHint: string;
+  milestones: string;
+  milestonesHint: string;
   competitions: string;
   competitionsHint: string;
   noCompetitions: string;
@@ -100,6 +102,7 @@ export function CampaignForm({
   initial,
   roles,
   competitions,
+  milestones,
   labels,
   labelledBy,
 }: {
@@ -108,6 +111,7 @@ export function CampaignForm({
   initial: CampaignFormView;
   roles: readonly Choice[];
   competitions: readonly Choice[];
+  milestones: readonly Choice[];
   labels: CampaignFormLabels;
   labelledBy?: string;
 }) {
@@ -184,6 +188,14 @@ export function CampaignForm({
           choices={competitions}
           chosen={view.values.competitionIds}
           empty={labels.noCompetitions}
+        />
+        <Choices
+          id="campaign-milestones"
+          name="milestones"
+          legend={labels.milestones}
+          hint={labels.milestonesHint}
+          choices={milestones}
+          chosen={view.values.milestones}
         />
         <TextField
           id="campaign-cities"

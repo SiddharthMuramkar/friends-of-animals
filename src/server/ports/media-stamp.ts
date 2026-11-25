@@ -50,6 +50,7 @@ async function certificatePixels(bytes: Uint8Array): Promise<Uint8Array> {
           NODE_ENV: "production",
         },
         timeout: 90_000,
+        killSignal: "SIGKILL",
         maxBuffer: 16_384,
       }
     ).catch(() => {

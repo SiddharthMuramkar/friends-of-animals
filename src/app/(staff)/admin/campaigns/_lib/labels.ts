@@ -1,6 +1,7 @@
 // The composer's words and choices, from messages/en-IN/campaigns.json and
 // the segment catalogue, for the client form (it takes them as props).
 
+import { MILESTONE_KINDS } from "@/server/modules/community/domain/milestones";
 import { getTranslations } from "next-intl/server";
 
 import {
@@ -26,6 +27,8 @@ export async function formLabels(
     segmentLead: t("segmentLead"),
     roles: t("roles"),
     rolesHint: t("rolesHint"),
+    milestones: t("milestones"),
+    milestonesHint: t("milestonesHint"),
     competitions: t("competitions"),
     competitionsHint: t("competitionsHint"),
     noCompetitions: t("noCompetitions"),
@@ -63,4 +66,9 @@ export function competitionChoices(
     value: id,
     label: `${name} (${code})`,
   }));
+}
+
+export async function milestoneChoices(): Promise<Choice[]> {
+  const t = await getTranslations("community.timeline.milestones");
+  return MILESTONE_KINDS.map((kind) => ({ value: kind, label: t(kind) }));
 }

@@ -288,6 +288,7 @@ describe("results publication", () => {
       expect.arrayContaining([
         "artwork.open_results_window",
         "certificates.issue",
+        "community.record_results",
       ])
     );
     for (const delivery of publicationDeliveries)

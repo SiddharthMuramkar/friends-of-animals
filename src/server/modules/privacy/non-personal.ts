@@ -17,6 +17,16 @@
 import type { NonPersonalColumns } from "./domain/coverage";
 
 export const NON_PERSONAL: NonPersonalColumns = {
+  community_member: [
+    "id",
+    "status",
+    "joined_at",
+    "left_at",
+    "created_at",
+    "updated_at",
+  ],
+  engagement_milestone: ["id", "competition_id", "achieved_at", "source_type"],
+  timeline_entry: ["id", "occurred_at", "ref_type", "created_at"],
   certificate: [
     "id",
     "status",

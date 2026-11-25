@@ -82,6 +82,7 @@ describe("the settings catalogue", () => {
       "retention.guardianInvitationsDays": 30,
       "retention.contactMessagesMonths": 24,
       "retention.volunteerApplicationsDays": 365,
+      "retention.communityMembersDays": 365,
       "retention.adoptionApplicationsDays": 730,
       "retention.releasedLegalHoldsDays": 365,
       "retention.financialRecordsDays": 2922,

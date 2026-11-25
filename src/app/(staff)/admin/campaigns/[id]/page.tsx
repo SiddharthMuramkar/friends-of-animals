@@ -24,7 +24,12 @@ import { CampaignNotFound, CampaignsDenied } from "../_components/denied";
 import { SendConfirmation } from "../_components/send-confirmation";
 import { campaignFormView } from "../_lib/form";
 import { readOutcome, type Outcome } from "../_lib/href";
-import { competitionChoices, formLabels, roleChoices } from "../_lib/labels";
+import {
+  competitionChoices,
+  formLabels,
+  roleChoices,
+  milestoneChoices,
+} from "../_lib/labels";
 
 export const metadata: Metadata = {
   ...messages.campaigns.admin.meta,
@@ -129,6 +134,7 @@ async function Detail({
               revision={campaign.revision}
               initial={campaignFormView(campaign)}
               roles={await roleChoices()}
+              milestones={await milestoneChoices()}
               competitions={competitionChoices(competitions)}
               labels={await formLabels("save")}
               labelledBy="edit-campaign"
@@ -226,10 +232,11 @@ async function SegmentSummary({
   segment: SegmentDefinition;
   competitions: SegmentCompetition[];
 }) {
-  const [t, roles, format] = await Promise.all([
+  const [t, roles, format, milestones] = await Promise.all([
     getTranslations("campaigns.admin"),
     getTranslations("campaigns.admin.roles"),
     getFormatter(),
+    getTranslations("community.timeline.milestones"),
   ]);
   const names = new Map(competitions.map((c) => [c.id, c.name]));
   const lines = [
@@ -244,6 +251,13 @@ async function SegmentSummary({
       t("detail.competitionsLine", {
         list: format.list(
           segment.competitionIds.map((id) => names.get(id) ?? id),
+          { type: "disjunction" }
+        ),
+      }),
+    (segment.milestones?.length ?? 0) > 0 &&
+      t("detail.milestonesLine", {
+        list: format.list(
+          (segment.milestones ?? []).map((kind) => milestones(kind)),
           { type: "disjunction" }
         ),
       }),

@@ -317,6 +317,9 @@ export const SETTINGS = {
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
   ),
+  "retention.communityMembersDays": retentionDays(
+    RETENTION_PERIODS.communityMembers
+  ),
   "retention.adoptionApplicationsDays": retentionDays(
     RETENTION_PERIODS.adoptionApplications
   ),

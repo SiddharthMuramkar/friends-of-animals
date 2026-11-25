@@ -62,6 +62,16 @@ type EntryVerificationPayload = {
 };
 
 export type DomainEvent =
+  | {
+      type: "community.member_joined";
+      aggregate: { type: "community_member"; id: string };
+      payload: { memberId: string };
+    }
+  | {
+      type: "engagement.milestone_recorded";
+      aggregate: { type: "engagement_milestone"; id: string };
+      payload: { milestoneId: string };
+    }
   /** A listing was registered, or renamed and sent back for review. */
   | DirectoryListingEvent<"directory.listing_submitted">
   /** FOA verified it: it is public, and its owner represents it. */
@@ -928,6 +938,8 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "community.member_joined": z.object({ memberId: z.uuid() }),
+  "engagement.milestone_recorded": z.object({ milestoneId: z.uuid() }),
   "consent.form_reviewed": z.object({
     formId: z.uuid(),
     uploaderUserId: z.uuid(),
@@ -1204,6 +1216,9 @@ export function parseStoredEventPayload(
  * none.
  */
 export const SUBSCRIBERS = {
+  // No route sends a message for these yet; the domain facts are durable.
+  "community.member_joined": ["notifications.dispatch"],
+  "engagement.milestone_recorded": ["notifications.dispatch"],
   "consent.form_reviewed": ["notifications.dispatch"],
   "identity.user_signed_up": ["notifications.dispatch"],
   "files.file_uploaded": ["files.scan_file"],
@@ -1317,7 +1332,11 @@ export const SUBSCRIBERS = {
     "notifications.dispatch",
     "results.send_family_prize",
   ],
-  "results.published": ["artwork.open_results_window", "certificates.issue"],
+  "results.published": [
+    "artwork.open_results_window",
+    "certificates.issue",
+    "community.record_results",
+  ],
   "stamping.requested": ["stamping.render"],
   "certificate.render": ["certificate.render"],
   "certificates.ready": ["notifications.dispatch"],

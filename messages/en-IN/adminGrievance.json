@@ -191,7 +191,8 @@
       "children": "Children they look after",
       "consent_records": "Consent log and evidence",
       "audit_log": "Audit log entries",
-      "privacy_requests": "Privacy requests"
+      "privacy_requests": "Privacy requests",
+      "community_history": "Community membership and private engagement history"
     },
     "bases": {
       "financial_floor": "Financial records: 8 years after the financial year",

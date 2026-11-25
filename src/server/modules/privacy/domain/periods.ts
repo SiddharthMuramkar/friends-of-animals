@@ -50,6 +50,8 @@ export const RETENTION_PERIODS = {
    * withdrawn, or declined by the guardian, from when they closed.
    */
   volunteerApplications: { defaultDays: 365 },
+  /** Former member profile text, from departure. */
+  communityMembers: { defaultDays: 365 },
   /**
    * Adoption applications (#130), from when they closed; one behind a
    * published success story stays while the story is up.
