@@ -105,6 +105,13 @@ export const ADMIN_REFUNDS = "/admin/refunds";
 export const ADMIN_LEDGER = "/admin/ledger";
 export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
 export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
+/** Period lock, two-approver requests, budgets and the accountant's export (#109). */
+export const ADMIN_LEDGER_PERIODS = `${ADMIN_LEDGER}/periods`;
+export const ADMIN_LEDGER_APPROVALS = `${ADMIN_LEDGER}/approvals`;
+export const ADMIN_LEDGER_BUDGETS = `${ADMIN_LEDGER}/budgets`;
+export const ADMIN_LEDGER_BUDGET_REPORT = `${ADMIN_LEDGER_BUDGETS}/report`;
+export const ADMIN_LEDGER_EXPORT = `${ADMIN_LEDGER}/export`;
+export const ADMIN_LEDGER_EXPORT_CSV = `${ADMIN_LEDGER}/export.csv`;
 
 export function adminLedgerPostingPath(seq: bigint | string): string {
   return `${ADMIN_LEDGER}/${encodeURIComponent(String(seq))}`;
@@ -129,6 +136,13 @@ export function newEntryPath(registrationId: string): string {
 /** One refund's page: finance approves, rejects, retries or records it. */
 export function adminRefundPath(refundId: string): string {
   return `${ADMIN_REFUNDS}/${encodeURIComponent(refundId)}`;
+}
+
+/** Finance's donations (#106): the list and each donation's page. */
+export const ADMIN_DONATIONS = "/admin/donations";
+
+export function adminDonationPath(donationId: string): string {
+  return `${ADMIN_DONATIONS}/${encodeURIComponent(donationId)}`;
 }
 
 /**
@@ -337,6 +351,15 @@ export function studentSubmissionPath(
 }
 
 /** Where a coordinator certifies the competition's conduct (#87). */
+/** A registration's school round page (#89), for the institution acting. */
+export function schoolRoundPath(
+  reference: string,
+  institutionId: string
+): string {
+  const query = new URLSearchParams({ institution: institutionId });
+  return `/institution/registrations/${encodeURIComponent(reference)}/school-round?${query.toString()}`;
+}
+
 export function conductCertificationPath(
   reference: string,
   institutionId: string
@@ -389,13 +412,51 @@ export function payMyRegistrationPath(registrationId: string): string {
 export const PAY_FEES_ROUTE = "/institution/registrations/[ref]/pay";
 
 /**
- * The pages with the Checkout island (#77): a school's pay page and an
- * adult's own (#78). Razorpay's origins and its headers come with these
- * documents only (./csp-sources.ts, ./security-headers.ts).
+ * A donation's checkout (#106): a bearer page for whoever holds the
+ * donation's checkout token, signed in or not. src/proxy.ts gives it the
+ * nonce policy, like a consent link, without the sign-in check.
+ */
+export const DONATION_CHECKOUT_PREFIX = "/donate/checkout";
+export const DONATION_CHECKOUT_ROUTE = `${DONATION_CHECKOUT_PREFIX}/[donationId]`;
+
+export function donationCheckoutPath(donationId: string, token: string) {
+  const query = new URLSearchParams({ t: token });
+  return `${DONATION_CHECKOUT_PREFIX}/${encodeURIComponent(donationId)}?${query.toString()}`;
+}
+
+export function isDonationCheckoutPage(pathname: string): boolean {
+  return fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE);
+}
+
+/** A donation's thank-you page (#106), for the same token's holder. */
+export const DONATION_THANK_YOU = "/donate/thank-you";
+
+export function donationThankYouPath(donationId: string, token: string) {
+  const query = new URLSearchParams({ d: donationId, t: token });
+  return `${DONATION_THANK_YOU}?${query.toString()}`;
+}
+
+/**
+ * Receipts (#106): a receipt behind its 7-day link, and the form that
+ * emails the donor a new link. Never cached, indexed or sent as a referrer.
+ */
+export const RECEIPTS_PREFIX = "/receipts";
+export const RECEIPT_REQUEST = `${RECEIPTS_PREFIX}/request`;
+
+export function receiptPath(token: string): string {
+  return `${RECEIPTS_PREFIX}/${encodeURIComponent(token)}`;
+}
+
+/**
+ * The pages with the Checkout island (#77): a school's pay page, an
+ * adult's own (#78) and a donation's checkout (#106). Razorpay's origins
+ * and its headers come with these documents only (./csp-sources.ts,
+ * ./security-headers.ts).
  */
 export const CHECKOUT_ROUTES = [
   PAY_FEES_ROUTE,
   PAY_MY_REGISTRATION_ROUTE,
+  DONATION_CHECKOUT_ROUTE,
 ] as const;
 
 /** A payment batch's status and receipt (#77). */
@@ -475,6 +536,8 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/refunds/[id]",
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
+  ADMIN_DONATIONS,
+  "/admin/donations/[id]",
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",
@@ -482,6 +545,12 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_LEDGER,
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_NEW_LEDGER_ENTRY,
+  ADMIN_LEDGER_PERIODS,
+  ADMIN_LEDGER_APPROVALS,
+  ADMIN_LEDGER_BUDGETS,
+  ADMIN_LEDGER_BUDGET_REPORT,
+  ADMIN_LEDGER_EXPORT,
+  ADMIN_LEDGER_EXPORT_CSV,
   "/admin/ledger/[seq]",
   "/admin/competitions/[id]/cancel",
   "/institution/competitions/[code]/judging-guide",
@@ -490,6 +559,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/institution/registrations/[ref]/submissions",
   "/institution/registrations/[ref]/submissions/[number]",
   "/institution/registrations/[ref]/conduct",
+  "/institution/registrations/[ref]/school-round",
   "/institution/registrations/[ref]/students/new",
   "/institution/registrations/[ref]/import",
   "/institution/registrations/[ref]/import/template.csv",

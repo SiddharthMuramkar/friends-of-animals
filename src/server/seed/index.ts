@@ -19,15 +19,19 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
+import { seedDonations } from "./donations";
 import { seedDirectory } from "./directory";
 import { seedAdoption } from "./adoption";
 import { seedAdoptionApplications } from "./adoption-applications";
 import { seedEntries } from "./entries";
 import { seedInstitutionSubmissions } from "./institution-submissions";
+import { seedSchoolRound } from "./school-round";
 import { seedFiles } from "./files";
 import { seedGuardians } from "./guardians";
 import { seedBreaches } from "./breaches";
 import { seedLedger } from "./ledger";
+import { seedLedgerPeriods } from "./ledger-periods";
+import { seedBudgets } from "./ledger-budgets";
 import { seedIdentity } from "./identity";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
@@ -98,10 +102,18 @@ const seeders: readonly Seeder[] = [
   // After the institutions, competitions and entries seeds: the school's
   // TREES27 students and their entries, for the coordinator roster (#87).
   seedInstitutionSubmissions,
+  // After the payments, refunds and judging seeds: Kinder Skies' paid
+  // students' entries and the school's open round (#89).
+  seedSchoolRound,
   // After the participants seed: a guardian, their under-13 child and a
   // teen whose own login is linked to them (#81).
   seedGuardians,
+  // Before the ledger seed, whose reconcile posts its donations (#106).
+  seedDonations,
   seedLedger,
+  // After the ledger seed: its postings are in open months (#109).
+  seedLedgerPeriods,
+  seedBudgets,
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,

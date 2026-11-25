@@ -190,5 +190,13 @@ export async function makeScheduledMoves(
       actorRole: null,
     });
   }
+  // Its school rounds open (#89).
+  if (made.some((move) => move.to === "school_judging")) {
+    await emit(tx, ctx.clock, {
+      type: "competition.school_judging_started",
+      aggregate: { type: "competition", id: guarded.id },
+      payload: { competitionId: guarded.id },
+    });
+  }
   return last.to;
 }

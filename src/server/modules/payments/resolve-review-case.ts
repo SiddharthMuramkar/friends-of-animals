@@ -47,6 +47,7 @@ import {
 import { captureBatch, registrationsAtCapture } from "./capture";
 import { refundRegistrations } from "./refunds/rows";
 import { startSystemRefund } from "./refunds/start-system-refund";
+import { purposeHandler } from "./purposes";
 import { dashboardRefundPending } from "./review-cases";
 import {
   nextPaymentBatchStatus,
@@ -116,6 +117,7 @@ export async function resolvePaymentReviewCase(
           .select({
             batchId: paymentReviewCase.batchId,
             competitionId: paymentBatch.competitionId,
+            purpose: paymentBatch.purpose,
           })
           .from(paymentReviewCase)
           .innerJoin(
@@ -127,7 +129,7 @@ export async function resolvePaymentReviewCase(
         // Confirmation can turn a review batch into a paid batch. Lock the
         // competition first, in cancellation's order (#80).
         const [target] =
-          outcome === "confirm"
+          outcome === "confirm" && found.competitionId !== null
             ? await tx
                 .select({ status: competition.status })
                 .from(competition)
@@ -162,6 +164,7 @@ export async function resolvePaymentReviewCase(
             resolvedAt: reviewCase.resolvedAt,
             amountMinor: reviewCase.amountMinor,
             currency: reviewCase.currency,
+            purpose: batch.purpose,
           },
           outcome,
           resolutionReason: parsed.data.reason,
@@ -171,7 +174,22 @@ export async function resolvePaymentReviewCase(
 
         const now = ctx.clock.now();
         let batchStatus: PaymentBatchStatus = batch.status;
-        if (plan.confirmsRegistrations) {
+        if (
+          plan.confirmsRegistrations &&
+          batch.purpose !== "registration_fee"
+        ) {
+          // A donation's late money (#106): its module captures the
+          // donation, with its receipt.
+          if (!reviewCase.gatewayPaymentId) throw new NotPayable();
+          await purposeHandler(batch.purpose).acceptReviewed(
+            tx,
+            ctx,
+            batch,
+            reviewCase.gatewayPaymentId,
+            role
+          );
+          batchStatus = "captured";
+        } else if (plan.confirmsRegistrations) {
           // A cancelled competition takes no more payments (#80).
           if (target?.status === "cancelled") {
             return { ok: false, error: "registration_not_payable" };

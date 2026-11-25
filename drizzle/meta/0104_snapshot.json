@@ -1,6 +1,6 @@
 {
-  "id": "8323b75b-f648-40c8-ba27-48e233a2c39b",
-  "prevId": "0575d3fd-1fcc-42f4-9ed5-88ca69860689",
+  "id": "298267a2-e0c7-43c7-9df5-c29736b04f23",
+  "prevId": "1192b9c5-3413-4f66-a8f6-07f3fdde4638",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -13749,495 +13749,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.adoption_application": {
-      "name": "adoption_application",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "adoption_listing_id": {
-          "name": "adoption_listing_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "applicant_user_id": {
-          "name": "applicant_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "participant_profile_id": {
-          "name": "participant_profile_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "date_of_birth_ciphertext": {
-          "name": "date_of_birth_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "phone_ciphertext": {
-          "name": "phone_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "address_ciphertext": {
-          "name": "address_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "answers_ciphertext": {
-          "name": "answers_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_sharing_consent_id": {
-          "name": "contact_sharing_consent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "adoption_application_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_shared_at": {
-          "name": "contact_shared_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_by_user_id": {
-          "name": "decided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "outcome_reason_ciphertext": {
-          "name": "outcome_reason_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "adoption_application_one_open_per_listing": {
-          "name": "adoption_application_one_open_per_listing",
-          "columns": [
-            {
-              "expression": "adoption_listing_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "applicant_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "where": "\"adoption_application\".\"status\" IN ('submitted', 'under_review', 'in_contact')",
-          "concurrently": false
-        },
-        "adoption_application_applicant_idx": {
-          "name": "adoption_application_applicant_idx",
-          "columns": [
-            {
-              "expression": "applicant_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_application_status_created_idx": {
-          "name": "adoption_application_status_created_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_application_participant_profile_idx": {
-          "name": "adoption_application_participant_profile_idx",
-          "columns": [
-            {
-              "expression": "participant_profile_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_application_decided_by_idx": {
-          "name": "adoption_application_decided_by_idx",
-          "columns": [
-            {
-              "expression": "decided_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_application_consent_idx": {
-          "name": "adoption_application_consent_idx",
-          "columns": [
-            {
-              "expression": "contact_sharing_consent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "adoption_application_adoption_listing_id_adoption_listing_id_fk": {
-          "name": "adoption_application_adoption_listing_id_adoption_listing_id_fk",
-          "tableFrom": "adoption_application",
-          "columnsFrom": [
-            "adoption_listing_id"
-          ],
-          "tableTo": "adoption_listing",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
-        },
-        "adoption_application_applicant_user_id_user_id_fk": {
-          "name": "adoption_application_applicant_user_id_user_id_fk",
-          "tableFrom": "adoption_application",
-          "columnsFrom": [
-            "applicant_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "adoption_application_participant_profile_id_participant_profile_id_fk": {
-          "name": "adoption_application_participant_profile_id_participant_profile_id_fk",
-          "tableFrom": "adoption_application",
-          "columnsFrom": [
-            "participant_profile_id"
-          ],
-          "tableTo": "participant_profile",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "adoption_application_contact_sharing_consent_id_consent_event_id_fk": {
-          "name": "adoption_application_contact_sharing_consent_id_consent_event_id_fk",
-          "tableFrom": "adoption_application",
-          "columnsFrom": [
-            "contact_sharing_consent_id"
-          ],
-          "tableTo": "consent_event",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "adoption_application_decided_by_user_id_user_id_fk": {
-          "name": "adoption_application_decided_by_user_id_user_id_fk",
-          "tableFrom": "adoption_application",
-          "columnsFrom": [
-            "decided_by_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "adoption_application_closed_at_matches_status": {
-          "name": "adoption_application_closed_at_matches_status",
-          "value": "(\"adoption_application\".\"status\" IN ('submitted', 'under_review', 'in_contact')) = (\"adoption_application\".\"closed_at\" IS NULL)"
-        },
-        "adoption_application_reason_when_ended": {
-          "name": "adoption_application_reason_when_ended",
-          "value": "(\"adoption_application\".\"status\" IN ('not_matched', 'declined')) = (\"adoption_application\".\"outcome_reason_ciphertext\" IS NOT NULL)"
-        },
-        "adoption_application_contact_shared": {
-          "name": "adoption_application_contact_shared",
-          "value": "\"adoption_application\".\"status\" NOT IN ('in_contact', 'adopted') OR \"adoption_application\".\"contact_shared_at\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.adoption_story": {
-      "name": "adoption_story",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "application_id": {
-          "name": "application_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "body": {
-          "name": "body",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "adoption_story_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "consent_event_id": {
-          "name": "consent_event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "published_at": {
-          "name": "published_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "published_by_user_id": {
-          "name": "published_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "withdrawn_at": {
-          "name": "withdrawn_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "adoption_story_application_unique": {
-          "name": "adoption_story_application_unique",
-          "columns": [
-            {
-              "expression": "application_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_story_status_published_idx": {
-          "name": "adoption_story_status_published_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "published_at",
-              "isExpression": false,
-              "asc": false,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_story_consent_idx": {
-          "name": "adoption_story_consent_idx",
-          "columns": [
-            {
-              "expression": "consent_event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "adoption_story_published_by_idx": {
-          "name": "adoption_story_published_by_idx",
-          "columns": [
-            {
-              "expression": "published_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "adoption_story_application_id_adoption_application_id_fk": {
-          "name": "adoption_story_application_id_adoption_application_id_fk",
-          "tableFrom": "adoption_story",
-          "columnsFrom": [
-            "application_id"
-          ],
-          "tableTo": "adoption_application",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "adoption_story_consent_event_id_consent_event_id_fk": {
-          "name": "adoption_story_consent_event_id_consent_event_id_fk",
-          "tableFrom": "adoption_story",
-          "columnsFrom": [
-            "consent_event_id"
-          ],
-          "tableTo": "consent_event",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "adoption_story_published_by_user_id_user_id_fk": {
-          "name": "adoption_story_published_by_user_id_user_id_fk",
-          "tableFrom": "adoption_story",
-          "columnsFrom": [
-            "published_by_user_id"
-          ],
-          "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "adoption_story_published_at_matches_status": {
-          "name": "adoption_story_published_at_matches_status",
-          "value": "\"adoption_story\".\"status\" <> 'published' OR \"adoption_story\".\"published_at\" IS NOT NULL"
-        },
-        "adoption_story_withdrawn_at_matches_status": {
-          "name": "adoption_story_withdrawn_at_matches_status",
-          "value": "(\"adoption_story\".\"status\" = 'withdrawn') = (\"adoption_story\".\"withdrawn_at\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.campaign": {
       "name": "campaign",
       "schema": "",
@@ -14896,6 +14407,587 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.school_round": {
+      "name": "school_round",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institution_registration_id": {
+          "name": "institution_registration_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "school_round_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "judging_attested_by_user_id": {
+          "name": "judging_attested_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "judging_attested_at": {
+          "name": "judging_attested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "judging_statement_version": {
+          "name": "judging_statement_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finalised_by_user_id": {
+          "name": "finalised_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finalised_at": {
+          "name": "finalised_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "families_notified_at": {
+          "name": "families_notified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "school_round_competition_id_idx": {
+          "name": "school_round_competition_id_idx",
+          "columns": [
+            {
+              "expression": "competition_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "school_round_judging_attested_by_user_id_idx": {
+          "name": "school_round_judging_attested_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "judging_attested_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "school_round_finalised_by_user_id_idx": {
+          "name": "school_round_finalised_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "finalised_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "school_round_competition_id_competition_id_fk": {
+          "name": "school_round_competition_id_competition_id_fk",
+          "tableFrom": "school_round",
+          "columnsFrom": [
+            "competition_id"
+          ],
+          "tableTo": "competition",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "school_round_institution_registration_id_institution_registration_id_fk": {
+          "name": "school_round_institution_registration_id_institution_registration_id_fk",
+          "tableFrom": "school_round",
+          "columnsFrom": [
+            "institution_registration_id"
+          ],
+          "tableTo": "institution_registration",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "school_round_judging_attested_by_user_id_user_id_fk": {
+          "name": "school_round_judging_attested_by_user_id_user_id_fk",
+          "tableFrom": "school_round",
+          "columnsFrom": [
+            "judging_attested_by_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "school_round_finalised_by_user_id_user_id_fk": {
+          "name": "school_round_finalised_by_user_id_user_id_fk",
+          "tableFrom": "school_round",
+          "columnsFrom": [
+            "finalised_by_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "school_round_institution_registration_unique": {
+          "name": "school_round_institution_registration_unique",
+          "columns": [
+            "institution_registration_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.school_round_panel_member": {
+      "name": "school_round_panel_member",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "designation": {
+          "name": "designation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "school_round_panel_member_round_id_school_round_id_fk": {
+          "name": "school_round_panel_member_round_id_school_round_id_fk",
+          "tableFrom": "school_round_panel_member",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "school_round",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "school_round_panel_member_round_order_unique": {
+          "name": "school_round_panel_member_round_order_unique",
+          "columns": [
+            "round_id",
+            "sort_order"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "school_round_panel_member_order_not_negative": {
+          "name": "school_round_panel_member_order_not_negative",
+          "value": "\"school_round_panel_member\".\"sort_order\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.school_round_pick": {
+      "name": "school_round_pick",
+      "schema": "",
+      "columns": {
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "picked_by_user_id": {
+          "name": "picked_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "picked_at": {
+          "name": "picked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "school_round_pick_position_unique": {
+          "name": "school_round_pick_position_unique",
+          "columns": [
+            {
+              "expression": "round_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"school_round_pick\".\"position\" IS NOT NULL",
+          "concurrently": false
+        },
+        "school_round_pick_round_id_idx": {
+          "name": "school_round_pick_round_id_idx",
+          "columns": [
+            {
+              "expression": "round_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "school_round_pick_category_id_idx": {
+          "name": "school_round_pick_category_id_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "school_round_pick_picked_by_user_id_idx": {
+          "name": "school_round_pick_picked_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "picked_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "school_round_pick_entry_id_entry_id_fk": {
+          "name": "school_round_pick_entry_id_entry_id_fk",
+          "tableFrom": "school_round_pick",
+          "columnsFrom": [
+            "entry_id"
+          ],
+          "tableTo": "entry",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "school_round_pick_round_id_school_round_id_fk": {
+          "name": "school_round_pick_round_id_school_round_id_fk",
+          "tableFrom": "school_round_pick",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "school_round",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "school_round_pick_category_id_competition_category_id_fk": {
+          "name": "school_round_pick_category_id_competition_category_id_fk",
+          "tableFrom": "school_round_pick",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "tableTo": "competition_category",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "school_round_pick_picked_by_user_id_user_id_fk": {
+          "name": "school_round_pick_picked_by_user_id_user_id_fk",
+          "tableFrom": "school_round_pick",
+          "columnsFrom": [
+            "picked_by_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "school_round_pick_position_positive": {
+          "name": "school_round_pick_position_positive",
+          "value": "\"school_round_pick\".\"position\" IS NULL OR \"school_round_pick\".\"position\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.school_round_transition": {
+      "name": "school_round_transition",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_status": {
+          "name": "from_status",
+          "type": "school_round_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_status": {
+          "name": "to_status",
+          "type": "school_round_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_user_id": {
+          "name": "actor_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "school_round_transition_round_id_idx": {
+          "name": "school_round_transition_round_id_idx",
+          "columns": [
+            {
+              "expression": "round_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "school_round_transition_actor_user_id_idx": {
+          "name": "school_round_transition_actor_user_id_idx",
+          "columns": [
+            {
+              "expression": "actor_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "school_round_transition_round_id_school_round_id_fk": {
+          "name": "school_round_transition_round_id_school_round_id_fk",
+          "tableFrom": "school_round_transition",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "school_round",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "school_round_transition_actor_user_id_user_id_fk": {
+          "name": "school_round_transition_actor_user_id_user_id_fk",
+          "tableFrom": "school_round_transition",
+          "columnsFrom": [
+            "actor_user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "school_round_transition_actor_kind": {
+          "name": "school_round_transition_actor_kind",
+          "value": "\"school_round_transition\".\"actor_kind\" IN ('user', 'system')"
+        },
+        "school_round_transition_system_has_no_user": {
+          "name": "school_round_transition_system_has_no_user",
+          "value": "\"school_round_transition\".\"actor_kind\" = 'user' OR \"school_round_transition\".\"actor_user_id\" IS NULL"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -15058,9 +15150,7 @@
         "auction",
         "communications",
         "volunteer_safeguarding_declaration",
-        "volunteer_code_of_conduct",
-        "adoption_contact_sharing",
-        "adoption_success_story"
+        "volunteer_code_of_conduct"
       ]
     },
     "public.consent_subject_type": {
@@ -15768,29 +15858,6 @@
         "large"
       ]
     },
-    "public.adoption_application_status": {
-      "name": "adoption_application_status",
-      "schema": "public",
-      "values": [
-        "submitted",
-        "under_review",
-        "in_contact",
-        "adopted",
-        "not_matched",
-        "declined",
-        "withdrawn",
-        "listing_closed"
-      ]
-    },
-    "public.adoption_story_status": {
-      "name": "adoption_story_status",
-      "schema": "public",
-      "values": [
-        "draft",
-        "published",
-        "withdrawn"
-      ]
-    },
     "public.campaign_recipient_status": {
       "name": "campaign_recipient_status",
       "schema": "public",
@@ -15831,6 +15898,16 @@
         "competition_management",
         "social_media",
         "community_building"
+      ]
+    },
+    "public.school_round_status": {
+      "name": "school_round_status",
+      "schema": "public",
+      "values": [
+        "open",
+        "overdue",
+        "finalised",
+        "closed_on_behalf"
       ]
     }
   },

@@ -66,10 +66,11 @@ export async function captureBatch(
 > {
   const move = nextPaymentBatchStatus(batch.status, how.event);
   if (!move.ok) throw new Error(`Batch ${batch.id} can't be captured`);
+  const competitionId = feeCompetitionOf(batch);
   const [target] = await tx
     .select({ code: competition.code })
     .from(competition)
-    .where(eq(competition.id, batch.competitionId));
+    .where(eq(competition.id, competitionId));
   if (!target) throw new Error(`Batch ${batch.id} has no competition`);
   const held = await heldItems(tx, batch.id);
   const { confirmed, refused, error } = await confirmRegistrations(tx, ctx, {
@@ -120,6 +121,19 @@ export async function captureBatch(
   };
 }
 
+/**
+ * The competition a fee batch pays for. A donation's batch (#106) has
+ * none and never reaches the registration capture path.
+ */
+export function feeCompetitionOf(
+  batch: Pick<PaymentBatchRow, "id" | "competitionId">
+): string {
+  if (batch.competitionId === null) {
+    throw new Error(`Batch ${batch.id} pays for no registrations`);
+  }
+  return batch.competitionId;
+}
+
 /** How a registration's status reads to a capture. */
 function standingOf(
   status: RegistrationStatus
@@ -158,16 +172,17 @@ export async function registrationsAtCapture(
     )
     .where(eq(paymentBatchItem.batchId, batch.id))
     .orderBy(asc(paymentBatchItem.registrationId));
+  const competitionId = feeCompetitionOf(batch);
   const [target] = await db
     .select({ status: competition.status })
     .from(competition)
-    .where(eq(competition.id, batch.competitionId));
+    .where(eq(competition.id, competitionId));
   const [closes] = await db
     .select({ at: competitionKeyDate.at })
     .from(competitionKeyDate)
     .where(
       and(
-        eq(competitionKeyDate.competitionId, batch.competitionId),
+        eq(competitionKeyDate.competitionId, competitionId),
         eq(competitionKeyDate.kind, "registration_closes")
       )
     );

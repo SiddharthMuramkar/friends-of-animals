@@ -45,5 +45,6 @@ export const config = {
     "/organisation",
     "/organisation/:path*",
     "/consent/:path*",
+    "/donate/checkout/:path*",
   ],
 };

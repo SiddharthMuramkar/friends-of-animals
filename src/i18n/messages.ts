@@ -22,6 +22,8 @@ import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.js
 import adminPayments from "../../messages/en-IN/adminPayments.json";
 import adminRefunds from "../../messages/en-IN/adminRefunds.json";
 import adminLedger from "../../messages/en-IN/adminLedger.json";
+import adminLedgerPeriods from "../../messages/en-IN/adminLedgerPeriods.json";
+import adminLedgerReports from "../../messages/en-IN/adminLedgerReports.json";
 import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
@@ -45,6 +47,7 @@ import competitionCancel from "../../messages/en-IN/competitionCancel.json";
 import contact from "../../messages/en-IN/contact.json";
 import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
 import institutionSubmissions from "../../messages/en-IN/institutionSubmissions.json";
+import schoolRound from "../../messages/en-IN/schoolRound.json";
 import guardianConsent from "../../messages/en-IN/guardianConsent.json";
 import guardianConsentDelivery from "../../messages/en-IN/guardianConsentDelivery.json";
 import coordinators from "../../messages/en-IN/coordinators.json";
@@ -55,6 +58,10 @@ import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
+import donationCheckout from "../../messages/en-IN/donationCheckout.json";
+import donations from "../../messages/en-IN/donations.json";
+import receipts from "../../messages/en-IN/receipts.json";
+import adminDonations from "../../messages/en-IN/adminDonations.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
@@ -107,6 +114,8 @@ export const NAMESPACES = [
   "adminConsentForms",
   "adminRefunds",
   "adminLedger",
+  "adminLedgerPeriods",
+  "adminLedgerReports",
   "adminAnnouncements",
   "art",
   "adminBreaches",
@@ -130,6 +139,7 @@ export const NAMESPACES = [
   "coordinators",
   "coordinatorConsents",
   "institutionSubmissions",
+  "schoolRound",
   "guardianConsent",
   "guardianConsentDelivery",
   "contactForm",
@@ -139,6 +149,10 @@ export const NAMESPACES = [
   "adoption",
   "adoptionApplications",
   "donate",
+  "donationCheckout",
+  "donations",
+  "receipts",
+  "adminDonations",
   "entries",
   "error",
   "files",
@@ -194,6 +208,8 @@ export const messages = {
   ...adminPayments,
   ...adminRefunds,
   ...adminLedger,
+  ...adminLedgerPeriods,
+  ...adminLedgerReports,
   ...adminConsentForms,
   ...adminAnnouncements,
   ...art,
@@ -218,6 +234,7 @@ export const messages = {
   ...coordinators,
   ...coordinatorConsents,
   ...institutionSubmissions,
+  ...schoolRound,
   ...guardianConsent,
   ...guardianConsentDelivery,
   ...contactForm,
@@ -227,6 +244,10 @@ export const messages = {
   ...adoption,
   ...adoptionApplications,
   ...donate,
+  ...donationCheckout,
+  ...donations,
+  ...receipts,
+  ...adminDonations,
   ...entries,
   ...error,
   ...files,

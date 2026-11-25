@@ -5,6 +5,7 @@ import { Suspense, type ComponentProps } from "react";
 import {
   ADMIN_ADOPTIONS,
   ADMIN_BREACHES,
+  ADMIN_DONATIONS,
   ADMIN_CAMPAIGNS,
   ADMIN_LEDGER,
   ADMIN_PRIVACY,
@@ -73,11 +74,19 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
     actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
   if (!finance) return <AdminNav {...nav} />;
 
-  const t = await getTranslations("adminLedger.list");
+  const [t, donations] = await Promise.all([
+    getTranslations("adminLedger.list"),
+    getTranslations("adminDonations"),
+  ]);
   return (
     <AdminNav
       label={nav.label}
-      links={[...nav.links, { href: ADMIN_LEDGER, label: t("title") }]}
+      links={[
+        ...nav.links,
+        { href: ADMIN_LEDGER, label: t("title") },
+        // Finance's donations (#106).
+        { href: ADMIN_DONATIONS, label: donations("nav") },
+      ]}
     />
   );
 }

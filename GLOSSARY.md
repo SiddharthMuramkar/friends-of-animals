@@ -280,11 +280,70 @@ _Avoid_: Mock payment, dummy gateway
 FOA's double-entry financial record. Each posting records money in INR with
 equal debits and credits, and corrections are recorded as new postings.
 
+**Locked period**:
+A month of the Ledger that finance has closed once it was reconciled. Nothing
+posts into it or any month before it; a correction goes in as a reversal in an
+open month. Locking or reopening one needs a second finance approver. The
+transparency page shows only locked periods, so a locked period is also a
+published period.
+_Avoid_: Closed month, frozen period
+
+**Late adjustment**:
+A capture or refund the platform records after its month was locked. It counts
+in the first open month after the locked ones, and says so.
+_Avoid_: Back-dated entry, prior-period adjustment
+
+**Finance request**:
+A money operation that waits for a second finance user before it happens:
+locking or reopening a month, or a manual entry above the limit in settings.
+The person who asked can withdraw it but never approve it, and it expires if
+nobody decides it in time.
+_Avoid_: Approval, maker-checker, dual control
+
+**Budget**:
+What FOA plans to receive or spend in one Ledger category in one month,
+compared with the actual in the budget report.
+_Avoid_: Forecast, allocation, target
+
 **Registration number**:
 What a confirmed registration is known by: the competition's code, "R" and
 six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
 Route is free.
 _Avoid_: Entry number, roll number, receipt number
+
+## Donations
+
+**Donation**:
+Money someone gives FOA, once online in INR (#106), and later monthly or
+recorded offline. An online donation is paid through a Payment batch whose
+purpose is the donation, and has exactly one Receipt once captured. Adults
+only; foreign money is returned while FOA isn't registered under FCRA.
+_Avoid_: Contribution, gift record, payment
+
+**Donor**:
+Who gave a Donation, as they gave it: a person, or a company or CSR partner
+with a contact person, which chooses whether its name may be shown in
+public. A guest donor has no account.
+_Avoid_: Supporter, patron, sponsor
+
+**Receipt**:
+The numbered record of a captured Donation: FOA-RCPT, the financial year and
+six digits (FOA-RCPT-2627-000123), gapless within the year. Everything it
+prints is frozen when it is issued; a full refund cancels it, and its number
+is never used again. Never sent as an attachment.
+_Avoid_: Invoice, acknowledgement, 80G certificate
+
+**Receipt link**:
+A link that opens one Receipt for 7 days. A new link is a new token; nothing
+extends an old one. The donor gets one by email, finance can make one to
+pass on by hand.
+_Avoid_: Download link, receipt URL
+
+**Checkout token**:
+The bearer in a Donation's checkout and thank-you links, so whoever started
+it can pay and see what happened without an account. It never opens the
+Receipt.
+_Avoid_: Donation password, access code
 
 ## Site content
 
@@ -508,6 +567,38 @@ competition was run in their school according to FOA's guidelines. The school
 round can't be finalised without it.
 _Avoid_: Conduct declaration, sign-off (the participation declaration is the
 institution's consent to take part)
+
+**School round**:
+The first Round on the institution route: one per Institution registration
+with a confirmed student, opened when its competition enters school judging.
+The coordinator records the Panel, picks the Shortlist and finalises it.
+_Avoid_: School judging (the competition's status), first round
+
+**Category**:
+One discipline for one age group of a competition, such as Drawing for
+Group A. Entries are shortlisted and placed within their Category.
+_Avoid_: Section, class
+
+**Panel**:
+The people who judged a School round, each with their full name and role.
+_Avoid_: Jury (FOA's judges), judges (alone)
+
+**Shortlist**:
+The entries a school picks, per Category, to go on to FOA judging, up to the
+competition's shortlist size. It is a draft until the School round is
+finalised; finalising makes each Entry school-shortlisted or not
+shortlisted.
+_Avoid_: Selection, finalists
+
+**School position**:
+A place (1st, 2nd, 3rd...) a school gives a shortlisted Entry in its
+Category, up to the competition's number of positions. Optional.
+_Avoid_: Rank, prize
+
+**Judging attestation**:
+The coordinator's statement, given when finalising, that the Shortlist and
+School positions are the Panel's fair judgement against FOA's Rubric.
+_Avoid_: Judging certificate, sign-off
 
 ## Registration
 

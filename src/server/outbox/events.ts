@@ -320,6 +320,42 @@ export type DomainEvent =
       payload: { competitionId: string };
     }
   | {
+      /**
+       * A competition entered school judging (#89): its school rounds
+       * open.
+       */
+      type: "competition.school_judging_started";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * A coordinator finalised their school round (#89). The only
+       * producer is finaliseSchoolRound: each entry of the round is now
+       * school-shortlisted (and, under all-participants scope, submitted to
+       * FOA) or not shortlisted, and its family is told which.
+       */
+      type: "school_round.shortlist_finalised";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /** An entry was shortlisted in a finalised school round (#89). */
+      type: "entry.school_shortlisted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; registrationId: string; roundId: string };
+    }
+  | {
+      /** An entry was not shortlisted in a finalised school round (#89). */
+      type: "entry.not_shortlisted";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; registrationId: string; roundId: string };
+    }
+  | {
       /** An institution registered for a competition (#75). */
       type: "registration.institution_registered";
       aggregate: { type: "institution_registration"; id: string };
@@ -343,6 +379,35 @@ export type DomainEvent =
       type: "payment.batch_captured";
       aggregate: { type: "payment_batch"; id: string };
       payload: { batchId: string; payerUserId: string | null };
+    }
+  | {
+      /** A donation was captured with its receipt (#106): the donor's
+       * thank-you with the first receipt link, and the ledger. */
+      type: "donation.captured";
+      aggregate: { type: "donation"; id: string };
+      payload: { donationId: string };
+    }
+  | {
+      /** Foreign money arrived for a donation while FCRA is off (#106):
+       * it is held as owed back until its refund goes out. */
+      type: "donation.foreign_payment_received";
+      aggregate: { type: "donation"; id: string };
+      /** `refundId`: the system refund returning it. */
+      payload: { donationId: string; refundId: string };
+    }
+  | {
+      /** A refund of a donation's batch was processed (#106): the donor is
+       * told, in words for a foreign payment or a donation refunded. */
+      type: "donation.refunded";
+      aggregate: { type: "donation"; id: string };
+      payload: { donationId: string; refundId: string };
+    }
+  | {
+      /** A donor asked for a new receipt link by email (#106). The token
+       * is minted when the email goes, never stored here. */
+      type: "receipt.link_requested";
+      aggregate: { type: "receipt"; id: string };
+      payload: { receiptId: string };
     }
   | {
       /** A guardian invited their 13- to 17-year-old to an own login (#81). */
@@ -563,6 +628,11 @@ const DIRECTORY_LISTING_EVENT = z.object({
   userId: z.uuid(),
 });
 const VOLUNTEER_APPLICATION = z.object({ applicationId: z.uuid() });
+const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
+  entryId: z.uuid(),
+  registrationId: z.uuid(),
+  roundId: z.uuid(),
+});
 
 const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
 
@@ -663,10 +733,28 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
   }),
   "registration.confirmed": z.object({ registrationId: z.uuid() }),
+  "competition.school_judging_started": z.object({ competitionId: z.uuid() }),
+  "school_round.shortlist_finalised": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
+  "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "payment.batch_captured": z.object({
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
   }),
+  "donation.captured": z.object({ donationId: z.uuid() }),
+  "donation.foreign_payment_received": z.object({
+    donationId: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "donation.refunded": z.object({
+    donationId: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
   "refund.processed": z.object({
@@ -831,6 +919,14 @@ export const SUBSCRIBERS = {
   // Each guard's retryOn events (modules/competitions/transition-guards.ts).
   "rubric.published": ["competitions.retry_blocked_moves"],
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
+  // The competition's school rounds open (#89).
+  "competition.school_judging_started": ["school_round.open_rounds"],
+  // Each family is told the outcome, one event per entry (#89).
+  "school_round.shortlist_finalised": ["school_round.queue_family_outcomes"],
+  // The family contact isn't a user: the message goes by the school
+  // round's own handler, by its `family_contact` route (#89).
+  "entry.school_shortlisted": ["school_round.send_family_outcome"],
+  "entry.not_shortlisted": ["school_round.send_family_outcome"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
@@ -843,6 +939,13 @@ export const SUBSCRIBERS = {
   ],
   // The payer's receipt goes by route row (#77).
   "payment.batch_captured": ["notifications.dispatch", "ledger.post_capture"],
+  // A guest donor has no account, so no route row can name them: the
+  // donations module emails the address they gave, with its route's
+  // template, and minting each receipt link as the message goes (#106).
+  "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
+  "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
+  "donation.refunded": ["donations.send_refund_notice"],
+  "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],

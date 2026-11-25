@@ -35,6 +35,9 @@ export const PAYMENT_REVIEW_REASONS = [
   "paid_while_in_review",
   /** A guardian must give consent on the attached participation version. */
   "participation_consent_required",
+  /** A donation's money arrived after the donation expired (#106): staff
+   * may accept it, which captures the donation with its receipt. */
+  "donation_expired",
 ] as const;
 
 export type PaymentReviewReason = (typeof PAYMENT_REVIEW_REASONS)[number];
@@ -130,6 +133,12 @@ const CONFIRMABLE: ReadonlySet<PaymentReviewReason> = new Set([
   "participation_consent_required",
 ]);
 
+/** A donation's batch (#106) confirms only late money for its amount: any
+ * other confirmation would turn a different sum into the donation. */
+const DONATION_CONFIRMABLE: ReadonlySet<PaymentReviewReason> = new Set([
+  "donation_expired",
+]);
+
 /**
  * What staff may choose for a case. Confirming needs registrations that can
  * still be confirmed, and a batch that hasn't already confirmed them.
@@ -139,9 +148,13 @@ export function allowedOutcomes(reviewCase: {
   batchStatusBefore: BatchStatusBeforeReview;
   currency: string;
   amountMinor: bigint;
+  /** What the batch pays for; registration fees unless said. */
+  purpose?: "registration_fee" | "donation";
 }): readonly PaymentReviewOutcome[] {
+  const reasons =
+    reviewCase.purpose === "donation" ? DONATION_CONFIRMABLE : CONFIRMABLE;
   const confirmable =
-    CONFIRMABLE.has(reviewCase.reason) &&
+    reasons.has(reviewCase.reason) &&
     reviewCase.batchStatusBefore !== "captured" &&
     reviewCase.currency === "INR" &&
     reviewCase.amountMinor > 0n;
@@ -197,6 +210,7 @@ export function planResolution(input: {
     currency: string;
     amountMinor: bigint;
     resolvedAt: Date | null;
+    purpose?: "registration_fee" | "donation";
   };
   outcome: PaymentReviewOutcome;
   resolutionReason: string;

@@ -69,13 +69,88 @@
     },
     "receipts": {
       "title": "Receipts and tax",
-      "body": "Every gift will get a receipt by email. Until our tax status is confirmed, receipts will not carry a tax section."
+      "body": "Every gift gets a receipt with its own number. We email you a link to it that works for 7 days, so save or print it. Until our tax status is confirmed, receipts don't carry a tax section."
     },
     "csr": {
       "title": "Companies, foundations and partners",
       "body": "If your company or foundation would like to support competitions in schools, write to us. Tell us which cities or age groups you have in mind.",
       "email": "Email",
       "link": "Contact us"
+    },
+    "form": {
+      "title": "Give once",
+      "lead": "In rupees, from an account in India. It takes about two minutes.",
+      "amount": {
+        "legend": "How much would you like to give?",
+        "preset": "₹{amount}",
+        "other": "Another amount",
+        "otherLabel": "Amount in rupees",
+        "otherHint": "Between ₹{min} and ₹{max}, in rupees and paise if you like."
+      },
+      "donorType": {
+        "legend": "Who is giving?",
+        "individual": "Me, as a person",
+        "corporate": "A company",
+        "csr": "A company's CSR programme"
+      },
+      "name": {
+        "label": "Your full name",
+        "hint": "It goes on your receipt."
+      },
+      "contactName": {
+        "label": "Contact person's full name",
+        "hint": "The person we write to about this gift."
+      },
+      "email": {
+        "label": "Email",
+        "hint": "We send the link to your receipt here."
+      },
+      "organisation": {
+        "label": "Company name",
+        "hint": "It goes on your receipt."
+      },
+      "disclose": {
+        "legend": "May we name your company in public?",
+        "hint": "On our donor wall and transparency page. Your receipt always carries the name.",
+        "yes": "Yes, name us",
+        "no": "No, keep our name private"
+      },
+      "wall": {
+        "label": "Show my gift on the donor wall",
+        "hint": "The wall shows names, never amounts or email addresses.",
+        "nameLabel": "Name on the wall",
+        "nameHint": "Leave it empty and we use your first name and last initial."
+      },
+      "declarations": {
+        "legend": "Before you give",
+        "adult": "I am 18 or over.",
+        "indian": "This is my own money, paid from India. I am not giving on behalf of anyone outside India."
+      },
+      "submit": "Continue to payment",
+      "submitting": "Getting your payment ready…",
+      "privacy": "We use your name and email only for this gift's receipt and messages about it. Read our",
+      "privacyLink": "privacy policy",
+      "errors": {
+        "amount": "Choose an amount, or type one between ₹{min} and ₹{max}.",
+        "donorType": "Choose who is giving.",
+        "name": "Enter a name.",
+        "email": "Enter an email address, like name@example.com.",
+        "organisationName": "Enter the company's name.",
+        "disclose": "Choose whether we may name your company.",
+        "declarations": "Tick both statements to give.",
+        "wallName": "Use 60 characters or fewer."
+      },
+      "alerts": {
+        "donations_closed": "Online giving isn't open yet. Nothing was charged.",
+        "minor_must_ask_guardian": "Thank you for wanting to help. We can only take gifts from people who are 18 or over, so please ask your parent or guardian to give. You can help animals by making art for a competition.",
+        "guests_not_allowed": "Please sign in to give. Nothing was charged.",
+        "failed": "Something went wrong and nothing was charged. Please try again in a few minutes."
+      },
+      "minor": {
+        "title": "Ask a grown-up to give",
+        "back": "See the competitions"
+      },
+      "loading": "Loading the donation form…"
     }
   }
 }

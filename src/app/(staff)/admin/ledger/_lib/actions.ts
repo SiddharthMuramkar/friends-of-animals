@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import {
   ADMIN_LEDGER_ACCOUNTS,
+  ADMIN_LEDGER_APPROVALS,
   ADMIN_NEW_LEDGER_ENTRY,
   adminLedgerPostingPath,
 } from "@/lib/app-routes";
@@ -105,6 +106,9 @@ export async function createEntryAction(
     const { error } = result.value;
     return { error: error === "invalid_source_type" ? "invalid_input" : error };
   }
+  // A large entry waits for a second finance user (#109).
+  if (result.value.status === "pending_approval")
+    return { postingPath: `${ADMIN_LEDGER_APPROVALS}?requested=entry` };
   return { postingPath: adminLedgerPostingPath(result.value.seq) };
 }
 

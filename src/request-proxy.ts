@@ -4,8 +4,10 @@ import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
   CONSENT_LINK_PREFIX,
+  DONATION_CHECKOUT_PREFIX,
   individualRegisterSlug,
   isConsentLinkPage,
+  isDonationCheckoutPage,
   isNonProductionPath,
   isSignedInPage,
   isSignedInPath,
@@ -203,6 +205,13 @@ export function createProxy({
     // Bearer links use the nonce policy and render without sign-in.
     if (isUnderPrefix(pathname, [CONSENT_LINK_PREFIX])) {
       return isConsentLinkPage(pathname)
+        ? withNonceCsp(request)
+        : missingSignedInPage(request);
+    }
+    // A donation's checkout (#106) is a bearer page too: the nonce policy,
+    // which carries Razorpay's origins, for anyone signed in or not.
+    if (isUnderPrefix(pathname, [DONATION_CHECKOUT_PREFIX])) {
+      return isDonationCheckoutPage(pathname)
         ? withNonceCsp(request)
         : missingSignedInPage(request);
     }

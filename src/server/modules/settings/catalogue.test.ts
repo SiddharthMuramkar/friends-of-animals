@@ -12,7 +12,9 @@ describe("the settings catalogue", () => {
     // safeguarding reports an hour from one IP. #114: retention off until
     // a super admin turns it on, and each policy's period in days (the
     // financial records' is their 8-year floor). #84: submission reminders
-    // 72 and 24 hours before the deadline (HR-37).
+    // 72 and 24 hours before the deadline (HR-37). #109: manual entries
+    // over Rs 50,000 wait for a second approver, requests expire after 7
+    // days, and the accountant's export stays off until HR-47.
     expect(
       Object.fromEntries(
         SETTING_KEYS.map((key) => [key, SETTINGS[key].default])
@@ -29,8 +31,18 @@ describe("the settings catalogue", () => {
       "org.registrationType": "",
       "org.registrationNumber": "",
       "org.pan": "",
+      // #106: donations off until HR-15 and HR-47; amounts and expiry
+      // wait on HR-51.
+      "donations.enabled": false,
+      "donations.allowGuest": true,
+      "donations.minAmountRupees": 100,
+      "donations.maxAmountRupees": 100_000,
+      "donations.pendingExpiryHours": 24,
       "safeguarding.reportsPerIpPerHour": 10,
       "breach.authorityEmail": "",
+      "ledger.manualEntryApprovalThresholdRupees": 50_000,
+      "ledger.approvalExpiryDays": 7,
+      "ledger.accountantExport": false,
       "privacy.requestDueDays": 30,
       "privacy.erasureDueDays": 30,
       "privacy.exportLinkHours": 72,

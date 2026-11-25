@@ -17,6 +17,9 @@ export type GatewayPayment = {
   amountMinor: bigint;
   /** As the gateway sends it, e.g. "INR". */
   currency: string;
+  /** Whether the card or account was issued outside India (#106): money
+   * from abroad, which a donation can't take while FCRA is off. */
+  international: boolean;
 };
 
 /** What the decision needs to know about the batch. */

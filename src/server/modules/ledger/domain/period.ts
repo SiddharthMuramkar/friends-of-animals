@@ -92,3 +92,78 @@ export function istDateRange(input: {
   }
   return { ok: true, fromInclusive, toExclusive };
 }
+
+// Month arithmetic for the period lock and budgets (#109). Months are
+// fixed-width `YYYY-MM`, so they sort as text.
+
+const MONTH_PARTS = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+function monthParts(month: PeriodMonth): { year: number; month: number } {
+  const match = MONTH_PARTS.exec(month);
+  if (!match) throw new RangeError(`Not a period month (YYYY-MM): ${month}`);
+  return { year: Number(match[1]), month: Number(match[2]) };
+}
+
+function formatMonth(year: number, month: number): PeriodMonth {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+}
+
+/** Midnight IST on the 1st of `month`, as an instant. */
+export function periodStart(month: PeriodMonth): Date {
+  monthParts(month);
+  const first = parseIstDate(`${month}-01`);
+  if (!first.ok) throw new RangeError(`Not a period month (YYYY-MM): ${month}`);
+  return first.start;
+}
+
+export function nextPeriodMonth(month: PeriodMonth): PeriodMonth {
+  const { year, month: m } = monthParts(month);
+  return m === 12 ? formatMonth(year + 1, 1) : formatMonth(year, m + 1);
+}
+
+export function previousPeriodMonth(month: PeriodMonth): PeriodMonth {
+  const { year, month: m } = monthParts(month);
+  return m === 1 ? formatMonth(year - 1, 12) : formatMonth(year, m - 1);
+}
+
+/** Negative when `a` is earlier, positive when later, 0 when equal. */
+export function comparePeriodMonths(a: PeriodMonth, b: PeriodMonth): number {
+  monthParts(a);
+  monthParts(b);
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Whether `month` has begun at `now`. A month can be locked once it has
+ * begun, not only once it has ended: finance may close the current month
+ * early, and two approvers protect that.
+ */
+export function hasPeriodStarted(month: PeriodMonth, now: Date): boolean {
+  return periodStart(month).getTime() <= now.getTime();
+}
+
+/** Every month from `from` to `to`, both included; empty when reversed. */
+export function monthsBetween(
+  from: PeriodMonth,
+  to: PeriodMonth
+): PeriodMonth[] {
+  const months: PeriodMonth[] = [];
+  for (
+    let month = from;
+    comparePeriodMonths(month, to) <= 0;
+    month = nextPeriodMonth(month)
+  ) {
+    months.push(month);
+  }
+  return months;
+}
+
+/** April to March of the Indian financial year `month` falls in. */
+export function financialYearMonths(month: PeriodMonth): PeriodMonth[] {
+  const { year, month: m } = monthParts(month);
+  const startYear = m >= 4 ? year : year - 1;
+  return monthsBetween(
+    formatMonth(startYear, 4),
+    formatMonth(startYear + 1, 3)
+  );
+}

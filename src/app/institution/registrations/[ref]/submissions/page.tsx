@@ -13,6 +13,7 @@ import {
   conductCertificationPath,
   institutionCompetitionsPath,
   institutionRegistrationPath,
+  schoolRoundPath,
   studentSubmissionPath,
 } from "@/lib/app-routes";
 import type {
@@ -145,6 +146,21 @@ async function RosterView({ list }: { list: InstitutionSubmissions }) {
             {t("conduct.link")}
           </ButtonLink>
         )}
+      </section>
+
+      <section aria-labelledby="school-round-summary" className={CARD}>
+        <SectionHeading
+          id="school-round-summary"
+          title={t("schoolRound.title")}
+        />
+        <p className="mt-3 text-ink">{t("schoolRound.body")}</p>
+        <ButtonLink
+          href={schoolRoundPath(reference, institutionId)}
+          variant="secondary"
+          className="mt-4"
+        >
+          {t("schoolRound.link")}
+        </ButtonLink>
       </section>
 
       <section aria-labelledby="students-entries">

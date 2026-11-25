@@ -95,6 +95,9 @@ const AUDIT_ACTION: Record<EntryTrigger, string> = {
   file_live: "entry.submitted",
   file_infected: "entry.rejected",
   file_failed: "entry.failed",
+  school_shortlisted: "entry.school_shortlisted",
+  sent_to_foa: "entry.submitted_to_foa",
+  not_shortlisted: "entry.not_shortlisted",
   essay_typed: "entry.submitted",
 };
 
@@ -107,7 +110,8 @@ export async function recordMove(
     from: EntryStatus | null;
     to: EntryStatus;
     trigger: EntryTrigger;
-    entryFileId: string;
+    /** The file whose upload or outcome moved it; null for a school round's move. */
+    entryFileId: string | null;
     actorRole: Role | null;
   }
 ): Promise<void> {

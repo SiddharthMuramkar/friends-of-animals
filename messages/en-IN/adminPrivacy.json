@@ -20,6 +20,7 @@
         "author": "Post author",
         "breach_affected": "Person affected by the breach",
         "consent_giver": "Person who gave the consent",
+        "donor": "Person or organisation who gave a donation",
         "consent_subject": "Person the consent is for",
         "contact_sender": "Contact sender",
         "content_subject": "Person described in the content",
@@ -27,6 +28,7 @@
         "institution": "Institution",
         "directory_listing": "Organisation or person listed in the directory",
         "invitee": "Person invited",
+        "panel_member": "Member of a school judging panel",
         "participant_profile": "Participant profile",
         "payer": "Payer",
         "recipient": "Recipient",
@@ -96,6 +98,7 @@
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
         "announcements": "While the competition's records are kept",
+        "donationRecords": "8 years after the end of the financial year of the donation",
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
@@ -375,6 +378,21 @@
           "created_by_user_id": "Identifies the finance user who entered or reversed a posting",
           "description": "Describes the entry and may name a counterparty"
         },
+        "ledger_period": {
+          "locked_by_user_id": "Identifies the finance user who approved locking the month",
+          "last_unlocked_by_user_id": "Identifies the finance user who approved the latest reopening of the month",
+          "last_unlock_reason": "Finance's reason for reopening a locked month, which may name a person"
+        },
+        "ledger_budget": {
+          "created_by_user_id": "Identifies the finance user who first set the budget",
+          "updated_by_user_id": "Identifies the finance user who last changed the budget"
+        },
+        "finance_approval": {
+          "requested_by_user_id": "Identifies the finance user who asked for an operation that needs a second approver",
+          "decided_by_user_id": "Identifies the finance user who approved, rejected or cancelled the request",
+          "payload": "What the operation will do once approved, such as a manual entry's narration, which may name a counterparty",
+          "decision_reason": "Finance's reason for rejecting the request, which may name a person"
+        },
         "message_delivery": {
           "user_id": "Says who a message was sent to",
           "contact_hash": "A keyed hash of the email or phone that deduplicates external deliveries across retries",
@@ -432,6 +450,22 @@
           "resolution_reason": "Why staff accepted, refunded or kept a payment in review: free text that may name the payer or what they said",
           "resolved_by_user_id": "Who resolved a payment in review, so FOA can answer for it"
         },
+        "donor": {
+          "user_id": "Links a donation to the signed-in account that gave it, so the donor can ask for a new receipt link",
+          "name_ciphertext": "The donor's name, or an organisation's contact person, printed on the receipt",
+          "email_ciphertext": "Where the donor's receipt link and messages about the donation go",
+          "email_hash": "Finds the donor's receipt when they ask for a new link with their email, without storing it readably",
+          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that"
+        },
+        "donation": {
+          "wall_name": "The name the donor chose to appear under on the public donor wall"
+        },
+        "receipt": {
+          "snapshot": "The receipt as issued, with the donor's name, frozen so it never changes"
+        },
+        "receipt_link": {
+          "created_by_user_id": "Who asked for a receipt link: the donor's account, or finance"
+        },
         "refund": {
           "decided_by": "Who in finance approved or rejected a refund, so FOA can answer for it",
           "decision_note": "Finance's note on approving or rejecting a refund: free text the requester reads",
@@ -463,6 +497,20 @@
           "reporter_name_ciphertext": "Who reported, when they chose not to stay anonymous, to follow up (encrypted)",
           "subject_age": "The child's rough age, to judge urgency and how long to keep the report",
           "subject_details_ciphertext": "Who the concern is about (a name, a school, a username), to find the child (encrypted)"
+        },
+        "school_round": {
+          "judging_attested_by_user_id": "Records which coordinator attested the school judging",
+          "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
+        },
+        "school_round_pick": {
+          "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
+        },
+        "school_round_transition": {
+          "actor_user_id": "Records which user acted when the school round changed status"
+        },
+        "school_round_panel_member": {
+          "full_name": "Names the person on the school judging panel the coordinator recorded",
+          "designation": "Shows the role of the person on the school judging panel"
         },
         "second_factor": {
           "credential_id": "The passkey's id, to find it when the person signs in with it",
@@ -749,6 +797,10 @@
         "announcements": {
           "name": "Announcements",
           "rule": "While the competition's records are kept. No daily job yet."
+        },
+        "donationRecords": {
+          "name": "Donations and receipts",
+          "rule": "Kept as financial records until 8 years after the end of the donation's financial year. A receipt never changes once issued. No daily job yet."
         },
         "campaigns": {
           "name": "Campaigns",

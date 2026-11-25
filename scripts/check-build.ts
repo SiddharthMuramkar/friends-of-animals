@@ -14,7 +14,10 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 
-import { SIGNED_IN_PREFIXES } from "../src/lib/app-routes";
+import {
+  DONATION_CHECKOUT_PREFIX,
+  SIGNED_IN_PREFIXES,
+} from "../src/lib/app-routes";
 import { ROUTES } from "../src/lib/routes";
 import {
   INITIAL_JS_BUDGET,
@@ -114,7 +117,8 @@ function checkCsp(): string[] {
   return cspOutputFailures({
     manifest,
     routes: Object.values(ROUTES),
-    signedInPrefixes: SIGNED_IN_PREFIXES,
+    // A donation's checkout (#106) renders per request with the nonce too.
+    signedInPrefixes: [...SIGNED_IN_PREFIXES, DONATION_CHECKOUT_PREFIX],
     pages,
   });
 }
