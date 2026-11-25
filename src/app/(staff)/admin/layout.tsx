@@ -15,6 +15,7 @@ import {
   ADMIN_PRIVACY,
   ADMIN_PRIVACY_REQUESTS,
   ADMIN_VOLUNTEERS,
+  ADMIN_COMMUNITY_MEMBERS,
   APP_ROUTES,
 } from "@/lib/app-routes";
 import { env } from "@/env";
@@ -51,6 +52,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
         : [{ href: APP_ROUTES.adminConsentForms, label: t("consentForms") }]),
       { href: ADMIN_PRIVACY, label: t("privacy") },
       { href: ADMIN_PRIVACY_REQUESTS, label: t("privacyRequests") },
+      { href: ADMIN_COMMUNITY_MEMBERS, label: t("community") },
       { href: ADMIN_VOLUNTEERS, label: t("volunteers") },
       { href: ADMIN_JUDGING_ROUNDS, label: t("judging") },
       { href: ADMIN_VERIFICATION, label: t("verification") },

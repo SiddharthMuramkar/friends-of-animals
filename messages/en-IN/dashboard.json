@@ -26,7 +26,9 @@
       "directory": "Your listing in FOA's NGO directory",
       "volunteer": "Volunteer with Friends of Animals",
       "adoptions": "Your adoption applications",
-      "privacy": "Your privacy requests: see, correct or erase your data"
+      "privacy": "Your privacy requests: see, correct or erase your data",
+      "community": "Your community",
+      "timeline": "Engagement timeline"
     },
     "admin": {
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
@@ -43,7 +45,8 @@
       "adoptions": "Adoption applications",
       "privacyRequests": "Privacy requests",
       "judging": "Judging rounds",
-      "auctions": "Auction lots"
+      "auctions": "Auction lots",
+      "community": "Community members"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."

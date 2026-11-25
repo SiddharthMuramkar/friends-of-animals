@@ -22,6 +22,9 @@ import {
   ADMIN_PRIVACY_REQUESTS,
   ADMIN_REFUNDS,
   ADMIN_VOLUNTEERS,
+  ADMIN_COMMUNITY_MEMBERS,
+  DASHBOARD_COMMUNITY,
+  DASHBOARD_TIMELINE,
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
   DASHBOARD_ADOPTIONS,
@@ -231,6 +234,8 @@ async function AreaBody({
             { href: APP_ROUTES.guardian, label: t("member.children") },
             { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
             { href: MY_LISTINGS, label: t("member.directory") },
+            { href: DASHBOARD_COMMUNITY, label: t("member.community") },
+            { href: DASHBOARD_TIMELINE, label: t("member.timeline") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
             { href: DASHBOARD_DONATIONS, label: t("member.donations") },
@@ -296,7 +301,13 @@ async function AreaBody({
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
               : []),
             ...(community
-              ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
+              ? [
+                  {
+                    href: ADMIN_COMMUNITY_MEMBERS,
+                    label: t("admin.community"),
+                  },
+                  { href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") },
+                ]
               : []),
             ...(verifier
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]

@@ -186,7 +186,8 @@
         "body": "To register {name}, open a competition, choose to take part as an individual, then choose {name}. Their registrations show in My competitions.",
         "find": "Find a competition",
         "mine": "My competitions"
-      }
+      },
+      "timeline": "Engagement timeline"
     },
     "invitation": {
       "eyebrow": "Invitation",

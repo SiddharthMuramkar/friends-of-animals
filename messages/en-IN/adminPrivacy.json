@@ -36,7 +36,8 @@
         "adoption_application": "Adopter who applied",
         "user": "Account holder",
         "visitor": "Visitor",
-        "held_subject": "Account, participant or institution under the hold"
+        "held_subject": "Account, participant or institution under the hold",
+        "community_subject": "Community member or participant"
       },
       "kept": "Default retention",
       "categories": {
@@ -105,7 +106,9 @@
         "adoptionApplications": "2 years after the application closes. One behind a published success story stays while the story is up",
         "privacyRequests": "While the request is open, then 3 years after it is closed",
         "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored",
-        "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)"
+        "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)",
+        "communityHistory": "Until erasure of the account or participant profile",
+        "communityMembers": "While active, then 365 days after departure"
       },
       "purposes": {
         "account": {
@@ -723,6 +726,27 @@
           "suitable_for_auction": "Recognition suitable for auction, separate from consent.",
           "award_band": "Award band in the results release.",
           "prize": "Prize attached to the awarded recognition."
+        },
+        "community_member": {
+          "subject_user_id": "The account whose private FOA journey this belongs to",
+          "subject_profile_id": "The participant whose private FOA journey this belongs to",
+          "joined_by_user_id": "The account that joined the member to the community",
+          "display_name_ciphertext": "The member’s private display name",
+          "about_ciphertext": "The member’s optional private introduction"
+        },
+        "engagement_milestone": {
+          "subject_user_id": "The account whose private FOA journey this belongs to",
+          "subject_profile_id": "The participant whose private FOA journey this belongs to",
+          "kind": "The earned rung on the person’s engagement ladder",
+          "source_id": "The actual domain fact from which the milestone was earned"
+        },
+        "timeline_entry": {
+          "subject_user_id": "The account whose private FOA journey this belongs to",
+          "subject_profile_id": "The participant whose private FOA journey this belongs to",
+          "kind": "The type of event in the person’s engagement history",
+          "ref_id": "The activity or record in the person’s journey",
+          "source_key": "A stable key that prevents repeated entries for the same activity",
+          "milestone_id": "The earned milestone represented by this timeline entry"
         }
       }
     },
@@ -943,6 +967,14 @@
         "judgingRecords": {
           "name": "Judging records",
           "rule": "Provisional: 90 days after the round’s results, pending counsel and the results workflow. Invitation links are cleared on response."
+        },
+        "communityHistory": {
+          "name": "Community history",
+          "rule": "Kept in the private journey until the account or participant profile is erased."
+        },
+        "communityMembers": {
+          "name": "Former member profiles",
+          "rule": "A departed member’s display name and introduction are removed {days, plural, one {# day} other {# days}} after departure. Earned milestones stay until erasure."
         }
       }
     },

@@ -13,6 +13,7 @@ export type CampaignFormValues = {
   body: string;
   roles: string[];
   competitionIds: string[];
+  milestones: string[];
   /** As typed: comma-separated. */
   cities: string;
 };
@@ -43,6 +44,7 @@ export function formValues(form: FormData): CampaignFormValues {
     body: text(form, "body"),
     roles: texts(form, "roles"),
     competitionIds: texts(form, "competitionIds"),
+    milestones: texts(form, "milestones"),
     cities: text(form, "cities"),
   };
 }
@@ -63,6 +65,7 @@ export function draftInput(values: CampaignFormValues): CampaignDraftInput {
     segment: {
       roles: values.roles,
       competitionIds: values.competitionIds,
+      ...(values.milestones.length ? { milestones: values.milestones } : {}),
       cities: citiesOf(values.cities),
     } as CampaignDraftInput["segment"],
   };
@@ -79,9 +82,17 @@ export function campaignFormView(
           body: draft.body,
           roles: draft.segment.roles,
           competitionIds: draft.segment.competitionIds,
+          milestones: draft.segment.milestones ?? [],
           cities: draft.segment.cities.join(", "),
         }
-      : { subject: "", body: "", roles: [], competitionIds: [], cities: "" },
+      : {
+          subject: "",
+          body: "",
+          roles: [],
+          competitionIds: [],
+          milestones: [],
+          cities: "",
+        },
     errors: [],
     alert: [],
   };

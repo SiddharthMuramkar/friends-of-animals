@@ -36,6 +36,7 @@ import {
 import type { AppDb } from "../../db/app-db";
 import {
   consentEvent,
+  engagementMilestone,
   guardian,
   guardianLink,
   institution,
@@ -57,10 +58,15 @@ const INSTITUTION_ROLES = [
   "institution_coordinator",
 ] as const;
 
-type Attributes = { [K in keyof SegmentAttributes]: Set<string> };
+type Attributes = { [K in keyof Required<SegmentAttributes>]: Set<string> };
 
 function attributes(): Attributes {
-  return { roles: new Set(), competitionIds: new Set(), cities: new Set() };
+  return {
+    roles: new Set(),
+    competitionIds: new Set(),
+    cities: new Set(),
+    milestones: new Set(),
+  };
 }
 
 function frozen(found: Attributes | undefined): SegmentAttributes {
@@ -68,6 +74,7 @@ function frozen(found: Attributes | undefined): SegmentAttributes {
     roles: [...(found?.roles ?? [])],
     competitionIds: [...(found?.competitionIds ?? [])],
     cities: [...(found?.cities ?? [])],
+    ...(found?.milestones.size ? { milestones: [...found.milestones] } : {}),
   };
 }
 
@@ -166,6 +173,7 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
     messages,
     communications,
     guardians,
+    milestones,
   ] = await Promise.all([
     db.select({ id: user.id }).from(user).orderBy(user.id),
     db
@@ -215,6 +223,13 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
     latestConsents(db, "user", "messages"),
     latestConsents(db, "participant_profile", "communications"),
     activeGuardians(db),
+    db
+      .select({
+        userId: engagementMilestone.subjectUserId,
+        profileId: engagementMilestone.subjectProfileId,
+        kind: engagementMilestone.kind,
+      })
+      .from(engagementMilestone),
   ]);
 
   const competitionsByProfile = new Map<string, string[]>();
@@ -236,6 +251,29 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
   }
 
   const ofUser = new Map<string, Attributes>();
+  const ofChild = new Map<string, Attributes>();
+  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+  const childByLogin = new Map(
+    profiles
+      .filter(
+        (profile) =>
+          profile.ownerKind === "guardian" && profile.loginUserId !== null
+      )
+      .map((profile) => [profile.loginUserId!, profile.id])
+  );
+  for (const milestone of milestones) {
+    if (milestone.userId !== null) {
+      const childId = childByLogin.get(milestone.userId);
+      if (childId) add(ofChild, childId, "milestones", milestone.kind);
+      else add(ofUser, milestone.userId, "milestones", milestone.kind);
+    } else if (milestone.profileId !== null) {
+      const profile = profileById.get(milestone.profileId);
+      if (profile?.ownerKind === "guardian")
+        add(ofChild, profile.id, "milestones", milestone.kind);
+      else if (profile?.ownerKind === "self" && profile.ownerUserId)
+        add(ofUser, profile.ownerUserId, "milestones", milestone.kind);
+    }
+  }
   for (const grant of roles) {
     if ((SEGMENT_ROLES as readonly string[]).includes(grant.role)) {
       add(ofUser, grant.userId, "roles", grant.role);
@@ -259,7 +297,6 @@ export async function loadCandidates(db: AppDb): Promise<AudienceCandidate[]> {
     }
   }
 
-  const ofChild = new Map<string, Attributes>();
   const childLogins = new Set<string>();
   const children: Extract<AudienceCandidate, { kind: "child" }>[] = [];
   for (const profile of profiles) {

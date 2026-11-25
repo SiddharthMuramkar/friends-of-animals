@@ -300,6 +300,10 @@
         "privacyRequestsDays": {
           "label": "Keep closed privacy requests",
           "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
+        },
+        "communityMembersDays": {
+          "label": "Keep former member profiles",
+          "description": "Days after departure before the daily retention job clears a former member’s display name and introduction."
         }
       },
       "artwork": {

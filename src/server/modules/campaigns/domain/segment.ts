@@ -14,21 +14,24 @@
 // criterion: the audience planner (./audience.ts) applies it to every
 // segment, so a segment only ever holds people with current consent.
 //
-// Extension point (#119): community membership adds a criterion here, for
-// example `milestones` from the engagement ladder. Add its key to
-// SEGMENT_CRITERIA, its values to the schema below, and its loader beside
-// the others in ../load-audience.ts; TypeScript then names every place a
-// definition or a person's attributes must carry it. Community members
-// with an account are already candidates; only people without one would
-// need a new candidate source in ../load-audience.ts.
+// #119 adds the earned engagement ladder (milestones), without changing the consent gate.
 //
 // Pure: loads under plain Node (schema, seed), relative imports only.
 
 import { z } from "zod";
 
+import {
+  MILESTONE_KINDS,
+  type MilestoneKind,
+} from "../../community/domain/milestones";
 import type { Role } from "../../../access/domain/roles";
 
-export const SEGMENT_CRITERIA = ["roles", "competitionIds", "cities"] as const;
+export const SEGMENT_CRITERIA = [
+  "roles",
+  "competitionIds",
+  "cities",
+  "milestones",
+] as const;
 export type SegmentCriterion = (typeof SEGMENT_CRITERIA)[number];
 
 /**
@@ -59,12 +62,14 @@ export type SegmentDefinition = {
   competitionIds: string[];
   /** Tidied as entered, each city once, sorted by its compared form. */
   cities: string[];
+  /** Earned engagement rungs. Absent on segments created before #119. */
+  milestones?: MilestoneKind[];
 };
 
 /** What one person is matched on, criterion by criterion. */
 export type SegmentAttributes = {
-  [Criterion in SegmentCriterion]: readonly string[];
-};
+  [Criterion in Exclude<SegmentCriterion, "milestones">]: readonly string[];
+} & { milestones?: readonly string[] };
 
 function tidyCity(city: string): string {
   return city.normalize("NFC").trim().replace(/\s+/gu, " ");
@@ -97,6 +102,7 @@ const list = <T extends z.ZodType>(item: T) =>
 export const segmentDefinitionSchema = z
   .strictObject({
     roles: list(z.enum(SEGMENT_ROLES)),
+    milestones: list(z.enum(MILESTONE_KINDS)),
     competitionIds: list(z.uuid()),
     cities: list(
       z
@@ -111,12 +117,19 @@ export const segmentDefinitionSchema = z
       ...new Set(input.competitionIds.map((id) => id.toLowerCase())),
     ].toSorted(),
     cities: canonicalCities(input.cities),
+    ...(input.milestones.length
+      ? {
+          milestones: MILESTONE_KINDS.filter((kind) =>
+            input.milestones.includes(kind)
+          ),
+        }
+      : {}),
   }));
 
 /** Whether the definition filters nobody out: everyone who consented. */
 export function isUnfiltered(definition: SegmentDefinition): boolean {
   return SEGMENT_CRITERIA.every(
-    (criterion) => definition[criterion].length === 0
+    (criterion) => (definition[criterion]?.length ?? 0) === 0
   );
 }
 
@@ -125,6 +138,7 @@ const COMPARED: Record<SegmentCriterion, (value: string) => string> = {
   roles: (value) => value,
   competitionIds: (value) => value.toLowerCase(),
   cities: normaliseCity,
+  milestones: (value) => value,
 };
 
 /** Whether a person with `attributes` is in the segment, consent aside. */
@@ -133,10 +147,10 @@ export function matchesSegment(
   attributes: SegmentAttributes
 ): boolean {
   return SEGMENT_CRITERIA.every((criterion) => {
-    const wanted: readonly string[] = definition[criterion];
+    const wanted: readonly string[] = definition[criterion] ?? [];
     if (wanted.length === 0) return true;
     const key = COMPARED[criterion];
-    const held = new Set(attributes[criterion].map(key));
+    const held = new Set((attributes[criterion] ?? []).map(key));
     return wanted.some((value) => held.has(key(value)));
   });
 }

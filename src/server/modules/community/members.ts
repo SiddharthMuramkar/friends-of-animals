@@ -5,7 +5,7 @@ import { communityMember } from "../../db/schema";
 import { invalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
 import { COMMUNITY_MEMBER_STATUSES } from "./domain/membership";
-import { COMMUNITY_MEMBER_PURPOSE } from "./membership";
+import { COMMUNITY_MEMBER_PURPOSE } from "./profile-fields";
 
 const PAGE_SIZE = 50;
 const inputSchema = z.strictObject({
@@ -58,7 +58,9 @@ export async function listMembers(
           )
         : null,
       status: row.status,
-      subjectKind: row.subjectProfileId ? "profile" : "user",
+      subjectKind: row.subjectProfileId
+        ? ("profile" as const)
+        : ("user" as const),
       joinedAt: row.joinedAt,
       leftAt: row.leftAt,
     })),

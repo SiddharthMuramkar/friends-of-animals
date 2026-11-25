@@ -317,6 +317,8 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "artwork.returned":
     case "results.release_due":
     case "results.prize_awarded":
+    case "community.member_joined":
+    case "engagement.milestone_recorded":
     case "results.published":
     case "auction.lot_created":
     case "auction.lot.open":
@@ -929,6 +931,8 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: PRIZE_VARIABLES,
     load: (db, delivery) => prizeValues(db, delivery.payload),
   },
+  "community.member_joined": { names: [], load: async () => ({}) },
+  "engagement.milestone_recorded": { names: [], load: async () => ({}) },
   "results.published": { names: [], load: async () => ({}) },
   "auction.lot_created": { names: [], load: async () => ({}) },
   "auction.lot.open": { names: [], load: async () => ({}) },

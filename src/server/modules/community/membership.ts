@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
+import { emit } from "../../outbox";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import {
@@ -24,10 +25,7 @@ import type { Subject } from "./domain/subject";
 import { recordEngagement } from "./engagement";
 import { communityMemberFor, lockPerson, subjectColumns } from "./subjects";
 
-export const COMMUNITY_MEMBER_PURPOSE = {
-  displayName: "community_member.display_name",
-  about: "community_member.about",
-} as const;
+import { COMMUNITY_MEMBER_PURPOSE } from "./profile-fields";
 
 export type TargetInput = { childId?: string };
 const targetSchema = z.strictObject({ childId: z.uuid().optional() });
@@ -198,16 +196,14 @@ export async function joinCommunity(
         .set(values)
         .where(eq(communityMember.id, id));
     } else {
-      await db
-        .insert(communityMember)
-        .values({
-          id,
-          ...subjectColumns(key),
-          ...values,
-          joinedByUserId: ctx.actor.userId,
-          joinedAt: now,
-          createdAt: now,
-        });
+      await db.insert(communityMember).values({
+        id,
+        ...subjectColumns(key),
+        ...values,
+        joinedByUserId: ctx.actor.userId,
+        joinedAt: now,
+        createdAt: now,
+      });
     }
     await recordEngagement(db, local, {
       type: "milestone",
@@ -224,6 +220,11 @@ export async function joinCommunity(
       before: { status: current?.status ?? null },
       after: { status: "active" },
       actorRole: role,
+    });
+    await emit(db, ctx.clock, {
+      type: "community.member_joined",
+      aggregate: { type: "community_member", id },
+      payload: { memberId: id },
     });
     return { ok: true, memberId: id } as const;
   });

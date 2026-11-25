@@ -1,6 +1,7 @@
 // Trusted write seam. Call from the transaction that records the fact, not
 // from browser actions. No untrusted labels or private free text.
 import { and, eq, isNull } from "drizzle-orm";
+import { emit } from "../../outbox";
 import { recordAudit } from "../../audit/record";
 import type { AppDb } from "../../db/app-db";
 import { engagementMilestone, timelineEntry } from "../../db/schema";
@@ -127,6 +128,11 @@ export async function recordEngagement(
         before: null,
         after: { kind: milestone.kind, competitionId: milestone.competitionId },
         actorRole: null,
+      });
+      await emit(tx, ctx.clock, {
+        type: "engagement.milestone_recorded",
+        aggregate: { type: "engagement_milestone", id: milestone.id },
+        payload: { milestoneId: milestone.id },
       });
     } else {
       [milestone] = await tx

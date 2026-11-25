@@ -158,6 +158,13 @@ export function adminDonationPath(donationId: string): string {
  * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
  * rather than in APP_ROUTES, like the payments pages.
  */
+export const DASHBOARD_COMMUNITY = "/dashboard/community";
+export const DASHBOARD_TIMELINE = "/dashboard/timeline";
+export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
+export function guardianChildTimelinePath(childId: string): string {
+  return `${guardianChildPath(childId)}/timeline`;
+}
+
 export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
 export const ADMIN_VOLUNTEERS = "/admin/volunteers";
 
@@ -662,6 +669,10 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
   "/guardian/children/[id]/volunteer",
+  DASHBOARD_COMMUNITY,
+  DASHBOARD_TIMELINE,
+  ADMIN_COMMUNITY_MEMBERS,
+  "/guardian/children/[id]/timeline",
   DASHBOARD_VOLUNTEER,
   ADMIN_VOLUNTEERS,
   "/admin/volunteers/[id]",

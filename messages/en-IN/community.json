@@ -1,0 +1,98 @@
+{
+  "community": {
+    "meta": {
+      "title": "FOA community",
+      "timeline": "Engagement timeline",
+      "child": "Child’s engagement timeline",
+      "members": "Community members"
+    },
+    "eyebrow": "Friends of Animals community",
+    "title": "Your community",
+    "intro": "Stay connected with FOA, from your first competition to a lifetime of kindness.",
+    "privacy": "Your member profile and journey are private: they are not a public profile or social feed.",
+    "profileTitle": "Member profile",
+    "displayName": "Display name (required)",
+    "nameHint": "Choose a name between 2 and 60 characters.",
+    "about": "About you (optional)",
+    "aboutHint": "Tell us a little about your interests in up to 280 characters. Please do not include contact details.",
+    "status": {
+      "active": "Active member",
+      "left": "Former member",
+      "none": "Not a member",
+      "all": "All members"
+    },
+    "joined": "Joined",
+    "left": "Left",
+    "removed": "Profile details removed",
+    "join": "Join the community",
+    "rejoin": "Rejoin the community",
+    "update": "Save profile",
+    "leave": "Leave the community",
+    "leavingNote": "Leaving ends your membership. Your earned milestones remain in your private journey.",
+    "working": "Saving…",
+    "childOwnLogin": "This child signs in with their own account and manages their own membership.",
+    "timelineLink": "View your engagement timeline",
+    "communityLink": "Manage your community membership",
+    "timeline": {
+      "title": "Your engagement timeline",
+      "childTitle": "{name}’s engagement timeline",
+      "intro": "The milestones you have earned and your activity with FOA, in date order.",
+      "history": "Engagement history",
+      "empty": "Your journey is just beginning. Milestones and activities will appear here as you take part.",
+      "ladder": "Engagement ladder",
+      "earned": "Earned",
+      "notYet": "Not yet earned",
+      "milestones": {
+        "participant": "Participant",
+        "school_winner": "School winner",
+        "foa_finalist": "FOA finalist",
+        "community_member": "Community member",
+        "volunteer": "Volunteer",
+        "ambassador": "Ambassador"
+      },
+      "kinds": {
+        "milestone": {
+          "participant": "Took part in a competition",
+          "school_winner": "Earned a school position",
+          "foa_finalist": "Became a FOA finalist",
+          "community_member": "Joined the FOA community",
+          "volunteer": "Became a volunteer",
+          "ambassador": "Became an ambassador"
+        }
+      },
+      "categories": {
+        "competition": "Competition",
+        "recognition": "Recognition",
+        "community": "Community",
+        "event": "Event",
+        "volunteering": "Volunteering"
+      }
+    },
+    "outcome": {
+      "joined": "You joined the community.",
+      "updated": "Your member profile was saved.",
+      "left": "Membership ended. Earned milestones remain in the timeline.",
+      "invalid_input": "Check the display name and introduction lengths and try again.",
+      "already_member": "This person is already a member.",
+      "not_member": "There is no active membership to change.",
+      "child_joins_themselves": "This child manages their own membership."
+    },
+    "loading": "Loading the community…",
+    "back": "Back to dashboard",
+    "backChild": "Back to child’s profile",
+    "admin": {
+      "title": "Community members",
+      "intro": "Private membership records for the community team. This view does not show members’ introductions or contact details.",
+      "nav": "Community administration",
+      "members": "Members",
+      "filter": "Filter membership status",
+      "apply": "Apply filter",
+      "count": "{count, plural, one {# member} other {# members}}",
+      "kind": { "user": "Account", "profile": "Participant profile" },
+      "empty": "No members match this filter.",
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {page} of {pages}"
+    }
+  }
+}
