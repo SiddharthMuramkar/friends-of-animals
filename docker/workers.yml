@@ -229,10 +229,13 @@ services:
 
   worker-media:
     <<: *worker
-    # Drains only the image derivative (media) queue that worker-prod fills
-    # after each clean scan. Start it explicitly after the Files migrations
-    # and its R2 file: `db` reaches Postgres (pg-boss, directly) and R2,
-    # `pdf` reaches Gotenberg. It needs no scanner, so no `scan`.
+    # Drains only the media queue that worker-prod fills after each clean
+    # scan: image derivatives (sharp, in a child process with the
+    # MEDIA_TIMEOUT_SECONDS deadline) and video transcodes (ffmpeg, #86,
+    # with a deadline per clip from its length). Start it explicitly after
+    # the Files migrations and its R2 file: `db` reaches Postgres (pg-boss,
+    # directly) and R2, `pdf` reaches Gotenberg. It needs no scanner, so no
+    # `scan`.
     profiles:
       - media
     build:
@@ -249,6 +252,9 @@ services:
         required: false
     command: ["node", "--import", "tsx", "src/worker-media/main.ts"]
     stop_grace_period: 75s
+    tmpfs:
+      # ffmpeg's scratch folder: one 200 MB original and its copy at a time.
+      - /tmp:size=1g
     environment:
       APP_ENV: production
       WORKER_MODE: single

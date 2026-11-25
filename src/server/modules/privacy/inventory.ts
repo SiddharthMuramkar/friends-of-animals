@@ -1252,6 +1252,8 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     onExpiry: "set_null",
   }),
   entryFile("receipt_title", "content"),
+  // A typed essay is the work itself (#86), kept like the entry's words.
+  entryFile("essay_body", "content"),
   actorColumn("entry_file", "uploaded_by_user_id", ENTRY_RECORD),
   ...(["file_asset_id", "registration_id", "upload_key"] as const).map(
     (column) =>

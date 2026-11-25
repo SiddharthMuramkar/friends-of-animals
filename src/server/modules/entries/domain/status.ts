@@ -55,7 +55,8 @@ export type EntryTrigger =
   | "file_live"
   | "file_infected"
   | "file_failed"
-  | "upload_retried";
+  | "upload_retried"
+  | "essay_typed";
 
 export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: null, to: "processing", trigger: "upload_completed" },
@@ -64,6 +65,11 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: "processing", to: "failed", trigger: "file_failed" },
   { from: "rejected", to: "processing", trigger: "upload_retried" },
   { from: "failed", to: "processing", trigger: "upload_retried" },
+  // A typed essay has nothing to check, so it counts at once (#86, the
+  // owner's ruling of 2026-11-19). A rejected or failed entry retried with
+  // one goes back to processing first, then here.
+  { from: null, to: "submitted", trigger: "essay_typed" },
+  { from: "processing", to: "submitted", trigger: "essay_typed" },
 ];
 
 export type EntryFileTrigger =
@@ -73,13 +79,16 @@ export type EntryFileTrigger =
   | "processed"
   | "processing_failed"
   | "newer_upload"
-  | "replacement_live";
+  | "replacement_live"
+  | "essay_typed";
 
 export const ENTRY_FILE_MOVES: readonly Move<
   EntryFileStatus,
   EntryFileTrigger
 >[] = [
   { from: null, to: "pending", trigger: "upload_completed" },
+  // A typed essay (#86) is live as soon as it is saved.
+  { from: null, to: "live", trigger: "essay_typed" },
   { from: "pending", to: "processing", trigger: "scan_clean" },
   { from: "pending", to: "rejected", trigger: "scan_infected" },
   { from: "processing", to: "live", trigger: "processed" },

@@ -31,6 +31,7 @@ type Directive =
   | "script-src-attr"
   | "style-src"
   | "img-src"
+  | "media-src"
   | "font-src"
   | "connect-src"
   | "frame-src"
@@ -53,6 +54,7 @@ type FeatureDirective = Extract<
   | "script-src"
   | "style-src"
   | "img-src"
+  | "media-src"
   | "font-src"
   | "connect-src"
   | "frame-src"
@@ -187,6 +189,9 @@ function policyWith(scripts: readonly string[], context: CspContext): Policy {
     // React renders `style` attributes, which a nonce can't cover.
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:"],
+    // An entry's video plays from its signed URL (#86); the upload form
+    // reads a chosen clip's length from a blob: URL.
+    "media-src": ["'self'", "blob:"],
     "font-src": ["'self'"],
     "connect-src": ["'self'"],
     "frame-src": ["'none'"],

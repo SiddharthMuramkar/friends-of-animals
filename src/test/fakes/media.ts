@@ -1,12 +1,19 @@
 // In-memory MediaProcessor for Seam 1 tests. It passes the same contract
-// as the sharp adapter (src/server/ports/media.contract.ts) without decoding
-// a pixel: it sniffs the type, reads the size and EXIF orientation from the
-// image's headers, checks the file isn't cut short, and returns minimal WebP
-// containers of the planned sizes, which hold no metadata.
+// as the sharp and ffmpeg adapters (src/server/ports/media.contract.ts)
+// without decoding a pixel. For an image it sniffs the type, reads the size
+// and EXIF orientation from the image's headers, checks the file isn't cut
+// short, and returns minimal WebP containers of the planned sizes, which
+// hold no metadata. For a video (#86) it sniffs the type, takes the probe a
+// test set with nextVideo() (a 40 s 1080p clip by default) and runs the
+// same pure planner as the ffmpeg adapter, so the length rule and the sizes
+// can't drift; it returns a bare MP4 header and a bare JPEG of the planned
+// sizes.
 //
 //   const media = new FakeMediaProcessor();
 //   media.failNext(1, "media_decode_failed"); // the next call rejects
-//   media.processed;                          // every input, oldest first
+//   media.nextVideo({ durationMs: 181_001 }); // what the next video probes as
+//   media.processed;                          // every image input, oldest first
+//   media.videos;                             // every video call, oldest first
 
 import {
   planImageDerivatives,
@@ -16,12 +23,20 @@ import {
   sniffImageType,
   type SniffedImageType,
 } from "@/server/modules/files/domain/image-type";
+import type { VideoProbe } from "@/server/modules/files/domain/video-probe";
+import {
+  sniffVideoType,
+  VIDEO_SNIFF_BYTES,
+} from "@/server/modules/files/domain/video-sniff";
+import { planVideoTranscode } from "@/server/modules/files/domain/video-transcode";
 import {
   MediaError,
   type MediaErrorCode,
   type MediaInput,
   type MediaProcessor,
   type MediaResult,
+  type VideoInput,
+  type VideoResult,
 } from "@/server/ports/media";
 import { minimalWebp } from "@/test/webp";
 
@@ -200,14 +215,107 @@ function readSource(type: SniffedImageType, bytes: Uint8Array): Source | null {
   }
 }
 
-export class FakeMediaProcessor implements MediaProcessor {
-  /** Every input, oldest first, failed ones included. */
-  readonly processed: MediaInput[] = [];
-  private failures: MediaErrorCode[] = [];
+/** What a video probes as unless a test says otherwise: 40 s of 1080p. */
+export const DEFAULT_VIDEO_PROBE: VideoProbe = {
+  durationMs: 40_000,
+  width: 1920,
+  height: 1080,
+  rotation: 0,
+  videoCodec: "h264",
+  audioCodec: "aac",
+  formatName: "mov,mp4,m4a,3gp,3g2,mj2",
+};
 
-  /** The next `times` calls reject with a MediaError of `code`. */
+/** An MP4's `ftyp` box alone: sniffs as video/mp4, holds no metadata. */
+function bareMp4(): Uint8Array {
+  return Uint8Array.from([
+    0x00, 0x00, 0x00, 0x10, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d,
+    0x00, 0x00, 0x02, 0x00,
+  ]);
+}
+
+/** A JPEG of just its start, frame size and end: no EXIF, no pixels. */
+export function bareJpeg(width: number, height: number): Uint8Array {
+  return Uint8Array.from([
+    0xff,
+    0xd8,
+    0xff,
+    0xc0,
+    0x00,
+    0x0b,
+    0x08,
+    height >> 8,
+    height & 0xff,
+    width >> 8,
+    width & 0xff,
+    0x01,
+    0x01,
+    0x11,
+    0x00,
+    0xff,
+    0xd9,
+  ]);
+}
+
+export class FakeMediaProcessor implements MediaProcessor {
+  /** Every image input, oldest first, failed ones included. */
+  readonly processed: MediaInput[] = [];
+  /** Every video call, oldest first, failed ones included. */
+  readonly videos: { sizeBytes: number; maxDurationMs: number }[] = [];
+  private failures: MediaErrorCode[] = [];
+  private probes: (Partial<VideoProbe> | "no_video_stream")[] = [];
+
+  /** The next `times` calls, image or video, reject with `code`. */
   failNext(times: number, code: MediaErrorCode = "media_decode_failed") {
     this.failures.push(...Array.from({ length: times }, () => code));
+  }
+
+  /** What the next video probes as: these fields over the default. */
+  nextVideo(probe: Partial<VideoProbe> | "no_video_stream") {
+    this.probes.push(probe);
+  }
+
+  async processVideo({
+    source,
+    maxDurationMs,
+  }: VideoInput): Promise<VideoResult> {
+    const bytes = new Uint8Array(await new Response(source).arrayBuffer());
+    this.videos.push({ sizeBytes: bytes.length, maxDurationMs });
+    const failure = this.failures.shift();
+    if (failure) throw new MediaError(failure);
+    const sniffedType = sniffVideoType(bytes.subarray(0, VIDEO_SNIFF_BYTES));
+    if (!sniffedType) throw new MediaError("unsupported_type");
+    const next = this.probes.shift() ?? {};
+    if (next === "no_video_stream") throw new MediaError("no_video_stream");
+    const probe = { ...DEFAULT_VIDEO_PROBE, ...next };
+    const decision = planVideoTranscode(probe, { maxDurationMs });
+    if (!decision.ok) throw new MediaError("video_too_long");
+    const { plan } = decision;
+    return {
+      sniffedType,
+      probe,
+      derivatives: [
+        {
+          kind: "video_mp4",
+          contentType: "video/mp4",
+          width: plan.width,
+          height: plan.height,
+          durationMs:
+            probe.durationMs === null
+              ? null
+              : Math.min(probe.durationMs, plan.maxOutputS * 1000),
+          bytes: bareMp4(),
+        },
+        {
+          kind: "video_poster",
+          contentType: "image/jpeg",
+          width: plan.posterWidth,
+          height: plan.posterHeight,
+          durationMs: null,
+          bytes: bareJpeg(plan.posterWidth, plan.posterHeight),
+        },
+      ],
+    };
   }
 
   async processImage(input: MediaInput): Promise<MediaResult> {

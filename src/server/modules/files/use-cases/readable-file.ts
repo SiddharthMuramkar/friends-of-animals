@@ -2,20 +2,21 @@
 // with broad Files access look it up by id. Anyone else may only find a
 // file they uploaded, so an unreadable file and a missing one are both
 // forbidden. A visitor or the platform is refused before any lookup.
-// Entry images are read through the Entries module's own policy.
+// An entry's uploads are read through the Entries module's own policy.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 
 import { authorize, can } from "../../../access/can";
 import { fileAsset, type FileAssetRow } from "../../../db/schema";
 import { DomainError } from "../../../errors";
+import { ENTRY_FILE_PURPOSES } from "../domain/purposes";
 import type { FilesContext } from "./upload";
 
 /**
  * An uploaded file the caller may read through Files. Staff with broad
- * Files access get null for a missing file or an entry image.
+ * Files access get null for a missing file or an entry's upload.
  */
 export async function findReadableFile(
   ctx: FilesContext,
@@ -24,7 +25,7 @@ export async function findReadableFile(
   const everyFile = await can(ctx, "file.read");
   const conditions = [
     eq(fileAsset.id, fileId),
-    ne(fileAsset.purpose, "entry_image"),
+    notInArray(fileAsset.purpose, [...ENTRY_FILE_PURPOSES]),
   ];
   if (!everyFile.allowed) {
     const ownerId = ctx.actor.kind === "user" ? ctx.actor.userId : undefined;

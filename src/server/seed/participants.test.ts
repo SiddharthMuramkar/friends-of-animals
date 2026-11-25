@@ -80,14 +80,26 @@ describe("the participants seed", () => {
         amountDue: null,
       }),
     ]);
-    expect(ravis).toEqual([
-      expect.objectContaining({
-        status: "pending_payment",
-        participantCode: "FOA-P-265EED02",
-        registrationNumber: null,
-        amountDue: { amountMinor: 10_000n, currency: "INR" },
-      }),
-    ]);
+    expect(ravis).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "pending_payment",
+          participantCode: "FOA-P-265EED02",
+          registrationNumber: null,
+          amountDue: { amountMinor: 10_000n, currency: "INR" },
+        }),
+        // His video and essay entries' registrations (#86).
+        expect.objectContaining({
+          status: "confirmed",
+          registrationNumber: "ROOF27-R-5EEDB1",
+        }),
+        expect.objectContaining({
+          status: "confirmed",
+          registrationNumber: "BIRDS27-R-5EEDB1",
+        }),
+      ])
+    );
+    expect(ravis).toHaveLength(3);
     const [batch] = await h.db.select().from(paymentBatch);
     expect(
       (await h.db.select().from(paymentBatch)).filter(

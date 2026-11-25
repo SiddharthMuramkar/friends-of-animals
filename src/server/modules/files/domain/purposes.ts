@@ -18,9 +18,29 @@ export const FILE_PURPOSES = [
   "entry_image",
   "directory_document",
   "adoption_photo",
+  "entry_video",
+  "entry_document",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
+
+/**
+ * An entry's uploads (#85, #86): presigned, completed and read only through
+ * the Entries module, which checks who may see the entry.
+ */
+export const ENTRY_FILE_PURPOSES = [
+  "entry_image",
+  "entry_video",
+  "entry_document",
+] as const satisfies readonly FilePurpose[];
+
+export type EntryFilePurpose = (typeof ENTRY_FILE_PURPOSES)[number];
+
+export function isEntryFilePurpose(
+  purpose: string
+): purpose is EntryFilePurpose {
+  return (ENTRY_FILE_PURPOSES as readonly string[]).includes(purpose);
+}
 
 /**
  * Types that can be opened as stored. HTML, SVG and other active content
@@ -36,10 +56,37 @@ export const STORABLE_CONTENT_TYPES = [
 
 export type StorableContentType = (typeof STORABLE_CONTENT_TYPES)[number];
 
+/**
+ * Phone video formats an entry takes (#86). An original is kept private and
+ * never served: people watch the transcoded copy worker-media makes.
+ */
+export const VIDEO_CONTENT_TYPES = [
+  "video/mp4",
+  "video/quicktime",
+  "video/3gpp",
+  "video/webm",
+] as const;
+
+export type VideoContentType = (typeof VIDEO_CONTENT_TYPES)[number];
+
 export type PurposeRule = {
-  /** HEIC and HEIF originals are accepted for private processing. */
-  contentTypes: readonly (StorableContentType | "image/heic" | "image/heif")[];
+  /**
+   * HEIC and HEIF originals, and videos, are accepted for private
+   * processing only.
+   */
+  contentTypes: readonly (
+    | StorableContentType
+    | "image/heic"
+    | "image/heif"
+    | VideoContentType
+  )[];
   maxBytes: number;
+  /**
+   * A video purpose's longest clip, as worker-media's ffprobe measures it
+   * (#86). The browser and the upload check the length they are told,
+   * against the same limit, only to answer sooner.
+   */
+  maxDurationMs?: number;
   /** `non_production`: refused when APP_ENV is production. */
   environments: "all" | "non_production";
   /**
@@ -96,6 +143,27 @@ export const PURPOSE_RULES = {
       "image/heif",
     ],
     maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /**
+   * A participant's video of their work (#86). Only `startEntryUpload`
+   * presigns one; worker-media transcodes it, and people watch the copy.
+   */
+  entry_video: {
+    contentTypes: VIDEO_CONTENT_TYPES,
+    maxBytes: 200 * MiB,
+    maxDurationMs: 3 * 60 * 1000,
+    environments: "all",
+    directUpload: false,
+  },
+  /**
+   * A participant's essay as a PDF (#86). Only `startEntryUpload` presigns
+   * one; it is shown as stored once its scan passes.
+   */
+  entry_document: {
+    contentTypes: ["application/pdf"],
+    maxBytes: 10 * MiB,
     environments: "all",
     directUpload: false,
   },

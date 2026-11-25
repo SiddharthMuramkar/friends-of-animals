@@ -282,6 +282,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "updated_at",
     "upload_completed_at",
+    "word_count",
   ],
   entry_transition: [
     "actor_kind",
