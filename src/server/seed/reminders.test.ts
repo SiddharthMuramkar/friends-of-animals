@@ -8,6 +8,7 @@ import {
   SEED_ENTRY_COMPETITIONS,
   SEED_SCHOOL_SUBMISSIONS_COMPETITION,
 } from "./competitions";
+import { SEED_SCHOOL_ROUND } from "./school-round";
 
 // #84 84b AC11: the preview seed plans the seeded live competitions'
 // submission reminders, as publishing would, sends nothing now, and runs
@@ -40,6 +41,8 @@ describe("the reminders seed", () => {
       NEIGH27,
       PUBLISHED,
       ...SEED_ENTRY_COMPETITIONS.map(({ id }) => id),
+      // Already judging, so only the future shortlist deadline remains.
+      SEED_SCHOOL_ROUND.competitionId,
       // Open for the school's submissions (#87).
       SEED_SCHOOL_SUBMISSIONS_COMPETITION.id,
     ].toSorted();
@@ -52,9 +55,17 @@ describe("the reminders seed", () => {
       ])
     ).toEqual([
       ...subjects.flatMap((id) => [
-        [id, "entry_submission_due", 72, "scheduled"],
-        [id, "entry_submission_due", 24, "scheduled"],
-        ...([NEIGH27, SEED_SCHOOL_SUBMISSIONS_COMPETITION.id].includes(id)
+        ...(id === SEED_SCHOOL_ROUND.competitionId
+          ? []
+          : [
+              [id, "entry_submission_due", 72, "scheduled"],
+              [id, "entry_submission_due", 24, "scheduled"],
+            ]),
+        ...([
+          NEIGH27,
+          SEED_SCHOOL_SUBMISSIONS_COMPETITION.id,
+          SEED_SCHOOL_ROUND.competitionId,
+        ].includes(id)
           ? [
               [id, "school_round_shortlist_due", 72, "scheduled"],
               [id, "school_round_shortlist_due", 24, "scheduled"],
