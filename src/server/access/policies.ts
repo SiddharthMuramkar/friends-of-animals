@@ -28,6 +28,7 @@ import { ENTRIES_POLICY } from "../modules/entries/policy";
 import { ANNOUNCEMENTS_POLICY } from "../modules/announcements/policy";
 import { PRIVACY_POLICY } from "../modules/privacy/policy";
 import { BREACHES_POLICY } from "../modules/breaches/policy";
+import { INSTITUTION_SUBMISSIONS_POLICY } from "../modules/institution-submissions/policy";
 import { DIRECTORY_POLICY } from "../modules/directory/policy";
 import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
@@ -67,7 +68,8 @@ export const POLICY = composePolicies(
   ADOPTION_POLICY,
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
-  CAMPAIGNS_POLICY
+  CAMPAIGNS_POLICY,
+  INSTITUTION_SUBMISSIONS_POLICY
 );
 
 export type Action = keyof typeof POLICY;

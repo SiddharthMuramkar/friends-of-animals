@@ -42,6 +42,7 @@ import {
   postRefund,
 } from "../modules/ledger/consumers";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
+import { sendEntryReceiptToFamily } from "../modules/entries/family-receipt";
 import { expireUploadGrant } from "../modules/entries/upload-grants";
 import { fanOutBreachNotices } from "../modules/breaches/fan-out";
 import { sendAuthorityNotice } from "../modules/breaches/authority-message";
@@ -161,6 +162,8 @@ export const HANDLERS: Handlers = {
   // Brings an entry's file up to date with its scan and derivatives (#85).
   "entries.apply_file_outcome": (deps, { payload }) =>
     applyEntryFileOutcome(deps, payload),
+  // Emails a school's student's family that their entry arrived (#87).
+  "entries.send_family_receipt": sendEntryReceiptToFamily,
   "entries.expire_upload_grant": (deps, { payload }) =>
     expireUploadGrant(deps, payload),
   "entries.sweep_staged_upload": (

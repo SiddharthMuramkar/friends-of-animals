@@ -204,6 +204,12 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "resolved_at",
     "to_status",
   ],
+  conduct_certification: [
+    "certified_at",
+    "id",
+    "institution_registration_id",
+    "statement_version",
+  ],
   consent_document: [
     "id",
     "legal_revision_id",
@@ -430,6 +436,16 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "id",
     "kind",
     "listing_id",
+  ],
+  // Where a pin code is (#128): public facts about places.
+  pincode_location: [
+    "district",
+    "latitude",
+    "longitude",
+    "pin_code",
+    "post_offices",
+    "state",
+    "updated_at",
   ],
   institution: [
     "address",

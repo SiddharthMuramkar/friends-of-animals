@@ -15,7 +15,10 @@ import { isImageDiscipline } from "../rules";
 
 const inputSchema = z.object({ registrationId: z.uuid() });
 
-/** The first-upload form for a confirmed individual or their guardian. */
+/**
+ * The first-upload form for a confirmed individual or their guardian, or a
+ * school's coordinator for their student (#87).
+ */
 export async function getEntryUploadOptions(
   ctx: UseCaseContext,
   input: { registrationId: string }
@@ -24,7 +27,11 @@ export async function getEntryUploadOptions(
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const { registrationId } = parsed.data;
-  const { whose } = await authorizeEntrySubmission(ctx, registrationId);
+  const { whose, scopeRefusal } = await authorizeEntrySubmission(
+    ctx,
+    registrationId
+  );
+  if (scopeRefusal) return { ok: false, error: scopeRefusal } as const;
 
   const facts = await submissionFacts(ctx.db, registrationId);
   if (!facts) throw new Error("unreachable: authorized for no registration");

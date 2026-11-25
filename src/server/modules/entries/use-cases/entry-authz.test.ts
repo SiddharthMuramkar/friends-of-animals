@@ -34,7 +34,8 @@ import {
 // registration, and a verified guardian for their ward; nobody else: not
 // another participant, another child's guardian, a coordinator, a
 // competition manager or a visitor. A school's student is entered by their
-// coordinator later (#87), not through these use cases.
+// own institution's coordinators (#87, ./coordinator-submit.test.ts) and by
+// nobody else.
 
 const FILE = { name: "work.jpg", type: "image/jpeg", size: PHOTO.length };
 
@@ -578,13 +579,22 @@ describe("who may not submit or read an entry", () => {
     ).rejects.toThrow(DomainError);
   });
 
-  it("refuses a school's student's registration, even to its coordinator", async () => {
+  it("refuses a school's student's registration to a participant, a competition manager and another school's coordinator", async () => {
     const h = await createHarness();
-    const school = await schoolWithStudents(h, { students: 1, feePaise: null });
+    const school = await schoolWithStudents(h, { students: 1, feePaise: 0n });
     await school.pay();
+    const other = await schoolWithStudents(h, {
+      students: 1,
+      code: "SKIES27",
+      name: "Other School",
+    });
+    const asha = await confirmedAdult(h);
+    const manager = await signInStaff(h, "competition_manager");
 
-    await expect(
-      start(h, school.coordinator.actor, school.registrationIds[0]!)
-    ).rejects.toThrow(DomainError);
+    for (const actor of [other.coordinator.actor, asha.actor, manager.actor]) {
+      await expect(
+        start(h, actor, school.registrationIds[0]!)
+      ).rejects.toMatchObject({ code: "forbidden" });
+    }
   });
 });

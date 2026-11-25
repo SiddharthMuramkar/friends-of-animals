@@ -42,6 +42,7 @@ import competitionStatus from "../../messages/en-IN/competitionStatus.json";
 import competitionCancel from "../../messages/en-IN/competitionCancel.json";
 import contact from "../../messages/en-IN/contact.json";
 import coordinatorConsents from "../../messages/en-IN/coordinatorConsents.json";
+import institutionSubmissions from "../../messages/en-IN/institutionSubmissions.json";
 import guardianConsent from "../../messages/en-IN/guardianConsent.json";
 import guardianConsentDelivery from "../../messages/en-IN/guardianConsentDelivery.json";
 import coordinators from "../../messages/en-IN/coordinators.json";
@@ -123,6 +124,7 @@ export const NAMESPACES = [
   "contact",
   "coordinators",
   "coordinatorConsents",
+  "institutionSubmissions",
   "guardianConsent",
   "guardianConsentDelivery",
   "contactForm",
@@ -207,6 +209,7 @@ export const messages = {
   ...contact,
   ...coordinators,
   ...coordinatorConsents,
+  ...institutionSubmissions,
   ...guardianConsent,
   ...guardianConsentDelivery,
   ...contactForm,

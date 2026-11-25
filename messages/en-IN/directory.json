@@ -263,6 +263,68 @@
         "title": "No listing at this address",
         "body": "It may have moved off the directory."
       }
+    },
+    "search": {
+      "meta": {
+        "title": "Find animal help near you",
+        "description": "Search FOA's directory of checked animal-welfare NGOs, shelters and rescuers by service and distance from your pin code."
+      },
+      "eyebrow": "NGO directory",
+      "title": "Find animal help near you",
+      "lead": "Search the NGOs, shelters, rescuers and foster carers FOA has checked, by what they do and how far they are from you.",
+      "loading": "Loading the search…",
+      "form": {
+        "title": "Search",
+        "pin": "Pin code",
+        "pinHint": "Six digits, for example 411001.",
+        "service": "Service",
+        "anyService": "Any service",
+        "radius": "Distance",
+        "radius_option": "Within {km} km",
+        "submit": "Search",
+        "or": "Or search from where you are:",
+        "useLocation": "Use my location",
+        "locating": "Finding your location…",
+        "locationDenied": "Your browser didn't share your location. Type your pin code instead.",
+        "locationUnavailable": "Your location isn't available. Type your pin code instead.",
+        "locationPrivacy": "Your browser asks first. Only a rough location, to about a kilometre, is sent to FOA, and it isn't stored."
+      },
+      "errors": {
+        "pin": {
+          "required": "Enter your pin code, or use your location.",
+          "invalid": "Enter a six-digit pin code, for example 411001.",
+          "unknown": "We don't know where this pin code is yet. Try a pin code nearby."
+        },
+        "location": {
+          "invalid": "That location couldn't be read. Type your pin code instead.",
+          "outside_india": "The directory covers India only. Type a pin code in India instead."
+        },
+        "service": {
+          "invalid": "Choose a service from the list."
+        },
+        "radius": {
+          "invalid": "Choose a distance from the list."
+        },
+        "title": "Check the search"
+      },
+      "results": {
+        "title": "Results",
+        "fromPin": "{count, plural, =0 {No checked listings} one {# checked listing} other {# checked listings}} within {km} km of {pinCode}{district, select, none {} other { ({district})}}",
+        "fromPoint": "{count, plural, =0 {No checked listings} one {# checked listing} other {# checked listings}} within {km} km of your location",
+        "forService": "Offering: {service}",
+        "empty": "Try a longer distance, or any service.",
+        "truncated": "Showing the nearest {limit}. Choose a service or a shorter distance to narrow the search.",
+        "distance_under": "Less than 1 km away",
+        "distance_about": "About {km, number} km away",
+        "approximate": "Distances are measured between pin-code centres, so they are approximate.",
+        "place": "{city}, {state} {pinCode}",
+        "services": "Services",
+        "contact": "Contact",
+        "noContact": "No contact details shared. Open the listing to ask FOA to pass on a message."
+      },
+      "register": "Run an animal-welfare organisation, or rescue on your own? Ask to be listed.",
+      "registerLink": "Register on the directory",
+      "disclaimer": "FOA checks who a listing is before it appears here. FOA doesn't run these organisations and isn't responsible for their work."
     }
   }
 }

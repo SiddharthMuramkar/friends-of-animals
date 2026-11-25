@@ -30,7 +30,6 @@ describe("ROUTES", () => {
       "/login",
       "/events",
       "/volunteer",
-      "/ngos",
       "/auctions",
     ];
     for (const route of all) {
