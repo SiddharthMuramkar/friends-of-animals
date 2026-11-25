@@ -55,25 +55,21 @@ export const seedClubs: Seeder = async ({ db, clock }) => {
       .onConflictDoNothing()
       .returning();
     if (!created) return;
-    await tx
-      .insert(clubDecision)
-      .values({
-        id: SEED_CLUB.decisionId,
-        clubId: created.id,
-        fromStatus: "applied",
-        toStatus: "approved",
-        decidedAt: now,
-      });
-    await tx
-      .insert(clubMembership)
-      .values({
-        id: SEED_CLUB.membershipId,
-        clubId: created.id,
-        userId: teacher.id,
-        role: "teacher",
-        affiliationVerified: true,
-        joinedAt: now,
-      });
+    await tx.insert(clubDecision).values({
+      id: SEED_CLUB.decisionId,
+      clubId: created.id,
+      fromStatus: "applied",
+      toStatus: "approved",
+      decidedAt: now,
+    });
+    await tx.insert(clubMembership).values({
+      id: SEED_CLUB.membershipId,
+      clubId: created.id,
+      userId: teacher.id,
+      role: "teacher",
+      affiliationVerified: true,
+      joinedAt: now,
+    });
     await recordEngagement(
       tx,
       { actor: { kind: "system", process: "seed" }, clock },
