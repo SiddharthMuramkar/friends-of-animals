@@ -12,6 +12,7 @@ describe("auction capture/expiry serialisation", () => {
   it.each([false, true])(
     "the locked clock decides a simultaneous capture and expiry (at deadline: %s)",
     async (expired) => {
+      world.clock.set(new Date());
       await world.seed.preview();
       const buyer = world.as(
         await world.signedIn(
