@@ -29,6 +29,7 @@
       "privacy": "Your privacy requests: see, correct or erase your data",
       "auctions": "My auction purchases",
       "community": "Your community",
+      "clubs": "FOA clubs",
       "timeline": "Engagement timeline",
       "events": "My event registrations",
       "surveys": "Feedback surveys"
@@ -52,6 +53,7 @@
       "judging": "Judging rounds",
       "auctions": "Auction lots",
       "community": "Community members",
+      "clubs": "Club review",
       "events": "Manage events"
     },
     "institution": {

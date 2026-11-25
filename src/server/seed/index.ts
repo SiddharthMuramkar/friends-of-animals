@@ -50,6 +50,7 @@ import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
 import { seedEvents } from "./events";
+import { seedClubs } from "./clubs";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedReports } from "./reports";
@@ -143,6 +144,7 @@ const seeders: readonly Seeder[] = [
   seedSocialExport,
   seedReports,
   seedCommunity,
+  seedClubs,
   seedEvents,
   seedCertificates,
   seedScoring,

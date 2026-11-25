@@ -173,6 +173,24 @@ export const PARTICIPANT_FILE_PURPOSES = [
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
   {
+    table: schema.club,
+    where: (scope) => within(schema.club.applicantUserId, users(scope)),
+    owners: ["applicant_user_id"],
+  },
+  {
+    table: schema.clubDecision,
+    where: (scope) =>
+      sql`${schema.clubDecision.clubId} IN (SELECT ${schema.club.id} FROM ${schema.club} WHERE ${within(schema.club.applicantUserId, users(scope))})`,
+    owners: ["club_id"],
+    decrypt: { reason_ciphertext: "club_decision.reason" },
+    withhold: ["decided_by_user_id"],
+  },
+  {
+    table: schema.clubMembership,
+    where: (scope) => within(schema.clubMembership.userId, users(scope)),
+    owners: ["user_id"],
+  },
+  {
     table: surveyInvitation,
     where: (scope) => within(surveyInvitation.userId, users(scope)),
     owners: ["user_id"],

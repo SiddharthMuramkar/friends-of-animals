@@ -1,6 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import {
   competition,
+  club,
   event,
   engagementMilestone,
   timelineEntry,
@@ -37,6 +38,7 @@ export async function getTimeline(
       occurredAt: timelineEntry.occurredAt,
       competitionName: competition.name,
       eventTitle: event.title,
+      clubName: club.name,
       refType: timelineEntry.refType,
       refId: timelineEntry.refId,
       competitionId: engagementMilestone.competitionId,
@@ -53,6 +55,10 @@ export async function getTimeline(
     .leftJoin(
       event,
       and(eq(timelineEntry.refType, "event"), eq(timelineEntry.refId, event.id))
+    )
+    .leftJoin(
+      club,
+      and(eq(timelineEntry.refType, "club"), eq(timelineEntry.refId, club.id))
     )
     .where(belongsTo(keys, timelineEntry))
     .orderBy(asc(timelineEntry.occurredAt), asc(timelineEntry.id));

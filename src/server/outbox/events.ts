@@ -971,6 +971,11 @@ export type DomainEvent =
   // guardians are asked; an application reached the community team; a
   // community manager approved it (the volunteer role is granted) or
   // declined it with a reason.
+  | {
+      type: "club.decision_recorded";
+      aggregate: { type: "club_decision"; id: string };
+      payload: { decisionId: string };
+    }
   | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
@@ -1320,6 +1325,7 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "club.decision_recorded": z.object({ decisionId: z.uuid() }),
   "volunteer.guardian_approval_requested": VOLUNTEER_APPLICATION,
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
@@ -1614,6 +1620,7 @@ export const SUBSCRIBERS = {
   "institution_registration.competition_cancelled": ["notifications.dispatch"],
   // The applicant, their guardians and the community team are told by
   // route row (#123).
+  "club.decision_recorded": ["notifications.dispatch"],
   "volunteer.guardian_approval_requested": ["notifications.dispatch"],
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
