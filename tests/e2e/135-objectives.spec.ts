@@ -147,7 +147,7 @@ test("content manager records an aggregate channel observation without leadershi
   await expect(main.getByRole("status")).toContainText("Observation saved");
   const row = main
     .getByRole("row")
-    .filter({ has: main.getByRole("rowheader", { name: label, exact: true }) });
+    .filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
   await expect(row).toContainText("321");
   await expect(row).toContainText("900");
   const href = await main

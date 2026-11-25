@@ -21,7 +21,7 @@ export async function SocialTable({
     getFormatter(),
   ]);
   return (
-    <section className="mt-8 min-w-0" aria-labelledby="social-report-title">
+    <section className="mt-8 min-w-0">
       <h2 id="social-report-title">{t("categories.social")}</h2>
       <p className="mt-3 max-w-prose text-ink-muted">
         {t("definitions.social")}

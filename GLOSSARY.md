@@ -1155,3 +1155,14 @@ results have been published. FOA reports answers as aggregate results.
 An offer to give feedback to an eligible adult participant, guardian or
 coordinator with current communication consent. A person with several
 qualifying links receives one invitation and can give one answer.
+
+## Reports and analytics
+
+**Objective reporting period**:
+A pair of inclusive Indian calendar dates over which FOA measures its
+objectives from retained domain facts. Not a frozen snapshot of past records.
+
+**Social metric snapshot**:
+A dated observation of aggregate metrics for one FOA social channel,
+recorded by a content manager. Missing metrics are unreported, not zero;
+reach across overlapping audiences is not a unique total.

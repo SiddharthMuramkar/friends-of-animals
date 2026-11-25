@@ -9,6 +9,7 @@ import { createHarness } from "@/test/harness";
 
 import { SEED_COORDINATORS } from "./coordinators";
 import { SEED_INSTITUTIONS } from "./institutions";
+import { SEED_OBJECTIVES } from "./objectives";
 import { SEED_SCHOOL_ROUND } from "./school-round";
 
 const ROUND = {
@@ -95,7 +96,14 @@ describe("the school round seed", () => {
     await h.seed.preview();
 
     expect(await rows()).toEqual(first);
-    expect(first.rounds).toHaveLength(2);
-    expect(first.picks).toHaveLength(2);
+    expect(first.rounds).toHaveLength(3);
+    expect(first.picks).toHaveLength(3);
+    const objectiveRound = first.rounds.find(
+      (row) => row.competitionId === SEED_OBJECTIVES.competitionId
+    );
+    expect(objectiveRound).toMatchObject({ status: "finalised" });
+    expect(
+      first.picks.find((row) => row.roundId === objectiveRound!.id)
+    ).toMatchObject({ position: 1 });
   });
 });

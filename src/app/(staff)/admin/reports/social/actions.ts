@@ -10,6 +10,7 @@ import {
   resolvePeriod,
   type ObjectivePeriodInput,
 } from "@/server/modules/reports/domain/period";
+import { istDateOf } from "@/server/modules/ledger/domain/period";
 import { adminCall } from "../../_lib/boundary";
 
 export async function recordSocialAction(
@@ -47,9 +48,10 @@ export async function recordSocialAction(
     : result.value.ok
       ? result.value.outcome
       : "invalidInput";
+  const today = istDateOf(new Date());
   const selected = resolvePeriod(period).ok
     ? period
-    : { from: recordedFor, to: recordedFor };
+    : { from: today, to: today };
   const next =
     result.ok && result.value.ok
       ? {
