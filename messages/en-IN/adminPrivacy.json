@@ -478,6 +478,10 @@
           "state": "Locates the participant for regional rounds and reports",
           "student_ref": "The school's own roll number, so the school recognises the student and FOA spots the same student entered twice"
         },
+        "gateway_webhook_event": {
+          "capture_payment_fingerprint": "Matches a signed capture snapshot to the provider-refetched payment without keeping raw webhook content or payer contact.",
+          "capture_occurred_by": "Records the signed event’s latest possible occurrence instant so a winning auction payment can be reconciled against its deadline."
+        },
         "payment_batch": {
           "payer_user_id": "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment"
         },
