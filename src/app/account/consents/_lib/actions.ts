@@ -5,6 +5,7 @@ import { redirect, RedirectType } from "next/navigation";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
+import type { OwnPublicPurpose } from "@/server/modules/consent/own-public-use";
 
 import { noticeAfterGive, type ConsentNotice } from "./notice";
 
@@ -51,5 +52,18 @@ export async function withdrawAuctionConsentAction(
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
   const result = await as(actor).withdrawMyAuctionConsent({ competitionId });
+  backWith(result.ok ? "withdrawn" : "failed");
+}
+
+export async function withdrawPublicUseConsentAction(
+  competitionId: string,
+  purpose: OwnPublicPurpose
+): Promise<void> {
+  const actor = await currentActor();
+  if (actor.kind !== "user") redirect(ROUTES.signIn.path);
+  const result = await as(actor).withdrawMyPublicUseConsent({
+    competitionId,
+    purpose,
+  });
   backWith(result.ok ? "withdrawn" : "failed");
 }

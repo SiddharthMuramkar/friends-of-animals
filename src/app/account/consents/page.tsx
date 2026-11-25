@@ -25,6 +25,7 @@ import {
   giveConsentAction,
   withdrawConsentAction,
   withdrawAuctionConsentAction,
+  withdrawPublicUseConsentAction,
 } from "./_lib/actions";
 import { CONSENT_NOTICES } from "./_lib/notice";
 
@@ -75,17 +76,26 @@ function doneOf(done: string | string[] | undefined) {
 async function Consents({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, callout, format, consents, auctionConsents, policy, { done }] =
-    await Promise.all([
-      getTranslations("consent"),
-      getTranslations("common.callout"),
-      getFormatter(),
-      as(actor).myConsents(),
-      as(actor).myAuctionConsents(),
-      // The messages consent rests on the privacy policy (#111).
-      loadLegalVersion(legalKeyForConsentPurpose("messages")),
-      searchParams,
-    ]);
+  const [
+    t,
+    callout,
+    format,
+    consents,
+    auctionConsents,
+    publicUseConsents,
+    policy,
+    { done },
+  ] = await Promise.all([
+    getTranslations("consent"),
+    getTranslations("common.callout"),
+    getFormatter(),
+    as(actor).myConsents(),
+    as(actor).myAuctionConsents(),
+    as(actor).myPublicUseConsents(),
+    // The messages consent rests on the privacy policy (#111).
+    loadLegalVersion(legalKeyForConsentPurpose("messages")),
+    searchParams,
+  ]);
   const messages = consents.find((each) => each.purpose === "messages");
   if (!messages) return null;
   const { state, history, currentDocument } = messages;
@@ -159,6 +169,38 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
         </div>
       </section>
 
+      {publicUseConsents.length > 0 ? (
+        <section aria-labelledby="public-use-consents" className={CARD}>
+          <h2 id="public-use-consents" className="text-lead font-bold text-ink">
+            {t("publicUse.title")}
+          </h2>
+          <p className="mt-3 text-ink">{t("publicUse.lead")}</p>
+          <ul className="mt-4 space-y-4">
+            {publicUseConsents.map((item) => (
+              <li key={`${item.competitionId}:${item.purpose}`}>
+                <p className="font-semibold text-ink">
+                  {item.title} · {t(`publicUse.purpose.${item.purpose}`)}
+                </p>
+                <p className="text-ink">{t(`publicUse.${item.state}`)}</p>
+                {item.state === "given" ? (
+                  <form
+                    className="mt-2"
+                    action={withdrawPublicUseConsentAction.bind(
+                      null,
+                      item.competitionId,
+                      item.purpose
+                    )}
+                  >
+                    <SubmitButton pendingLabel={t("saving")}>
+                      {t(`publicUse.withdraw.${item.purpose}`)}
+                    </SubmitButton>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {auctionConsents.length > 0 ? (
         <section aria-labelledby="auction-consents" className={CARD}>
           <h2 id="auction-consents" className="text-lead font-bold text-ink">

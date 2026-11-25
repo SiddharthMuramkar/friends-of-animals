@@ -43,6 +43,20 @@
       "staff_recorded": "recorded by our staff"
     },
     "historyWhen": "{date}, {method}",
+    "publicUse": {
+      "title": "Public display and social media consent",
+      "lead": "Withdraw either permission for a competition. Social exports will no longer be available for download; work already posted by hand must be removed by FOA's team.",
+      "given": "Given",
+      "withdrawn": "Withdrawn",
+      "purpose": {
+        "public_display": "Public display",
+        "social_media": "Social media"
+      },
+      "withdraw": {
+        "public_display": "Withdraw public display consent",
+        "social_media": "Withdraw social media consent"
+      }
+    },
     "auction": {
       "title": "Auction consent",
       "lead": "Withdraw your consent for a competition to stop any unsold auction lots of your original artwork.",

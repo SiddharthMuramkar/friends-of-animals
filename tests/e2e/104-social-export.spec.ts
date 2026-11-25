@@ -41,15 +41,13 @@ test("a content manager queues consented gallery art, edits its caption, downloa
   await expectAccessible(page, "social export queue and candidates");
   await expectAccessibleInDark(page, "social export queue and candidates");
   await expectNoSidewaysScrollAt320(page, "social export queue and candidates");
-  const row = page
-    .getByRole("listitem")
-    .filter({
-      has: page.getByRole("heading", { name: "Our friends", exact: true }),
-    });
+  const row = page.getByRole("listitem").filter({
+    has: page.getByRole("heading", { name: "Our friends", exact: true }),
+  });
   await row.getByRole("button", { name: "Queue for social export" }).click();
   await expect(row.getByText("Pending", { exact: true })).toBeVisible();
   await expect(
-    row.getByText("Isha D. · Sample Green School · Mumbai", { exact: false })
+    row.getByText("Isha D. · Green Valley School · Pune", { exact: false })
   ).toBeVisible();
   await row
     .getByLabel("Caption (required)")
@@ -81,7 +79,7 @@ test("a content manager queues consented gallery art, edits its caption, downloa
   expect(caption.ok()).toBe(true);
   expect(caption.headers()["cache-control"]).toContain("no-store");
   expect(await caption.text()).toBe(
-    "Kindness to every creature.\n\nCredit: Isha D. · Sample Green School · Mumbai\n"
+    "Kindness to every creature.\n\nCredit: Isha D. · Green Valley School · Pune\n"
   );
   await row.getByRole("button", { name: "Mark as posted" }).click();
   await expect(row.getByText("Posted", { exact: true })).toBeVisible();

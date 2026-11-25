@@ -69,19 +69,17 @@ async function queueSocialExport(
       });
     }
     const exportId = uuidv7(now);
-    await tx
-      .insert(socialExport)
-      .values({
-        id: exportId,
-        galleryItemId: gallery.id,
-        galleryConsentEventId: source.galleryConsentEventId,
-        socialConsentEventId: source.socialConsentEventId,
-        fileId: source.fileId,
-        captionCiphertext: ctx.cipher.encrypt(captionPurpose, caption),
-        status: "pending",
-        createdAt: now,
-        updatedAt: now,
-      });
+    await tx.insert(socialExport).values({
+      id: exportId,
+      galleryItemId: gallery.id,
+      galleryConsentEventId: source.galleryConsentEventId,
+      socialConsentEventId: source.socialConsentEventId,
+      fileId: source.fileId,
+      captionCiphertext: ctx.cipher.encrypt(captionPurpose, caption),
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+    });
     await recordAudit(tx, ctx, {
       action: "social_export.queued",
       entity: { type: "social_export", id: exportId },
