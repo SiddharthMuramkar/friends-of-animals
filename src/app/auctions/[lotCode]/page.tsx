@@ -28,8 +28,8 @@ async function Lot({ params }: PageProps<"/auctions/[lotCode]">) {
   if (!lot) notFound();
   return (
     <>
-      <PageHeader title={t("lot", { code: lot.lotCode })} className="mt-5" />
       <article className="mt-8 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5 shadow-warm sm:p-6">
+        <h2 className="text-h3 text-ink">{t("lot", { code: lot.lotCode })}</h2>
         <LotDetails lot={lot} />
       </article>
     </>
@@ -43,13 +43,18 @@ export default async function Page(props: PageProps<"/auctions/[lotCode]">) {
       <ButtonLink href="/auctions" variant="quiet">
         {t("back")}
       </ButtonLink>
+      <PageHeader
+        className="mt-5"
+        title={t("detailTitle")}
+        lead={t("detailLead")}
+      />
       <Suspense
         fallback={
-          <output className="mt-5 block">
+          <output className="mt-8 block">
             <span className="sr-only">{t("loading")}</span>
             <span aria-hidden="true" className="block">
-              <span className="block h-12 w-64 max-w-full rounded-xl bg-surface-muted" />
-              <span className="mt-8 block h-96 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5">
+              <span className="block h-96 max-w-2xl rounded-3xl border-2 border-border bg-surface p-5">
+                <span className="block h-8 w-52 max-w-full rounded-xl bg-surface-muted" />
                 <span className="block h-5 w-20 rounded-lg bg-surface-muted" />
                 <span className="mt-4 block h-6 w-40 rounded-lg bg-surface-muted" />
                 <span className="mt-5 block h-14 w-full rounded-xl bg-surface-muted" />

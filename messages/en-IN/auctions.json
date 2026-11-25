@@ -50,6 +50,8 @@
       "error": "The lot could not be updated. Check eligibility, current consent, dates and price.",
       "disabled": "Auctions are disabled. A super admin must enable them after FOA approval.",
       "noAward": "No published award recorded."
-    }
+    },
+    "detailTitle": "Artwork auction lot",
+    "detailLead": "An original work offered with its creator’s consent in support of animal welfare."
   }
 }
