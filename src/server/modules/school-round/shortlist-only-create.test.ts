@@ -164,7 +164,9 @@ describe("startShortlistedEntry and completeShortlistedEntry", () => {
       },
     ]);
 
-    const view = await h.as(school.coordinator.actor).getSchoolRound(school.ref);
+    const view = await h
+      .as(school.coordinator.actor)
+      .getSchoolRound(school.ref);
     if (!view.ok) throw new Error(view.error);
     expect(view.round.students[0]).toMatchObject({
       registrationId: school.registrationIds[0],
@@ -183,13 +185,11 @@ describe("startShortlistedEntry and completeShortlistedEntry", () => {
     const school = await shortlistOnlySchool(h);
 
     expect(
-      await h
-        .as(school.coordinator.actor)
-        .completeShortlistedEntry(
-          await putShortlistedEntry(h, school, 1, {
-            declarations: ["original_work", "physical_work_kept", "gallery"],
-          })
-        )
+      await h.as(school.coordinator.actor).completeShortlistedEntry(
+        await putShortlistedEntry(h, school, 1, {
+          declarations: ["original_work", "physical_work_kept", "gallery"],
+        })
+      )
     ).toEqual({
       ok: false,
       error: "declarations_invalid",
@@ -326,9 +326,9 @@ describe("startShortlistedEntry and completeShortlistedEntry", () => {
           file: FILE,
         })
       ).rejects.toThrow(DomainError);
-      await expect(
-        h.as(actor).completeShortlistedEntry(ready)
-      ).rejects.toThrow(DomainError);
+      await expect(h.as(actor).completeShortlistedEntry(ready)).rejects.toThrow(
+        DomainError
+      );
     }
     expect(await h.db.select().from(entry)).toEqual([]);
   });
