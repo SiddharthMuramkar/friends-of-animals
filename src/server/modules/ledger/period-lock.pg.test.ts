@@ -2,7 +2,12 @@ import { randomInt, randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { expect, it } from "vitest";
 
-import { ledgerPeriod, ledgerPosting, paymentBatch } from "@/server/db/schema";
+import {
+  financeApproval,
+  ledgerPeriod,
+  ledgerPosting,
+  paymentBatch,
+} from "@/server/db/schema";
 import { createPgWorld, type PgWorld } from "@/test/pg";
 
 import { nextPeriodMonth, periodStart } from "./domain/period";
@@ -16,9 +21,26 @@ import { nextPeriodMonth, periodStart } from "./domain/period";
 //
 // The test database is shared and keeps its rows, and locked months must
 // stay a prefix, so each run locks the month after the last run's, far in
-// the past where no other test posts.
+// the past where no other test posts. Other test files may also seed a
+// pending lock request; advance this world's fake clock past it before
+// requesting our own lock, rather than changing another test's fixture.
 
 async function nextUnlockedMonth(world: PgWorld) {
+  const [pending] = await world.db
+    .select({ expiresAt: financeApproval.expiresAt })
+    .from(financeApproval)
+    .where(
+      and(
+        eq(financeApproval.operation, "period_lock"),
+        eq(financeApproval.status, "pending")
+      )
+    )
+    .orderBy(desc(financeApproval.expiresAt))
+    .limit(1);
+  if (pending && pending.expiresAt > world.clock.now()) {
+    world.clock.set(pending.expiresAt);
+  }
+
   const [latest] = await world.db
     .select({ month: ledgerPeriod.month })
     .from(ledgerPeriod)
