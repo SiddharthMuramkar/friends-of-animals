@@ -950,7 +950,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "auction.lot_closed": { names: [], load: async () => ({}) },
   "auction.bid_outbid": {
     names: ["lot.code"],
-    load: async (db, { payload }) => {
+    load: async (db, { payload }): Promise<Record<string, string>> => {
       const [row] = await db
         .select({ code: auctionLot.lotCode })
         .from(auctionBid)
