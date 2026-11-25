@@ -128,9 +128,13 @@ describe("the entries seed", () => {
           code: "BIRDS27-E-5EEDB2",
           status: "submitted",
         }),
+        expect.objectContaining({
+          code: "ORIG27-E-5EED05",
+          status: "foa_verified",
+        }),
       ])
     );
-    expect(entries).toHaveLength(2);
+    expect(entries).toHaveLength(3);
     const video = await ravi.getEntry({ code: "ROOF27-E-5EEDB1" });
     if (!video.ok) throw new Error("Missing seeded video");
     expect(video.entry).toMatchObject({
