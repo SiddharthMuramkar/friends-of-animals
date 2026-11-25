@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 import { outbox, reminderJob } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
-import { SEED_ENTRY_COMPETITIONS } from "./competitions";
+import {
+  SEED_ENTRY_COMPETITIONS,
+  SEED_SCHOOL_SUBMISSIONS_COMPETITION,
+} from "./competitions";
 
 // #84 84b AC11: the preview seed plans the seeded live competitions'
 // submission reminders, as publishing would, sends nothing now, and runs
@@ -36,6 +39,8 @@ describe("the reminders seed", () => {
       NEIGH27,
       PUBLISHED,
       ...SEED_ENTRY_COMPETITIONS.map(({ id }) => id),
+      // Open for the school's submissions (#87).
+      SEED_SCHOOL_SUBMISSIONS_COMPETITION.id,
     ].toSorted();
     expect(
       rows.map(({ subjectId, offsetHours, status }) => [

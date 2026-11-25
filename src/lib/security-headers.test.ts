@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 
 import { payFeesPath, payMyRegistrationPath } from "./app-routes";
+import { ROUTES } from "./routes";
 import {
   checkoutPageHeaders,
+  DIRECTORY_SEARCH_PATH,
+  directorySearchHeaders,
   securityHeaders,
   strictTransportSecurity,
 } from "./security-headers";
@@ -116,5 +119,30 @@ describe("checkoutPageHeaders", () => {
     for (const rule of rules) {
       for (const { key } of rule.headers) expect(everyPage).toContain(key);
     }
+  });
+});
+
+describe("directorySearchHeaders", () => {
+  const rules = directorySearchHeaders();
+  const matching = (path: string) =>
+    rules.filter((rule) => getPathMatch(rule.source)(path) !== false);
+
+  it("lets the directory search ask for the visitor's location, there only", () => {
+    const [rule, ...others] = matching("/ngos");
+
+    expect(others).toEqual([]);
+    expect(rule!.headers).toEqual([
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(self)",
+      },
+    ]);
+    for (const path of ["/ngos/seed-paws-trust", "/ngos/register", "/"]) {
+      expect(matching(path)).toEqual([]);
+    }
+  });
+
+  it("follows the search page's route", () => {
+    expect(DIRECTORY_SEARCH_PATH).toBe(ROUTES.ngos.path);
   });
 });

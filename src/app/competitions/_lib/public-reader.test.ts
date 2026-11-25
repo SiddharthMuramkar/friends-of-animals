@@ -18,6 +18,8 @@ describe("the public pages' reader", () => {
 
     expect(list.map((c) => [c.slug, c.status, c.sample])).toEqual([
       ["kinder-skies", "SCHOOL_JUDGING", false],
+      // Open for the school's submissions (#87).
+      ["trees-for-birds", "REGISTRATION_CLOSED", false],
       // Cancelled (#80): still listed, labelled cancelled.
       ["wings-at-dusk", "CANCELLED", false],
       ["neighbours-on-my-street", "REGISTRATION_OPEN", false],

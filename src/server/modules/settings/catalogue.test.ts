@@ -36,6 +36,11 @@ describe("the settings catalogue", () => {
       "ledger.manualEntryApprovalThresholdRupees": 50_000,
       "ledger.approvalExpiryDays": 7,
       "ledger.accountantExport": false,
+      "privacy.requestDueDays": 30,
+      "privacy.erasureDueDays": 30,
+      "privacy.exportLinkHours": 72,
+      "privacy.erasureEnabled": false,
+      "privacy.erasureKeepsPayerAccount": true,
       "volunteers.applicationsOpen": false,
       "volunteers.minAgeYears": 14,
       "volunteers.guardianApprovalBelowAgeYears": 18,
@@ -57,6 +62,7 @@ describe("the settings catalogue", () => {
       "retention.volunteerApplicationsDays": 365,
       "retention.releasedLegalHoldsDays": 365,
       "retention.financialRecordsDays": 2922,
+      "retention.privacyRequestsDays": 1095,
     });
   });
 

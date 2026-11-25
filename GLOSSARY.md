@@ -98,6 +98,31 @@ A keyed fingerprint kept beside an Encrypted field, so the platform can find a
 record by that value (a User by phone at sign-in) without storing it readably.
 _Avoid_: Phone hash, lookup hash
 
+**Rights request**:
+A request under India's data protection law, by a User about their own data
+or by a Guardian about a linked child's: for a copy of it (access), to
+correct it, or to erase it. Each has a reference, a due date and a status
+the requester follows.
+_Avoid_: DSAR, privacy ticket, data request
+
+**Grievance officer**:
+The Role held by FOA's grievance officer: the only people who answer Rights
+requests, in the grievance queue. No other Role can, super admins included.
+_Avoid_: DPO, privacy admin
+
+**Data export**:
+The file of everything FOA keeps about one person, prepared for an access
+request. Only the person who made the request can download it, for a
+limited time; staff never see it.
+_Avoid_: Data dump, takeout
+
+**Erasure**:
+Carrying out an erasure request: the person's consents are withdrawn, and
+their records deleted or anonymised, except what the law makes FOA keep
+(payments under their floor, proof of consent, the Audit log) or a legal
+hold stops. What was kept, why and until when is recorded and told to them.
+_Avoid_: Deletion (for the whole process), right to be forgotten
+
 ## Safeguarding
 
 **Safeguarding report**:
@@ -501,6 +526,13 @@ What a coordinator of a registered institution reads before their school
 round: FOA's judging framework and the published Rubric of each discipline.
 _Avoid_: Judging kit, rules
 
+**Conduct certification**:
+A coordinator's statement, made once per Institution registration, that the
+competition was run in their school according to FOA's guidelines. The school
+round can't be finalised without it.
+_Avoid_: Conduct declaration, sign-off (the participation declaration is the
+institution's consent to take part)
+
 ## Registration
 
 **Institution registration**:
@@ -544,8 +576,9 @@ _Avoid_: Bulk upload, batch enrolment, import job
 
 ## Entries
 
-**Entry**
-The work a participant submits for a competition registration. An individual registration can have one entry.
+**Entry**:
+The work a participant submits for a competition registration; a registration
+has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
 The reference assigned to an entry when its first upload is confirmed, such as `NEIGH27-E-7K3QZ9`.
@@ -555,6 +588,17 @@ The entry’s current image after it passes its safety and processing checks.
 
 **Pending replacement**
 A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.
+
+**Digital submission scope**:
+Which of a competition's school-route participants send their work to FOA as
+a digital upload: all of them (the default), or only the entries on each
+school's shortlist.
+_Avoid_: Submission mode, upload policy
+
+**Submission roster**:
+A coordinator's list of every student of one Institution registration, with
+each student's Entry status and what the coordinator can do for them next.
+_Avoid_: Entries dashboard, student list
 
 ## Files
 
@@ -634,6 +678,28 @@ certificate or an identity proof. It is a File only Staff can open, not even
 the person who uploaded it.
 _Avoid_: Attachment, KYC document
 
+**Pin-code centre**:
+Where the directory search places a pin code: the middle of its post offices,
+from India Post's open pin-code directory. A Directory listing is found by
+distance from its pin-code centre, never from its address, so distances are
+approximate.
+_Avoid_: Geocode, listing location
+
+## Adoption
+
+**Adoption listing**:
+One animal a Directory listing offers for adoption: who it is, its health
+and vaccination notes, the adoption conditions and where it is. It stays a
+private draft until a representative publishes it with a photo, and it is
+public only while its Directory listing is verified. FOA facilitates; the
+listing organisation is responsible for the animal.
+_Avoid_: Pet listing, animal profile, adoption post
+
+**Adoptable animal**:
+What the public sees of a published Adoption listing on /adopt and its own
+page.
+_Avoid_: Pet, available animal
+
 ## Engineering
 
 **Seed builder**:
@@ -673,6 +739,12 @@ approval before a community manager approves or declines it.
 _Avoid_: Signup, volunteer form, registration
 
 ## Taking part
+
+**School route**:
+How a student takes part through their school: a coordinator enrols them in
+the Institution registration, the institution pays, and the coordinator
+submits their work.
+_Avoid_: Route A, institution route
 
 **Individual route**:
 How someone takes part in a competition on their own, instead of being

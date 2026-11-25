@@ -23,7 +23,8 @@
       "sessions": "See where you're signed in",
       "children": "Your children, as a parent or guardian",
       "directory": "Your listing in FOA's NGO directory",
-      "volunteer": "Volunteer with Friends of Animals"
+      "volunteer": "Volunteer with Friends of Animals",
+      "privacy": "Your privacy requests: see, correct or erase your data"
     },
     "admin": {
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
@@ -35,7 +36,8 @@
       "refunds": "Refunds",
       "ledger": "Ledger",
       "directory": "Directory listings",
-      "volunteers": "Volunteer applications"
+      "volunteers": "Volunteer applications",
+      "privacyRequests": "Privacy requests"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
