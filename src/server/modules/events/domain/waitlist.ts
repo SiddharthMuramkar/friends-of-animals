@@ -6,7 +6,7 @@
 //
 // The use case locks the event row, counts the places taken (registered
 // and checked in) and the waitlist, and applies these rules; the order is
-// `waitlisted_at`, then id, so it is total and the same on every read.
+// the stored ordinal allocated in that transaction, independent of clock ties.
 //
 // Pure: no I/O, no "server-only", no `@/` imports.
 
@@ -47,7 +47,7 @@ export type WaitlistEntry = {
   ordinal?: number;
 };
 
-/** The waitlist in promotion order: earliest first, then by id. */
+/** The stored booking order; pure date-only callers break ties by id. */
 export function orderWaitlist<E extends WaitlistEntry>(
   entries: readonly E[]
 ): E[] {
