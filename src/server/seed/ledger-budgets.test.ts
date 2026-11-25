@@ -4,6 +4,7 @@ import { ledgerBudget } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
 import { SEED_LEDGER_FINANCE } from "./ledger-periods";
+import { seedBudgets } from "./ledger-budgets";
 
 describe("the budget seed (#109)", () => {
   it("budgets every month of the current financial year on five categories, once", async () => {
@@ -14,7 +15,9 @@ describe("the budget seed (#109)", () => {
       .from(ledgerBudget)
       .orderBy(ledgerBudget.id);
     h.clock.advance({ days: 1 });
-    await h.seed.preview();
+    // Re-run the real budget seeder against the complete initial preview;
+    // unrelated fixture jobs are not part of the budget idempotence check.
+    await seedBudgets(h.deps);
     expect(
       await h.db
         .select({ id: ledgerBudget.id })
