@@ -124,6 +124,16 @@ export async function dispatchEvent(
       cipher: FieldCipher
     ) => Promise<Record<string, string>>
   )(deps.db, delivery, deps.cipher);
+  if (
+    delivery.eventType === "auction.offer_opened" &&
+    eventValues["offer.link"] &&
+    deps.auth.baseUrl
+  ) {
+    eventValues["offer.link"] = new URL(
+      eventValues["offer.link"],
+      deps.auth.baseUrl
+    ).href;
+  }
   const failures: { deliveryId: string; error: unknown }[] = [];
 
   for (const route of routes) {

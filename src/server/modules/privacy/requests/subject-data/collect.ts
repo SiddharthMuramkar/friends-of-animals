@@ -148,7 +148,25 @@ export async function collectSubjectData(
     const included = section.include && new Set(section.include);
     sections[name] = raw.map((row) => {
       const out: Record<string, unknown> = {};
+      // A paid sale belongs to its creator as well as its buyer, but its
+      // delivery address, tracking and payment links are exclusively the buyer's.
+      const creatorOnlyAuction =
+        name === "auction_offer" &&
+        ![row.bid_id, row.batch_id].some(
+          (id) => typeof id === "string" && allowed.has(id)
+        );
       for (const [column, value] of Object.entries(row)) {
+        if (
+          creatorOnlyAuction &&
+          [
+            "bid_id",
+            "batch_id",
+            "address_ciphertext",
+            "courier",
+            "tracking_number",
+          ].includes(column)
+        )
+          continue;
         if (withheld.has(column) || (included && !included.has(column)))
           continue;
         const purpose = section.decrypt?.[column];

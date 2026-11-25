@@ -101,6 +101,16 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "token_hash",
     "withdrawn_at",
   ],
+  auction_offer: [
+    "id",
+    "competition_id",
+    "status",
+    "offered_at",
+    "expires_at",
+    "paid_at",
+    "delivery_status",
+    "delivery_updated_at",
+  ],
   auction_bid: ["id", "placed_at"],
   auction_lot: [
     "id",
@@ -203,6 +213,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
   competition: [
     "age_cutoff_date",
     "auction_permitted",
+    "auction_creator_share_bps",
     // Why a super admin cancelled the competition (#80): staff-written text
     // about the event, like an announcement's message; it names no person.
     "cancel_reason",

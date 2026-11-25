@@ -59,6 +59,31 @@ describe("lot status transitions", () => {
       event: null,
       restoresArtwork: true,
     },
+    "closed offer_payment": {
+      to: "awaiting_payment",
+      event: null,
+      restoresArtwork: false,
+    },
+    "awaiting_payment offer_payment": {
+      to: "awaiting_payment",
+      event: null,
+      restoresArtwork: false,
+    },
+    "awaiting_payment capture_payment": {
+      to: "sold",
+      event: null,
+      restoresArtwork: false,
+    },
+    "awaiting_payment relist": {
+      to: "relisted",
+      event: null,
+      restoresArtwork: true,
+    },
+    "awaiting_payment withdraw_consent": {
+      to: "cancelled",
+      event: "auction.lot_cancelled",
+      restoresArtwork: true,
+    },
     "closed withdraw_consent": {
       to: "cancelled",
       event: "auction.lot_cancelled",
@@ -70,7 +95,7 @@ describe("lot status transitions", () => {
     LOT_COMMANDS.map((command) => ({ from, command }))
   );
 
-  it("covers nine statuses and six commands", () => {
+  it("covers nine statuses and nine commands", () => {
     expect(LOT_STATUSES).toEqual([
       "draft",
       "scheduled",
@@ -87,10 +112,13 @@ describe("lot status transitions", () => {
       "open",
       "close",
       "settle_unsold",
+      "offer_payment",
+      "capture_payment",
+      "relist",
       "cancel",
       "withdraw_consent",
     ]);
-    expect(table).toHaveLength(54);
+    expect(table).toHaveLength(81);
   });
 
   it.each(table)("$from + $command", ({ from, command }) => {
@@ -104,7 +132,7 @@ describe("lot status transitions", () => {
   });
 
   it("leaves sold, unsold and cancelled lots where they are", () => {
-    for (const from of ["sold", "unsold", "cancelled"] as const) {
+    for (const from of ["sold", "unsold", "cancelled", "relisted"] as const) {
       for (const command of LOT_COMMANDS) {
         expect(decideLotTransition({ from, command }).ok).toBe(false);
       }
@@ -117,14 +145,14 @@ describe("which lots", () => {
     expect(PUBLIC_LOT_STATUSES).toEqual(["scheduled", "open"]);
   });
 
-  it("hold their artwork: every lot not yet sold, unsold or cancelled", () => {
+  it("hold artwork until cancellation, unsold or relisted; sold stays reserved", () => {
     expect(ACTIVE_LOT_STATUSES).toEqual([
       "draft",
       "scheduled",
       "open",
       "closed",
       "awaiting_payment",
-      "relisted",
+      "sold",
     ]);
   });
 
@@ -134,6 +162,7 @@ describe("which lots", () => {
       "scheduled",
       "open",
       "closed",
+      "awaiting_payment",
     ]);
   });
 });

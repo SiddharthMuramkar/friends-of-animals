@@ -1,3 +1,24 @@
+import {
+  setAuctionProceedsPolicy,
+  listAuctionProceedsPolicies,
+  saveAuctionAddress,
+  moveAuctionDelivery,
+  confirmAuctionReceipt,
+  getAdminAuctionOffer,
+  type SaveAuctionAddressInput,
+  type MoveAuctionDeliveryInput,
+} from "./delivery";
+import { expireAuctionOffer } from "./offers";
+import {
+  listMyAuctionOffers,
+  getMyAuctionOffer,
+  openAuctionCheckout,
+  confirmAuctionCheckout,
+  payAuctionTestCheckout,
+  type OfferInput,
+  type ConfirmAuctionCheckoutInput,
+  type AuctionTestCheckoutInput,
+} from "./checkout";
 import { eq, asc, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { authorize } from "../../access/can";
@@ -168,6 +189,29 @@ async function listEligibleArtwork(ctx: UseCaseContext) {
 }
 
 export const auctionsUseCases = (ctx: UseCaseContext) => ({
+  openAuctionCheckout: (input: OfferInput) => openAuctionCheckout(ctx, input),
+  confirmAuctionCheckout: (input: ConfirmAuctionCheckoutInput) =>
+    confirmAuctionCheckout(ctx, input),
+  payAuctionTestCheckout: (input: AuctionTestCheckoutInput) =>
+    payAuctionTestCheckout(ctx, input),
+  setAuctionProceedsPolicy: (input: {
+    competitionId: string;
+    creatorShareBps: number;
+  }) => setAuctionProceedsPolicy(ctx, input),
+  listAuctionProceedsPolicies: () => listAuctionProceedsPolicies(ctx),
+  saveAuctionAddress: (input: SaveAuctionAddressInput) =>
+    saveAuctionAddress(ctx, input),
+  moveAuctionDelivery: (input: MoveAuctionDeliveryInput) =>
+    moveAuctionDelivery(ctx, input),
+  confirmAuctionReceipt: (input: OfferInput) =>
+    confirmAuctionReceipt(ctx, input),
+  getAdminAuctionOffer: (input: { lotId: string }) =>
+    getAdminAuctionOffer(ctx, input),
+  listMyAuctionOffers: () => listMyAuctionOffers(ctx),
+  getMyAuctionOffer: (input: { lotCode: string }) =>
+    getMyAuctionOffer(ctx, input),
+  expireAuctionOffer: (input: { offerId: string }) =>
+    expireAuctionOffer(ctx, input),
   placeBid: (input: PlaceBidInput) => placeBid(ctx, input),
   browseLots: () => browseLots(ctx),
   getLot: (input: { lotCode: string }) => getLot(ctx, input),

@@ -28,7 +28,8 @@
       "description": "Description",
       "source": "Source",
       "total": "Filtered totals",
-      "older": "Older postings"
+      "older": "Older postings",
+      "auctionProceeds": "Auction proceeds policies"
     },
     "detail": {
       "title": "Ledger posting",
@@ -94,7 +95,9 @@
       "recurring_after_cancel": "Recurring charge after cancellation",
       "manual": "Manual entry",
       "reversal": "Manual reversal",
-      "other": "Other posting"
+      "other": "Other posting",
+      "auction_sale": "Auction sale",
+      "auction_review": "Auction payment held for review"
     },
     "postingDescriptions": {
       "payment_capture": "Online registration fees",
@@ -106,7 +109,11 @@
       "recurring_late_refund": "Recurring charge returned",
       "donation_refund": "Donation refund",
       "foreign_refund": "Foreign payment returned",
-      "reversal": "Reversal of posting {seq}"
+      "reversal": "Reversal of posting {seq}",
+      "auction_sale": "Auction sale",
+      "auction_review": "Auction payment held for review",
+      "auction_review_refund": "Auction review payment returned",
+      "auction_refund": "Auction sale refund"
     },
     "errors": {
       "forbidden": "Only FOA finance staff can make this change.",

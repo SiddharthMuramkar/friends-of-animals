@@ -137,7 +137,9 @@
         "donation": "A donation",
         "donationLink": "See the donation",
         "batchStatus": "Payment status",
-        "others": "Other payments to review for the same registrations"
+        "others": "Other payments to review for the same registrations",
+        "auction": "Auction artwork {lotCode}",
+        "auctionHelp": "An auction review payment cannot confirm a sale. Refund the payment or document the settlement handled outside the platform."
       },
       "decisionTitle": "Decision",
       "decision": {

@@ -29,6 +29,7 @@ import { z } from "zod";
 import { authorize, can } from "../../../access/can";
 import {
   auditLog,
+  auctionOffer,
   competition,
   institution,
   institutionRegistration,
@@ -84,6 +85,7 @@ export type RefundListItem = {
   requestedAt: Date;
   payer: PaymentReviewPayer;
   competitionName: string;
+  auctionLotCode?: string;
   /** How many students it lists; none for a duplicate. */
   students: number;
 };
@@ -197,7 +199,8 @@ const LIST_COLUMNS = {
   method: refund.method,
   amountMinor: refund.amountMinor,
   requestedAt: refund.requestedAt,
-  competitionName: competition.name,
+  competitionName: sql<string>`coalesce(${competition.name},${auctionOffer.lotCode})`,
+  auctionLotCode: auctionOffer.lotCode,
   institutionName: institution.name,
   payerName: payerUser.name,
   zeroShareCount: sql<number>`cardinality(${refund.zeroShareRegistrationIds})`,
@@ -208,7 +211,8 @@ function listQuery(ctx: UseCaseContext) {
     .select(LIST_COLUMNS)
     .from(refund)
     .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
-    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .leftJoin(auctionOffer, eq(auctionOffer.batchId, paymentBatch.id))
     .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
     .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId));
 }
@@ -236,7 +240,12 @@ export async function listRefunds(
   const parsed = listInput.safeParse(input);
   if (!parsed.success) return invalidInput(parsed.error);
   const rows = await listQuery(ctx)
-    .where(inArray(refund.status, STATUSES_OF[parsed.data.state]))
+    .where(
+      and(
+        inArray(refund.status, STATUSES_OF[parsed.data.state]),
+        inArray(paymentBatch.purpose, ["registration_fee", "auction_sale"])
+      )
+    )
     .orderBy(desc(refund.requestedAt), desc(refund.id))
     .limit(REFUND_LIST_LIMIT);
   const students = await studentCounts(
@@ -255,6 +264,7 @@ export async function listRefunds(
       requestedAt: row.requestedAt,
       payer: payerOf(row),
       competitionName: row.competitionName,
+      ...(row.auctionLotCode ? { auctionLotCode: row.auctionLotCode } : {}),
       students: (students.get(row.id) ?? 0) + row.zeroShareCount,
     })),
   };
@@ -325,7 +335,8 @@ export async function getRefund(
     .from(refund)
     .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
     .leftJoin(paymentReviewCase, acceptedReviewOfBatch)
-    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .leftJoin(auctionOffer, eq(auctionOffer.batchId, paymentBatch.id))
     .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
     .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId))
     .leftJoin(
@@ -334,7 +345,12 @@ export async function getRefund(
     )
     .leftJoin(requester, eq(requester.id, refund.requestedBy))
     .leftJoin(decider, eq(decider.id, refund.decidedBy))
-    .where(eq(refund.id, parsed.data.refundId));
+    .where(
+      and(
+        eq(refund.id, parsed.data.refundId),
+        inArray(paymentBatch.purpose, ["registration_fee", "auction_sale"])
+      )
+    );
   if (!row) return { ok: false, error: "not_found" };
   const items = await ctx.db
     .select({
@@ -382,6 +398,7 @@ export async function getRefund(
       requestedAt: row.requestedAt,
       payer: payerOf(row),
       competitionName: row.competitionName,
+      ...(row.auctionLotCode ? { auctionLotCode: row.auctionLotCode } : {}),
       students: items.filter((item) => item.releasedAt === null).length,
       reason: row.reason,
       requestedByName: row.requestedByName,
@@ -391,7 +408,7 @@ export async function getRefund(
       supersededByCancellation: row.supersededByCancellation === true,
       requiredByCancellation:
         row.status === "failed" &&
-        requiresCancellationPayout(row.kind, row.competitionStatus),
+        requiresCancellationPayout(row.kind, row.competitionStatus ?? ""),
       gatewayPaymentId: row.gatewayPaymentId,
       gatewayRefundId: row.gatewayRefundId,
       attempt: row.attempt,

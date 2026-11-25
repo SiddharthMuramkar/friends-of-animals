@@ -1,6 +1,6 @@
 {
-  "id": "76c405ab-b4ae-413d-8960-1e4cc3292554",
-  "prevId": "988b99ec-7f78-4434-a3ae-336529544e3b",
+  "id": "077fa7ed-10f0-4617-be3d-fe2c4d49c1cd",
+  "prevId": "ca00d323-ef26-4151-8900-8e554d9f224a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5074,6 +5074,13 @@
           "notNull": true,
           "default": false
         },
+        "auction_creator_share_bps": {
+          "name": "auction_creator_share_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "status": {
           "name": "status",
           "type": "competition_status",
@@ -5185,6 +5192,10 @@
       },
       "policies": {},
       "checkConstraints": {
+        "competition_auction_creator_share": {
+          "name": "competition_auction_creator_share",
+          "value": "\"competition\".\"auction_creator_share_bps\" BETWEEN 0 AND 10000"
+        },
         "competition_code_format": {
           "name": "competition_code_format",
           "value": "\"competition\".\"code\" ~ '^[A-Z]{3,6}[0-9]{2}$'"
@@ -20005,7 +20016,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"auction_lot\".\"status\" IN ('draft', 'scheduled', 'open', 'closed', 'awaiting_payment', 'relisted')",
+          "where": "\"auction_lot\".\"status\" IN ('draft', 'scheduled', 'open', 'closed', 'awaiting_payment', 'sold')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -20121,6 +20132,240 @@
         "auction_lot_story_length": {
           "name": "auction_lot_story_length",
           "value": "char_length(\"auction_lot\".\"story\") BETWEEN 1 AND 2000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.auction_offer": {
+      "name": "auction_offer",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "lot_id": {
+          "name": "lot_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bid_id": {
+          "name": "bid_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "batch_id": {
+          "name": "batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lot_code": {
+          "name": "lot_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "auction_offer_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_paise": {
+          "name": "amount_paise",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creator_share_bps": {
+          "name": "creator_share_bps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offered_at": {
+          "name": "offered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "auction_delivery_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address_ciphertext": {
+          "name": "address_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "courier": {
+          "name": "courier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tracking_number": {
+          "name": "tracking_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "delivery_updated_at": {
+          "name": "delivery_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "auction_offer_one_live_lot": {
+          "name": "auction_offer_one_live_lot",
+          "columns": [
+            {
+              "expression": "lot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"auction_offer\".\"status\" IN ('open','paid')",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auction_offer_bid_idx": {
+          "name": "auction_offer_bid_idx",
+          "columns": [
+            {
+              "expression": "bid_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auction_offer_lot_idx": {
+          "name": "auction_offer_lot_idx",
+          "columns": [
+            {
+              "expression": "lot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "auction_offer_lot_id_auction_lot_id_fk": {
+          "name": "auction_offer_lot_id_auction_lot_id_fk",
+          "tableFrom": "auction_offer",
+          "tableTo": "auction_lot",
+          "columnsFrom": [
+            "lot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "auction_offer_bid_id_auction_bid_id_fk": {
+          "name": "auction_offer_bid_id_auction_bid_id_fk",
+          "tableFrom": "auction_offer",
+          "tableTo": "auction_bid",
+          "columnsFrom": [
+            "bid_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "auction_offer_batch_id_payment_batch_id_fk": {
+          "name": "auction_offer_batch_id_payment_batch_id_fk",
+          "tableFrom": "auction_offer",
+          "tableTo": "payment_batch",
+          "columnsFrom": [
+            "batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "auction_offer_competition_id_competition_id_fk": {
+          "name": "auction_offer_competition_id_competition_id_fk",
+          "tableFrom": "auction_offer",
+          "tableTo": "competition",
+          "columnsFrom": [
+            "competition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "auction_offer_batch_unique": {
+          "name": "auction_offer_batch_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "batch_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "auction_offer_terms": {
+          "name": "auction_offer_terms",
+          "value": "\"auction_offer\".\"amount_paise\" > 0 AND \"auction_offer\".\"expires_at\" > \"auction_offer\".\"offered_at\" AND \"auction_offer\".\"creator_share_bps\" BETWEEN 0 AND 10000"
+        },
+        "auction_offer_paid": {
+          "name": "auction_offer_paid",
+          "value": "(\"auction_offer\".\"status\" = 'paid') = (\"auction_offer\".\"paid_at\" IS NOT NULL AND \"auction_offer\".\"batch_id\" IS NOT NULL AND \"auction_offer\".\"delivery_status\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -21646,116 +21891,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.certificate_archive": {
-      "name": "certificate_archive",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "institution_registration_id": {
-          "name": "institution_registration_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "certificate_archive_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "certificate_ids": {
-          "name": "certificate_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "profile_ids": {
-          "name": "profile_ids",
-          "type": "uuid[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "storage_key": {
-          "name": "storage_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bucket": {
-          "name": "bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "certificate_archive_registration_idx": {
-          "name": "certificate_archive_registration_idx",
-          "columns": [
-            {
-              "expression": "institution_registration_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "certificate_archive_institution_registration_id_institution_registration_id_fk": {
-          "name": "certificate_archive_institution_registration_id_institution_registration_id_fk",
-          "tableFrom": "certificate_archive",
-          "tableTo": "institution_registration",
-          "columnsFrom": [
-            "institution_registration_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "certificate_archive_manifest_nonempty": {
-          "name": "certificate_archive_manifest_nonempty",
-          "value": "cardinality(\"certificate_archive\".\"certificate_ids\") > 0 AND cardinality(\"certificate_archive\".\"profile_ids\") > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.certificate_ready_notice": {
       "name": "certificate_ready_notice",
       "schema": "",
@@ -22406,7 +22541,8 @@
       "schema": "public",
       "values": [
         "registration_fee",
-        "donation"
+        "donation",
+        "auction_sale"
       ]
     },
     "public.payment_review_outcome": {
@@ -22960,6 +23096,17 @@
         "detail"
       ]
     },
+    "public.auction_delivery_status": {
+      "name": "auction_delivery_status",
+      "schema": "public",
+      "values": [
+        "awaiting_address",
+        "pending_dispatch",
+        "dispatched",
+        "delivered",
+        "receipt_confirmed"
+      ]
+    },
     "public.auction_lot_status": {
       "name": "auction_lot_status",
       "schema": "public",
@@ -22973,6 +23120,16 @@
         "unsold",
         "relisted",
         "cancelled"
+      ]
+    },
+    "public.auction_offer_status": {
+      "name": "auction_offer_status",
+      "schema": "public",
+      "values": [
+        "open",
+        "paid",
+        "expired",
+        "superseded"
       ]
     },
     "public.round_outcome": {
@@ -23014,16 +23171,6 @@
         "community_member",
         "volunteer",
         "ambassador"
-      ]
-    },
-    "public.certificate_archive_status": {
-      "name": "certificate_archive_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "ready",
-        "failed",
-        "invalidated"
       ]
     },
     "public.certificate_render_status": {

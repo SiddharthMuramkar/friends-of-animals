@@ -37,6 +37,22 @@ describe("redactText", () => {
     expect(redactText(text)).toBe(text);
   });
 
+  it("preserves a structured opaque UUIDv7 without treating its random digits as a phone number", () => {
+    const opaqueId = "01938a00-0000-7000-9668-844261ae1930";
+    const event = scrubEvent({
+      extra: {
+        batchId: opaqueId,
+        phone: opaqueId,
+        note: "Call +91 98765 43210",
+      },
+    });
+    expect(event.extra).toEqual({
+      batchId: opaqueId,
+      phone: "[redacted]",
+      note: "Call [phone]",
+    });
+  });
+
   it("drops the query string and fragment of absolute URLs", () => {
     expect(
       redactText(

@@ -1,4 +1,11 @@
 import {
+  offeredBuyer,
+  offerValues,
+  creatorRecipients,
+  schoolRecipients,
+  saleValues,
+} from "../auctions/messages";
+import {
   certificateReadyRecipients,
   reissueRecipients,
   certificateReadyValues,
@@ -339,6 +346,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "auction.lot_opened":
     case "auction.lot_closed":
     case "auction.bid_outbid":
+    case "auction.offer_opened":
+    case "auction.offer.expire":
+    case "auction.sale_captured":
     case "auction.lot_cancelled":
     case "artwork.retain_unrequested":
     case "artwork.requested":
@@ -444,6 +454,18 @@ export const AUDIENCES = {
   certificate_reissued_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "certificate.reissued" && cipher
       ? reissueRecipients(db, delivery.payload.certificateId, cipher)
+      : [],
+  auction_winner: async (db, delivery) =>
+    delivery.eventType === "auction.offer_opened"
+      ? offeredBuyer(db, delivery.payload.offerId)
+      : [],
+  auction_creator: async (db, delivery, cipher) =>
+    delivery.eventType === "auction.sale_captured" && cipher
+      ? creatorRecipients(db, delivery.payload.offerId, cipher)
+      : [],
+  auction_school: async (db, delivery) =>
+    delivery.eventType === "auction.sale_captured"
+      ? schoolRecipients(db, delivery.payload.offerId)
       : [],
   certificate_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "certificates.ready" && cipher
@@ -990,6 +1012,15 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
       if (!row) return {};
       return { "lot.code": row.code };
     },
+  },
+  "auction.offer_opened": {
+    names: ["lot.code", "offer.link", "offer.deadline"],
+    load: (db, { payload }) => offerValues(db, payload.offerId),
+  },
+  "auction.offer.expire": { names: [], load: async () => ({}) },
+  "auction.sale_captured": {
+    names: ["lot.code"],
+    load: (db, { payload }) => saleValues(db, payload.offerId),
   },
   "auction.lot_cancelled": { names: [], load: async () => ({}) },
   "artwork.retain_unrequested": { names: [], load: async () => ({}) },
