@@ -163,13 +163,11 @@ describe("saveScoreSheet", () => {
     // Unassigning a now-conflicted judge removes all scores. No stale score
     // can enter the next round's rankings; completion audit remains.
     expect(
-      await h
-        .as(w.manager)
-        .flagConflict({
-          roundId: w.roundId,
-          judgeUserId: w.judgeUser.id,
-          entryId: w.entryId,
-        })
+      await h.as(w.manager).flagConflict({
+        roundId: w.roundId,
+        judgeUserId: w.judgeUser.id,
+        entryId: w.entryId,
+      })
     ).toMatchObject({ ok: true });
     expect(await h.db.select().from(scoreSheet)).toEqual([]);
     expect(await h.db.select().from(criterionScore)).toEqual([]);
