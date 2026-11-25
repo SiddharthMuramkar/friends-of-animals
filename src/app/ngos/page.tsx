@@ -23,6 +23,7 @@ import {
   type SearchListingsResult,
   type SearchResult,
 } from "@/server/modules/directory";
+import { LOCATION_DECIMALS } from "@/server/modules/directory/domain/geo";
 
 import { UseMyLocation } from "./_components/use-my-location";
 import { searchDirectory } from "./_lib/search";
@@ -140,6 +141,8 @@ async function SearchForm({
     }
   }
   const radius = values.radius || String(DEFAULT_RADIUS_KM);
+  const point =
+    result?.ok && result.origin.kind === "point" ? result.origin : null;
   return (
     // Block: before Safari 17 <search> is an unknown, inline element.
     <search aria-labelledby="directory-search" className={`mt-8 block ${CARD}`}>
@@ -150,6 +153,23 @@ async function SearchForm({
         </FormAlert>
       ) : null}
       <form method="get" action={PATH} className="mt-5 flex flex-col gap-5">
+        {point ? (
+          <>
+            {/* Keep the validated, coarsened point when refining filters.
+                A typed pin code takes precedence in the search parser. */}
+            <input
+              type="hidden"
+              name="lat"
+              value={point.latitude.toFixed(LOCATION_DECIMALS)}
+            />
+            <input
+              type="hidden"
+              name="lng"
+              value={point.longitude.toFixed(LOCATION_DECIMALS)}
+            />
+            <p className="text-sm text-ink-muted">{t("form.locationActive")}</p>
+          </>
+        ) : null}
         <div className="grid gap-5 md:grid-cols-3">
           <TextField
             id="search-pin"

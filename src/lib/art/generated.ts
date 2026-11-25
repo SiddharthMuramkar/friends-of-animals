@@ -35,9 +35,12 @@ import artSeasonMay from "@/assets/site-art/seasons/season-may.webp";
 import artSeasonNov from "@/assets/site-art/seasons/season-nov.webp";
 import artSeasonOct from "@/assets/site-art/seasons/season-oct.webp";
 import artSeasonSep from "@/assets/site-art/seasons/season-sep.webp";
+import artStickerAdoptionFriends from "@/assets/site-art/stickers/sticker-adoption-friends.webp";
+import artStickerCommonMyna from "@/assets/site-art/stickers/sticker-common-myna.webp";
 import artStickerDiya from "@/assets/site-art/stickers/sticker-diya.webp";
 import artStickerKitten from "@/assets/site-art/stickers/sticker-kitten.webp";
 import artStickerMarigold from "@/assets/site-art/stickers/sticker-marigold.webp";
+import artStickerPalmSquirrel from "@/assets/site-art/stickers/sticker-palm-squirrel.webp";
 import artStickerPuppy from "@/assets/site-art/stickers/sticker-puppy.webp";
 import artStickerSketchbook from "@/assets/site-art/stickers/sticker-sketchbook.webp";
 import artStickerSparrowBowl from "@/assets/site-art/stickers/sticker-sparrow-bowl.webp";
@@ -81,9 +84,12 @@ export const ART_FILES: Record<SiteArtId, StaticImageData> = {
   "season-nov": artSeasonNov,
   "season-oct": artSeasonOct,
   "season-sep": artSeasonSep,
+  "sticker-adoption-friends": artStickerAdoptionFriends,
+  "sticker-common-myna": artStickerCommonMyna,
   "sticker-diya": artStickerDiya,
   "sticker-kitten": artStickerKitten,
   "sticker-marigold": artStickerMarigold,
+  "sticker-palm-squirrel": artStickerPalmSquirrel,
   "sticker-puppy": artStickerPuppy,
   "sticker-sketchbook": artStickerSketchbook,
   "sticker-sparrow-bowl": artStickerSparrowBowl,

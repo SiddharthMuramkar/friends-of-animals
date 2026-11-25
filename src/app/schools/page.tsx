@@ -2,6 +2,7 @@ import { CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { Illustration } from "@/components/art/illustration";
 import { JudgingPath } from "@/components/showcase/judging-path";
 import { QuoteFigure } from "@/components/showcase/quote-figure";
 import { ButtonLink } from "@/components/site/button-link";
@@ -98,12 +99,21 @@ export default async function Page() {
 
       {/* Five steps, from registering a school to sending the shortlist. */}
       <Section labelledBy="schools-steps" width="wide" hue="green">
-        <SectionHeading
-          id="schools-steps"
-          eyebrow={t("steps.eyebrow")}
-          tile="green"
-          title={t("steps.title")}
-        />
+        <div className="flex flex-wrap items-end gap-3">
+          <SectionHeading
+            id="schools-steps"
+            eyebrow={t("steps.eyebrow")}
+            tile="green"
+            title={t("steps.title")}
+            className="min-w-0 flex-[1_1_16rem]"
+          />
+          <Illustration
+            id="sticker-common-myna"
+            sizes="(min-width: 640px) 88px, 64px"
+            decorative
+            className="pointer-events-none ms-auto w-[64px] max-w-full shrink-0 sm:w-[88px]"
+          />
+        </div>
         <ol className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-5">
           {steps.map((s, i) => (
             <li

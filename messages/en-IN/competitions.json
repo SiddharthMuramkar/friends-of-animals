@@ -37,10 +37,10 @@
       "age": "Age",
       "all": "All",
       "bands": {
-        "a5": "5 to 8",
+        "a3": "3 to 8",
         "a9": "9 to 12",
         "a13": "13 to 17",
-        "a18": "18 and over"
+        "a18": "18 to 99"
       },
       "note": "The list changes as you choose. Nothing is sent anywhere."
     },
@@ -56,10 +56,10 @@
     },
     "own": {
       "title": "Taking part on your own",
-      "lead": "A student should not be required to participate through a school.",
-      "body": "If your school is not part of a competition, a parent or guardian can sign you up with us directly. You make your entry at home, it goes to the same judges, and you get the same certificate.",
+      "lead": "Adults can enter on their own in competitions that offer individual registration.",
+      "body": "Under 18? Enter through your school for now. Entry with a parent or guardian opens soon. Both routes lead to the same judges and certificates.",
       "adultSummary": "For parents and guardians",
-      "adult": "You create the account, give the consents for your child and, where there is a fee, pay it. Your child's work is judged on the entry code alone. We show a child's first name and the first letter of the surname (like Aarav S.), never a photo, age, school address or contact details."
+      "adult": "When individual entry for children opens, you can create the account, give the consents for your child and, where there is a fee, pay it. Your child's work is judged on the entry code alone. We show a child's first name and the first letter of the surname (like Aarav S.), never a photo, age, school address or contact details."
     },
     "detail": {
       "breadcrumb": "Breadcrumb",
@@ -74,8 +74,15 @@
       "action": {
         "register": {
           "label": "Register for this competition",
+          "schoolLabel": "See how your school can enter",
           "title": "Online registration opens with the first real competition",
-          "body": "We are building sign-up so that consent, safety and payments work properly from day one. Until then, a school or a parent can write to us and we will reply with the steps."
+          "body": "We are building sign-up so that consent, safety and payments work properly from day one. Until then, a school or a parent can write to us and we will reply with the steps.",
+          "liveTitle": "Registration is open",
+          "liveBody": {
+            "school": "This competition takes entries through schools or other institutions. Ask a teacher or your principal to sign up your school.",
+            "individual": "This competition takes individual entries. Adults aged 18 and over can register themselves if they are eligible for one of the age groups above.",
+            "both": "Ask a teacher if your school is taking part, or register on your own if you are 18 or over and eligible for an age group above."
+          }
         },
         "opensSoon": {
           "label": "Registration opens {date}",
@@ -85,7 +92,10 @@
         "underway": {
           "label": "Entries are being judged",
           "title": "This competition is underway",
-          "body": "Registration has closed. If you already have an entry, your dashboard will show its progress once accounts are switched on."
+          "body": "Registration has closed. If you already have an entry, your dashboard will show its progress once accounts are switched on.",
+          "liveLabel": "Competition underway",
+          "liveBody": "Registration has closed. If you have already registered, sign in to see your competition and the next steps in your dashboard.",
+          "dashboard": "Open your dashboard"
         },
         "results": {
           "label": "See the results",
@@ -134,7 +144,8 @@
         "school": {
           "title": "Through your school",
           "line": "We encourage you to participate through your school.",
-          "body": "Your teacher runs the competition in class. The school judges first and sends its best entries to us."
+          "body": "Your teacher runs the competition in class. The school judges first and sends its best entries to us.",
+          "register": "Register your school"
         },
         "self": {
           "title": "On your own",

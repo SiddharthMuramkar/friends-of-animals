@@ -177,16 +177,51 @@ describe("hintedTiles", () => {
         "test"
       ),
       { font: { loadSystemFonts: false } }
-    ).render().pixels;
+    ).render();
 
   it.each(FAVICON_GRIDS.map((grid) => [grid.size, grid] as const))(
     "puts every edge on a whole pixel at %i px",
     (_, grid) => {
-      const pixels = renderIcon(grid);
+      const { pixels } = renderIcon(grid);
       const alphas = new Set<number>();
       for (let i = 3; i < pixels.length; i += 4) alphas.add(pixels[i]);
       // Nothing half-covered: each pixel is a tile, a letter or the tab.
       expect([...alphas].sort((a, b) => a - b)).toEqual([0, 255]);
+    }
+  );
+
+  it.each(FAVICON_GRIDS.map((grid) => [grid.size, grid] as const))(
+    "has transparent gutters and balanced margins at %i px",
+    (_, grid) => {
+      const { size, tileWidth, tileHeight, gap } = grid;
+      const { pixels } = renderIcon(grid);
+      const left = (size - 3 * tileWidth - 2 * gap) / 2;
+      const top = (size - tileHeight) / 2;
+      expect(left).toBeGreaterThanOrEqual(1);
+      expect(gap).toBeGreaterThanOrEqual(1);
+      expect(Number.isInteger(left) && Number.isInteger(top)).toBe(true);
+      const colours = [
+        [0xc9, 0x28, 0x27, 255],
+        [0x07, 0xac, 0x06, 255],
+        [0x2b, 0x41, 0xf0, 255],
+      ];
+      const pixel = (x: number, y: number) => [
+        ...pixels.subarray((y * size + x) * 4, (y * size + x) * 4 + 4),
+      ];
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const tile = Math.floor((x - left) / (tileWidth + gap));
+          const inTile =
+            tile >= 0 &&
+            tile < 3 &&
+            x < left + tile * (tileWidth + gap) + tileWidth &&
+            y >= top &&
+            y < top + tileHeight;
+          expect(pixel(x, y)[3]).toBe(inTile ? 255 : 0);
+          // At the top edge, the three registered colours appear unchanged.
+          if (inTile && y === top) expect(pixel(x, y)).toEqual(colours[tile]);
+        }
+      }
     }
   );
 
@@ -196,7 +231,7 @@ describe("hintedTiles", () => {
     )
   )("draws the hand-placed letters pixel for pixel at %i px", (_, grid) => {
     const { size, tileWidth, tileHeight, gap, letters } = grid;
-    const pixels = renderIcon(grid);
+    const { pixels } = renderIcon(grid);
     const left = Math.floor((size - (3 * tileWidth + 2 * gap)) / 2);
     const top = Math.floor((size - tileHeight) / 2);
     letters?.bitmaps.forEach((bitmap, tile) => {
@@ -212,6 +247,26 @@ describe("hintedTiles", () => {
             cell === "X"
           );
         })
+      );
+    });
+  });
+
+  it("ships every generated frame at both public ICO paths", () => {
+    const ico = readFileSync(new URL("../public/favicon.ico", import.meta.url));
+    const brandIco = readFileSync(
+      new URL("../public/brand/favicon.ico", import.meta.url)
+    );
+    expect(brandIco).toEqual(ico);
+    expect(ico.readUInt16LE(2)).toBe(1);
+    expect(ico.readUInt16LE(4)).toBe(FAVICON_GRIDS.length);
+    FAVICON_GRIDS.forEach((grid, index) => {
+      const entry = 6 + index * 16;
+      expect(ico[entry]).toBe(grid.size);
+      expect(ico[entry + 1]).toBe(grid.size);
+      const length = ico.readUInt32LE(entry + 8);
+      const offset = ico.readUInt32LE(entry + 12);
+      expect(ico.subarray(offset, offset + length)).toEqual(
+        renderIcon(grid).asPng()
       );
     });
   });

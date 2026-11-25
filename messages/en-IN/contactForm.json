@@ -2,6 +2,7 @@
   "contactForm": {
     "title": "Send us a message",
     "lead": "Your message goes straight to the team for its topic. We reply by email.",
+    "detailsLegend": "Message details",
     "topic": {
       "legend": "What is it about?",
       "error": "Choose what your message is about."

@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Share2 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { buttonStyles } from "@/components/site/button-link";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,8 @@ export type PledgeLabels = {
   preview: string;
   download: string;
   share: string;
+  preparing: string;
+  exportFailed: string;
   privacy: string;
   cardTitle: string;
   /** Contains "{name}". */
@@ -70,7 +72,11 @@ type CardText = {
   source: string;
 };
 
-async function drawCard(c: HTMLCanvasElement, text: CardText): Promise<void> {
+async function drawCard(
+  c: HTMLCanvasElement,
+  text: CardText,
+  isCurrent: () => boolean
+): Promise<boolean> {
   const display = fontVar("--font-baloo");
   const body = fontVar("--font-inter");
   // A face that fails to load must not stop the card: canvas falls back.
@@ -79,10 +85,13 @@ async function drawCard(c: HTMLCanvasElement, text: CardText): Promise<void> {
     document.fonts.load(`500 ${SIZE.quote}px ${body}`, text.quote),
   ]);
   const logo = await loadLogo().catch(() => null);
+  // The visitor may have edited the card while the fonts or logo loaded.
+  // An earlier draw must never paint over the current preview.
+  if (!isCurrent()) return false;
   c.width = W;
   c.height = H;
   const ctx = c.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return false;
 
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, W, H);
@@ -150,6 +159,7 @@ async function drawCard(c: HTMLCanvasElement, text: CardText): Promise<void> {
     const { width, height, right } = CARD.logo;
     ctx.drawImage(logo, W - right - width, LOGO_TOP, width, height);
   }
+  return true;
 }
 
 function saveFile(file: File) {
@@ -180,26 +190,25 @@ export function PledgeCard({
   const [name, setName] = useState("");
   const [animal, setAnimal] = useState(animals[0]!.id);
   const [promise, setPromise] = useState(promises[0]!.id);
-  const [canShare, setCanShare] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [prepared, setPrepared] = useState<{
+    card: CardText;
+    file: File | null;
+    canShare: boolean;
+  } | null>(null);
+  const fieldsRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileRef = useRef<File | null>(null);
 
   // On a slow phone the form works as plain HTML before hydration, and
   // hydration fires no change events: adopt what was typed and picked then,
   // or the card shows the defaults and the next render wipes the form.
   useEffect(() => {
-    const form = formRef.current;
-    if (!form) return;
-    const value = (name: string) => {
-      const el = form.elements.namedItem(name);
-      return el instanceof HTMLInputElement || el instanceof RadioNodeList
-        ? el.value
-        : "";
-    };
-    const typed = value(`${uid}-name`);
-    const pickedAnimal = value(`${uid}-animal`);
-    const pickedPromise = value(`${uid}-promise`);
+    const fields = fieldsRef.current;
+    if (!fields) return;
+    const value = (selector: string) =>
+      fields.querySelector<HTMLInputElement>(selector)?.value ?? "";
+    const typed = value(`input[name="${uid}-name"]`);
+    const pickedAnimal = value(`input[name="${uid}-animal"]:checked`);
+    const pickedPromise = value(`input[name="${uid}-promise"]:checked`);
     if (typed) setName(typed);
     if (animals.some((a) => a.id === pickedAnimal)) setAnimal(pickedAnimal);
     if (promises.some((p) => p.id === pickedPromise)) setPromise(pickedPromise);
@@ -216,37 +225,62 @@ export function PledgeCard({
   );
 
   const summary = `${labels.cardTitle}. ${lead} ${promiseText}. ${neighbour}.`;
-
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    let current = true;
-    void drawCard(c, {
+  const card = useMemo<CardText>(
+    () => ({
       title: labels.cardTitle,
       lead,
       promise: `${promiseText}.`,
       neighbour,
       quote: labels.cardQuote,
       source: labels.cardQuoteSource,
-    })
-      .then(() => {
+    }),
+    [
+      labels.cardTitle,
+      lead,
+      promiseText,
+      neighbour,
+      labels.cardQuote,
+      labels.cardQuoteSource,
+    ]
+  );
+  // Tie the file to the text that produced it, not just the last completed
+  // blob. The export becomes unavailable on the very render that edits it.
+  const file = prepared?.card === card ? prepared.file : null;
+  const failed = prepared?.card === card && !prepared.file;
+
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    let current = true;
+    const fail = () => {
+      if (current) setPrepared({ card, file: null, canShare: false });
+    };
+    void drawCard(c, card, () => current)
+      .then((drawn) => {
+        if (!current) return;
+        if (!drawn) return fail();
         // Prepare the PNG now: an await before navigator.share() can cost the
         // tap's user activation on Safari.
         c.toBlob((blob) => {
-          if (!current || !blob) return;
+          if (!current) return;
+          if (!blob) return fail();
           const file = new File([blob], FILE_NAME, { type: PNG });
-          fileRef.current = file;
-          setCanShare(navigator.canShare?.({ files: [file] }) ?? false);
+          let canShare = false;
+          try {
+            canShare = navigator.canShare?.({ files: [file] }) ?? false;
+          } catch {
+            // Download is still available if the share API is restricted.
+          }
+          setPrepared({ card, file, canShare });
         }, PNG);
       })
-      .catch(() => {});
+      .catch(fail);
     return () => {
       current = false;
     };
-  }, [lead, promiseText, neighbour, labels]);
+  }, [card]);
 
   async function share() {
-    const file = fileRef.current;
     if (!file) return;
     try {
       await navigator.share({
@@ -264,11 +298,9 @@ export function PledgeCard({
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:gap-12">
-      <form
-        ref={formRef}
-        className="space-y-8"
-        onSubmit={(e) => e.preventDefault()}
-      >
+      {/* These fields are local-only, not a form that could send the name
+          to the server when Enter is pressed before hydration. */}
+      <div ref={fieldsRef} className="space-y-8">
         <div>
           <label
             htmlFor={`${uid}-name`}
@@ -332,7 +364,7 @@ export function PledgeCard({
             ))}
           </div>
         </fieldset>
-      </form>
+      </div>
 
       <div className="lg:sticky lg:top-24 lg:self-start">
         <p className="font-semibold text-ink">{labels.preview}</p>
@@ -349,19 +381,21 @@ export function PledgeCard({
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => fileRef.current && saveFile(fileRef.current)}
-            className={cn(buttonStyles(), "flex-wrap")}
+            aria-disabled={!file}
+            onClick={() => file && saveFile(file)}
+            className={cn(buttonStyles(), "flex-wrap aria-disabled:opacity-60")}
           >
             <Download aria-hidden="true" />
             {labels.download}
           </button>
-          {canShare ? (
+          {prepared?.canShare ? (
             <button
               type="button"
+              aria-disabled={!file}
               onClick={share}
               className={cn(
                 buttonStyles({ variant: "secondary" }),
-                "flex-wrap"
+                "flex-wrap aria-disabled:opacity-60"
               )}
             >
               <Share2 aria-hidden="true" />
@@ -369,6 +403,13 @@ export function PledgeCard({
             </button>
           ) : null}
         </div>
+        {failed ? (
+          <output className="mt-3 block text-sm text-danger">
+            {labels.exportFailed}
+          </output>
+        ) : !file ? (
+          <p className="mt-3 text-sm text-ink-muted">{labels.preparing}</p>
+        ) : null}
         <p id={`${uid}-privacy`} className="mt-3 text-sm text-ink-muted">
           {labels.privacy}
         </p>

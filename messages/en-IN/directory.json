@@ -287,7 +287,8 @@
         "locating": "Finding your location…",
         "locationDenied": "Your browser didn't share your location. Type your pin code instead.",
         "locationUnavailable": "Your location isn't available. Type your pin code instead.",
-        "locationPrivacy": "Your browser asks first. Only a rough location, to about a kilometre, is sent to FOA, and it isn't stored."
+        "locationPrivacy": "Your browser asks first. Only a rough location, to about a kilometre, is sent to FOA, and it isn't stored.",
+        "locationActive": "Searching from your approximate location. Change the service or distance and search again, or enter a pin code to search somewhere else."
       },
       "errors": {
         "pin": {

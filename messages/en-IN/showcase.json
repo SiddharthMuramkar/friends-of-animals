@@ -10,6 +10,7 @@
     "seasonal": {
       "eyebrow": "This month’s kindness",
       "browsingEyebrow": "Kindness for {month}",
+      "calendarLabel": "Kindness calendar",
       "monthPicker": "Choose a month",
       "monthTitle": "{month}: {title}",
       "tryThis": "Try this",
