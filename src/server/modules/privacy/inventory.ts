@@ -1497,7 +1497,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       rowsOf("gateway_webhook_event", {
         subject: {
           kind: "payer",
-          via: "order_id → payment_batch.gateway_order_id",
+          via: "(gateway, order_id) → payment_batch.(gateway, gateway_order_id) → payer_user_id",
         },
         retention: PAYMENT_RECORD,
         onExpiry: "retain",

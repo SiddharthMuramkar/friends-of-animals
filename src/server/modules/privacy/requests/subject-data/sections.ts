@@ -23,6 +23,7 @@ import {
   getTableColumns,
   inArray,
   is,
+  isNotNull,
   notInArray,
   or,
   sql,
@@ -75,6 +76,7 @@ import {
   offlinePayment,
   participantProfile,
   paymentBatch,
+  gatewayWebhookEvent,
   paymentBatchItem,
   paymentReviewCase,
   privacyRequest,
@@ -601,6 +603,21 @@ export const SECTIONS: readonly Section[] = [
     table: paymentBatch,
     where: (scope) => within(paymentBatch.payerUserId, users(scope)),
     owners: ["payer_user_id"],
+  },
+  {
+    // Capture timing is payer data, not the artist's or the merely related
+    // registration's. Orders are unique only within their gateway.
+    table: gatewayWebhookEvent,
+    where: (scope) =>
+      and(
+        eq(gatewayWebhookEvent.type, "payment.captured"),
+        isNotNull(gatewayWebhookEvent.captureOccurredBy),
+        sql`EXISTS (SELECT 1 FROM ${paymentBatch} WHERE ${paymentBatch.gateway} = ${gatewayWebhookEvent.gateway} AND ${paymentBatch.gatewayOrderId} = ${gatewayWebhookEvent.orderId} AND ${paymentBatch.purpose} = 'auction_sale' AND ${within(paymentBatch.payerUserId, users(scope))})`
+      )!,
+    // The collector independently checks this pair against owned batches
+    // and supplies their local id. Neither provider identifier is exported.
+    owners: ["gateway", "order_id"],
+    include: ["capture_occurred_by"],
   },
   {
     table: auctionOffer,

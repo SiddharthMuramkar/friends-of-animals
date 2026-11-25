@@ -31,3 +31,34 @@ export function assertRowsBelongToSubject(
     }
   }
 }
+
+/** Signed timing evidence must name an actual owned auction payment,
+ * not just any previously allowed id or an order at a different gateway. */
+export function auctionCaptureBatchId(
+  event: Readonly<Record<string, unknown>>,
+  ownedBatches: readonly Readonly<Record<string, unknown>>[],
+  userIds: ReadonlySet<string>
+): string {
+  const batch = ownedBatches.find(
+    (row) =>
+      row.purpose === "auction_sale" &&
+      typeof row.payer_user_id === "string" &&
+      userIds.has(row.payer_user_id) &&
+      typeof event.gateway === "string" &&
+      row.gateway === event.gateway &&
+      typeof event.order_id === "string" &&
+      row.gateway_order_id === event.order_id
+  );
+  if (
+    event.type !== "payment.captured" ||
+    !(event.capture_occurred_by instanceof Date) ||
+    !Number.isFinite(+event.capture_occurred_by) ||
+    typeof batch?.id !== "string"
+  ) {
+    throw new ForeignRowError(
+      "gateway_webhook_event",
+      typeof event.id === "string" ? event.id : "?"
+    );
+  }
+  return batch.id;
+}

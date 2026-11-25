@@ -14,7 +14,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import type { FieldCipher } from "../../../../crypto/field-cipher";
 import type { AppDb } from "../../../../db/app-db";
 import type { ObjectStorage } from "../../../../ports/storage";
-import { assertRowsBelongToSubject } from "./guard";
+import { assertRowsBelongToSubject, auctionCaptureBatchId } from "./guard";
 import type { SubjectScope } from "./scope";
 import {
   columnNamed,
@@ -104,6 +104,10 @@ export async function collectSubjectData(
   const allowed = new Set<string>([...scope.userIds, ...scope.profileIds]);
   const sections: ExportDocument["sections"] = {};
   const fileRows: Record<string, unknown>[] = [];
+  // Capture evidence follows the exact gateway/order pair of a verified
+  // payer's auction batch, not a general set of acceptable local IDs.
+  const paidBatches: Record<string, unknown>[] = [];
+  const auctionBatchIds = new Set<string>();
   // File ownership follows a previously validated entry, signed form, or
   // custody photo, not the school coordinator or guardian who uploaded it.
   const participantFileIds = new Set<string>();
@@ -114,7 +118,18 @@ export async function collectSubjectData(
     const raw = (
       await db.select().from(section.table).where(section.where(scope))
     ).map((row) => bySqlName(section.table, row));
-    if (name === "file_asset") {
+    const evidenceBatchIds =
+      name === "gateway_webhook_event"
+        ? raw.map((row) => auctionCaptureBatchId(row, paidBatches, userIds))
+        : undefined;
+    if (name === "payment_batch") {
+      assertRowsBelongToSubject(name, raw, section.owners, userIds);
+      paidBatches.push(...raw);
+      for (const row of raw) {
+        if (row.purpose === "auction_sale" && typeof row.id === "string")
+          auctionBatchIds.add(row.id);
+      }
+    } else if (name === "file_asset") {
       for (const row of raw) {
         const participantFile = participantPurposes.has(String(row.purpose));
         assertRowsBelongToSubject(
@@ -124,7 +139,7 @@ export async function collectSubjectData(
           participantFile ? participantFileIds : userIds
         );
       }
-    } else {
+    } else if (!evidenceBatchIds) {
       assertRowsBelongToSubject(name, raw, section.owners, allowed);
     }
     if (["entry_file", "consent_form", "artwork_photo"].includes(name)) {
@@ -146,8 +161,15 @@ export async function collectSubjectData(
     if (raw.length === 0) continue;
     const withheld = new Set(section.withhold ?? []);
     const included = section.include && new Set(section.include);
-    sections[name] = raw.map((row) => {
-      const out: Record<string, unknown> = {};
+    sections[name] = raw.map((row, i) => {
+      const out: Record<string, unknown> = evidenceBatchIds
+        ? { batch_id: evidenceBatchIds[i] }
+        : {};
+      const auctionFinancial =
+        (name === "payment_batch" && row.purpose === "auction_sale") ||
+        (["payment_review_case", "refund"].includes(name) &&
+          typeof row.batch_id === "string" &&
+          auctionBatchIds.has(row.batch_id));
       // A paid sale belongs to its creator as well as its buyer, but its
       // delivery address, tracking and payment links are exclusively the buyer's.
       const creatorOnlyAuction =
@@ -178,6 +200,20 @@ export async function collectSubjectData(
             "address_ciphertext",
             "courier",
             "tracking_number",
+          ].includes(column)
+        )
+          continue;
+        // Keep own financial amounts, decisions and local batch references;
+        // provider identifiers and internal refund keys are not needed to
+        // convey the auction capture evidence or its reviewed outcome.
+        if (
+          auctionFinancial &&
+          [
+            "gateway_order_id",
+            "gateway_payment_id",
+            "gateway_refund_id",
+            "dashboard_refund_reference",
+            "idempotency_key",
           ].includes(column)
         )
           continue;
