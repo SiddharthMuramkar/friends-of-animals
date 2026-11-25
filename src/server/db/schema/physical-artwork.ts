@@ -88,6 +88,8 @@ export const physicalArtwork = pgTable(
       onDelete: "set null",
     }),
     receivedAt: timestamptz("received_at"),
+    storageLocation: text("storage_location"),
+    retainedAt: timestamptz("retained_at"),
   },
   (table) => [
     unique("physical_artwork_entry_id_key").on(table.entryId),

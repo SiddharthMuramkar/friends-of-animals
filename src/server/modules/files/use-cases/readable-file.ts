@@ -28,6 +28,7 @@ export async function findReadableFile(
     notInArray(fileAsset.purpose, [
       ...ENTRY_FILE_PURPOSES,
       "offline_donation_proof",
+      "artwork_condition_photo",
     ]),
   ];
   if (!everyFile.allowed) {

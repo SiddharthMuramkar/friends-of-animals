@@ -71,7 +71,6 @@ const seeders: readonly Seeder[] = [
   seedCompetitions,
   seedJudging,
   seedConsent,
-  seedJudgingRounds,
   seedConsentLinkTemplates,
   seedCompetitionTerms,
   seedFiles,
@@ -126,6 +125,7 @@ const seeders: readonly Seeder[] = [
   // NEIGH27 (#82).
   seedChildConsents,
   seedPhysicalArtwork,
+  seedJudgingRounds,
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).
   seedVolunteers,

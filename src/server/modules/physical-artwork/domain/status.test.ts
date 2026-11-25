@@ -5,7 +5,6 @@ import {
   PHYSICAL_ARTWORK_STATUSES,
   artworkTransition,
   isPhysicalArtworkStatus,
-  type PhysicalArtworkStatus,
 } from "./status";
 
 /** Every move this module allows, and who makes it. */
@@ -13,6 +12,18 @@ const ALLOWED: Record<string, "sender" | "staff"> = {
   "requested→dispatched": "sender",
   "dispatched→received": "staff",
   "requested→received": "staff",
+  "received→verified": "staff",
+  "received→discrepancy": "staff",
+  "discrepancy→received": "staff",
+  "verified→on_exhibition": "staff",
+  "retained→on_exhibition": "staff",
+  "on_exhibition→verified": "staff",
+  "verified→retained": "staff",
+  "on_exhibition→retained": "staff",
+  "received→returned": "staff",
+  "discrepancy→returned": "staff",
+  "verified→returned": "staff",
+  "on_exhibition→returned": "staff",
 };
 
 const pairs = PHYSICAL_ARTWORK_STATUSES.flatMap((from) =>
@@ -64,13 +75,9 @@ describe("physical artwork transition table", () => {
     ).toEqual(Object.entries(ALLOWED));
   });
 
-  it("never moves an artwork backwards or onto itself", () => {
-    const order = (status: PhysicalArtworkStatus) =>
-      PHYSICAL_ARTWORK_STATUSES.indexOf(status);
-    for (const { from, to } of ARTWORK_TRANSITIONS) {
-      expect(order(to)).toBeGreaterThan(order(from));
-    }
+  it("never returns to parcel dispatch after receipt or leaves returned", () => {
     expect(artworkTransition("received", "dispatched")).toBeNull();
     expect(artworkTransition("dispatched", "requested")).toBeNull();
+    expect(artworkTransition("returned", "verified")).toBeNull();
   });
 });

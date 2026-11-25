@@ -9,6 +9,7 @@ import { as, currentActor } from "@/server/app";
 import { ADMIN_ARTWORK, adminArtworkPath } from "@/lib/app-routes";
 import { adminCall } from "../../_lib/boundary";
 import { AdminDenied } from "../../_components/admin-denied";
+import { CustodyPanel } from "./custody-panel";
 import { receiveArtwork } from "../_lib/actions";
 // Signed-in, nonce-CSP pages read their actor and artwork at request time.
 export const instant = false;
@@ -32,6 +33,26 @@ export default async function Page({
     adminArtworkPath(artworkCode)
   );
   const work = result.ok && result.value.ok ? result.value.artwork : null;
+  const custody = work
+    ? await adminCall(
+        () => as(actor).getArtworkCustody({ artworkId: work.artworkId }),
+        adminArtworkPath(artworkCode)
+      )
+    : null;
+  const detail = custody?.ok && custody.value.ok ? custody.value : null;
+  const photoLinks = detail
+    ? await Promise.all(
+        detail.photos
+          .filter((p) => p.selectedAt && p.status === "clean")
+          .map(async (photo) => {
+            const signed = await as(actor).getArtworkPhotoUrl({
+              photoId: photo.id,
+            });
+            return signed.ok ? { id: photo.id, url: signed.url } : null;
+          })
+      )
+    : [];
+
   return (
     <Section width="wide" hue="green" className="pt-10 sm:pt-14">
       <PageHeader
@@ -69,6 +90,13 @@ export default async function Page({
                 {t("receive")}
               </button>
             </form>
+          ) : null}
+          {detail ? (
+            <CustodyPanel
+              work={work}
+              custody={detail}
+              photoLinks={photoLinks.filter((p) => p !== null)}
+            />
           ) : null}
         </div>
       ) : (

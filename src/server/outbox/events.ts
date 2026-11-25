@@ -410,6 +410,61 @@ export type DomainEvent =
       payload: { artworkId: string; dispatchRecorded: boolean };
     }
   | {
+      type: "artwork.verified";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.discrepancy_raised";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.discrepancy_resolved";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.exhibited";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.stored";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.retained";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.return_requested";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.returned";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      /** Actual public release, emitted transactionally by Results (#99). */
+      type: "results.published";
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        publishedAt: string;
+      };
+    }
+  | {
+      type: "artwork.retain_unrequested";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
       /**
        * An FOA verifier verified an entry (#92). The participant or their
        * guardian is told; on the school route, its coordinators.
@@ -903,6 +958,20 @@ export const EVENT_PAYLOADS = {
     artworkId: z.uuid(),
     dispatchRecorded: z.boolean(),
   }),
+  "artwork.verified": z.object({ artworkId: z.uuid() }),
+  "artwork.discrepancy_raised": z.object({ artworkId: z.uuid() }),
+  "artwork.discrepancy_resolved": z.object({ artworkId: z.uuid() }),
+  "artwork.exhibited": z.object({ artworkId: z.uuid() }),
+  "artwork.stored": z.object({ artworkId: z.uuid() }),
+  "artwork.retained": z.object({ artworkId: z.uuid() }),
+  "artwork.return_requested": z.object({ artworkId: z.uuid() }),
+  "artwork.returned": z.object({ artworkId: z.uuid() }),
+  "results.published": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    publishedAt: z.iso.datetime(),
+  }),
+  "artwork.retain_unrequested": z.object({ competitionId: z.uuid() }),
   "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
   "entry.sent_back": ENTRY_VERIFICATION_EVENT,
   "entry.replacement_live": z.object({
@@ -1121,6 +1190,16 @@ export const SUBSCRIBERS = {
   "artwork.requested": ["notifications.dispatch", "reminders.schedule_artwork"],
   "artwork.dispatched": ["reminders.schedule_artwork"],
   "artwork.received": ["notifications.dispatch", "reminders.schedule_artwork"],
+  "artwork.verified": ["notifications.dispatch"],
+  "artwork.discrepancy_raised": ["notifications.dispatch"],
+  "artwork.discrepancy_resolved": ["notifications.dispatch"],
+  "artwork.exhibited": ["notifications.dispatch"],
+  "artwork.stored": ["notifications.dispatch"],
+  "artwork.retained": ["notifications.dispatch"],
+  "artwork.return_requested": ["notifications.dispatch"],
+  "artwork.returned": ["notifications.dispatch"],
+  "results.published": ["artwork.open_results_window"],
+  "artwork.retain_unrequested": ["artwork.retain_unrequested"],
   "entry.foa_verified": ["notifications.dispatch"],
   "entry.sent_back": ["notifications.dispatch"],
   // A resubmitted file went live: the entry returns to FOA (#92).

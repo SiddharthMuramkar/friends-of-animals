@@ -301,6 +301,16 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
       return null;
+    case "artwork.verified":
+    case "artwork.discrepancy_raised":
+    case "artwork.discrepancy_resolved":
+    case "artwork.exhibited":
+    case "artwork.stored":
+    case "artwork.retained":
+    case "artwork.return_requested":
+    case "artwork.returned":
+    case "results.published":
+    case "artwork.retain_unrequested":
     case "artwork.requested":
     case "artwork.dispatched":
     case "artwork.received":
@@ -883,6 +893,16 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: ARTWORK_VARIABLES,
     load: (db, { payload }) => artworkValues(db, payload.artworkId),
   },
+  "artwork.verified": { names: [], load: async () => ({}) },
+  "artwork.discrepancy_raised": { names: [], load: async () => ({}) },
+  "artwork.discrepancy_resolved": { names: [], load: async () => ({}) },
+  "artwork.exhibited": { names: [], load: async () => ({}) },
+  "artwork.stored": { names: [], load: async () => ({}) },
+  "artwork.retained": { names: [], load: async () => ({}) },
+  "artwork.return_requested": { names: [], load: async () => ({}) },
+  "artwork.returned": { names: [], load: async () => ({}) },
+  "results.published": { names: [], load: async () => ({}) },
+  "artwork.retain_unrequested": { names: [], load: async () => ({}) },
   "entry.foa_verified": {
     names: VERIFICATION_VARIABLES,
     load: (db, { payload }) => verificationValues(db, payload.verificationId),

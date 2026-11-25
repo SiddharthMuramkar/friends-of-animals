@@ -31,6 +31,8 @@ import type { AppDb } from "../../../../db/app-db";
 import {
   account,
   auditLog,
+  artworkPhoto,
+  physicalArtwork,
   consentDocument,
   consentEvent,
   consentForm,
@@ -346,6 +348,16 @@ export async function gatherErasure(
         .where(within(entryUploadGrant.registrationId, registrationIds))
     ).map((row) => row.id),
   ];
+  const artworkFileIds = (
+    await db
+      .select({ id: artworkPhoto.fileAssetId })
+      .from(artworkPhoto)
+      .innerJoin(
+        physicalArtwork,
+        eq(physicalArtwork.id, artworkPhoto.artworkId)
+      )
+      .where(within(physicalArtwork.entryId, entryIds))
+  ).map((row) => row.id);
   const uploadIds = (
     await db
       .select({ id: fileAsset.id })
@@ -357,7 +369,9 @@ export async function gatherErasure(
         )
       )
   ).map((row) => row.id);
-  const fileIds = [...new Set([...entryFileIds, ...uploadIds])];
+  const fileIds = [
+    ...new Set([...entryFileIds, ...artworkFileIds, ...uploadIds]),
+  ];
 
   // A registration a payment, a refund or consent evidence names stays.
   const paidRegistrations = new Set(

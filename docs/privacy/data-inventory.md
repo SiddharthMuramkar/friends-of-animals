@@ -67,6 +67,17 @@ purpose `adoption_photo`; only their resized copies are ever public.
 Announcement inbox titles and bodies are encrypted. Their retention period is
 365 days after the recipient reads the message (HR-31, pending confirmation).
 
+## Physical artwork custody
+
+Condition photos (#94) are linked to one artwork from upload onwards, and held
+as private Files for authorised verification staff. The custody record includes
+inspection notes, discrepancy and resolution, material, storage location, return
+requester, hand-over recipient or courier tracking and staff actor identifiers.
+It follows the entry record's retention period (HR-31, pending confirmation);
+erasure of the artwork's entry removes linked records and private photo objects.
+A custody event is append-only while its artwork exists. Return windows carry
+no claimant identity and begin at the first actual results publication.
+
 ## Breach log
 
 A breach's title, impact, authority reference and timeline notes are

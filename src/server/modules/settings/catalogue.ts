@@ -231,6 +231,12 @@ export const SETTINGS = {
     max: 60,
     unit: "days",
   }),
+  "artwork.returnWindowDays": integerSetting({
+    default: 30,
+    min: 1,
+    max: 365,
+    unit: "days",
+  }),
   "artwork.dispatchReminderLeadHours": reminderHours(72),
   "artwork.packagingInstructions": textSetting({
     default:
