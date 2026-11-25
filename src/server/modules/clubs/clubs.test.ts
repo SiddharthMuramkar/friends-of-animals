@@ -279,10 +279,16 @@ it("rechecks a school's current status and only sends a decision to the applican
     })
   ).toMatchObject({ ok: true });
   await h.drain();
-  expect(h.email.lastTo(admin.email)?.subject).toBe(
-    "FOA club update: declined"
-  );
-  expect(h.email.lastTo(admin.email)?.text).toContain("Private decision");
+  expect(
+    h.email.sent.filter(
+      (m) => m.to === admin.email && m.subject.startsWith("FOA club update")
+    )
+  ).toEqual([
+    expect.objectContaining({
+      subject: "FOA club update: declined",
+      text: expect.stringContaining("Private decision"),
+    }),
+  ]);
   expect(await teacher.listInbox()).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
@@ -304,9 +310,15 @@ it("rechecks a school's current status and only sends a decision to the applican
     await manager.approveClub({ clubId: application.clubId })
   ).toMatchObject({ ok: true });
   await h.drain();
-  expect(h.email.lastTo("sunita@example.test")?.subject).toBe(
-    "FOA club update: approved"
-  );
+  expect(
+    h.email.sent.filter(
+      (m) =>
+        m.to === "sunita@example.test" &&
+        m.subject.startsWith("FOA club update")
+    )
+  ).toEqual([
+    expect.objectContaining({ subject: "FOA club update: approved" }),
+  ]);
   expect(
     h.email.sent.filter(
       (m) =>
