@@ -5,7 +5,7 @@
 // shortlist-finalised event and one audit entry exist.
 
 import { randomInt } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -157,17 +157,21 @@ describe("finalising a school round twice at once", () => {
     } finally {
       blocker.release();
     }
-    expect(
-      await world.db
-        .select({ id: outbox.id })
-        .from(outbox)
-        .where(
-          and(
-            eq(outbox.eventType, "school_round.shortlist_finalised"),
-            eq(outbox.aggregateId, round!.id)
-          )
+    const deliveries = await world.db
+      .select({ eventId: outbox.eventId, handler: outbox.handler })
+      .from(outbox)
+      .where(
+        and(
+          eq(outbox.eventType, "school_round.shortlist_finalised"),
+          eq(outbox.aggregateId, round!.id)
         )
-    ).toHaveLength(1);
+      )
+      .orderBy(asc(outbox.handler));
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "competitions.retry_blocked_moves",
+      "school_round.queue_family_outcomes",
+    ]);
+    expect(new Set(deliveries.map(({ eventId }) => eventId)).size).toBe(1);
     expect(
       await world.db
         .select({ id: auditLog.id })

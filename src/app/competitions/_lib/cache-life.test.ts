@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { PublicCompetition } from "@/server/modules/competitions";
+import { SEED_COORDINATORS } from "@/server/seed/coordinators";
+import { SEED_INSTITUTIONS } from "@/server/seed/institutions";
+import { SEED_SCHOOL_ROUND } from "@/server/seed/school-round";
 import { createHarness } from "@/test/harness";
 
 import { publicCacheLife } from "./cache-life";
@@ -48,7 +51,19 @@ describe("the public pages' cache life", () => {
   });
 
   it("keeps the hours profile when no move is ahead", () => {
-    // No status change hangs on the school round's date yet.
+    const judging: Scheduled = {
+      status: "foa_judging",
+      keyDates: [
+        { kind: "registration_opens", at: at(-30 * MINUTE_MS) },
+        { kind: "registration_closes", at: at(-20 * MINUTE_MS) },
+        { kind: "submissions_close", at: at(-10 * MINUTE_MS) },
+        { kind: "school_round_closes", at: at(-5 * MINUTE_MS) },
+      ],
+    };
+    expect(publicCacheLife([judging], NOW)).toEqual(HOURS);
+  });
+
+  it("refreshes when the shortlist deadline arrives (#90) and checks each minute while the competition waits", () => {
     const judging: Scheduled = {
       status: "school_judging",
       keyDates: [
@@ -58,7 +73,12 @@ describe("the public pages' cache life", () => {
         { kind: "school_round_closes", at: at(10 * MINUTE_MS) },
       ],
     };
-    expect(publicCacheLife([judging], NOW)).toEqual(HOURS);
+    expect(publicCacheLife([judging], NOW)).toEqual({
+      ...HOURS,
+      revalidate: 600,
+    });
+    expect(publicCacheLife([judging], at(10 * MINUTE_MS)).revalidate).toBe(60);
+    expect(publicCacheLife([judging], at(11 * MINUTE_MS)).revalidate).toBe(60);
   });
 
   it("refreshes when submissions close and school judging starts (#88)", () => {
@@ -128,6 +148,41 @@ describe("the public pages' cache life", () => {
       publicCacheLife(await reader.listPublishedCompetitions(), h.clock.now());
 
     // Every move is days away.
+    expect(await lifeNow()).toEqual(HOURS);
+
+    const kinderSkies = await reader.getPublishedCompetition({
+      slug: "kinder-skies",
+    });
+    const shortlistDeadline = kinderSkies!.keyDates.find(
+      (d) => d.kind === "school_round_closes"
+    )!.at;
+    h.clock.set(new Date(shortlistDeadline.getTime() - 10 * MINUTE_MS));
+    expect((await lifeNow()).revalidate).toBe(600);
+    h.clock.set(shortlistDeadline);
+    await h.drain();
+    // The competition waits for its unfinished round, even after the job ran.
+    expect(
+      (await reader.getPublishedCompetition({ slug: "kinder-skies" }))?.status
+    ).toBe("school_judging");
+    expect((await lifeNow()).revalidate).toBe(60);
+
+    const coordinator = h.as(await h.signIn(SEED_COORDINATORS.coordinator));
+    const round = {
+      institutionId: SEED_INSTITUTIONS.verified.id,
+      reference: SEED_SCHOOL_ROUND.reference,
+    };
+    expect(await coordinator.getSchoolRound(round)).toMatchObject({
+      ok: true,
+      round: { status: "overdue", panel: SEED_SCHOOL_ROUND.panel },
+    });
+    expect(await coordinator.certifyConduct(round)).toMatchObject({ ok: true });
+    expect(
+      await coordinator.finaliseSchoolRound({ ...round, judgingAttested: true })
+    ).toMatchObject({ ok: true });
+    await h.drain();
+    expect(
+      (await reader.getPublishedCompetition({ slug: "kinder-skies" }))?.status
+    ).toBe("foa_judging");
     expect(await lifeNow()).toEqual(HOURS);
 
     const neighbours = await reader.getPublishedCompetition({
