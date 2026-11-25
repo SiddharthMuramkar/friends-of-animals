@@ -23,6 +23,7 @@ test("finance records an offline cash gift with proof, then the donor opens its 
     name: "Offline donations finance",
     grants: [{ role: "finance", scope: { type: "global" } }],
     totpSecret: secret,
+    retainForFinancialRecords: true,
   });
   await signInByCode(page, request, email);
   await page.goto("/admin/donations/offline");

@@ -26,6 +26,9 @@ export type SeedAccount = (details: {
   name: string;
   grants: Grant[];
   totpSecret?: Uint8Array;
+  /** Only for journeys creating immutable financial records with a private
+   * proof owned by the fixture account. The throwaway DB retains that actor. */
+  retainForFinancialRecords?: true;
 }) => Promise<string>;
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -67,49 +70,51 @@ export const test = base.extend<{ seedAccount: SeedAccount }>({
     const accountIds: string[] = [];
 
     try {
-      await use(async ({ name, grants, totpSecret }) => {
-        // The mailbox and authenticator state are private to this test, even
-        // when both projects or repeated runs share the same database.
-        const now = systemClock.now();
-        const id = uuidv7(now);
-        const email = `e2e+${project.name}-${id}@example.test`;
-        try {
-          await db.transaction(async (tx) => {
-            const deps = { db: tx, clock: systemClock, ...fieldCrypto, auth };
-            const account = await ensureVerifiedAccount(deps, {
-              id,
-              name,
-              email,
-            });
-            if (account.id !== id)
-              throw new Error("Fixture email already exists.");
-            for (const grant of grants) await ensureGrant(deps, id, grant);
-            if (totpSecret) {
-              const factorId = uuidv7(now);
-              await tx.insert(schema.secondFactor).values({
-                id: factorId,
-                userId: id,
-                kind: "totp",
-                label: SEED_FACTOR_LABEL,
-                confirmedAt: now,
-                createdAt: now,
-                totpSecretSealed: sealTotpSecret(
-                  auth.secret,
-                  factorId,
-                  totpSecret
-                ),
+      await use(
+        async ({ name, grants, totpSecret, retainForFinancialRecords }) => {
+          // The mailbox and authenticator state are private to this test, even
+          // when both projects or repeated runs share the same database.
+          const now = systemClock.now();
+          const id = uuidv7(now);
+          const email = `e2e+${project.name}-${id}@example.test`;
+          try {
+            await db.transaction(async (tx) => {
+              const deps = { db: tx, clock: systemClock, ...fieldCrypto, auth };
+              const account = await ensureVerifiedAccount(deps, {
+                id,
+                name,
+                email,
               });
-            }
-          });
-        } catch {
-          // Drizzle errors can include bound values from the seed transaction.
-          throw new Error(
-            "Could not seed a Playwright account on the local database."
-          );
+              if (account.id !== id)
+                throw new Error("Fixture email already exists.");
+              for (const grant of grants) await ensureGrant(deps, id, grant);
+              if (totpSecret) {
+                const factorId = uuidv7(now);
+                await tx.insert(schema.secondFactor).values({
+                  id: factorId,
+                  userId: id,
+                  kind: "totp",
+                  label: SEED_FACTOR_LABEL,
+                  confirmedAt: now,
+                  createdAt: now,
+                  totpSecretSealed: sealTotpSecret(
+                    auth.secret,
+                    factorId,
+                    totpSecret
+                  ),
+                });
+              }
+            });
+          } catch {
+            // Drizzle errors can include bound values from the seed transaction.
+            throw new Error(
+              "Could not seed a Playwright account on the local database."
+            );
+          }
+          if (!retainForFinancialRecords) accountIds.push(id);
+          return email;
         }
-        accountIds.push(id);
-        return email;
-      });
+      );
     } finally {
       try {
         if (accountIds.length > 0) {
