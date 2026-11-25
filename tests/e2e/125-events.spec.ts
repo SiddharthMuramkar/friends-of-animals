@@ -11,7 +11,7 @@ import {
   totpCode,
 } from "../../src/server/modules/second-factor/domain/totp";
 import { instantToIstLocal } from "../../src/server/modules/competitions/domain/ist";
-import { SEED_EVENTS } from "../../src/server/seed/events";
+import { SEED_EVENTS } from "../../src/server/seed/event-fixtures";
 
 async function check(page: Page, label: string) {
   await expectAccessible(page, label);

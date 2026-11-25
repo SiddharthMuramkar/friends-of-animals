@@ -8,33 +8,8 @@ import { emit } from "../outbox";
 import { SEED_ACCOUNTS } from "./accounts";
 import type { SeedDeps, Seeder } from "./types";
 
-export const SEED_EVENTS = {
-  full: {
-    id: "01938a00-0000-7000-8000-000000125001",
-    slug: "seed-compassion-workshop",
-    title: "Compassion workshop",
-  },
-  mobile: {
-    id: "01938a00-0000-7000-8000-000000125002",
-    slug: "seed-kindness-workshop",
-    title: "Kindness workshop",
-  },
-  campaign: {
-    id: "01938a00-0000-7000-8000-000000125003",
-    slug: "seed-water-for-animals",
-    title: "Water for animals campaign",
-  },
-  draft: {
-    id: "01938a00-0000-7000-8000-000000125004",
-    slug: "seed-draft-foa-event",
-    title: "Volunteer picnic (draft)",
-  },
-  past: {
-    id: "01938a00-0000-7000-8000-000000125005",
-    slug: "seed-past-awareness-walk",
-    title: "Animal welfare awareness walk",
-  },
-} as const;
+import { SEED_EVENTS } from "./event-fixtures";
+export { SEED_EVENTS } from "./event-fixtures";
 
 export function eventBuilder(deps: SeedDeps) {
   return async (overrides: Partial<typeof event.$inferInsert> = {}) => {
@@ -147,17 +122,15 @@ export const seedEvents: Seeder = async (deps) => {
         ).length
       )
         continue;
-      await deps.db
-        .insert(eventRegistration)
-        .values({
-          id: uuidv7(now),
-          eventId: row.id,
-          subjectUserId: account.id,
-          registeredByUserId: account.id,
-          status: "registered",
-          registeredAt: now,
-          updatedAt: now,
-        });
+      await deps.db.insert(eventRegistration).values({
+        id: uuidv7(now),
+        eventId: row.id,
+        subjectUserId: account.id,
+        registeredByUserId: account.id,
+        status: "registered",
+        registeredAt: now,
+        updatedAt: now,
+      });
     }
   }
   if (past.created) {
@@ -175,18 +148,16 @@ export const seedEvents: Seeder = async (deps) => {
         continue;
       const id = uuidv7(now),
         attended = index === 0;
-      await deps.db
-        .insert(eventRegistration)
-        .values({
-          id,
-          eventId: past.row.id,
-          subjectUserId: account.id,
-          registeredByUserId: account.id,
-          status: attended ? "checked_in" : "no_show",
-          registeredAt: past.row.publishedAt!,
-          checkedInAt: attended ? past.row.startsAt : null,
-          updatedAt: past.row.endsAt,
-        });
+      await deps.db.insert(eventRegistration).values({
+        id,
+        eventId: past.row.id,
+        subjectUserId: account.id,
+        registeredByUserId: account.id,
+        status: attended ? "checked_in" : "no_show",
+        registeredAt: past.row.publishedAt!,
+        checkedInAt: attended ? past.row.startsAt : null,
+        updatedAt: past.row.endsAt,
+      });
       if (attended)
         await recordEngagement(
           deps.db,
