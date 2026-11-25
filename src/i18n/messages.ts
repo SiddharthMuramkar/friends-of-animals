@@ -22,6 +22,8 @@ import adminCompetitionTerms from "../../messages/en-IN/adminCompetitionTerms.js
 import adminPayments from "../../messages/en-IN/adminPayments.json";
 import adminRefunds from "../../messages/en-IN/adminRefunds.json";
 import adminLedger from "../../messages/en-IN/adminLedger.json";
+import adminLedgerPeriods from "../../messages/en-IN/adminLedgerPeriods.json";
+import adminLedgerReports from "../../messages/en-IN/adminLedgerReports.json";
 import adminConsentForms from "../../messages/en-IN/adminConsentForms.json";
 import adminAnnouncements from "../../messages/en-IN/adminAnnouncements.json";
 import art from "../../messages/en-IN/art.json";
@@ -54,7 +56,12 @@ import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
+import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
+import donationCheckout from "../../messages/en-IN/donationCheckout.json";
+import donations from "../../messages/en-IN/donations.json";
+import receipts from "../../messages/en-IN/receipts.json";
+import adminDonations from "../../messages/en-IN/adminDonations.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
@@ -107,6 +114,8 @@ export const NAMESPACES = [
   "adminConsentForms",
   "adminRefunds",
   "adminLedger",
+  "adminLedgerPeriods",
+  "adminLedgerReports",
   "adminAnnouncements",
   "art",
   "adminBreaches",
@@ -138,7 +147,12 @@ export const NAMESPACES = [
   "dashboard",
   "directory",
   "adoption",
+  "adoptionApplications",
   "donate",
+  "donationCheckout",
+  "donations",
+  "receipts",
+  "adminDonations",
   "entries",
   "error",
   "files",
@@ -194,6 +208,8 @@ export const messages = {
   ...adminPayments,
   ...adminRefunds,
   ...adminLedger,
+  ...adminLedgerPeriods,
+  ...adminLedgerReports,
   ...adminConsentForms,
   ...adminAnnouncements,
   ...art,
@@ -226,7 +242,12 @@ export const messages = {
   ...dashboard,
   ...directory,
   ...adoption,
+  ...adoptionApplications,
   ...donate,
+  ...donationCheckout,
+  ...donations,
+  ...receipts,
+  ...adminDonations,
   ...entries,
   ...error,
   ...files,

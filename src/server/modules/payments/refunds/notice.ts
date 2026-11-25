@@ -17,7 +17,16 @@ import {
   refund,
   userRole,
 } from "../../../db/schema";
+import { createTranslator } from "next-intl";
+
+import donationsMessages from "../../../../../messages/en-IN/donations.json";
 import { formatCapturedAmount, formatPaise } from "../domain/money-format";
+
+const forDonation = createTranslator({
+  locale: "en-IN",
+  messages: donationsMessages,
+  namespace: "donations.refundNotice",
+});
 
 /** The variables a refund template may use, beyond the recipient's. */
 export const REFUND_VARIABLES = [
@@ -39,11 +48,13 @@ export async function refundValues(
     })
     .from(refund)
     .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
-    .innerJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    // A donation's batch (#106) has no competition: finance's alert of a
+    // failed refund says it was a donation.
+    .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
     .where(eq(refund.id, refundId));
   if (!row) return {};
   return {
-    "competition.name": row.competitionName,
+    "competition.name": row.competitionName ?? forDonation("subjectName"),
     "refund.amount": formatPaise(row.amountMinor),
     "refund.reference": row.gatewayRefundId ?? row.manualReference ?? "",
   };

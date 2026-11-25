@@ -11,6 +11,10 @@
 
 import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
+  DEFAULT_APPROVAL_EXPIRY_DAYS,
+  DEFAULT_MANUAL_ENTRY_APPROVAL_THRESHOLD_RUPEES,
+} from "../ledger/domain/approval";
+import {
   CONTACT_RETENTION,
   MAX_RETENTION_DAYS,
   minimumRetentionDays,
@@ -18,6 +22,10 @@ import {
   type RetentionPeriod,
 } from "../privacy/domain/periods";
 import { MAX_REMINDER_OFFSET_HOURS } from "../reminders/domain/offsets";
+import {
+  MIN_ADOPTER_AGE_BOUNDS,
+  MIN_ADOPTER_AGE_DEFAULT,
+} from "../adoption/domain/application-eligibility";
 import {
   VOLUNTEER_AGE_RULE_BOUNDS,
   VOLUNTEER_AGE_RULE_DEFAULTS,
@@ -96,6 +104,33 @@ export const SETTINGS = {
   "org.registrationType": textSetting({ default: "", maxLength: 100 }),
   "org.registrationNumber": textSetting({ default: "", maxLength: 50 }),
   "org.pan": textSetting({ default: "", maxLength: 10 }),
+  // Donations (#106). Off until Razorpay's live keys (HR-15) and the
+  // accountant's chart and receipts (HR-47) are in place: the donate page
+  // then says donations open soon, and nothing starts. Seeded on for local
+  // runs and previews, which pay through the test checkout. The amounts
+  // and the expiry are defaults FOA confirms (HR-51).
+  "donations.enabled": booleanSetting({ default: false }),
+  // Whether someone without an account may give.
+  "donations.allowGuest": booleanSetting({ default: true }),
+  "donations.minAmountRupees": integerSetting({
+    default: 100,
+    min: 1,
+    max: 100_000,
+    unit: "rupees",
+  }),
+  "donations.maxAmountRupees": integerSetting({
+    default: 100_000,
+    min: 1,
+    max: 10_000_000,
+    unit: "rupees",
+  }),
+  // How long an online donation waits for Checkout before it expires.
+  "donations.pendingExpiryHours": integerSetting({
+    default: 24,
+    min: 1,
+    max: 168,
+    unit: "hours",
+  }),
   // Safeguarding (#116): concern reports one IP may send in an hour before
   // the form refuses and shows the helplines instead (HR-48).
   "safeguarding.reportsPerIpPerHour": integerSetting({
@@ -108,6 +143,24 @@ export const SETTINGS = {
   // Empty until FOA's counsel names the channel (HR-49); staff then file
   // the notice by hand and record the authority's reference.
   "breach.authorityEmail": textSetting({ default: "", maxLength: 254 }),
+  // Ledger (#109). A manual entry moving more than this many rupees waits
+  // for a second finance user; 0 sends every manual entry for approval.
+  // A request nobody decides expires after the days below (HR-51).
+  "ledger.manualEntryApprovalThresholdRupees": integerSetting({
+    default: DEFAULT_MANUAL_ENTRY_APPROVAL_THRESHOLD_RUPEES,
+    min: 0,
+    max: 1_000_000_000,
+    unit: "rupees",
+  }),
+  "ledger.approvalExpiryDays": integerSetting({
+    default: DEFAULT_APPROVAL_EXPIRY_DAYS,
+    min: 1,
+    max: 90,
+    unit: "days",
+  }),
+  // The accountant's ledger export. Off until FOA's accountant confirms its
+  // format (HR-47); seeded on for local runs and previews.
+  "ledger.accountantExport": booleanSetting({ default: false }),
   // Privacy rights requests (#115): how many days the grievance officer
   // has to answer. Access and correction requests use requestDueDays; an
   // erasure, which withdraws the person's consents, uses erasureDueDays
@@ -154,6 +207,13 @@ export const SETTINGS = {
   "volunteers.guardianApprovalBelowAgeYears": integerSetting({
     default: VOLUNTEER_AGE_RULE_DEFAULTS.guardianApprovalBelowAgeYears,
     ...VOLUNTEER_AGE_RULE_BOUNDS.guardianApprovalBelowAgeYears,
+    unit: "years",
+  }),
+  // Adoption (#130): only adults adopt. FOA's default until leadership
+  // confirms it (HR-62); never below 18.
+  "adoption.minAdopterAgeYears": integerSetting({
+    default: MIN_ADOPTER_AGE_DEFAULT,
+    ...MIN_ADOPTER_AGE_BOUNDS,
     unit: "years",
   }),
   // Reminders (#84): two reminders before submissions close, to whoever
@@ -216,6 +276,9 @@ export const SETTINGS = {
   }),
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.adoptionApplicationsDays": retentionDays(
+    RETENTION_PERIODS.adoptionApplications
   ),
   "retention.releasedLegalHoldsDays": retentionDays(
     RETENTION_PERIODS.releasedLegalHolds

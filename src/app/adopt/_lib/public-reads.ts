@@ -9,6 +9,7 @@ import {
   type AdoptableAnimal,
   type BrowseAdoptableAnimalsResult,
 } from "@/server/modules/adoption";
+import type { PublishedSuccessStory } from "@/server/modules/adoption/applications";
 import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
 import {
   parseAdoptionFilters,
@@ -63,4 +64,20 @@ export async function adoptableAnimal(
   if (!result.ok) return null;
   cacheTag(DIRECTORY_TAGS.listing(result.animal.organisation.slug));
   return result.animal;
+}
+
+/**
+ * The published success stories (#130), newest first. Publishing or
+ * withdrawing one refreshes the stories tag; suspending an organisation
+ * refreshes its directory tag, which drops its stories.
+ */
+export async function publishedStories(): Promise<PublishedSuccessStory[]> {
+  "use cache";
+  cacheLife(LIFE);
+  cacheTag(ADOPTION_TAGS.stories);
+  const stories = await as(PUBLIC_READER).listPublishedSuccessStories();
+  for (const slug of new Set(stories.map((s) => s.organisation.slug))) {
+    cacheTag(DIRECTORY_TAGS.listing(slug));
+  }
+  return stories;
 }

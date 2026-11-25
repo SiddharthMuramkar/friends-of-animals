@@ -156,6 +156,7 @@ type FakePayment = {
   currency: string;
   status: string;
   order_id: string;
+  international: boolean;
   method: string;
   captured: boolean;
   created_at: number;
@@ -355,6 +356,7 @@ export function fakeRazorpayApi({
       currency: order.currency,
       status,
       order_id: orderId,
+      international: false,
       method: "upi",
       captured: status === "captured",
       created_at: 1_798_000_100,

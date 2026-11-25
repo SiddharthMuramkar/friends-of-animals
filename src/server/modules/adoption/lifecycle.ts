@@ -7,7 +7,8 @@
 //                            stays with a notice
 //   resumeAdoptionListing    on hold → published: needs a verified
 //                            directory listing
-//   withdrawAdoptionListing  draft, published or on hold → withdrawn, final
+//   withdrawAdoptionListing  draft, published or on hold → withdrawn, final;
+//                            its open applications close (#130)
 //
 // Each returns the slug, so the Server Action can refresh its cache tags.
 
@@ -18,6 +19,7 @@ import type { UseCaseContext } from "../../use-cases";
 import { adoptionListingManaged } from "./acting-for";
 import { publishBlockers, type PublishBlocker } from "./domain/photos";
 import type { AdoptionListingStatus } from "./domain/status";
+import { closeOpenApplications } from "./applications/closure";
 import { photosOf } from "./photo-rows";
 import { transitionAdoptionListing } from "./transition";
 
@@ -83,6 +85,14 @@ async function move(
       actorRole: role,
     });
     if (!result.ok) return { ok: false, error: "invalid_transition" } as const;
+    if (to === "withdrawn") {
+      // A withdrawn animal can't be adopted: its open applications close
+      // with it (#130).
+      await closeOpenApplications(ctx, tx, {
+        listingId: row.id,
+        actorRole: role,
+      });
+    }
     return {
       ok: true,
       slug: result.slug,

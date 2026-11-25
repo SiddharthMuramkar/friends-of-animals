@@ -106,6 +106,7 @@ describe("reviewReasonFor()", () => {
       "batch_superseded",
       "paid_while_in_review",
       "participation_consent_required",
+      "donation_expired",
     ]);
   });
 
@@ -151,7 +152,26 @@ describe("allowedOutcomes()", () => {
           currency: "INR",
           amountMinor: 100n,
         }).includes("confirm")
-      ).toBe(index >= 2);
+      ).toBe(index >= 2 && reason !== "donation_expired");
+    }
+  });
+
+  it("offers a donation's batch confirm only for late money on an expired donation (#106)", () => {
+    for (const reason of PAYMENT_REVIEW_REASONS) {
+      expect(
+        allowedOutcomes({
+          reason,
+          batchStatusBefore: "cancelled",
+          currency: "INR",
+          amountMinor: 100n,
+          purpose: "donation",
+        }),
+        reason
+      ).toEqual(
+        reason === "donation_expired"
+          ? ["confirm", "refund", "keep"]
+          : ["refund", "keep"]
+      );
     }
   });
 });

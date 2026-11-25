@@ -426,6 +426,35 @@ export type DomainEvent =
       payload: { batchId: string; payerUserId: string | null };
     }
   | {
+      /** A donation was captured with its receipt (#106): the donor's
+       * thank-you with the first receipt link, and the ledger. */
+      type: "donation.captured";
+      aggregate: { type: "donation"; id: string };
+      payload: { donationId: string };
+    }
+  | {
+      /** Foreign money arrived for a donation while FCRA is off (#106):
+       * it is held as owed back until its refund goes out. */
+      type: "donation.foreign_payment_received";
+      aggregate: { type: "donation"; id: string };
+      /** `refundId`: the system refund returning it. */
+      payload: { donationId: string; refundId: string };
+    }
+  | {
+      /** A refund of a donation's batch was processed (#106): the donor is
+       * told, in words for a foreign payment or a donation refunded. */
+      type: "donation.refunded";
+      aggregate: { type: "donation"; id: string };
+      payload: { donationId: string; refundId: string };
+    }
+  | {
+      /** A donor asked for a new receipt link by email (#106). The token
+       * is minted when the email goes, never stored here. */
+      type: "receipt.link_requested";
+      aggregate: { type: "receipt"; id: string };
+      payload: { receiptId: string };
+    }
+  | {
       /** A guardian invited their 13- to 17-year-old to an own login (#81). */
       type: "guardian.teen_invited";
       aggregate: { type: "guardian_invitation"; id: string };
@@ -608,12 +637,30 @@ export type DomainEvent =
   | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
-  | VolunteerApplicationEvent<"volunteer.application_declined">;
+  | VolunteerApplicationEvent<"volunteer.application_declined">
+  // Adoption applications (#130): one was made, the coordinator moved it,
+  // the applicant withdrew it, or the animal's listing closed. The
+  // applicant, the listing organisation and the coordinators are told.
+  | AdoptionApplicationEvent<"adoption.application_submitted">
+  | AdoptionApplicationEvent<"adoption.application_under_review">
+  | AdoptionApplicationEvent<"adoption.application_in_contact">
+  | AdoptionApplicationEvent<"adoption.application_adopted">
+  | AdoptionApplicationEvent<"adoption.application_not_matched">
+  | AdoptionApplicationEvent<"adoption.application_declined">
+  | AdoptionApplicationEvent<"adoption.application_withdrawn">
+  | AdoptionApplicationEvent<"adoption.application_listing_closed">;
 
 /** Something happened to a volunteer application (#123). Ids only. */
 type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
   type: T;
   aggregate: { type: "volunteer_application"; id: string };
+  payload: { applicationId: string };
+};
+
+/** Something happened to an adoption application (#130). Ids only. */
+type AdoptionApplicationEvent<T extends `adoption.${string}`> = {
+  type: T;
+  aggregate: { type: "adoption_application"; id: string };
   payload: { applicationId: string };
 };
 
@@ -638,6 +685,8 @@ const ENTRY_VERIFICATION_EVENT = z.object({
   institutionRegistrationId: z.uuid().nullable(),
   verificationId: z.uuid(),
 });
+const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
+
 
 const INSTITUTION_DECIDED = z.object({
   institutionId: z.uuid(),
@@ -755,6 +804,16 @@ export const EVENT_PAYLOADS = {
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
   }),
+  "donation.captured": z.object({ donationId: z.uuid() }),
+  "donation.foreign_payment_received": z.object({
+    donationId: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "donation.refunded": z.object({
+    donationId: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
   "refund.processed": z.object({
@@ -811,6 +870,14 @@ export const EVENT_PAYLOADS = {
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
   "volunteer.application_declined": VOLUNTEER_APPLICATION,
+  "adoption.application_submitted": ADOPTION_APPLICATION,
+  "adoption.application_under_review": ADOPTION_APPLICATION,
+  "adoption.application_in_contact": ADOPTION_APPLICATION,
+  "adoption.application_adopted": ADOPTION_APPLICATION,
+  "adoption.application_not_matched": ADOPTION_APPLICATION,
+  "adoption.application_declined": ADOPTION_APPLICATION,
+  "adoption.application_withdrawn": ADOPTION_APPLICATION,
+  "adoption.application_listing_closed": ADOPTION_APPLICATION,
 } satisfies { [T in EventType]: z.ZodType<EventOf<T>["payload"]> };
 
 /** Validate a stored event, including withdrawals written before #82. */
@@ -944,6 +1011,13 @@ export const SUBSCRIBERS = {
   ],
   // The payer's receipt goes by route row (#77).
   "payment.batch_captured": ["notifications.dispatch", "ledger.post_capture"],
+  // A guest donor has no account, so no route row can name them: the
+  // donations module emails the address they gave, with its route's
+  // template, and minting each receipt link as the message goes (#106).
+  "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
+  "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
+  "donation.refunded": ["donations.send_refund_notice"],
+  "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
   "guardian.teen_invited": ["guardians.send_teen_invitation"],
@@ -994,6 +1068,16 @@ export const SUBSCRIBERS = {
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
   "volunteer.application_declined": ["notifications.dispatch"],
+  // The applicant, the listing organisation's representatives and the
+  // coordinators are told by route row (#130).
+  "adoption.application_submitted": ["notifications.dispatch"],
+  "adoption.application_under_review": ["notifications.dispatch"],
+  "adoption.application_in_contact": ["notifications.dispatch"],
+  "adoption.application_adopted": ["notifications.dispatch"],
+  "adoption.application_not_matched": ["notifications.dispatch"],
+  "adoption.application_declined": ["notifications.dispatch"],
+  "adoption.application_withdrawn": ["notifications.dispatch"],
+  "adoption.application_listing_closed": ["notifications.dispatch"],
 } as const satisfies { [T in EventType]: readonly string[] };
 
 export type HandlerName = (typeof SUBSCRIBERS)[EventType][number];

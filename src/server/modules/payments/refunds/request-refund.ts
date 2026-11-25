@@ -87,7 +87,8 @@ const requestInput = z.strictObject({
   reason: z.string().max(4000),
 });
 
-/** The scopes a refund of the batch sits in: its competition. */
+/** The scopes a refund of the batch sits in: its competition, or none for
+ * a donation's batch (#106), which only global grants cover. */
 export async function batchResource(
   ctx: UseCaseContext,
   batchId: string
@@ -96,14 +97,14 @@ export async function batchResource(
     .select({ competitionId: paymentBatch.competitionId })
     .from(paymentBatch)
     .where(eq(paymentBatch.id, batchId));
-  return batch
-    ? {
-        resource: {
-          scopes: [{ type: "competition", id: batch.competitionId }],
-        },
-        found: true,
-      }
-    : { resource: {}, found: false };
+  if (!batch) return { resource: {}, found: false };
+  return {
+    resource:
+      batch.competitionId === null
+        ? {}
+        : { scopes: [{ type: "competition", id: batch.competitionId }] },
+    found: true,
+  };
 }
 
 export async function requestRefund(

@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { SiteLink } from "@/components/site/site-link";
 import type { LegalVersion } from "@/server/modules/cms";
 import {
-  cmsPublicPath,
   legalKeyForConsentPurpose,
   type LinkedConsentPurpose,
 } from "@/server/modules/cms/domain/documents";
+import { cmsPublicPath } from "@/server/modules/cms/domain/public-paths";
 
 const LINK =
   "text-link underline decoration-1 underline-offset-2 hover:text-link-hover";

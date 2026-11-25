@@ -1,0 +1,264 @@
+{
+  "adoptionApplications": {
+    "status": {
+      "submitted": "With the coordinator",
+      "under_review": "Being reviewed",
+      "in_contact": "In touch with the organisation",
+      "adopted": "Adopted",
+      "not_matched": "Not a match",
+      "declined": "Not taken forward",
+      "withdrawn": "Withdrawn",
+      "listing_closed": "Closed: the animal is no longer listed"
+    },
+    "storyStatus": {
+      "draft": "Waiting for the coordinator",
+      "published": "Published",
+      "withdrawn": "Withdrawn"
+    },
+    "homeType": {
+      "house": "A house",
+      "flat": "A flat",
+      "other": "Something else"
+    },
+    "facts": {
+      "applied": "Applied {date}",
+      "updated": "Last change {date}",
+      "phone": "Mobile",
+      "address": "Address",
+      "homeType": "Home",
+      "outdoor": "Outdoor space",
+      "outdoorYes": "Yes",
+      "outdoorNo": "No",
+      "otherAnimals": "Other animals",
+      "experience": "Experience with animals",
+      "why": "Why this animal",
+      "none": "Not given"
+    },
+    "mine": {
+      "meta": {
+        "title": "Your adoption applications",
+        "description": "The animals you applied to adopt, and where each application stands."
+      },
+      "eyebrow": "Adoption",
+      "title": "Your adoption applications",
+      "lead": "Friends of Animals facilitates adoptions. Our adoption coordinator reads each application and puts good matches in touch with the organisation that listed the animal.",
+      "loading": "Loading your applications…",
+      "empty": "You haven't applied to adopt an animal yet.",
+      "browse": "See animals looking for a home",
+      "open": "Open your application for {name}",
+      "back": "Back to your dashboard",
+      "outcome": {
+        "applied": "Thank you. Your application is with our adoption coordinator.",
+        "withdrawn": "You withdrew your application.",
+        "storySent": "Thank you. Our adoption coordinator will read your story before it goes up.",
+        "storyWithdrawn": "You withdrew your consent. Your story is no longer shown.",
+        "invalid_transition": "That application has already moved on, so nothing changed.",
+        "not_adopted": "You can share a story only once the adoption is recorded.",
+        "story_exists": "You have already shared a story for this adoption.",
+        "consent_unpublished": "Sharing stories isn't open yet. Please try again later.",
+        "consent_outdated": "The consent text changed while you were writing. Please read it again and resend your story.",
+        "invalid_input": "Please write between 20 and 2,000 characters and tick the consent box.",
+        "unexpected": "Something went wrong on our side. Please try again."
+      }
+    },
+    "detail": {
+      "meta": {
+        "title": "Your adoption application",
+        "description": "Where your application stands, and what you told us."
+      },
+      "eyebrow": "Adoption application",
+      "title": "Adopting {name}",
+      "listedBy": "Listed by {organisation}",
+      "what": "What happens next",
+      "next": {
+        "submitted": "Our adoption coordinator will read your application.",
+        "under_review": "Our adoption coordinator is reading your application.",
+        "in_contact": "We shared your contact details with {organisation}. They will get in touch with you about {name}.",
+        "adopted": "Congratulations on adopting {name}.",
+        "not_matched": "This time it was not a match. You are welcome to apply for another animal.",
+        "declined": "Our coordinator couldn't take this application further. You are welcome to apply for another animal.",
+        "withdrawn": "You withdrew this application.",
+        "listing_closed": "{name} is no longer looking for a home through us, so this application closed."
+      },
+      "yourAnswers": "What you told us",
+      "withdraw": "Withdraw this application",
+      "withdrawing": "Withdrawing…",
+      "story": {
+        "title": "Share your success story",
+        "lead": "Tell other adopters how {name} is settling in. We show your words, {name}'s name and the organisation, never your name or contact details.",
+        "label": "Your story",
+        "hint": "Between 20 and 2,000 characters.",
+        "consent": "I agree to share my story as described above.",
+        "readFull": "Read the full text (version {version})",
+        "submit": "Send your story",
+        "submitting": "Sending…",
+        "unpublished": "Sharing stories isn't open yet.",
+        "yours": "Your story",
+        "withdrawTitle": "Stop sharing your story",
+        "withdrawBody": "Withdrawing your consent takes your story down straight away.",
+        "withdraw": "Withdraw my consent",
+        "withdrawing": "Withdrawing…"
+      }
+    },
+    "apply": {
+      "meta": {
+        "title": "Apply to adopt",
+        "description": "Tell us about your home and how to reach you."
+      },
+      "eyebrow": "Apply to adopt",
+      "title": "Apply to adopt {name}",
+      "lead": "{organisation} listed {name}. Our adoption coordinator reads your application first, and puts you in touch with {organisation} if it looks like a good match.",
+      "loading": "Loading the form…",
+      "notOpen": {
+        "title": "This animal isn't taking applications",
+        "body": "The animal may have found a home, or its listing may be on hold.",
+        "back": "See animals looking for a home"
+      },
+      "already": "You already have an open application for {name}.",
+      "alreadyLink": "Open your application",
+      "unpublished": {
+        "title": "Applications open soon",
+        "body": "We are finishing the words you agree to when you apply. Please come back soon."
+      },
+      "problems": {
+        "invalid_input": "Please check the fields marked below.",
+        "listing_not_open": "This animal isn't taking applications any more.",
+        "own_listing": "You represent the organisation that listed this animal, so you can't apply for it.",
+        "date_of_birth_required": "Please give your date of birth.",
+        "under_min_age": "Only adults can apply to adopt an animal.",
+        "already_applied": "You already have an open application for this animal.",
+        "consent_unpublished": "Applications aren't open yet. Please try again later.",
+        "consent_outdated": "The words you agree to changed while you were filling in the form. Please read them again and resend.",
+        "consent_required": "Please tick the box to agree to sharing your contact details.",
+        "unexpected": "Something went wrong on our side. Please try again."
+      },
+      "form": {
+        "contact": "How to reach you",
+        "phone": "Mobile number",
+        "phoneHint": "An Indian mobile number.",
+        "address": "Postal address",
+        "addressHint": "Where {name} would live. Between 10 and 500 characters.",
+        "dateOfBirth": "Date of birth",
+        "dateOfBirthHint": "Only adults can adopt. We ask once and keep it with your application.",
+        "home": "About your home",
+        "homeType": "What kind of home do you live in?",
+        "outdoor": "Do you have outdoor space, such as a garden or terrace?",
+        "outdoorYes": "Yes",
+        "outdoorNo": "No",
+        "otherAnimals": "Other animals at home",
+        "otherAnimalsHint": "Leave empty if there are none.",
+        "experience": "Your experience with animals",
+        "experienceHint": "Optional.",
+        "why": "Why {name}, and how would they fit your life?",
+        "whyHint": "At least 10 characters.",
+        "consentTitle": "Sharing your contact details",
+        "consentReadFull": "Read the full text (version {version})",
+        "consent": "I agree that Friends of Animals may share my contact details and answers with {organisation} if our coordinator thinks we could be a good match.",
+        "submit": "Send your application",
+        "submitting": "Sending…",
+        "fieldError": "Please check this field."
+      }
+    },
+    "admin": {
+      "meta": {
+        "title": "Adoption applications",
+        "description": "The adoption coordinator's queue."
+      },
+      "eyebrow": "Adoption",
+      "title": "Adoption applications",
+      "lead": "Review applications, put good matches in touch with the listing organisation, and record the outcome.",
+      "loading": "Loading applications…",
+      "filter": {
+        "title": "Show",
+        "status": "Status",
+        "open": "Open applications",
+        "apply": "Show"
+      },
+      "list": {
+        "title": "Applications",
+        "count": "{count, plural, =0 {No applications} one {# application} other {# applications}}",
+        "empty": "Nothing here.",
+        "applicant": "{applicant} for {name}",
+        "organisation": "Listed by {organisation}"
+      },
+      "detail": {
+        "meta": {
+          "title": "Adoption application",
+          "description": "One adoption application, for the coordinator."
+        },
+        "back": "Back to the queue",
+        "title": "{applicant} for {name}",
+        "applicant": "Applicant",
+        "email": "Email",
+        "dateOfBirth": "Date of birth: {date}",
+        "contactShared": "Contact shared with the organisation {date}",
+        "reason": "Your reason (staff only)",
+        "moves": "Move it on",
+        "startReview": "Start the review",
+        "putInContact": "Share the contact with {organisation}",
+        "putInContactHint": "The organisation sees the applicant's name, mobile, address and answers from now on.",
+        "adopted": "Record the adoption",
+        "adoptedHint": "Closes {name}'s listing and every other open application for {name}.",
+        "endTitle": "End without an adoption",
+        "outcome": "Outcome",
+        "outcomeNotMatched": "Not a match",
+        "outcomeDeclined": "Not taken forward",
+        "reasonLabel": "Why (staff only, never sent to the applicant)",
+        "end": "Record the outcome",
+        "story": "Success story",
+        "storyConsent": "The adopter's consent: {state, select, given {given} other {withdrawn}}",
+        "publish": "Publish the story",
+        "noStory": "The adopter hasn't shared a story.",
+        "done": {
+          "under_review": "Review started.",
+          "in_contact": "Contact shared with the organisation.",
+          "adopted": "Adoption recorded. The listing and its other applications are closed.",
+          "not_matched": "Recorded as not a match.",
+          "declined": "Recorded as not taken forward.",
+          "published": "Story published."
+        },
+        "refused": {
+          "invalid_transition": "That application has already moved on, so nothing changed.",
+          "reason_required": "Please give a reason.",
+          "reason_too_long": "Please keep the reason under 1,000 characters.",
+          "sharing_consent_missing": "The applicant's consent to share their contact no longer stands.",
+          "listing_not_open": "The animal's listing can't be closed as adopted now.",
+          "consent_required": "The adopter's consent to share the story no longer stands.",
+          "no_story": "There is no story to publish.",
+          "forbidden_actor": "You can't make that move.",
+          "invalid_input": "Please check what you sent.",
+          "forbidden": "You can't change this application."
+        }
+      }
+    },
+    "organisation": {
+      "meta": {
+        "title": "Applications",
+        "description": "Applications to adopt one of your animals."
+      },
+      "eyebrow": "Applications",
+      "title": "Applications for {name}",
+      "lead": "Friends of Animals' adoption coordinator reads every application first. You see an applicant's name and contact details once the coordinator puts you in touch.",
+      "back": "Back to {name}",
+      "empty": "No one has applied yet.",
+      "hidden": "Contact details are shared once our coordinator puts you in touch.",
+      "applied": "Applied {date}",
+      "applicant": "Applicant",
+      "link": "Applications"
+    },
+    "stories": {
+      "meta": {
+        "title": "Adoption stories",
+        "description": "How animals adopted through Friends of Animals are settling into their new homes, shared by their adopters."
+      },
+      "eyebrow": "Adoption",
+      "title": "Adoption stories",
+      "lead": "Adopters tell how their animals are settling in. Shared with their consent, without their names.",
+      "loading": "Loading stories…",
+      "empty": "No stories yet. The first ones will appear here soon.",
+      "storyOf": "{name} ({species})",
+      "listedBy": "Adopted through {organisation}",
+      "browse": "See animals looking for a home"
+    }
+  }
+}

@@ -71,6 +71,7 @@ describe("FakePaymentGateway", () => {
         status: "failed",
         amountMinor: 50000n,
         currency: "INR",
+        international: false,
       },
     ]);
   });

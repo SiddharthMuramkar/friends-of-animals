@@ -31,6 +31,10 @@ describe("seedPreview", () => {
     await seedPreview(deps);
 
     expect((await accounts(deps)).map((account) => account.email)).toEqual([
+      "adopter1@example.test",
+      "adopter2@example.test",
+      "adopter3@example.test",
+      "adoption-coordinator@example.test",
       "community-manager@example.test",
       "competition-manager-2@example.test",
       "competition-manager@example.test",
@@ -44,6 +48,7 @@ describe("seedPreview", () => {
       "guardian1@example.test",
       "institution-admin@example.test",
       "institution-applicant@example.test",
+      "ledger-approver@example.test",
       "ledger-finance@example.test",
       "member1@example.test",
       "member2@example.test",

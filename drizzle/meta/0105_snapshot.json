@@ -1,6 +1,6 @@
 {
-  "id": "af15bcd1-157f-4eed-97cf-6d82ed50d8d8",
-  "prevId": "fef90f2f-a0b4-4696-a5b2-16f96fedbacd",
+  "id": "a2db2618-4fa3-49e7-b31d-33303045a91d",
+  "prevId": "298267a2-e0c7-43c7-9df5-c29736b04f23",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8669,18 +8669,26 @@
           "primaryKey": true,
           "notNull": true
         },
+        "purpose": {
+          "name": "purpose",
+          "type": "payment_purpose",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'registration_fee'"
+        },
         "route": {
           "name": "route",
           "type": "participation_route",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "competition_id": {
           "name": "competition_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "institution_id": {
           "name": "institution_id",
@@ -8900,6 +8908,10 @@
         "payment_batch_currency_inr": {
           "name": "payment_batch_currency_inr",
           "value": "\"payment_batch\".\"currency\" = 'INR'"
+        },
+        "payment_batch_purpose_matches_subject": {
+          "name": "payment_batch_purpose_matches_subject",
+          "value": "(\"payment_batch\".\"purpose\" = 'registration_fee') = (\"payment_batch\".\"competition_id\" IS NOT NULL AND \"payment_batch\".\"route\" IS NOT NULL)"
         },
         "payment_batch_institution_matches_route": {
           "name": "payment_batch_institution_matches_route",
@@ -12125,6 +12137,632 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.donation": {
+      "name": "donation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "donor_id": {
+          "name": "donor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "donation_origin",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "donation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'INR'"
+        },
+        "show_on_wall": {
+          "name": "show_on_wall",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "wall_name": {
+          "name": "wall_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "declared_adult": {
+          "name": "declared_adult",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declared_indian_source": {
+          "name": "declared_indian_source",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_batch_id": {
+          "name": "payment_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "checkout_token_hash": {
+          "name": "checkout_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gateway_payment_id": {
+          "name": "gateway_payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "captured_at": {
+          "name": "captured_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "donation_donor_id_idx": {
+          "name": "donation_donor_id_idx",
+          "columns": [
+            {
+              "expression": "donor_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "donation_status_created_at_idx": {
+          "name": "donation_status_created_at_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "donation_created_at_idx": {
+          "name": "donation_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "donation_donor_id_donor_id_fk": {
+          "name": "donation_donor_id_donor_id_fk",
+          "tableFrom": "donation",
+          "tableTo": "donor",
+          "columnsFrom": [
+            "donor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "donation_payment_batch_id_payment_batch_id_fk": {
+          "name": "donation_payment_batch_id_payment_batch_id_fk",
+          "tableFrom": "donation",
+          "tableTo": "payment_batch",
+          "columnsFrom": [
+            "payment_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "donation_payment_batch_unique": {
+          "name": "donation_payment_batch_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "payment_batch_id"
+          ]
+        },
+        "donation_checkout_token_hash_unique": {
+          "name": "donation_checkout_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "checkout_token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "donation_amount_positive": {
+          "name": "donation_amount_positive",
+          "value": "\"donation\".\"amount_minor\" > 0"
+        },
+        "donation_currency_inr": {
+          "name": "donation_currency_inr",
+          "value": "\"donation\".\"currency\" = 'INR'"
+        },
+        "donation_declarations_made": {
+          "name": "donation_declarations_made",
+          "value": "\"donation\".\"declared_adult\" AND \"donation\".\"declared_indian_source\""
+        },
+        "donation_wall_name_when_shown": {
+          "name": "donation_wall_name_when_shown",
+          "value": "\"donation\".\"show_on_wall\" OR \"donation\".\"wall_name\" IS NULL"
+        },
+        "donation_online_has_batch": {
+          "name": "donation_online_has_batch",
+          "value": "\"donation\".\"origin\" <> 'online_checkout' OR (\"donation\".\"payment_batch_id\" IS NOT NULL AND \"donation\".\"checkout_token_hash\" IS NOT NULL AND \"donation\".\"expires_at\" IS NOT NULL)"
+        },
+        "donation_captured_at_when_kept": {
+          "name": "donation_captured_at_when_kept",
+          "value": "\"donation\".\"status\" NOT IN ('captured', 'partially_refunded') OR \"donation\".\"captured_at\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.donor": {
+      "name": "donor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "donor_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_ciphertext": {
+          "name": "name_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_ciphertext": {
+          "name": "email_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_hash": {
+          "name": "email_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organisation_name": {
+          "name": "organisation_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disclose_organisation": {
+          "name": "disclose_organisation",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "donor_email_hash_idx": {
+          "name": "donor_email_hash_idx",
+          "columns": [
+            {
+              "expression": "email_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "donor_user_id_idx": {
+          "name": "donor_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "donor_user_id_user_id_fk": {
+          "name": "donor_user_id_user_id_fk",
+          "tableFrom": "donor",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "donor_organisation_matches_type": {
+          "name": "donor_organisation_matches_type",
+          "value": "(\"donor\".\"type\" = 'individual') = (\"donor\".\"organisation_name\" IS NULL)"
+        },
+        "donor_individual_discloses_nothing": {
+          "name": "donor_individual_discloses_nothing",
+          "value": "\"donor\".\"type\" <> 'individual' OR NOT \"donor\".\"disclose_organisation\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.receipt": {
+      "name": "receipt",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "donation_id": {
+          "name": "donation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fy": {
+          "name": "fy",
+          "type": "char(4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot": {
+          "name": "snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "template_version": {
+          "name": "template_version",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cancelled_at": {
+          "name": "cancelled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "receipt_donation_id_donation_id_fk": {
+          "name": "receipt_donation_id_donation_id_fk",
+          "tableFrom": "receipt",
+          "tableTo": "donation",
+          "columnsFrom": [
+            "donation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "receipt_donation_unique": {
+          "name": "receipt_donation_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "donation_id"
+          ]
+        },
+        "receipt_fy_seq_unique": {
+          "name": "receipt_fy_seq_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "fy",
+            "seq"
+          ]
+        },
+        "receipt_number_unique": {
+          "name": "receipt_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "receipt_seq_positive": {
+          "name": "receipt_seq_positive",
+          "value": "\"receipt\".\"seq\" BETWEEN 1 AND 999999"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.receipt_link": {
+      "name": "receipt_link",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "receipt_id": {
+          "name": "receipt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_to": {
+          "name": "issued_to",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "receipt_link_receipt_id_idx": {
+          "name": "receipt_link_receipt_id_idx",
+          "columns": [
+            {
+              "expression": "receipt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "receipt_link_created_by_user_id_idx": {
+          "name": "receipt_link_created_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "created_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "receipt_link_receipt_id_receipt_id_fk": {
+          "name": "receipt_link_receipt_id_receipt_id_fk",
+          "tableFrom": "receipt_link",
+          "tableTo": "receipt",
+          "columnsFrom": [
+            "receipt_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "receipt_link_created_by_user_id_user_id_fk": {
+          "name": "receipt_link_created_by_user_id_user_id_fk",
+          "tableFrom": "receipt_link",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "receipt_link_token_hash_unique": {
+          "name": "receipt_link_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "receipt_link_expires_after_creation": {
+          "name": "receipt_link_expires_after_creation",
+          "value": "\"receipt_link\".\"expires_at\" > \"receipt_link\".\"created_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.receipt_sequence": {
+      "name": "receipt_sequence",
+      "schema": "",
+      "columns": {
+        "fy": {
+          "name": "fy",
+          "type": "char(4)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "last_seq": {
+          "name": "last_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "receipt_sequence_in_range": {
+          "name": "receipt_sequence_in_range",
+          "value": "\"receipt_sequence\".\"last_seq\" BETWEEN 0 AND 999999"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.erasure_record": {
       "name": "erasure_record",
       "schema": "",
@@ -14988,195 +15626,6 @@
         }
       },
       "isRLSEnabled": false
-    },
-    "public.entry_verification": {
-      "name": "entry_verification",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entry_id": {
-          "name": "entry_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decision": {
-          "name": "decision",
-          "type": "entry_verification_decision",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason_code": {
-          "name": "reason_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason_text": {
-          "name": "reason_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_by_user_id": {
-          "name": "decided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resubmission_due_at": {
-          "name": "resubmission_due_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resubmitted_at": {
-          "name": "resubmitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resubmitted_by_user_id": {
-          "name": "resubmitted_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "resubmission_with_file": {
-          "name": "resubmission_with_file",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "entry_verification_entry_id_decided_at_idx": {
-          "name": "entry_verification_entry_id_decided_at_idx",
-          "columns": [
-            {
-              "expression": "entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "decided_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "entry_verification_decided_by_user_id_idx": {
-          "name": "entry_verification_decided_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "decided_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "entry_verification_resubmitted_by_user_id_idx": {
-          "name": "entry_verification_resubmitted_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "resubmitted_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "entry_verification_entry_id_entry_id_fk": {
-          "name": "entry_verification_entry_id_entry_id_fk",
-          "tableFrom": "entry_verification",
-          "tableTo": "entry",
-          "columnsFrom": [
-            "entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "entry_verification_decided_by_user_id_user_id_fk": {
-          "name": "entry_verification_decided_by_user_id_user_id_fk",
-          "tableFrom": "entry_verification",
-          "tableTo": "user",
-          "columnsFrom": [
-            "decided_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "entry_verification_resubmitted_by_user_id_user_id_fk": {
-          "name": "entry_verification_resubmitted_by_user_id_user_id_fk",
-          "tableFrom": "entry_verification",
-          "tableTo": "user",
-          "columnsFrom": [
-            "resubmitted_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "entry_verification_sent_back_has_deadline": {
-          "name": "entry_verification_sent_back_has_deadline",
-          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"resubmission_due_at\" IS NOT NULL)"
-        },
-        "entry_verification_sent_back_has_reason": {
-          "name": "entry_verification_sent_back_has_reason",
-          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"reason_code\" IS NOT NULL)"
-        },
-        "entry_verification_reason_text_length": {
-          "name": "entry_verification_reason_text_length",
-          "value": "\"entry_verification\".\"reason_text\" IS NULL OR char_length(\"entry_verification\".\"reason_text\") BETWEEN 1 AND 500"
-        },
-        "entry_verification_resubmission_complete": {
-          "name": "entry_verification_resubmission_complete",
-          "value": "(\"entry_verification\".\"resubmitted_at\" IS NULL) = (\"entry_verification\".\"resubmission_with_file\" IS NULL) AND (\"entry_verification\".\"resubmitted_at\" IS NULL OR \"entry_verification\".\"decision\" = 'sent_back')"
-        }
-      },
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -15246,8 +15695,7 @@
         "auction_manager",
         "adoption_coordinator",
         "safeguarding_lead",
-        "grievance_officer",
-        "foa_verifier"
+        "grievance_officer"
       ]
     },
     "public.role_scope_type": {
@@ -15727,6 +16175,14 @@
         "offline"
       ]
     },
+    "public.payment_purpose": {
+      "name": "payment_purpose",
+      "schema": "public",
+      "values": [
+        "registration_fee",
+        "donation"
+      ]
+    },
     "public.payment_review_outcome": {
       "name": "payment_review_outcome",
       "schema": "public",
@@ -15746,7 +16202,8 @@
         "registration_closed",
         "batch_superseded",
         "paid_while_in_review",
-        "participation_consent_required"
+        "participation_consent_required",
+        "donation_expired"
       ]
     },
     "public.guardian_invitation_channel": {
@@ -15788,7 +16245,8 @@
       "values": [
         "discretionary",
         "cancellation",
-        "duplicate"
+        "duplicate",
+        "foreign_payment"
       ]
     },
     "public.refund_manual_method": {
@@ -15921,6 +16379,37 @@
         "fired",
         "cancelled",
         "superseded"
+      ]
+    },
+    "public.donation_origin": {
+      "name": "donation_origin",
+      "schema": "public",
+      "values": [
+        "online_checkout",
+        "offline_entry",
+        "recurring_charge"
+      ]
+    },
+    "public.donation_status": {
+      "name": "donation_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "captured",
+        "failed",
+        "expired",
+        "refund_pending",
+        "refunded",
+        "partially_refunded"
+      ]
+    },
+    "public.donor_type": {
+      "name": "donor_type",
+      "schema": "public",
+      "values": [
+        "individual",
+        "corporate",
+        "csr"
       ]
     },
     "public.privacy_request_relation": {
@@ -16098,14 +16587,6 @@
         "overdue",
         "finalised",
         "closed_on_behalf"
-      ]
-    },
-    "public.entry_verification_decision": {
-      "name": "entry_verification_decision",
-      "schema": "public",
-      "values": [
-        "verified",
-        "sent_back"
       ]
     }
   },

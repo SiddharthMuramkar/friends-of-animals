@@ -88,6 +88,9 @@ export const SEED_ADOPTION = {
   /** The NGO's draft, for its representative to finish. */
   draftId: ids(4).id,
   publishedId: ids(1).id,
+  /** The adopted cat and a published one, for #130's seeded applications. */
+  adoptedId: ids(3).id,
+  raniId: ids(5).id,
 } as const;
 
 const ANIMALS: readonly SeedAnimal[] = [

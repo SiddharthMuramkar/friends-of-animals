@@ -134,8 +134,8 @@ export const SEASONAL_SOURCES = {
     url: "https://www.wwfindia.org/?12181/WWF-India-Celebrating-Wildlife-Week",
   },
   S107: {
-    label: "Great Backyard Bird Count",
-    url: "https://www.birdcount.org/",
+    label: "Bird Count India, Great Backyard Bird Count",
+    url: "https://birdcount.in/counts/gbbc/",
   },
   S108: { label: "Big Butterfly Month", url: "https://bigbutterflymonth.in/" },
   S109: {
@@ -214,6 +214,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 1,
       slug: "january",
+      artId: "season-jan",
       title: "Kite season: plain cotton thread only",
       kid: "Kite string can cut birds. Fly kites only with plain cotton string.",
       actions: [
@@ -226,7 +227,6 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "Use only plain cotton thread, and don’t fly at dawn or dusk. If you find a bird caught in string, cover it gently with a cloth and put it in a ventilated box. Give no food or water, and don’t pull the string out: let a trained rescuer cut it. AWBI’s letter of 11 January 2026 asks every state to “permit only plain cotton thread for kite flying”.",
       why: "In Gujarat’s 2026 Karuna Abhiyan alone (10–20 January), 16,380 birds hurt by kite strings were treated.",
       sources: ["S07", "S10", "S11", "S118", "S53"],
-      imageId: "se-kites-uttarayan",
     },
     {
       month: 2,
@@ -240,13 +240,14 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "If you see a dead bird, do not touch it. Keep pets away and tell a grown-up.",
       ],
       grownUps:
-        "The Great Backyard Bird Count 2027 runs 12–15 February: watch for at least 15 minutes and enter the list on eBird or Merlin. Bird Count India runs a Campus Bird Count for schools and colleges alongside it. Photograph birds, not children. Don’t handle dead birds with bare hands, and report clusters of unexplained bird deaths, especially crows, to the nearest veterinary or animal husbandry office.",
+        "The Great Backyard Bird Count takes place every February. Check Bird Count India for this year’s dates. Watch for at least 15 minutes and enter the list on eBird or Merlin. Bird Count India runs a Campus Bird Count for schools and colleges alongside it. Photograph birds, not children. Don’t handle dead birds with bare hands, and report clusters of unexplained bird deaths, especially crows, to the nearest veterinary or animal husbandry office.",
       why: "India’s 2025 count had over 10,000 participants, who recorded 1,086 species: nearly 78% of all bird species found in India.",
       sources: ["S107", "S23"],
     },
     {
       month: 3,
       slug: "march",
+      artId: "season-mar",
       title: "Water bowls: change daily, scrub weekly",
       kid: "Hot days are coming. A bowl of clean water helps birds and animals.",
       actions: [
@@ -259,11 +260,11 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "Use wide, shallow, heavy or earthen bowls that animals cannot tip over, in shade on your own balcony, terrace or garden. Put a stone in the bowl so small birds can perch. Refill with clean water daily, and scrub and dry the bowl at least once a week: Aedes eggs stick just above the waterline and survive drying. At Holi, AWBI asks everyone to “refrain from applying any dry or wet colours on animals, including pets, stray animals, and birds”.",
       why: "Aedes mosquitoes, which spread dengue, can go from egg to adult in about a week in small containers such as bird baths and pets’ water bowls.",
       sources: ["S20", "S25", "S24"],
-      imageId: "se-water-junglemyna",
     },
     {
       month: 4,
       slug: "april",
+      artId: "season-apr",
       title: "Shade, water and a noon break",
       kid: "On hot days, dogs pant and look for shade.",
       actions: [
@@ -275,7 +276,6 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "AWBI’s heat advisory asks for shade all day and water in large earthen pots or stable containers. Watch for “excessive panting, lethargy, drooling, rapid heartbeat, and collapse”, and get a vet at once if you see them. A feathered, hopping baby bird is a fledgling: leave it, keep cats and dogs away, and never drip water into its beak. Draught and pack animals may not pull carts or carry loads between 12 noon and 3 pm when it is hotter than 37 °C (rule 6(3), 1965 Rules).",
       why: "AWBI warns that dogs and other animals are especially vulnerable to dehydration, heatstroke and burns from hot surfaces.",
       sources: ["S25", "S117", "S116"],
-      imageId: "se-shade-dog-soil",
       quoteId: "Q12",
     },
     {
@@ -297,6 +297,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 6,
       slug: "june",
+      artId: "season-jun",
       title: "Rain: knock, look, then drive",
       kid: "When it rains, cats and dogs hide under cars.",
       actions: [
@@ -308,7 +309,6 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "In rain and cold, animals shelter under and inside parked vehicles. Before starting, walk round, look under the car, check the wheel arches, bang the bonnet or honk, and wait. AWBI’s monsoon advisory asks for clean water in stable, wide metal bowls, for letting street animals shelter in “porches, garages, or any other covered space”, for local vet contacts lined up in advance, and for waterlogging and blocked drains to be reported to the municipality.",
       why: "AWBI asks that rainy-season shelters be placed “away from pathways, parks, staircases and parking areas where animals are more prone to accidents”.",
       sources: ["S26", "S53"],
-      imageId: "se-rain-dog-khar",
     },
     {
       month: 7,
@@ -329,6 +329,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 8,
       slug: "august",
+      artId: "season-aug",
       title: "Kites around Independence Day",
       kid: "Around Independence Day, many kites fly.",
       actions: [
@@ -340,7 +341,6 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "The January rules hold: plain cotton thread only, and no flying at dawn or dusk. Keep a ventilated box, a towel and a rescue number to hand. Delhi has banned all sharp, synthetic and glass-coated kite thread since 10 January 2017, and Delhi’s fire service attends bird rescues.",
       why: "Vets and NGOs in Delhi report a spike in birds cut by kite string in the days before Independence Day.",
       sources: ["S04", "S12"],
-      imageId: "se-kites-uttarayan",
     },
     {
       month: 9,
@@ -393,6 +393,7 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
     {
       month: 12,
       slug: "december",
+      artId: "season-dec",
       title: "Cold nights: warm beds, never fires",
       kid: "Winter nights are cold for street dogs and cats.",
       actions: [
@@ -404,7 +405,6 @@ export const SEASONAL_MONTHS: readonly SeasonalMonth[] = z
         "Give straw, old blankets, jute sacks or mattresses, raised on a pallet or cot, away from wind, in a dry spot, without blocking public paths. No braziers, heaters or bonfires for animals: burns and smoke harm them, and coal burnt in closed spaces makes carbon monoxide. Don’t burn rubbish, because puppies sleep in rubbish heaps.",
       why: "The government’s cold-wave advisory for animals names newborn, young, sick and weak animals as most at risk.",
       sources: ["S27", "S32", "S33", "S115"],
-      imageId: "se-winter-dog-coat-curled",
     },
   ]);
 

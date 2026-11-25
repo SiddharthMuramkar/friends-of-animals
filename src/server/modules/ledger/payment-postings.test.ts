@@ -94,6 +94,8 @@ describe("automatic capture postings", () => {
       if (delivery === "backfill") {
         expect(await system.backfillLedgerFromPayments()).toEqual({
           capturesPosted: 1,
+          donationsPosted: 0,
+          foreignPosted: 0,
           refundsPosted: 0,
         });
       } else {
@@ -130,6 +132,8 @@ describe("automatic capture postings", () => {
 
       expect(await system.backfillLedgerFromPayments()).toEqual({
         capturesPosted: 0,
+        donationsPosted: 0,
+        foreignPosted: 0,
         refundsPosted: 0,
       });
       await h.drain();
@@ -173,7 +177,12 @@ describe("automatic capture postings", () => {
           await h
             .as({ kind: "system", process: "cli" })
             .backfillLedgerFromPayments()
-        ).toEqual({ capturesPosted: 1, refundsPosted: 0 });
+        ).toEqual({
+          capturesPosted: 1,
+          donationsPosted: 0,
+          foreignPosted: 0,
+          refundsPosted: 0,
+        });
       } else {
         await h.drain();
       }

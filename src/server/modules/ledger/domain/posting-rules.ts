@@ -19,8 +19,14 @@ export const LEDGER_SOURCE_TYPES = [
   "payment_capture",
   /** An offline payment finance recorded (#79); id = offline payment id. */
   "offline_payment",
-  /** A processed refund (#80); id = refund id. */
+  /** A processed refund (#80); id = refund id. Refunds of a donation's
+   * batch reverse the donation's posting (#106). */
   "refund",
+  /** A captured donation (#106); id = donation id. */
+  "donation",
+  /** Foreign money refused for a donation while FCRA is off (#106), owed
+   * back; id = gateway payment id. */
+  "foreign_donation",
   /** Finance's manual entry; id = the posting's own id. */
   "manual",
   /** Finance reversing a manual entry; id = the reversed posting's id. */
@@ -67,6 +73,63 @@ export function registrationCaptureLines(input: {
     },
     {
       accountCode: CODES.registrationFees,
+      side: "credit",
+      amountMinor: input.amountMinor,
+    },
+  ];
+}
+
+/** Who gave, as the chart splits donation income (HR-47). */
+export type DonationIncome = "individual" | "corporate" | "csr";
+
+const DONATION_INCOME: Record<DonationIncome, string> = {
+  individual: CODES.individualDonations,
+  corporate: CODES.corporateDonations,
+  csr: CODES.csrDonations,
+};
+
+/** A donation (#106): debit where the money landed, credit donations. */
+export function donationCaptureLines(input: {
+  amountMinor: bigint;
+  method: MoneyMethod;
+  donorType: DonationIncome;
+}): LineDraft[] {
+  if (input.amountMinor <= 0n) {
+    throw new RangeError("A donation posts a positive amount");
+  }
+  return [
+    {
+      accountCode: assetAccountFor(input.method),
+      side: "debit",
+      amountMinor: input.amountMinor,
+    },
+    {
+      accountCode: DONATION_INCOME[input.donorType],
+      side: "credit",
+      amountMinor: input.amountMinor,
+    },
+  ];
+}
+
+/**
+ * Foreign money FOA can't keep (FCRA off, #106): it sits in clearing and
+ * is owed back, so it is a liability, never income. Its refund reverses
+ * this posting.
+ */
+export function foreignDonationLines(input: {
+  amountMinor: bigint;
+}): LineDraft[] {
+  if (input.amountMinor <= 0n) {
+    throw new RangeError("Foreign money posts a positive amount");
+  }
+  return [
+    {
+      accountCode: CODES.gatewayClearing,
+      side: "debit",
+      amountMinor: input.amountMinor,
+    },
+    {
+      accountCode: CODES.foreignContributions,
       side: "credit",
       amountMinor: input.amountMinor,
     },
