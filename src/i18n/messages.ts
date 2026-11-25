@@ -63,6 +63,7 @@ import donationCheckout from "../../messages/en-IN/donationCheckout.json";
 import donations from "../../messages/en-IN/donations.json";
 import receipts from "../../messages/en-IN/receipts.json";
 import adminDonations from "../../messages/en-IN/adminDonations.json";
+import artworkCustody from "../../messages/en-IN/artworkCustody.json";
 import artwork from "../../messages/en-IN/artwork.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
@@ -115,6 +116,7 @@ export const NAMESPACES = [
   "adminPrivacy",
   "adminBlog",
   "adminRubrics",
+  "adminJudging",
   "adminCompetitionTerms",
   "adminPayments",
   "adminConsentForms",
@@ -162,6 +164,7 @@ export const NAMESPACES = [
   "adminDonations",
   "entries",
   "artwork",
+  "artworkCustody",
   "error",
   "files",
   "footer",
@@ -174,7 +177,6 @@ export const NAMESPACES = [
   "institutions",
   "judgingGuide",
   "judging",
-  "adminJudging",
   "judgeScoring",
   "institutionRegistration",
   "legal",
@@ -263,6 +265,7 @@ export const messages = {
   ...adminDonations,
   ...entries,
   ...artwork,
+  ...artworkCustody,
   ...error,
   ...files,
   ...footer,

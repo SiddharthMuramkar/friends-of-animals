@@ -264,10 +264,14 @@ export const isJudgeInvitationPage = (path: string) =>
   fitsTemplate(path, `${JUDGE_INVITATIONS_PREFIX}/[token]`);
 
 export const ADMIN_ARTWORK = "/admin/artwork";
+export const ADMIN_ARTWORK_DISCREPANCIES = "/admin/artwork/discrepancies";
 export const INSTITUTION_ARTWORK = "/institution/artwork";
 export const MY_ARTWORK = "/dashboard/artwork";
 export const adminArtworkPath = (artworkCode: string) =>
   `${ADMIN_ARTWORK}/${encodeURIComponent(artworkCode)}`;
+
+export const adminArtworkVerifyPath = (artworkCode: string) =>
+  `${adminArtworkPath(artworkCode)}/verify`;
 
 export const ADMIN_VERIFICATION = "/admin/verification";
 export function adminVerificationEntryPath(entryId: string): string {
@@ -572,6 +576,8 @@ export const APP_ROUTE_TEMPLATES = [
 
   ADMIN_ARTWORK,
   "/admin/artwork/[artworkCode]",
+  "/admin/artwork/[artworkCode]/verify",
+  ADMIN_ARTWORK_DISCREPANCIES,
   INSTITUTION_ARTWORK,
   MY_ARTWORK,
   ADMIN_VERIFICATION,

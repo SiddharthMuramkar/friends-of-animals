@@ -1,7 +1,8 @@
 // The media processor port: an original in, derived copies out. For an
 // image it makes the sizes planImageDerivatives() plans, as WebP, with the
 // orientation baked into the pixels; for a video (#86), the H.264 and AAC
-// MP4 copy and the JPEG poster planVideoTranscode() plans. No derivative
+// MP4 copy and JPEG poster planVideoTranscode() plans; for an essay PDF
+// (#96), a freshly rendered, raster-only PDF. No derivative
 // carries any metadata (no EXIF or QuickTime location, camera, creation
 // time; no XMP, no IPTC), because participants are often children and a
 // photo's or a clip's GPS is a safeguarding leak. It never touches storage
@@ -14,15 +15,18 @@
 //     without Docker.
 //   - ffmpeg (./media-ffmpeg.ts) for videos: ffprobe and ffmpeg, which
 //     only the worker-media image installs.
+//   - Poppler (./media-pdf.ts) for essay PDFs: pdftoppm, installed only
+//     in worker-media.
 //   - the in-memory fake (src/test/fakes/media.ts): Seam 1 tests.
-// Each passes ./media.contract.ts for what it handles; the ffmpeg run of it
-// is ./media-ffmpeg.media.test.ts (`pnpm test:media`, where ffmpeg is).
+// Each passes ./media.contract.ts for what it handles; the real video and
+// PDF adapter runs are *.media.test.ts (`pnpm test:media`).
 //
 // Loads under plain Node (the worker): relative imports only.
 
 import type {
   DerivativeKind,
   PixelSize,
+  PdfDerivativeKind,
   PlannedDerivative,
   VideoDerivativeKind,
 } from "../modules/files/domain/derivatives";
@@ -94,8 +98,24 @@ export interface VideoProcessor {
   processVideo(input: VideoInput): Promise<VideoResult>;
 }
 
-/** What worker-media runs the media queue with: both halves. */
-export interface MediaProcessor extends ImageProcessor, VideoProcessor {}
+/** An essay PDF rendered into a new, inert, raster-only PDF (#96). */
+export type PdfDerivative = {
+  kind: PdfDerivativeKind;
+  contentType: "application/pdf";
+  width: null;
+  height: null;
+  durationMs: null;
+  bytes: Uint8Array;
+};
+
+export interface PdfProcessor {
+  /** Rejects with a MediaError if no complete safe copy can be made. */
+  processPdf(input: { bytes: Uint8Array }): Promise<PdfDerivative>;
+}
+
+/** What worker-media runs the media queue with. */
+export interface MediaProcessor
+  extends ImageProcessor, VideoProcessor, PdfProcessor {}
 
 /**
  * Why an image couldn't be processed. Each code is safe to store and to
@@ -113,7 +133,9 @@ export type MediaErrorCode =
   /** A video longer than its limit, as ffprobe measures it (#86). */
   | "video_too_long"
   /** A video file with no picture in it, only sound or data (#86). */
-  | "no_video_stream";
+  | "no_video_stream"
+  /** An essay PDF exceeds the safe raster/page or output limits (#96). */
+  | "pdf_too_large";
 
 export const MEDIA_ERROR_CODES = [
   "unsupported_type",
@@ -122,6 +144,7 @@ export const MEDIA_ERROR_CODES = [
   "media_timeout",
   "video_too_long",
   "no_video_stream",
+  "pdf_too_large",
 ] as const satisfies readonly MediaErrorCode[];
 
 export class MediaError extends Error {
@@ -141,6 +164,7 @@ const MEDIA_ERROR_MESSAGES: Record<MediaErrorCode, string> = {
   media_timeout: "The file took too long to process",
   video_too_long: "The video is longer than the limit",
   no_video_stream: "The file has no video picture in it",
+  pdf_too_large: "The PDF has too many pages or is too large to prepare",
 };
 
 /** The most pixels an adapter decodes by default: 100 megapixels. */
@@ -163,7 +187,7 @@ export type FileProcessingErrorCode =
 export class MediaNotConfiguredError extends Error {
   constructor() {
     super(
-      "No media processor here: images and videos are processed in " +
+      "No media processor here: images, videos and essay PDFs are processed in " +
         "worker-media, which drains the media queue."
     );
     this.name = "MediaNotConfiguredError";
@@ -177,4 +201,5 @@ export class MediaNotConfiguredError extends Error {
 export const unconfiguredMedia: MediaProcessor = {
   processImage: () => Promise.reject(new MediaNotConfiguredError()),
   processVideo: () => Promise.reject(new MediaNotConfiguredError()),
+  processPdf: () => Promise.reject(new MediaNotConfiguredError()),
 };

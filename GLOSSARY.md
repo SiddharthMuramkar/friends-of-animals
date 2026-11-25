@@ -722,6 +722,21 @@ The school coordinators for an institution registration or the participant or ve
 **Dispatch**:
 The sender's manual record that the parcel has been sent. FOA may receive a parcel even without recorded dispatch.
 
+**Condition photo**:
+A private File bound to one Physical artwork, taken by an FOA verifier to record front, back and detail condition; delivered only to authorised staff through a Signed URL after a clean Scan.
+
+**Discrepancy**:
+An open inspection record that identifies a mismatch or missing evidence. Resolving it returns the work to received, not verified; it must pass inspection again.
+
+**Custody event**:
+An append-only record of a physical artwork's receipt, move, exhibition, storage, retention or return. Its current status is independent of the Entry.
+
+**Physically ready for judging**:
+A verified original still held by FOA (verified, on exhibition or retained). An absent, received, discrepant or returned original cannot enter a physical Round.
+
+**Return window**:
+The period beginning when Results are actually published, not when the competition is scheduled. Adult creators, verified guardians and the institution's coordinator may request the original back during it. Unrequested verified work is then retained.
+
 ## Files
 
 **File**:

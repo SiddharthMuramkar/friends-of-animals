@@ -21,6 +21,7 @@ export const FILE_PURPOSES = [
   "entry_video",
   "entry_document",
   "offline_donation_proof",
+  "artwork_condition_photo",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
@@ -167,7 +168,7 @@ export const PURPOSE_RULES = {
   },
   /**
    * A participant's essay as a PDF (#86). Only `startEntryUpload` presigns
-   * one; it is shown as stored once its scan passes.
+   * one; the scan and blind-judging raster copy must be ready (#96).
    */
   entry_document: {
     contentTypes: ["application/pdf"],
@@ -211,6 +212,13 @@ export const PURPOSE_RULES = {
       "image/heif",
     ],
     maxBytes: 15 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /** Private custody evidence, uploaded by an artwork verifier only. */
+  artwork_condition_photo: {
+    contentTypes: ["image/jpeg", "image/png", "image/heic", "image/heif"],
+    maxBytes: 20 * MiB,
     environments: "all",
     directUpload: false,
   },

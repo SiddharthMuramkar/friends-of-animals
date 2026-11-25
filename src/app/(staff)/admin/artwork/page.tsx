@@ -5,7 +5,11 @@ import { Section } from "@/components/site/section";
 import { ButtonLink } from "@/components/site/button-link";
 import { buttonStyles } from "@/components/site/button-link";
 import { as, currentActor } from "@/server/app";
-import { ADMIN_ARTWORK, adminArtworkPath } from "@/lib/app-routes";
+import {
+  ADMIN_ARTWORK,
+  ADMIN_ARTWORK_DISCREPANCIES,
+  adminArtworkPath,
+} from "@/lib/app-routes";
 import { adminCall } from "../_lib/boundary";
 import { AdminDenied } from "../_components/admin-denied";
 import { requestArtworks } from "./_lib/actions";
@@ -26,7 +30,12 @@ export default async function Page({
     getTranslations("artwork"),
     searchParams,
   ]);
+  const custody = await getTranslations("artworkCustody");
   const app = as(actor);
+  const discrepancies = await adminCall(
+    () => app.listArtworkDiscrepancies({}),
+    ADMIN_ARTWORK
+  );
   const comps = await adminCall(
     () => app.listArtworkCompetitions(),
     ADMIN_ARTWORK
@@ -50,6 +59,15 @@ export default async function Page({
   return (
     <Section width="wide" hue="green" className="pt-10 sm:pt-14">
       <PageHeader title={t("title")} lead={t("lead")} />
+      {discrepancies.ok && discrepancies.value.ok ? (
+        <ButtonLink
+          href={ADMIN_ARTWORK_DISCREPANCIES}
+          variant="secondary"
+          className="mt-4"
+        >
+          {custody("discrepancies")}
+        </ButtonLink>
+      ) : null}
       {query.result ? (
         <output className="block mt-4 text-ink">
           {t(query.result === "ok" ? "success" : "failure")}

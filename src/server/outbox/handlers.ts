@@ -12,6 +12,8 @@ import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { retainUnrequested } from "../modules/physical-artwork/custody";
+import { openArtworkResultsWindow } from "../modules/physical-artwork/results-window";
 import type { Deps } from "../deps";
 import type { BlindIndex } from "../crypto/blind-index";
 import type { FieldCipher } from "../crypto/field-cipher";
@@ -23,6 +25,7 @@ import { deliverConsentLink } from "../modules/consent-links/delivery";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { uploadKeyFor } from "../modules/files/domain/storage-key";
 import { processImageAsset } from "../modules/files/process-image";
+import { processPdfAsset } from "../modules/files/process-pdf";
 import { processVideoAsset } from "../modules/files/process-video";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
@@ -180,6 +183,7 @@ export const HANDLERS: Handlers = {
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "files.process_video": (deps, delivery) => processVideoAsset(deps, delivery),
+  "files.process_pdf": (deps, delivery) => processPdfAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
   "judging.send_invitation": (deps, { payload }) =>
@@ -260,6 +264,10 @@ export const HANDLERS: Handlers = {
       );
     }
   },
+  "artwork.open_results_window": (deps, { payload }) =>
+    openArtworkResultsWindow(deps, payload),
+  "artwork.retain_unrequested": (deps, { payload }) =>
+    retainUnrequested(deps, payload),
   "reminders.schedule_artwork": async (deps, { payload }) => {
     await scheduleReminders(
       { ...deps, actor: { kind: "system", process: "worker" } },

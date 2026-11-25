@@ -235,6 +235,7 @@ describe("the media job", () => {
     const { fileId } = await upload(h, "image/jpeg", JPEG);
     const media = h.deps.media;
     h.deps.media = {
+      processPdf: (input) => media.processPdf(input),
       processVideo: (input) => media.processVideo(input),
       async processImage(input) {
         const result = await media.processImage(input);
@@ -278,6 +279,7 @@ describe("the media job", () => {
     const h = await world();
     const { fileId } = await upload(h, "image/jpeg", JPEG);
     h.deps.media = {
+      processPdf: () => Promise.reject(new Error("unused")),
       processVideo: () => Promise.reject(new Error("unused")),
       processImage: () =>
         Promise.reject(new Error("worker-media ran out of memory")),

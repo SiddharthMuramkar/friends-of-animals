@@ -1143,13 +1143,17 @@ write `/etc/foa/secrets/worker_media_r2.env` (root, mode 0600) with the four
 above. Only `worker-media` reads it. Its token must allow reads and writes in
 that bucket, because the media worker stores the derivatives there.
 
-The default worker scans uploads and queues image derivatives and video
-transcodes. The media worker connects directly to the same database (on `db`,
+The default worker scans uploads and queues image derivatives, video
+transcodes and raster-only PDF essay copies. The media worker connects directly to the same database (on `db`,
 which also routes to R2) and drains only those deliveries, one at a time.
 `MEDIA_TIMEOUT_SECONDS` defaults to 60 seconds for image processing. A video
 (#86) is transcoded by the image's own ffmpeg, with a deadline from its
 length (up to 13 minutes for a 3-minute clip) and a 20-minute relay lease;
-`pnpm test:media` runs the ffmpeg adapter's contract inside the image. It uses the container heartbeat
+the PDF adapter (#96) is Poppler, with a two-minute rendering deadline and
+40-page cap. `pnpm test:media` runs both real adapters' contracts inside the
+image. The default worker's `files.backfill_essay_pdfs` schedule queues
+previously clean essay PDFs that have no media processing record. The media
+worker uses the container heartbeat
 file for health checks. The database heartbeat read by `/api/health/worker`
 continues to track the default worker. The PDF adapter in #100 uses the
 Gotenberg endpoint.

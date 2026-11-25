@@ -303,6 +303,10 @@
         }
       },
       "artwork": {
+        "returnWindowDays": {
+          "label": "Artwork return window",
+          "description": "Days from actual publication of results that families may request their original work back."
+        },
         "dispatchDays": {
           "label": "Artwork dispatch window",
           "description": "Calendar days from request to the dispatch deadline."

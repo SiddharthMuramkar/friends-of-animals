@@ -4,8 +4,8 @@
 // deliveries, so heavy work never runs on Vercel or holds up the default
 // worker. The Seam 1 harness drains every queue.
 //
-//   media  worker-media (#85): image derivatives and video transcodes
-//          (#86). Stamping (#102) and the gallery's copies (#103) append
+//   media  worker-media (#85): image derivatives, video transcodes (#86)
+//          and raster-only essay PDF copies (#96). Stamping (#102) and the gallery's copies (#103) append
 //          here.
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
@@ -13,7 +13,7 @@
 import type { HandlerName } from "./events";
 
 export const DEDICATED_QUEUES = {
-  media: ["files.process_image", "files.process_video"],
+  media: ["files.process_image", "files.process_video", "files.process_pdf"],
 } as const satisfies Record<string, readonly HandlerName[]>;
 
 export type DedicatedQueue = keyof typeof DEDICATED_QUEUES;

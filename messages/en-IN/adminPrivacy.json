@@ -663,7 +663,37 @@
           "tracking_number": "Tracks the parcel and resolves delivery discrepancies.",
           "requested_by": "Identifies the staff member who requested the original.",
           "dispatched_by": "Identifies the sender who recorded dispatch.",
-          "received_by": "Identifies the staff member who recorded receipt."
+          "received_by": "Identifies the staff member who recorded receipt.",
+          "storage_location": "Records where staff can locate the participant’s original work."
+        },
+        "artwork_verification": {
+          "artwork_id": "Links the verification to the creator’s original work.",
+          "condition_notes": "Records condition observations or damage on receipt.",
+          "material": "Records the material of the creator’s artwork.",
+          "verified_by": "Identifies the staff member who verified the original."
+        },
+        "artwork_photo": {
+          "artwork_id": "Binds private condition photos to the creator’s artwork.",
+          "file_asset_id": "Identifies the staff-only condition photo recording the original.",
+          "created_by": "Identifies the verifier who uploaded the condition photo."
+        },
+        "artwork_discrepancy": {
+          "artwork_id": "Identifies the original work with an open discrepancy.",
+          "notes": "Explains the discrepancy found during inspection.",
+          "resolution": "Records the resolution of a discrepancy in the original work.",
+          "raised_by": "Identifies the staff member who discovered the discrepancy.",
+          "resolved_by": "Identifies the staff member who resolved the discrepancy."
+        },
+        "artwork_custody_event": {
+          "artwork_id": "Identifies the original work moved or returned by FOA.",
+          "location": "The location where staff stored or exhibited the creator’s original.",
+          "return_via": "Records the recipient name or courier and tracking number on return.",
+          "actor_user_id": "Identifies the staff member responsible for a custody event."
+        },
+        "artwork_return_request": {
+          "artwork_id": "Identifies the original work a family asks FOA to return.",
+          "via": "Records how FOA returned the requested original.",
+          "requested_by": "Identifies the creator, guardian or coordinator who requested a return."
         }
       }
     },

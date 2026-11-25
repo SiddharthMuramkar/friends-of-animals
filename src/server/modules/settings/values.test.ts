@@ -178,6 +178,7 @@ describe("resolveAllSettings", () => {
       ["reminders.schoolRoundShortlistDueFirstHours", 72, "default"],
       ["reminders.schoolRoundShortlistDueSecondHours", 24, "default"],
       ["artwork.dispatchDays", 14, "default"],
+      ["artwork.returnWindowDays", 30, "default"],
       ["artwork.dispatchReminderLeadHours", 72, "default"],
       [
         "artwork.packagingInstructions",

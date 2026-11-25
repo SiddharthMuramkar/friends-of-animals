@@ -7,6 +7,8 @@
 //
 // Loads under plain Node: no "server-only", no `@/` imports.
 
+import { CUSTODY_TRANSITIONS } from "./custody";
+
 /** Every status, in custody order. */
 export const PHYSICAL_ARTWORK_STATUSES = [
   /** FOA asked for the original work. */
@@ -42,6 +44,11 @@ export const ARTWORK_TRANSITIONS: readonly ArtworkTransition[] = [
   { from: "dispatched", to: "received", by: "staff" },
   // The parcel arrived but the sender never recorded the dispatch.
   { from: "requested", to: "received", by: "staff" },
+  ...CUSTODY_TRANSITIONS.map(({ from, to }) => ({
+    from,
+    to,
+    by: "staff" as const,
+  })),
 ];
 
 export function isPhysicalArtworkStatus(

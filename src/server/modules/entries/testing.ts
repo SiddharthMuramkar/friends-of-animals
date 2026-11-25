@@ -14,6 +14,7 @@ import {
 import type { SeedCompetitionOptions } from "@/server/seed/competitions";
 import type { Harness } from "@/test/harness";
 import { readMediaFixture } from "@/test/media-fixtures";
+import { essayPdf } from "@/test/pdf-fixtures";
 
 /** A real JPEG (2000 x 1500, with GPS): what a phone sends. */
 export const PHOTO = readMediaFixture("gpsJpeg");
@@ -21,10 +22,8 @@ export const PHOTO = readMediaFixture("gpsJpeg");
 /** A real QuickTime clip (1 s, with GPS): what an iPhone sends (#86). */
 export const CLIP = readMediaFixture("gpsMov");
 
-/** The start of a PDF: what the scan's sniffer looks for (#86). */
-export const PDF = new TextEncoder().encode(
-  "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
-);
+/** A real essay PDF with author metadata and two pages (#96). */
+export const PDF = essayPdf();
 
 /** A typed essay of `words` words (#86). */
 export function essayOf(words: number): string {
