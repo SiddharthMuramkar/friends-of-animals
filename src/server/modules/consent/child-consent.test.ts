@@ -124,7 +124,7 @@ describe("giveChildConsent and withdrawChildConsent", () => {
         { purpose: "public_display", action: "given" },
       ],
     });
-    expect((await consentRows(w.h)).outbox).toHaveLength(2);
+    expect((await consentRows(w.h)).outbox).toHaveLength(3);
   });
 
   it.each(GUARDIAN_PURPOSES)(
@@ -288,11 +288,12 @@ describe("withdrawing a child's consent", () => {
 
     const { outbox, events } = await consentRows(w.h);
     const withdrawal = events.find((event) => event.action === "withdrawn");
-    expect(outbox).toHaveLength(2);
+    expect(outbox).toHaveLength(3);
     expect(new Set(outbox.map((row) => row.eventId)).size).toBe(1);
     expect(outbox.map((row) => row.handler).sort()).toEqual([
       "gallery.withdraw_consent",
       "notifications.dispatch",
+      "social_export.withdraw_consent",
     ]);
     for (const row of outbox) {
       expect(row).toMatchObject({
@@ -312,6 +313,7 @@ describe("withdrawing a child's consent", () => {
     }
     await w.h.drain();
     expect((await consentRows(w.h)).outbox.map((row) => row.status)).toEqual([
+      "dispatched",
       "dispatched",
       "dispatched",
     ]);

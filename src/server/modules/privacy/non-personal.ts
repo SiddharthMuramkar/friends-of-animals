@@ -17,6 +17,7 @@
 import type { NonPersonalColumns } from "./domain/coverage";
 
 export const NON_PERSONAL: NonPersonalColumns = {
+  social_export: ["id", "status", "created_at", "updated_at", "posted_at"],
   gallery_item: [
     "id",
     "status",

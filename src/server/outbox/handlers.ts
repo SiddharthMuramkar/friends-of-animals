@@ -1,3 +1,4 @@
+import { withdrawSocialExportConsent } from "../modules/social-export/withdrawal";
 import type { CdnPurger } from "../ports/cdn-purger";
 import {
   runGalleryPurge,
@@ -187,6 +188,7 @@ export const HANDLERS: Handlers = {
     );
   },
   "gallery.withdraw_consent": withdrawGalleryConsent,
+  "social_export.withdraw_consent": withdrawSocialExportConsent,
   "gallery.purge": (deps, { payload }) =>
     runGalleryPurge(deps, payload.purgeId),
   "certificates.build_archive": (deps, delivery) =>

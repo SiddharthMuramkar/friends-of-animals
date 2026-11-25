@@ -74,3 +74,5 @@ export * from "./community";
 export * from "./certificates";
 
 export * from "./gallery";
+
+export * from "./social-export";

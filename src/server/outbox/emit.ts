@@ -51,6 +51,8 @@ export async function emitBatch(
         event.type !== "consent.withdrawn" ||
         ((handler !== "auctions.withdraw_consent" ||
           event.payload.purpose === "auction") &&
+          (handler !== "social_export.withdraw_consent" ||
+            ["public_display", "social_media"].includes(event.payload.purpose)) &&
           (handler !== "gallery.withdraw_consent" ||
             ["public_display", "display_school", "display_city"].includes(
               event.payload.purpose
