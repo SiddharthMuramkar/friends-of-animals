@@ -52,7 +52,8 @@ import { REPORTS_POLICY } from "../modules/reports/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
-export const POLICY = composePolicies(
+// Keep the type-level duplicate check shallow as the platform grows.
+const corePolicy = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   SECOND_FACTOR_POLICY,
@@ -75,7 +76,9 @@ export const POLICY = composePolicies(
   EVENTS_POLICY,
   CERTIFICATES_POLICY,
   COMPETITION_TERMS_POLICY,
-  PAYMENTS_POLICY,
+  PAYMENTS_POLICY
+);
+const operationPolicy = composePolicies(
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
   LEDGER_POLICY,
@@ -101,5 +104,7 @@ export const POLICY = composePolicies(
   AUCTIONS_POLICY,
   REPORTS_POLICY
 );
+
+export const POLICY = composePolicies(corePolicy, operationPolicy);
 
 export type Action = keyof typeof POLICY;
