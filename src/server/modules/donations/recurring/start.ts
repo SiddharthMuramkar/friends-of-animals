@@ -18,7 +18,7 @@ import {
 import { DONOR_PURPOSE, donorEmailHash } from "../donors";
 import { defaultWallName } from "../domain/donor";
 import { normalizePan } from "../domain/pan";
-import { isKnownMinor } from "../minor";
+import { isKnownMinor } from "../../participants/known-minor";
 
 const startInput = z.strictObject({
   amountMinor: z.bigint().positive(),

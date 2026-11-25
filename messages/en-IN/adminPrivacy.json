@@ -94,6 +94,7 @@
         "consentLinkContacts": "90 days after the link is answered, revoked or expires",
         "consentLinkSecrets": "Until the link is used, revoked or expires",
         "entries": "3 years after the competition ends",
+        "auctionBids": "While the auction lot is kept, then 3 years after final settlement; the bidder link is cleared earlier on account erasure",
         "entryMedia": "Until 90 days after the competition ends",
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
@@ -696,6 +697,12 @@
           "via": "Records how FOA returned the requested original.",
           "requested_by": "Identifies the creator, guardian or coordinator who requested a return."
         },
+        "auction_bid": {
+          "bidder_user_id": "Links an accepted bid to the account that placed it",
+          "amount_paise": "Records the exact bid amount, in INR paise",
+          "declaration_version": "Records the version of the adult and binding bid statement that the bidder accepted",
+          "lot_id": "Identifies the lot on which the bidder placed the bid"
+        },
         "auction_lot": {
           "artwork_id": "Links an auction lot to the creator’s original artwork.",
           "consent_event_id": "Links the auction consent evidence used to establish eligibility.",
@@ -907,6 +914,10 @@
         "entries": {
           "name": "Competition entries",
           "rule": "3 years after the competition ends. No daily job yet."
+        },
+        "auctionBids": {
+          "name": "Auction bids",
+          "rule": "Kept with the auction lot until 3 years after final settlement (no daily job yet). Erasure clears the account link without lowering the accepted bid history. Paid-sale records follow the financial record floor."
         },
         "entryMedia": {
           "name": "Entry images",

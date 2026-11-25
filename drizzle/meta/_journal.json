@@ -981,6 +981,20 @@
       "when": 1795593945437,
       "tag": "0139_99_result_releases",
       "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1795595284788,
+      "tag": "0140_132_auction_bids",
+      "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1795595287340,
+      "tag": "0141_132_auction_bid_messages",
+      "breakpoints": true
     }
   ]
 }

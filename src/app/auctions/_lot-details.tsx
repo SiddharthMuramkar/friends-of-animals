@@ -37,6 +37,16 @@ export async function LotDetails({ lot }: { lot: PublicLot }) {
           <dd>{formatPaise(lot.basePricePaise)}</dd>
         </div>
         <div>
+          <dt className="text-sm font-semibold">{t("highest")}</dt>
+          <dd>
+            <output aria-live="polite">
+              {lot.currentBidPaise === null
+                ? t("noBids")
+                : formatPaise(lot.currentBidPaise)}
+            </output>
+          </dd>
+        </div>
+        <div>
           <dt className="text-sm font-semibold">{t("opens")}</dt>
           <dd>
             <time dateTime={lot.opensAt.toISOString()}>
@@ -47,9 +57,11 @@ export async function LotDetails({ lot }: { lot: PublicLot }) {
         <div>
           <dt className="text-sm font-semibold">{t("closes")}</dt>
           <dd>
-            <time dateTime={lot.closesAt.toISOString()}>
-              {when(lot.closesAt)}
-            </time>
+            <output aria-live="polite">
+              <time dateTime={lot.closesAt.toISOString()}>
+                {when(lot.closesAt)}
+              </time>
+            </output>
           </dd>
         </div>
         {lot.award ? (

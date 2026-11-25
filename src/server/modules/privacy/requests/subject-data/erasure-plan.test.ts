@@ -20,6 +20,7 @@ const NONE: ErasureFacts = {
   guardianRecords: 0,
   uploads: 0,
   entries: 0,
+  auctionBids: 0,
   freeRegistrations: 0,
   keptRegistrations: 0,
   guardianLinks: 0,

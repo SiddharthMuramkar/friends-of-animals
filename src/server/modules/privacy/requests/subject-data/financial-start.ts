@@ -1,5 +1,5 @@
-// A donation started during an approved erasure must not create another
-// recognition choice or mandate behind the erasure's final check.
+// A binding financial operation started during an approved erasure must not
+// create another donation, mandate or auction bid behind its final check.
 import { and, eq, gte, isNotNull, or, sql } from "drizzle-orm";
 import type { AppDb } from "../../../../db/app-db";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../../../../db/schema";
 import { lockSubject } from "../submit";
 
-export async function donationStartAllowed(
+export async function financialStartAllowed(
   db: AppDb,
   userId: string,
   startedAt: Date
@@ -57,12 +57,15 @@ export async function donationStartAllowed(
   return !finished;
 }
 
-/** Recheck while serialised with the erasure worker, before a gift is saved. */
-export async function lockDonationStart(
+/** Recheck while serialised with the erasure worker, before an obligation is saved. */
+export async function lockFinancialStart(
   db: AppDb,
   userId: string,
   startedAt: Date
 ) {
   await lockSubject(db, userId);
-  return donationStartAllowed(db, userId, startedAt);
+  return financialStartAllowed(db, userId, startedAt);
 }
+
+export const donationStartAllowed = financialStartAllowed;
+export const lockDonationStart = lockFinancialStart;
