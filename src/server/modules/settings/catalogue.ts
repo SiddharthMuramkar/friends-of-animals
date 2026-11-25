@@ -204,6 +204,7 @@ export const SETTINGS = {
     max: 20,
     unit: "clubs",
   }),
+  "surveys.enabled": booleanSetting({ default: false }),
   // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
   // and counsel sign M6 off (HR-55) and police checks are in place
   // (HR-38); local runs and previews are seeded open. The age rules are
@@ -357,6 +358,9 @@ export const SETTINGS = {
   ),
   "retention.clubApplicationsDays": retentionDays(
     RETENTION_PERIODS.clubApplications
+  ),
+  "retention.surveyResponsesDays": retentionDays(
+    RETENTION_PERIODS.surveyResponses
   ),
   "retention.communityMembersDays": retentionDays(
     RETENTION_PERIODS.communityMembers

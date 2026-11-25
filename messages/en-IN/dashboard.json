@@ -31,10 +31,12 @@
       "community": "Your community",
       "clubs": "FOA clubs",
       "timeline": "Engagement timeline",
-      "events": "My event registrations"
+      "events": "My event registrations",
+      "surveys": "Feedback surveys"
     },
     "admin": {
       "gallery": "Gallery curation",
+      "socialExport": "Social media export",
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
       "roles": "Roles",
       "audit": "Audit log",

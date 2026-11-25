@@ -26,6 +26,7 @@ import {
   ADMIN_COMMUNITY_MEMBERS,
   ADMIN_EVENTS,
   DASHBOARD_EVENTS,
+  DASHBOARD_SURVEYS,
   DASHBOARD_COMMUNITY,
   DASHBOARD_CLUBS,
   ADMIN_CLUBS,
@@ -264,6 +265,7 @@ async function AreaBody({
             { href: DASHBOARD_COMMUNITY, label: t("member.community") },
             { href: DASHBOARD_CLUBS, label: t("member.clubs") },
             { href: DASHBOARD_TIMELINE, label: t("member.timeline") },
+            { href: DASHBOARD_SURVEYS, label: t("member.surveys") },
             { href: DASHBOARD_EVENTS, label: t("member.events") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
@@ -348,7 +350,13 @@ async function AreaBody({
               ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
               : []),
             ...(gallery
-              ? [{ href: APP_ROUTES.adminGallery, label: t("admin.gallery") }]
+              ? [
+                  { href: APP_ROUTES.adminGallery, label: t("admin.gallery") },
+                  {
+                    href: APP_ROUTES.adminSocialExport,
+                    label: t("admin.socialExport"),
+                  },
+                ]
               : []),
             ...(auction
               ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]

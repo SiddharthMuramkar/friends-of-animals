@@ -57,10 +57,12 @@ import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
 import { schoolRoundUseCases } from "./modules/school-round";
+import { socialExportUseCases } from "./modules/social-export";
 import { galleryUseCases } from "./modules/gallery";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
+import { surveysUseCases } from "./modules/surveys";
 import { reportsUseCases } from "./modules/reports";
 import { clubsUseCases } from "./modules/clubs";
 import { composeUseCases } from "./use-cases";
@@ -118,6 +120,8 @@ const operationUseCases = composeUseCases(
   physicalArtworkUseCases,
   auctionsUseCases,
   galleryUseCases,
+  socialExportUseCases,
+  surveysUseCases,
   reportsUseCases
 );
 const useCases = composeUseCases(coreUseCases, operationUseCases);

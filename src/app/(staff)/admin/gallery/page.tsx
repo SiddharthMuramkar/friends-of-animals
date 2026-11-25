@@ -38,6 +38,9 @@ export default async function Page({
         <AdminDenied />
       ) : (
         <>
+          <ButtonLink href={APP_ROUTES.adminSocialExport} className="mt-5 mr-3">
+            {t("socialExport")}
+          </ButtonLink>
           <ButtonLink href={APP_ROUTES.adminGalleryReports} className="mt-5">
             {t("reports")}
           </ButtonLink>

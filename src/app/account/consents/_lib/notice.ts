@@ -6,6 +6,7 @@ import type { GiveConsentResult } from "@/server/modules/consent";
 export const CONSENT_NOTICES = [
   "given",
   "withdrawn",
+  "publicationWithdrawn",
   "outdated",
   "failed",
 ] as const;

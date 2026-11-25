@@ -17,6 +17,7 @@
 import type { NonPersonalColumns } from "./domain/coverage";
 
 export const NON_PERSONAL: NonPersonalColumns = {
+  social_export: ["id", "status", "created_at", "updated_at", "posted_at"],
   event: [
     "id",
     "slug",
@@ -149,6 +150,24 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "status",
     "subject",
     "updated_at",
+  ],
+  survey: [
+    "id",
+    "competition_id",
+    "title",
+    "questions",
+    "created_at",
+    "updated_at",
+    "sent_at",
+    "closes_at",
+    "closed_at",
+  ],
+  survey_invitation: [
+    "id",
+    "created_at",
+    "status",
+    "token_hash",
+    "answered_at",
   ],
   campaign_recipient: [
     "campaign_id",

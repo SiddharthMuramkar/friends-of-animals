@@ -791,6 +791,15 @@ computed from current consent. A minor's name defaults to first name plus surnam
 initial. It is derived, never copied into the Gallery item or social export queue.
 _Avoid_: Full profile, artist identity snapshot
 
+**Social export**:
+A content manager's preparation of a published Gallery item for manual posting
+on FOA's social channels. It requires a separate current social-media consent,
+a social Stamped copy, reviewed caption and live Public credit. It is pending
+until the manager records that it was posted. Withdrawing either required
+permission or hiding the Gallery item retires the export; permission given
+again requires a new export.
+_Avoid_: Automatic post, original artwork, gallery image download
+
 **Gallery purge**:
 A durable request to evict the gallery's public routes when a credit is withdrawn
 or an item leaves publication. The item's live eligibility is checked even before
@@ -1124,3 +1133,12 @@ The code that names one person who takes part in competitions, such as
 FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
 _Avoid_: Participant number, registration number (that names one
 registration)
+
+**Feedback survey**:
+A competition manager's short questionnaire about a competition once its
+results have been published. FOA reports answers as aggregate results.
+
+**Survey invitation**:
+An offer to give feedback to an eligible adult participant, guardian or
+coordinator with current communication consent. A person with several
+qualifying links receives one invitation and can give one answer.

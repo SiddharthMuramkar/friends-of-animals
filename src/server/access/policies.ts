@@ -41,17 +41,20 @@ import { DIRECTORY_POLICY } from "../modules/directory/policy";
 import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
+import { SURVEYS_POLICY } from "../modules/surveys/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
 import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
 import { VERIFICATION_POLICY } from "../modules/verification/policy";
+import { SOCIAL_EXPORT_POLICY } from "../modules/social-export/policy";
 import { GALLERY_POLICY } from "../modules/gallery/policy";
 import { AUCTIONS_POLICY } from "../modules/auctions/policy";
 import { REPORTS_POLICY } from "../modules/reports/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
-export const POLICY = composePolicies(
+// Keep the type-level duplicate check shallow as the platform grows.
+const corePolicy = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   SECOND_FACTOR_POLICY,
@@ -75,7 +78,9 @@ export const POLICY = composePolicies(
   EVENTS_POLICY,
   CERTIFICATES_POLICY,
   COMPETITION_TERMS_POLICY,
-  PAYMENTS_POLICY,
+  PAYMENTS_POLICY
+);
+const operationPolicy = composePolicies(
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
   LEDGER_POLICY,
@@ -90,14 +95,18 @@ export const POLICY = composePolicies(
   ADOPTION_POLICY,
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
+  SURVEYS_POLICY,
   CAMPAIGNS_POLICY,
   INSTITUTION_SUBMISSIONS_POLICY,
   SCHOOL_ROUND_POLICY,
   VERIFICATION_POLICY,
   PHYSICAL_ARTWORK_POLICY,
   GALLERY_POLICY,
+  SOCIAL_EXPORT_POLICY,
   AUCTIONS_POLICY,
   REPORTS_POLICY
 );
+
+export const POLICY = composePolicies(corePolicy, operationPolicy);
 
 export type Action = keyof typeof POLICY;

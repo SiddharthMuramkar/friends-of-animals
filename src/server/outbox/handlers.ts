@@ -1,3 +1,4 @@
+import { withdrawSocialExportConsent } from "../modules/social-export/withdrawal";
 import type { CdnPurger } from "../ports/cdn-purger";
 import {
   runGalleryPurge,
@@ -94,6 +95,7 @@ import { refillPlaces } from "../modules/events/registrations";
 import { settleEndedEvent } from "../modules/events/end";
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
+import { deliverSurveyInvitation } from "../modules/surveys/deliver";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
 import { runRoundDeadlineJob } from "../modules/school-round/overdue";
 import {
@@ -189,6 +191,7 @@ export const HANDLERS: Handlers = {
     );
   },
   "gallery.withdraw_consent": withdrawGalleryConsent,
+  "social_export.withdraw_consent": withdrawSocialExportConsent,
   "gallery.purge": (deps, { payload }) =>
     runGalleryPurge(deps, payload.purgeId),
   "certificates.build_archive": (deps, delivery) =>
@@ -377,6 +380,7 @@ export const HANDLERS: Handlers = {
   // message is claimed under the reminder's id.
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
   // One recipient's campaign message, on the consent it rests on (#126).
+  "surveys.deliver_invitation": deliverSurveyInvitation,
   "campaigns.deliver_message": deliverCampaignMessage,
   // Opens the competition's school rounds (#89). Safe to repeat.
   "school_round.open_rounds": async (deps, { payload }) => {

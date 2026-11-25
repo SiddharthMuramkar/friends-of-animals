@@ -33,6 +33,7 @@ import * as schema from "../../../../db/schema";
 import {
   account,
   communityMember,
+  surveyInvitation,
   eventRegistration,
   engagementMilestone,
   timelineEntry,
@@ -188,6 +189,12 @@ export const SECTIONS: readonly Section[] = [
     table: schema.clubMembership,
     where: (scope) => within(schema.clubMembership.userId, users(scope)),
     owners: ["user_id"],
+  },
+  {
+    table: surveyInvitation,
+    where: (scope) => within(surveyInvitation.userId, users(scope)),
+    owners: ["user_id"],
+    withhold: ["token_hash"],
   },
   {
     table: eventRegistration,
@@ -427,6 +434,18 @@ export const SECTIONS: readonly Section[] = [
       sql`${schema.galleryItem.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],
     withhold: ["file_id", "consent_event_id"],
+  },
+  {
+    table: schema.socialExport,
+    where: (scope) =>
+      sql`${schema.socialExport.galleryItemId} IN (SELECT ${schema.galleryItem.id} FROM ${schema.galleryItem} WHERE ${schema.galleryItem.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["gallery_item_id"],
+    decrypt: { caption_ciphertext: "social_export.caption" },
+    withhold: [
+      "file_id",
+      "gallery_consent_event_id",
+      "social_consent_event_id",
+    ],
   },
   {
     table: schema.certificate,

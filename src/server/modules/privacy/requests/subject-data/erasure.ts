@@ -33,6 +33,7 @@ import type { AppDb } from "../../../../db/app-db";
 import {
   account,
   certificate,
+  surveyInvitation,
   communityMember,
   club,
   clubDecision,
@@ -565,6 +566,12 @@ export async function gatherErasure(
       )),
     uploads: uploadIds.length,
     entries: entryIds.length,
+    surveyFeedback: await n(
+      db
+        .select({ n: count() })
+        .from(surveyInvitation)
+        .where(within(surveyInvitation.userId, users))
+    ),
     communityHistory:
       (await n(
         db
@@ -859,6 +866,9 @@ async function eraseRecords(
         within(engagementMilestone.subjectProfileId, scope.profileIds)
       )
     );
+  await tx
+    .delete(surveyInvitation)
+    .where(within(surveyInvitation.userId, users));
   await tx
     .delete(communityMember)
     .where(

@@ -1,3 +1,4 @@
+import socialExport from "../../messages/en-IN/socialExport.json";
 import gallery from "../../messages/en-IN/gallery.json";
 import certificatePdf from "../../messages/en-IN/certificatePdf.json";
 import certificates from "../../messages/en-IN/certificates.json";
@@ -38,6 +39,7 @@ import adminGrievance from "../../messages/en-IN/adminGrievance.json";
 import privacyRequests from "../../messages/en-IN/privacyRequests.json";
 import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import surveys from "../../messages/en-IN/surveys.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -144,6 +146,7 @@ export const NAMESPACES = [
   "privacyRequests",
   "adminDirectory",
   "adminVolunteers",
+  "surveys",
   "campaigns",
   "auth",
   "authPhone",
@@ -185,6 +188,7 @@ export const NAMESPACES = [
   "artworkCustody",
   "auctions",
   "gallery",
+  "socialExport",
   "error",
   "files",
   "footer",
@@ -256,6 +260,7 @@ export const messages = {
   ...privacyRequests,
   ...adminDirectory,
   ...adminVolunteers,
+  ...surveys,
   ...campaigns,
   ...auth,
   ...authPhone,
@@ -297,6 +302,7 @@ export const messages = {
   ...artworkCustody,
   ...auctions,
   ...gallery,
+  ...socialExport,
   ...error,
   ...files,
   ...footer,
