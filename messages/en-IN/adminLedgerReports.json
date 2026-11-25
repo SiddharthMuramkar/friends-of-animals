@@ -1,0 +1,91 @@
+{
+  "adminLedgerReports": {
+    "budgets": {
+      "title": "Budgets",
+      "lead": "Set what FOA plans to receive or spend in each category, month by month, in rupees. Leave the amount empty to clear a budget. A locked month can still get a budget: budgets plan, they don't post.",
+      "year": "{from} to {to}",
+      "previousYear": "Previous financial year",
+      "nextYear": "Next financial year",
+      "report": "Budget versus actual",
+      "formTitle": "Set a budget",
+      "category": "Category",
+      "chooseCategory": "Choose a category",
+      "month": "Month",
+      "chooseMonth": "Choose a month",
+      "amount": "Budget in rupees",
+      "amountHint": "For example 50,000. Leave it empty to clear the budget.",
+      "save": "Save budget",
+      "saving": "Saving…",
+      "tableTitle": "Budgets for {range}",
+      "caption": "Budgets by category and month, in rupees",
+      "categoryColumn": "Category",
+      "total": "Total",
+      "none": "–",
+      "inactive": "(inactive)"
+    },
+    "report": {
+      "title": "Budget versus actual",
+      "lead": "Actual is what the ledger shows for each category: income is money received less refunds, spending is money paid out. A late adjustment counts in the month it landed in.",
+      "from": "From month",
+      "to": "To month",
+      "monthHint": "Year and month, for example 2026-04.",
+      "apply": "Show report",
+      "range": "{from} to {to}",
+      "categoriesTitle": "By category",
+      "categoriesCaption": "Budget versus actual by category for the months shown",
+      "monthsTitle": "By month",
+      "monthsCaption": "Income, spending and the difference by month",
+      "category": "Category",
+      "budget": "Budget",
+      "actual": "Actual",
+      "variance": "Difference",
+      "used": "Used",
+      "status": "Status",
+      "month": "Month",
+      "incomeBudget": "Income budget",
+      "incomeActual": "Income",
+      "expenseBudget": "Spending budget",
+      "expenseActual": "Spending",
+      "netActual": "Income less spending",
+      "kinds": {
+        "income": "Income",
+        "expense": "Spending"
+      },
+      "totals": {
+        "income": "Total income",
+        "expense": "Total spending",
+        "net": "Income less spending"
+      },
+      "favourable": "On track",
+      "unfavourable": "Off track",
+      "noBudget": "No budget",
+      "usedPercent": "{percent}%"
+    },
+    "export": {
+      "title": "Accountant export",
+      "lead": "Download every ledger line between two dates as a CSV journal for FOA's accountant. Dates are days in India. Debits always equal credits, and the last row holds the totals. Downloading asks you to confirm it's you if you haven't recently, and goes in the audit log.",
+      "provisional": "The columns are a first draft until FOA's accountant confirms them: journal number, date, period, account, debit, credit, narration, memo, source and whether a line is a late adjustment.",
+      "from": "From date (IST)",
+      "to": "To date (IST)",
+      "rangeHint": "Up to 366 days.",
+      "download": "Download CSV"
+    },
+    "results": {
+      "budget_saved": "Budget saved."
+    },
+    "errors": {
+      "forbidden": "Only FOA finance staff can do this.",
+      "invalid_input": "Choose a category and a month, then try again.",
+      "invalid_amount": "Enter the budget in rupees, with up to two decimal places and no minus sign.",
+      "too_large": "Enter up to ₹1,000 crore.",
+      "not_found": "That category no longer exists.",
+      "not_budgetable": "Budgets are for income and spending categories only.",
+      "inactive_account": "That category is inactive, so it takes no new budget.",
+      "invalid_month": "Enter both months as year and month, for example 2026-04.",
+      "range_reversed": "The start must be on or before the end.",
+      "range_too_long": "Choose a shorter range: up to two financial years for the report, up to 366 days for the export.",
+      "invalid_date": "Enter two real dates.",
+      "export_not_enabled": "The export is off until FOA's accountant confirms its format. A super admin can turn it on in Settings."
+    }
+  }
+}

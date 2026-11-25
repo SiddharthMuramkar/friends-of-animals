@@ -22,7 +22,8 @@ import {
   isNextBuild,
   loadPublishedDocument,
 } from "./cached";
-import { cmsPublicPath, cmsTag, type CmsDocumentKey } from "./domain/documents";
+import { cmsTag, type CmsDocumentKey } from "./domain/documents";
+import { cmsPublicPath } from "./domain/public-paths";
 import { type OrgFacts, unconfirmedOrgFacts } from "./domain/org-facts";
 import type { CmsKind } from "./kinds";
 import { homeKind, type HomeBody } from "./kinds/home";

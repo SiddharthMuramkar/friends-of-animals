@@ -14,8 +14,9 @@ why AI illustrations are allowed here and photos are not.
   could take for a child's drawing still shows the mark (the home hero's dog). The footer says
   "Our decorative drawings are AI illustrations, not children's work. Every photo is real." and
   /credits lists every piece with how it was made.
-- **Photos stay real.** Nothing here may look like a photo, and nothing here may stand in for a
-  child's Entry: no drawing in a child's style, no "art" on the gallery frames.
+- **Photos stay real.** Illustrations must look drawn. The home gallery can show individually
+  labelled illustrations as activity prompts. Use professional editorial art for those prompts.
+  The gallery shows children's Entries only with permission.
 - **Content limits (gates).** No children, people, faces or hands. Only behaviour the site's own
   copy recommends: no feeding by hand, no milk, bread or sweets, no touching, chasing, cages, leashes
   or nose ropes, no distressed or injured animal. No text, numbers or logos. No named real place.

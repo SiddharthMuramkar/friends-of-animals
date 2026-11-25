@@ -181,6 +181,19 @@ const VOLUNTEER_APPLICATION_RECORD = {
   toConfirm: true,
 } as const;
 
+/**
+ * An adoption application (#130) and its success story: deleted 2 years
+ * after the application closed, unless a published story still rests on
+ * it.
+ */
+const ADOPTION_APPLICATION_RECORD = {
+  policy: "adoptionApplications",
+  periodKey: "adoptionApplications",
+  basis:
+    "Facilitating an adoption: lets FOA's coordinator and the listing organisation match the adopter, and answer later questions about the adoption (legal basis to confirm, HR-31)",
+  toConfirm: true,
+} as const;
+
 const LEGAL_HOLD = {
   policy: "releasedLegalHolds",
   periodKey: "releasedLegalHolds",
@@ -390,6 +403,15 @@ const ANNOUNCEMENT_RECORD = {
   periodKey: "announcements",
   basis:
     "Shows FOA who wrote and who sent each announcement, and lets it answer questions about the instructions and help contacts it sent",
+  toConfirm: true,
+} as const;
+
+/** Donations (#106): money records, with the donor as they gave. */
+const DONATION_RECORD = {
+  policy: "donationRecords",
+  periodKey: "donationRecords",
+  basis:
+    "Financial records: FOA answers for each donation and its receipt to the donor, its auditors and the tax authorities",
   toConfirm: true,
 } as const;
 
@@ -623,6 +645,19 @@ const GUARDIAN_INVITATION_RECIPIENT = {
 const volunteerApplication = rowsOf("volunteer_application", {
   subject: { kind: "user", via: "applicant_user_id" },
   retention: VOLUNTEER_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
+
+const adoptionApplication = rowsOf("adoption_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: ADOPTION_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
+
+/** A success story goes with its application. */
+const adoptionStory = rowsOf("adoption_story", {
+  subject: { kind: "adoption_application", via: "application_id" },
+  retention: ADOPTION_APPLICATION_RECORD,
   onExpiry: "delete_row",
 });
 
@@ -1145,12 +1180,39 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("refund", "manual_recorded_by", PAYMENT_RECORD),
   // The ledger keeps finance authorship and text that may name people (#105).
   actorColumn("ledger_posting", "created_by_user_id", LEDGER_RECORD, "retain"),
+  // Period locks and two-approver requests (#109): who asked, who decided,
+  // and finance's own words (an unlock reason, a manual entry's narration).
+  actorColumn("ledger_period", "locked_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn(
+    "ledger_period",
+    "last_unlocked_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "finance_approval",
+    "requested_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  actorColumn(
+    "finance_approval",
+    "decided_by_user_id",
+    LEDGER_RECORD,
+    "retain"
+  ),
+  // Budgets (#109): who set each one.
+  actorColumn("ledger_budget", "created_by_user_id", LEDGER_RECORD, "retain"),
+  actorColumn("ledger_budget", "updated_by_user_id", LEDGER_RECORD, "retain"),
   ...(
     [
       ["ledger_account", "name", LEDGER_CATEGORY],
       ["ledger_account", "public_label", LEDGER_CATEGORY],
       ["ledger_posting", "description", LEDGER_RECORD],
       ["ledger_line", "memo", LEDGER_RECORD],
+      ["ledger_period", "last_unlock_reason", LEDGER_RECORD],
+      ["finance_approval", "payload", LEDGER_RECORD],
+      ["finance_approval", "decision_reason", LEDGER_RECORD],
     ] as const
   ).map(([table, column, retention]): InventoryField => ({
     table,
@@ -1355,6 +1417,34 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   actorColumn("legal_hold", "placed_by_user_id", LEGAL_HOLD),
   actorColumn("legal_hold", "released_by_user_id", LEGAL_HOLD),
+  // Donations (#106): the donor as they gave, the wall name they chose,
+  // and the receipt that froze their name. Kept as financial records.
+  ...(
+    [
+      ["user_id", "identity", "set_null"],
+      ["name_ciphertext", "identity", "retain"],
+      ["email_ciphertext", "contact", "retain"],
+      ["email_hash", "contact", "retain"],
+      ["organisation_name", "identity", "retain"],
+    ] as const
+  ).map(([column, category, onExpiry]) =>
+    rowsOf("donor", {
+      subject: { kind: "donor", via: "id" },
+      retention: DONATION_RECORD,
+      onExpiry,
+    })(column, category)
+  ),
+  rowsOf("donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  rowsOf("receipt", {
+    subject: { kind: "donor", via: "donation_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "retain",
+  })("snapshot", "identity"),
+  actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
   // Privacy rights requests (#115): who asked about whom, and the words
   // the requester and the grievance officer wrote, encrypted.
   privacyRequestColumn("subject_id", "identity"),
@@ -1408,6 +1498,26 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     "decided_by_user_id",
     VOLUNTEER_APPLICATION_RECORD,
     "delete_row"
+  ),
+  adoptionApplication("applicant_user_id", "identity"),
+  adoptionApplication("participant_profile_id", "identity"),
+  adoptionApplication("date_of_birth_ciphertext", "demographic"),
+  adoptionApplication("phone_ciphertext", "contact"),
+  adoptionApplication("address_ciphertext", "contact"),
+  adoptionApplication("answers_ciphertext", "content"),
+  adoptionApplication("contact_sharing_consent_id", "technical"),
+  adoptionApplication("outcome_reason_ciphertext", "content"),
+  actorColumn(
+    "adoption_application",
+    "decided_by_user_id",
+    ADOPTION_APPLICATION_RECORD
+  ),
+  adoptionStory("body", "content"),
+  adoptionStory("consent_event_id", "technical"),
+  actorColumn(
+    "adoption_story",
+    "published_by_user_id",
+    ADOPTION_APPLICATION_RECORD
   ),
 ];
 

@@ -20,6 +20,7 @@
         "author": "Post author",
         "breach_affected": "Person affected by the breach",
         "consent_giver": "Person who gave the consent",
+        "donor": "Person or organisation who gave a donation",
         "consent_subject": "Person the consent is for",
         "contact_sender": "Contact sender",
         "content_subject": "Person described in the content",
@@ -32,6 +33,7 @@
         "payer": "Payer",
         "recipient": "Recipient",
         "safeguarding_report": "Person in the safeguarding report",
+        "adoption_application": "Adopter who applied",
         "user": "Account holder",
         "visitor": "Visitor",
         "held_subject": "Account, participant or institution under the hold"
@@ -96,9 +98,11 @@
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
         "announcements": "While the competition's records are kept",
+        "donationRecords": "8 years after the end of the financial year of the donation",
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
+        "adoptionApplications": "2 years after the application closes. One behind a published success story stays while the story is up",
         "privacyRequests": "While the request is open, then 3 years after it is closed",
         "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
       },
@@ -374,6 +378,21 @@
           "created_by_user_id": "Identifies the finance user who entered or reversed a posting",
           "description": "Describes the entry and may name a counterparty"
         },
+        "ledger_period": {
+          "locked_by_user_id": "Identifies the finance user who approved locking the month",
+          "last_unlocked_by_user_id": "Identifies the finance user who approved the latest reopening of the month",
+          "last_unlock_reason": "Finance's reason for reopening a locked month, which may name a person"
+        },
+        "ledger_budget": {
+          "created_by_user_id": "Identifies the finance user who first set the budget",
+          "updated_by_user_id": "Identifies the finance user who last changed the budget"
+        },
+        "finance_approval": {
+          "requested_by_user_id": "Identifies the finance user who asked for an operation that needs a second approver",
+          "decided_by_user_id": "Identifies the finance user who approved, rejected or cancelled the request",
+          "payload": "What the operation will do once approved, such as a manual entry's narration, which may name a counterparty",
+          "decision_reason": "Finance's reason for rejecting the request, which may name a person"
+        },
         "message_delivery": {
           "user_id": "Says who a message was sent to",
           "contact_hash": "A keyed hash of the email or phone that deduplicates external deliveries across retries",
@@ -430,6 +449,22 @@
         "payment_review_case": {
           "resolution_reason": "Why staff accepted, refunded or kept a payment in review: free text that may name the payer or what they said",
           "resolved_by_user_id": "Who resolved a payment in review, so FOA can answer for it"
+        },
+        "donor": {
+          "user_id": "Links a donation to the signed-in account that gave it, so the donor can ask for a new receipt link",
+          "name_ciphertext": "The donor's name, or an organisation's contact person, printed on the receipt",
+          "email_ciphertext": "Where the donor's receipt link and messages about the donation go",
+          "email_hash": "Finds the donor's receipt when they ask for a new link with their email, without storing it readably",
+          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that"
+        },
+        "donation": {
+          "wall_name": "The name the donor chose to appear under on the public donor wall"
+        },
+        "receipt": {
+          "snapshot": "The receipt as issued, with the donor's name, frozen so it never changes"
+        },
+        "receipt_link": {
+          "created_by_user_id": "Who asked for a receipt link: the donor's account, or finance"
         },
         "refund": {
           "decided_by": "Who in finance approved or rejected a refund, so FOA can answer for it",
@@ -519,6 +554,22 @@
           "reason": "Why FOA must keep the records, in the super admin's words (a claim, an inquiry)",
           "placed_by_user_id": "Records which super admin placed the hold",
           "released_by_user_id": "Records which super admin released the hold"
+        },
+        "adoption_application": {
+          "applicant_user_id": "Links the application to the person who applied, so they can follow it and hear what happens",
+          "participant_profile_id": "The participant profile the date of birth came from, when the person had one",
+          "date_of_birth_ciphertext": "The date of birth the adult-only rule was checked against when the person applied (encrypted)",
+          "phone_ciphertext": "The applicant's mobile, shared with the listing organisation once the coordinator puts them in touch (encrypted)",
+          "address_ciphertext": "The applicant's postal address, shared with the listing organisation once the coordinator puts them in touch (encrypted)",
+          "answers_ciphertext": "What the applicant said about their home, other animals and experience, to judge the match (encrypted)",
+          "contact_sharing_consent_id": "The applicant's consent to share their contact details with the listing organisation",
+          "outcome_reason_ciphertext": "Why the coordinator recorded the application as not matched or declined, for staff only (encrypted)",
+          "decided_by_user_id": "The adoption coordinator who last moved the application"
+        },
+        "adoption_story": {
+          "body": "The adopter's success story, shown on the public stories page only while they consent",
+          "consent_event_id": "The adopter's consent to share the story",
+          "published_by_user_id": "The adoption coordinator who published the story"
         },
         "volunteer_application": {
           "applicant_user_id": "Links the application to the person who applied, so they can follow it and FOA can grant them the volunteer role",
@@ -634,6 +685,10 @@
           "name": "Closed volunteer applications",
           "rule": "A declined or withdrawn application is deleted {days, plural, one {# day} other {# days}} after it closes. An approved one stays while the person volunteers."
         },
+        "adoptionApplications": {
+          "name": "Closed adoption applications",
+          "rule": "A closed adoption application is deleted, with its success story, {days, plural, one {# day} other {# days}} after it closes. One whose story is published stays while the story is up."
+        },
         "financialRecords": {
           "name": "Payment records",
           "rule": "The payer's details are removed {days, plural, one {# day} other {# days}} after the payment's last activity, and never before 8 years after the end of its financial year."
@@ -745,6 +800,10 @@
         "announcements": {
           "name": "Announcements",
           "rule": "While the competition's records are kept. No daily job yet."
+        },
+        "donationRecords": {
+          "name": "Donations and receipts",
+          "rule": "Kept as financial records until 8 years after the end of the donation's financial year. A receipt never changes once issued. No daily job yet."
         },
         "campaigns": {
           "name": "Campaigns",

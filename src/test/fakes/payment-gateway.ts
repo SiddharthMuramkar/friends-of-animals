@@ -239,14 +239,18 @@ export class FakePaymentGateway implements PaymentGateway {
 
   /**
    * The payer pays `orderId`: a captured payment for the order's amount, or
-   * for `amount`, in any currency the gateway might report. Returns what
-   * Checkout hands back to the browser.
+   * for `amount`, in any currency the gateway might report, on a card from
+   * abroad when `international` (#106). Returns what Checkout hands back to
+   * the browser.
    */
   capture(
     orderId: string,
-    { amount }: { amount?: GatewayAmount } = {}
+    {
+      amount,
+      international = false,
+    }: { amount?: GatewayAmount; international?: boolean } = {}
   ): { paymentId: string; signature: string } {
-    const paymentId = this.#attempt(orderId, "captured", amount);
+    const paymentId = this.#attempt(orderId, "captured", amount, international);
     return {
       paymentId,
       signature: sign(CHECKOUT_SECRET, `${orderId}|${paymentId}`),
@@ -302,7 +306,8 @@ export class FakePaymentGateway implements PaymentGateway {
   #attempt(
     orderId: string,
     status: GatewayPayment["status"],
-    amount?: GatewayAmount
+    amount?: GatewayAmount,
+    international = false
   ): string {
     const order = this.#orders.find((each) => each.orderId === orderId);
     if (!order) throw new Error(`FakePaymentGateway: no order ${orderId}`);
@@ -314,6 +319,7 @@ export class FakePaymentGateway implements PaymentGateway {
       status,
       amountMinor: paid.amountMinor,
       currency: paid.currency,
+      international,
     });
     return paymentId;
   }

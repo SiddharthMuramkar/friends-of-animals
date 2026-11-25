@@ -6,6 +6,7 @@ import { signInStaff } from "@/server/modules/payments/testing";
 import { createHarness } from "@/test/harness";
 
 import { SEED_CANCELLED } from "./competition-cancelled";
+import { SEED_DONATIONS } from "./donations";
 import { SEED_PAYMENTS } from "./payments";
 import { SEED_REFUNDS } from "./refunds";
 
@@ -39,6 +40,12 @@ describe("the refunds seed", () => {
         id: SEED_CANCELLED.refundId,
         status: "refunded",
         kind: "cancellation",
+      },
+      // The donations seed's foreign payment, returned (./donations.ts).
+      {
+        id: SEED_DONATIONS.foreign.refundId,
+        status: "refunded",
+        kind: "foreign_payment",
       },
     ]);
     expect(await rows()).toEqual(once);

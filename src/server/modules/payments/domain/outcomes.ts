@@ -17,6 +17,9 @@ export const SYNC_OUTCOMES = [
   /** Money arrived that the batch can't accept, or the batch is in review
    * already: nothing confirmed, nothing refunded, a case for staff (#79). */
   "needs_review",
+  /** Money from abroad a donation can't take while FCRA is off (#106):
+   * its refund started at once. */
+  "refunding_foreign",
 ] as const;
 
 export type SyncOutcome = (typeof SYNC_OUTCOMES)[number];

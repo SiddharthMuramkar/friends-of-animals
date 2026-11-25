@@ -10,8 +10,10 @@ import artCoverStork from "@/assets/site-art/covers/cover-stork.webp";
 import artCrowEnvelope from "@/assets/site-art/stickers/crow-envelope.webp";
 import artDoorHome from "@/assets/site-art/doors/door-home.webp";
 import artDoorSchool from "@/assets/site-art/doors/door-school.webp";
-import artGalleryCat from "@/assets/site-art/gallery/gallery-cat.webp";
-import artGalleryCrow from "@/assets/site-art/gallery/gallery-crow.webp";
+import artGalleryCraft from "@/assets/site-art/gallery/gallery-craft.webp";
+import artGalleryDrawing from "@/assets/site-art/gallery/gallery-drawing.webp";
+import artGalleryPainting from "@/assets/site-art/gallery/gallery-painting.webp";
+import artGalleryPhoto from "@/assets/site-art/gallery/gallery-photo.webp";
 import artLivingCat from "@/assets/site-art/living/living-cat.webp";
 import artLivingDog from "@/assets/site-art/living/living-dog.webp";
 import artLivingSparrow from "@/assets/site-art/living/living-sparrow.webp";
@@ -21,8 +23,14 @@ import artPortraitIndieDog from "@/assets/site-art/portraits/portrait-indie-dog.
 import artPortraitRockPigeon from "@/assets/site-art/portraits/portrait-rock-pigeon.webp";
 import artPortraitStreetCat from "@/assets/site-art/portraits/portrait-street-cat.webp";
 import artSceneStreetNeighbours from "@/assets/site-art/scenes/scene-street-neighbours.webp";
+import artSeasonApr from "@/assets/site-art/seasons/season-apr.webp";
+import artSeasonAug from "@/assets/site-art/seasons/season-aug.webp";
+import artSeasonDec from "@/assets/site-art/seasons/season-dec.webp";
 import artSeasonFeb from "@/assets/site-art/seasons/season-feb.webp";
+import artSeasonJan from "@/assets/site-art/seasons/season-jan.webp";
 import artSeasonJul from "@/assets/site-art/seasons/season-jul.webp";
+import artSeasonJun from "@/assets/site-art/seasons/season-jun.webp";
+import artSeasonMar from "@/assets/site-art/seasons/season-mar.webp";
 import artSeasonMay from "@/assets/site-art/seasons/season-may.webp";
 import artSeasonNov from "@/assets/site-art/seasons/season-nov.webp";
 import artSeasonOct from "@/assets/site-art/seasons/season-oct.webp";
@@ -48,8 +56,10 @@ export const ART_FILES: Record<SiteArtId, StaticImageData> = {
   "crow-envelope": artCrowEnvelope,
   "door-home": artDoorHome,
   "door-school": artDoorSchool,
-  "gallery-cat": artGalleryCat,
-  "gallery-crow": artGalleryCrow,
+  "gallery-craft": artGalleryCraft,
+  "gallery-drawing": artGalleryDrawing,
+  "gallery-painting": artGalleryPainting,
+  "gallery-photo": artGalleryPhoto,
   "living-cat": artLivingCat,
   "living-dog": artLivingDog,
   "living-sparrow": artLivingSparrow,
@@ -59,8 +69,14 @@ export const ART_FILES: Record<SiteArtId, StaticImageData> = {
   "portrait-rock-pigeon": artPortraitRockPigeon,
   "portrait-street-cat": artPortraitStreetCat,
   "scene-street-neighbours": artSceneStreetNeighbours,
+  "season-apr": artSeasonApr,
+  "season-aug": artSeasonAug,
+  "season-dec": artSeasonDec,
   "season-feb": artSeasonFeb,
+  "season-jan": artSeasonJan,
   "season-jul": artSeasonJul,
+  "season-jun": artSeasonJun,
+  "season-mar": artSeasonMar,
   "season-may": artSeasonMay,
   "season-nov": artSeasonNov,
   "season-oct": artSeasonOct,

@@ -3,7 +3,9 @@ import { connection } from "next/server";
 import { Suspense, type ComponentProps } from "react";
 
 import {
+  ADMIN_ADOPTIONS,
   ADMIN_BREACHES,
+  ADMIN_DONATIONS,
   ADMIN_CAMPAIGNS,
   ADMIN_LEDGER,
   ADMIN_PRIVACY,
@@ -46,6 +48,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       { href: ADMIN_PRIVACY, label: t("privacy") },
       { href: ADMIN_PRIVACY_REQUESTS, label: t("privacyRequests") },
       { href: ADMIN_VOLUNTEERS, label: t("volunteers") },
+      { href: ADMIN_ADOPTIONS, label: t("adoptions") },
     ],
   };
   return (
@@ -71,11 +74,19 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
     actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
   if (!finance) return <AdminNav {...nav} />;
 
-  const t = await getTranslations("adminLedger.list");
+  const [t, donations] = await Promise.all([
+    getTranslations("adminLedger.list"),
+    getTranslations("adminDonations"),
+  ]);
   return (
     <AdminNav
       label={nav.label}
-      links={[...nav.links, { href: ADMIN_LEDGER, label: t("title") }]}
+      links={[
+        ...nav.links,
+        { href: ADMIN_LEDGER, label: t("title") },
+        // Finance's donations (#106).
+        { href: ADMIN_DONATIONS, label: donations("nav") },
+      ]}
     />
   );
 }

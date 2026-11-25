@@ -9,6 +9,7 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_ADOPTIONS,
   ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
@@ -17,6 +18,7 @@ import {
   ADMIN_VOLUNTEERS,
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
+  DASHBOARD_ADOPTIONS,
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -93,6 +95,10 @@ async function Areas() {
       grant.role === "community_manager" ||
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
+  // Adoption coordinators handle adoption applications (#130).
+  const adoption = grants.some(
+    (grant) => grant.role === "adoption_coordinator"
+  );
   const competitions = grants.some(
     (grant) =>
       grant.role === "competition_manager" ||
@@ -146,6 +152,7 @@ async function Areas() {
             directory={directory}
             competitions={competitions}
             community={community}
+            adoption={adoption}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -164,6 +171,7 @@ async function AreaBody({
   directory,
   competitions,
   community,
+  adoption,
 }: {
   area: DashboardLink["area"];
   id?: string;
@@ -174,6 +182,7 @@ async function AreaBody({
   directory: boolean;
   competitions: boolean;
   community: boolean;
+  adoption: boolean;
 }) {
   const [t, registration] = await Promise.all([
     getTranslations("dashboard"),
@@ -200,6 +209,7 @@ async function AreaBody({
             { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
+            { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
           ])
         : null}
       {area === "organisation" && id
@@ -259,6 +269,9 @@ async function AreaBody({
               : []),
             ...(community
               ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
+              : []),
+            ...(adoption
+              ? [{ href: ADMIN_ADOPTIONS, label: t("admin.adoptions") }]
               : []),
           ])
         : null}

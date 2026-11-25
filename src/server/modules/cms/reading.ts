@@ -14,11 +14,8 @@ import { z } from "zod";
 
 import { authorize } from "../../access/can";
 import { invalidInput, type InvalidInput } from "../../input";
-import {
-  CMS_DOCUMENT_KEYS,
-  cmsPublicPath,
-  type CmsDocumentKey,
-} from "./domain/documents";
+import { CMS_DOCUMENT_KEYS, type CmsDocumentKey } from "./domain/documents";
+import { cmsPublicPath } from "./domain/public-paths";
 import { kindOf } from "./kinds";
 import type { CmsContext } from "./publishing";
 import { revisionBodyOf } from "./repository";

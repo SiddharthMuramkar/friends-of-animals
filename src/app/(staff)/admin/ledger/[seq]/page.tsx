@@ -7,7 +7,10 @@ import { adminLedgerPostingPath } from "@/lib/app-routes";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { as, currentActor } from "@/server/app";
-import { istDateOf } from "@/server/modules/ledger/domain/period";
+import {
+  istDateOf,
+  periodMonthOf,
+} from "@/server/modules/ledger/domain/period";
 import { isLedgerSourceType } from "@/server/modules/ledger/domain/posting-rules";
 import { formatPaise } from "@/server/modules/payments/domain/money-format";
 
@@ -16,6 +19,7 @@ import { LedgerDenied } from "../_components/denied";
 import { LedgerFrame } from "../_components/frame";
 import { ReversePostingForm } from "../_components/reverse-form";
 import { ledgerFeedbackLabels, ledgerMetadata } from "../_lib/copy";
+import { monthLabel } from "../_lib/month";
 
 export function generateMetadata() {
   return ledgerMetadata("detail");
@@ -58,6 +62,14 @@ export default async function Page({
         · {t(`sources.${source}`)}
       </p>
       <p className="text-lead wrap-anywhere">{posting.description}</p>
+      {posting.lateAdjustment ? (
+        <p>
+          {t("detail.lateAdjustment", {
+            occurred: monthLabel(format, periodMonthOf(posting.occurredAt)),
+            period: monthLabel(format, posting.periodMonth),
+          })}
+        </p>
+      ) : null}
       {posting.reversalOfSeq ? (
         <p>
           {t("detail.reversalOf")}{" "}
@@ -127,6 +139,7 @@ export default async function Page({
               "not_found",
               "not_reversible",
               "already_reversed",
+              "period_locked",
             ]),
           }}
         />

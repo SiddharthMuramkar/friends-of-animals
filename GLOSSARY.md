@@ -280,11 +280,70 @@ _Avoid_: Mock payment, dummy gateway
 FOA's double-entry financial record. Each posting records money in INR with
 equal debits and credits, and corrections are recorded as new postings.
 
+**Locked period**:
+A month of the Ledger that finance has closed once it was reconciled. Nothing
+posts into it or any month before it; a correction goes in as a reversal in an
+open month. Locking or reopening one needs a second finance approver. The
+transparency page shows only locked periods, so a locked period is also a
+published period.
+_Avoid_: Closed month, frozen period
+
+**Late adjustment**:
+A capture or refund the platform records after its month was locked. It counts
+in the first open month after the locked ones, and says so.
+_Avoid_: Back-dated entry, prior-period adjustment
+
+**Finance request**:
+A money operation that waits for a second finance user before it happens:
+locking or reopening a month, or a manual entry above the limit in settings.
+The person who asked can withdraw it but never approve it, and it expires if
+nobody decides it in time.
+_Avoid_: Approval, maker-checker, dual control
+
+**Budget**:
+What FOA plans to receive or spend in one Ledger category in one month,
+compared with the actual in the budget report.
+_Avoid_: Forecast, allocation, target
+
 **Registration number**:
 What a confirmed registration is known by: the competition's code, "R" and
 six symbols (PAWS27-R-7KQ2M9). Given once, when the Fee is captured or the
 Route is free.
 _Avoid_: Entry number, roll number, receipt number
+
+## Donations
+
+**Donation**:
+Money someone gives FOA, once online in INR (#106), and later monthly or
+recorded offline. An online donation is paid through a Payment batch whose
+purpose is the donation, and has exactly one Receipt once captured. Adults
+only; foreign money is returned while FOA isn't registered under FCRA.
+_Avoid_: Contribution, gift record, payment
+
+**Donor**:
+Who gave a Donation, as they gave it: a person, or a company or CSR partner
+with a contact person, which chooses whether its name may be shown in
+public. A guest donor has no account.
+_Avoid_: Supporter, patron, sponsor
+
+**Receipt**:
+The numbered record of a captured Donation: FOA-RCPT, the financial year and
+six digits (FOA-RCPT-2627-000123), gapless within the year. Everything it
+prints is frozen when it is issued; a full refund cancels it, and its number
+is never used again. Never sent as an attachment.
+_Avoid_: Invoice, acknowledgement, 80G certificate
+
+**Receipt link**:
+A link that opens one Receipt for 7 days. A new link is a new token; nothing
+extends an old one. The donor gets one by email, finance can make one to
+pass on by hand.
+_Avoid_: Download link, receipt URL
+
+**Checkout token**:
+The bearer in a Donation's checkout and thank-you links, so whoever started
+it can pay and see what happened without an account. It never opens the
+Receipt.
+_Avoid_: Donation password, access code
 
 ## Site content
 
@@ -707,6 +766,24 @@ _Avoid_: Pet listing, animal profile, adoption post
 What the public sees of a published Adoption listing on /adopt and its own
 page.
 _Avoid_: Pet, available animal
+
+**Adoption application**:
+An adult's request to adopt one Adoptable animal, with how to reach them and
+answers about their home. FOA's Adoption coordinator moves it through review,
+contact and an outcome; the listing organisation only reads it, and sees the
+applicant's contact once the coordinator puts them in touch.
+_Avoid_: Adoption request, enquiry
+
+**Adoption coordinator**:
+The FOA staff role that reviews Adoption applications, puts good matches in
+touch with the listing organisation and records the outcome. FOA facilitates;
+it never takes custody of an animal.
+_Avoid_: Adoption manager, adoption officer
+
+**Success story**:
+An adopter's own words about how their adopted animal settled in, shared on
+/adopt/stories only while they consent, never with their name or contact.
+_Avoid_: Testimonial, adoption post
 
 ## Engineering
 

@@ -10,4 +10,6 @@ export const ADOPTION_TAGS = {
   all: "adoption",
   /** One animal's page, by its slug. */
   animal: (slug: string) => `adoption:${slug}`,
+  /** /adopt/stories (#130): publishing or withdrawing a story refreshes it. */
+  stories: "adoption-stories",
 } as const;
