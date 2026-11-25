@@ -1142,20 +1142,6 @@
       "when": 1795605758710,
       "tag": "0162_121_club_messages",
       "breakpoints": true
-    },
-    {
-      "idx": 163,
-      "version": "7",
-      "when": 1795606544155,
-      "tag": "0163_120_competition_invitations",
-      "breakpoints": true
-    },
-    {
-      "idx": 164,
-      "version": "7",
-      "when": 1795606546575,
-      "tag": "0164_120_invitation_messages",
-      "breakpoints": true
     }
   ]
 }
