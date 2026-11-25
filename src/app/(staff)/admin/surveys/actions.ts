@@ -4,13 +4,22 @@ import { as, currentActor } from "@/server/app";
 import { DomainError } from "@/server/errors";
 import { adminSurveyPath } from "@/lib/app-routes";
 export async function saveSurveyAction(competitionId: string, data: FormData) {
-  const questions = [];
+  const questions: unknown[] = [];
   for (let i = 0; i < 10; i++) {
-    const text = String(data.get(`text${i}`) ?? "").trim(),
-      choices = String(data.get(`choices${i}`) ?? "")
-        .split(/\r?\n/)
-        .map((x) => x.trim())
-        .filter(Boolean);
+    const rawText = data.get(`text${i}`),
+      rawChoices = data.get(`choices${i}`);
+    if (
+      (rawText !== null && typeof rawText !== "string") ||
+      (rawChoices !== null && typeof rawChoices !== "string")
+    ) {
+      questions.push(null);
+      continue;
+    }
+    const text = (rawText ?? "").trim();
+    const choices = (rawChoices ?? "")
+      .split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean);
     if (text || choices.length) questions.push({ text, choices });
   }
   let result: string;
