@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import { KolamDivider } from "@/components/art/kolam-divider";
 import { LivingIllustration } from "@/components/art/living-illustration";
@@ -22,7 +22,6 @@ import {
   PCA_ACT_URL,
   RESCUE_SOURCES,
 } from "@/content/awareness/rescue";
-import { SEASONAL_MONTHS } from "@/content/awareness/seasonal";
 import type { SiteImageId } from "@/lib/images";
 import { ROUTES } from "@/lib/routes";
 import { pageMetadata } from "@/lib/seo";
@@ -111,9 +110,6 @@ const KOLAM_GAP = "-mt-6 mb-8 sm:-mt-10 sm:mb-10";
 
 export default async function AwarenessPage() {
   const t = await getTranslations("awareness");
-  const format = await getFormatter();
-  const monthName = (m: number) =>
-    format.dateTime(new Date(Date.UTC(2026, m - 1, 15)), { month: "long" });
 
   const pledgeLabels: PledgeLabels = {
     name: t("pledge.name"),
@@ -179,7 +175,7 @@ export default async function AwarenessPage() {
         </div>
       </Section>
 
-      {/* 2. This month, and all twelve */}
+      {/* 2. Kindness calendar */}
       <Section hue="teal" id="month" labelledBy="month-title">
         {/* A kolam at the threshold of each plain section, drawn in the
             band's top padding. */}
@@ -194,33 +190,7 @@ export default async function AwarenessPage() {
           />
           <StickerScatter stickers={MONTH_STICKERS} />
         </div>
-        <SeasonalCard id="now" headingLevel={3} className="mt-10" />
-        <h3 className="mt-14 text-h3 text-(--section-heading)">
-          {t("month.allTitle")}
-        </h3>
-        <p className="mt-2 text-ink-muted">{t("month.allLead")}</p>
-        <div className="mt-6 space-y-3">
-          {SEASONAL_MONTHS.map((m) => (
-            <Disclosure
-              key={m.month}
-              summary={
-                <span className="flex flex-wrap items-baseline gap-x-3">
-                  <span className="font-display text-h5 text-(--section-heading)">
-                    {monthName(m.month)}
-                  </span>
-                  <span className="font-normal text-ink-muted">{m.title}</span>
-                </span>
-              }
-            >
-              <SeasonalCard
-                month={m.month}
-                id="year"
-                headingLevel={4}
-                className="border-0 p-0 shadow-none sm:p-0"
-              />
-            </Disclosure>
-          ))}
-        </div>
+        <SeasonalCard id="now" headingLevel={3} interactive className="mt-10" />
       </Section>
 
       {/* 3. Street neighbours */}
