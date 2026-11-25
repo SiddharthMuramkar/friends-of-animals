@@ -2,7 +2,6 @@
 
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { buttonStyles } from "@/components/site/button-link";
 import {
   requestPhotoAction,
@@ -12,11 +11,20 @@ import {
 export function PhotoUpload({
   artworkId,
   code,
+  labels,
 }: {
   artworkId: string;
   code: string;
+  labels: {
+    photoKind: string;
+    photoKinds: Record<"front" | "back" | "detail", string>;
+    photo: string;
+    upload: string;
+    uploading: string;
+    uploaded: string;
+    uploadFailed: string;
+  };
 }) {
-  const t = useTranslations("artworkCustody");
   const router = useRouter();
   const [result, action, pending] = useActionState(
     async (_previous: "uploaded" | "uploadFailed" | null, data: FormData) => {
@@ -52,9 +60,9 @@ export function PhotoUpload({
     null
   );
   return (
-    <form action={action} aria-label={t("upload")} className="space-y-4">
+    <form action={action} aria-label={labels.upload} className="space-y-4">
       <fieldset className="space-y-2">
-        <legend className="font-semibold">{t("photoKind")}</legend>
+        <legend className="font-semibold">{labels.photoKind}</legend>
         {(["front", "back", "detail"] as const).map((kind) => (
           <label key={kind} className="flex min-h-11 items-center gap-2">
             <input
@@ -64,12 +72,12 @@ export function PhotoUpload({
               required
               defaultChecked={kind === "front"}
             />
-            {t(`photoKinds.${kind}`)}
+            {labels.photoKinds[kind]}
           </label>
         ))}
       </fieldset>
       <label className="block font-semibold" htmlFor="custody-file">
-        {t("photo")}
+        {labels.photo}
       </label>
       <input
         className="block w-full min-h-12"
@@ -81,9 +89,9 @@ export function PhotoUpload({
         required
       />
       <button type="submit" disabled={pending} className={buttonStyles()}>
-        {t(pending ? "uploading" : "upload")}
+        {labels[pending ? "uploading" : "upload"]}
       </button>
-      <output className="block">{result ? t(result) : ""}</output>
+      <output className="block">{result ? labels[result] : ""}</output>
     </form>
   );
 }

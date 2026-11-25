@@ -109,7 +109,51 @@ export default async function Page({
             <section className="rounded-3xl border-2 border-border bg-surface p-5">
               <h3 className="text-h4">{t("photos")}</h3>
               <p className="mt-2 mb-4">{t("photoHelp")}</p>
-              <PhotoUpload artworkId={data.work.artworkId} code={artworkCode} />
+              <PhotoUpload
+                artworkId={data.work.artworkId}
+                code={artworkCode}
+                labels={{
+                  photoKind: t("photoKind"),
+                  photoKinds: {
+                    front: t("photoKinds.front"),
+                    back: t("photoKinds.back"),
+                    detail: t("photoKinds.detail"),
+                  },
+                  photo: t("photo"),
+                  upload: t("upload"),
+                  uploading: t("uploading"),
+                  uploaded: t("uploaded"),
+                  uploadFailed: t("uploadFailed"),
+                }}
+              />
+              {data.photos.some(
+                (photo) =>
+                  photo.link?.ok &&
+                  (photo.contentType === "image/jpeg" ||
+                    photo.contentType === "image/png")
+              ) ? (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  {data.photos.map((photo, index) =>
+                    photo.link?.ok &&
+                    (photo.contentType === "image/jpeg" ||
+                      photo.contentType === "image/png") ? (
+                      <figure key={photo.id}>
+                        {/* oxlint-disable-next-line nextjs/no-img-element -- private signed condition photo */}
+                        <img
+                          src={photo.link.url}
+                          alt={t("viewPhoto", {
+                            kind: t(`photoKinds.${photo.kind}`),
+                            number: index + 1,
+                          })}
+                          referrerPolicy="no-referrer"
+                          className="aspect-square w-full object-contain rounded-xl"
+                        />
+                        <figcaption>{t(`photoKinds.${photo.kind}`)}</figcaption>
+                      </figure>
+                    ) : null
+                  )}
+                </div>
+              ) : null}
               <ButtonLink className="mt-4" href={path} variant="secondary">
                 {t("refresh")}
               </ButtonLink>

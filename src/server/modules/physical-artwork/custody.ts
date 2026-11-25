@@ -569,6 +569,7 @@ async function getArtworkCustody(
       kind: artworkPhoto.kind,
       selectedAt: artworkPhoto.selectedAt,
       status: fileAsset.status,
+      contentType: fileAsset.contentType,
     })
     .from(artworkPhoto)
     .innerJoin(fileAsset, eq(fileAsset.id, artworkPhoto.fileAssetId))
