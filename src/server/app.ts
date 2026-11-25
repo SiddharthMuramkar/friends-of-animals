@@ -62,6 +62,7 @@ import { galleryUseCases } from "./modules/gallery";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
+import { invitationsUseCases } from "./modules/invitations";
 import { surveysUseCases } from "./modules/surveys";
 import { reportsUseCases } from "./modules/reports";
 import { clubsUseCases } from "./modules/clubs";
@@ -122,6 +123,7 @@ const operationUseCases = composeUseCases(
   galleryUseCases,
   socialExportUseCases,
   surveysUseCases,
+  invitationsUseCases,
   reportsUseCases
 );
 const useCases = composeUseCases(coreUseCases, operationUseCases);

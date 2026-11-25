@@ -95,6 +95,8 @@ import { refillPlaces } from "../modules/events/registrations";
 import { settleEndedEvent } from "../modules/events/end";
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
+import { deliverCompetitionInvitation } from "../modules/invitations/deliver";
+import { queuePublishedInvitations } from "../modules/invitations/queue";
 import { deliverSurveyInvitation } from "../modules/surveys/deliver";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
 import { runRoundDeadlineJob } from "../modules/school-round/overdue";
@@ -381,6 +383,13 @@ export const HANDLERS: Handlers = {
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
   // One recipient's campaign message, on the consent it rests on (#126).
   "surveys.deliver_invitation": deliverSurveyInvitation,
+  "invitations.deliver": deliverCompetitionInvitation,
+  "invitations.queue_published": async (deps, { payload }) => {
+    await queuePublishedInvitations(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
   "campaigns.deliver_message": deliverCampaignMessage,
   // Opens the competition's school rounds (#89). Safe to repeat.
   "school_round.open_rounds": async (deps, { payload }) => {

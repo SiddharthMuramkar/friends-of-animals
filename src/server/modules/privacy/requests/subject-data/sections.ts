@@ -35,6 +35,7 @@ import {
   account,
   communityMember,
   surveyInvitation,
+  competitionInvitation,
   eventRegistration,
   engagementMilestone,
   timelineEntry,
@@ -190,6 +191,16 @@ export const SECTIONS: readonly Section[] = [
     table: schema.clubMembership,
     where: (scope) => within(schema.clubMembership.userId, users(scope)),
     owners: ["user_id"],
+  },
+  {
+    table: competitionInvitation,
+    where: (scope) =>
+      or(
+        within(competitionInvitation.participantProfileId, profiles(scope)),
+        within(competitionInvitation.recipientUserId, users(scope))
+      )!,
+    owners: ["participant_profile_id", "recipient_user_id"],
+    withhold: ["recipient_user_id"],
   },
   {
     table: surveyInvitation,

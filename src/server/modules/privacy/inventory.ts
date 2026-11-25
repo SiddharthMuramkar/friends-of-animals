@@ -1954,6 +1954,24 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       onExpiry: "delete_row",
     })(column, category)
   ),
+  ...(
+    [
+      ["participant_profile_id", "identity"],
+      ["competition_id", "technical"],
+      ["release_id", "technical"],
+      ["accepted_actions", "content"],
+      ["created_at", "technical"],
+      ["status", "technical"],
+      ["trigger", "technical"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("competition_invitation", {
+      subject: { kind: "participant_profile", via: "participant_profile_id" },
+      retention: COMMUNITY_HISTORY,
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
+  actorColumn("competition_invitation", "recipient_user_id", COMMUNITY_HISTORY),
   actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
   actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
   rowsOf("campaign_recipient", {
