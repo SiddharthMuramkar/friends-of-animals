@@ -1,6 +1,7 @@
 import type { UseCaseContext } from "../../use-cases";
 import { issueCertificates, type IssueInput } from "./issue";
 import { renderCertificate } from "./render";
+import { requestCertificateShare, getCertificateShareUrl } from "./share";
 import {
   getCertificateDownloadUrl,
   listCertificates,
@@ -19,6 +20,10 @@ export const certificateUseCases = (ctx: UseCaseContext) => ({
   retryCertificateRender: (input: { certificateId: string }) =>
     retryCertificateRender(ctx, input),
   listMyCertificates: () => listMyCertificates(ctx),
+  requestCertificateShare: (input: { certificateId: string }) =>
+    requestCertificateShare(ctx, input),
+  getCertificateShareUrl: (input: { certificateId: string }) =>
+    getCertificateShareUrl(ctx, input),
   getCertificateDownloadUrl: (input: { certificateId: string }) =>
     getCertificateDownloadUrl(ctx, input),
   verifyCertificate: (input: { number: string }) =>

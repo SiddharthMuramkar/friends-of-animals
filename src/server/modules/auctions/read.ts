@@ -15,6 +15,8 @@ import { PUBLIC_LOT_STATUSES } from "./domain/lot-status";
 import { parseLotCode } from "./domain/lot-code";
 import { auctionsEnabled, currentLotConsent } from "./lifecycle";
 import { minimumNextBid } from "./domain/bid-rules";
+import { liveEntryStampSource, stampedImage } from "../stamping";
+import { ObjectMissingError } from "../../ports/storage";
 
 // Select only the amount, in the same SQL snapshot as the closing time,
 // so a live refresh cannot combine an old deadline with a new bid.
@@ -33,9 +35,14 @@ async function toPublic(
   currentBidPaise: bigint | null
 ) {
   // Consent checked on every read, not on a cached copy of the creator's
-  // name. Neither an original File nor its private derivatives is joined.
+  // name. Only the live stamped derivative can furnish a public image.
   const consent = await currentLotConsent(ctx, row);
   if (!consent) return null;
+  const [copy, minimumIncrement, award] = await Promise.all([
+    imageOf(ctx, consent.entryId),
+    ctx.settings.get("auctions.minIncrementPaise"),
+    publishedRecognitionForEntry(ctx.db, consent.entryId),
+  ]);
   return {
     lotCode: row.lotCode,
     story: row.story,
@@ -46,17 +53,70 @@ async function toPublic(
     minimumBidPaise: minimumNextBid(
       { ...row, currentBidPaise },
       {
-        minIncrementPaise: BigInt(
-          await ctx.settings.get("auctions.minIncrementPaise")
-        ),
+        minIncrementPaise: BigInt(minimumIncrement),
       }
     ),
     opensAt: row.opensAt,
     closesAt: row.closesAt,
-    award: await publishedRecognitionForEntry(ctx.db, consent.entryId),
-    // #102: only a stamped public asset.
-    image: null as { url: string; alt: string } | null,
+    award,
+    image: copy
+      ? {
+          url: `/media/auctions/${row.lotCode}`,
+          width: copy.width,
+          height: copy.height,
+          alt:
+            (copy.sampleIllustration ? "AI illustration: " : "") +
+            "Artwork with the Friends of Animals logo",
+          sampleIllustration: copy.sampleIllustration,
+        }
+      : null,
   };
+}
+
+async function imageOf(ctx: UseCaseContext, entryId: string) {
+  const fileId = await liveEntryStampSource(ctx.db, entryId);
+  return fileId ? stampedImage(ctx, { fileId, variant: "gallery" }) : null;
+}
+
+/** Public media bytes only; a fresh consent and lot-state check on every
+ * request, with no CDN or signed storage URL. A missing stamp is not found. */
+export async function readLotImage(
+  ctx: UseCaseContext,
+  input: { lotCode: string }
+) {
+  await authorize(ctx, "auction.lot.read_image");
+  const missing = { ok: false, error: "not_found" } as const;
+  if (!(await auctionsEnabled(ctx)) || typeof input?.lotCode !== "string")
+    return missing;
+  const code = parseLotCode(input.lotCode);
+  if (!code) return missing;
+  const [lot] = await ctx.db
+    .select()
+    .from(auctionLot)
+    .where(
+      and(
+        eq(auctionLot.lotCode, code),
+        inArray(auctionLot.status, PUBLIC_LOT_STATUSES),
+        gt(auctionLot.closesAt, ctx.clock.now())
+      )
+    );
+  if (!lot) return missing;
+  const consent = await currentLotConsent(ctx, lot);
+  if (!consent) return missing;
+  const copy = await imageOf(ctx, consent.entryId);
+  if (!copy) return missing;
+  try {
+    const body = await ctx.storage.read({ bucket: copy.bucket, key: copy.key });
+    return {
+      ok: true,
+      body,
+      contentType: copy.contentType,
+      sizeBytes: copy.sizeBytes,
+    } as const;
+  } catch (error) {
+    if (error instanceof ObjectMissingError) return missing;
+    throw error;
+  }
 }
 
 export async function browseLots(ctx: UseCaseContext) {
@@ -71,10 +131,16 @@ export async function browseLots(ctx: UseCaseContext) {
       )
     )
     .orderBy(asc(auctionLot.opensAt), asc(auctionLot.lotCode));
+  // Check independent lots concurrently in bounded batches. A slow
+  // consent/credit read on one lot must not serially delay other cards.
   const result = [];
-  for (const lot of lots) {
-    const publicLot = await toPublic(ctx, lot.row, lot.currentBidPaise);
-    if (publicLot) result.push(publicLot);
+  for (let i = 0; i < lots.length; i += 8) {
+    const visible = await Promise.all(
+      lots
+        .slice(i, i + 8)
+        .map((lot) => toPublic(ctx, lot.row, lot.currentBidPaise))
+    );
+    result.push(...visible.filter((lot) => lot !== null));
   }
   return result;
 }

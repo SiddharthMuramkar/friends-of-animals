@@ -119,6 +119,8 @@ export default async function AwarenessPage() {
     preview: t("pledge.preview"),
     download: t("pledge.download"),
     share: t("pledge.share"),
+    preparing: t("pledge.preparing"),
+    exportFailed: t("pledge.exportFailed"),
     privacy: t("pledge.privacy"),
     cardTitle: t("pledge.cardTitle"),
     cardWithName: t.raw("pledge.cardWithName") as string,

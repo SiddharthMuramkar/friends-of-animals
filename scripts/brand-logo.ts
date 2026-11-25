@@ -200,36 +200,37 @@ export interface PixelGrid {
 export const FAVICON_GRIDS: readonly PixelGrid[] = [
   {
     size: 16,
-    tileWidth: 5,
-    tileHeight: 7,
-    gap: 0,
-    // At 16 and 24 px the traced letters are 3–5 px tall and blur away.
+    tileWidth: 4,
+    tileHeight: 8,
+    gap: 1,
+    // Leave a full transparent pixel between colours and at each side.
+    // Give the letters a little height without losing those gutters.
     letters: {
       top: 1,
       bitmaps: [
-        ["XXX", "X..", "XX.", "X..", "X.."],
-        ["XXX", "X.X", "X.X", "X.X", "XXX"],
-        [".X.", "X.X", "XXX", "X.X", "X.X"],
+        [".XXX", ".X..", ".XX.", ".X..", ".X..", ".X.."],
+        [".XX.", "X..X", "X..X", "X..X", "X..X", ".XX."],
+        [".X..", "X.X.", "X.X.", "XXX.", "X.X.", "X.X."],
       ],
     },
   },
   {
     size: 24,
-    tileWidth: 7,
+    tileWidth: 6,
     tileHeight: 10,
-    gap: 1,
+    gap: 2,
     letters: {
       top: 2,
       bitmaps: [
-        [".XXXX", ".X...", ".XXX.", ".X...", ".X..."],
-        // The ring, with a dot for the paw.
-        [".XXX.", "X...X", "X.X.X", "X...X", ".XXX."],
-        ["..X..", ".X.X.", "X...X", "XXXXX", "X...X"],
+        ["XXXX", "X...", "XXX.", "X...", "X...", "X..."],
+        // The full paw artwork is retained from 32 px upwards.
+        [".XX.", "X..X", "X..X", "X..X", "X..X", ".XX."],
+        [".XX.", "X..X", "X..X", "XXXX", "X..X", "X..X"],
       ],
     },
   },
-  { size: 32, tileWidth: 10, tileHeight: 15, gap: 1 },
-  { size: 48, tileWidth: 15, tileHeight: 22, gap: 1 },
+  { size: 32, tileWidth: 8, tileHeight: 14, gap: 2 },
+  { size: 48, tileWidth: 14, tileHeight: 20, gap: 2 },
 ];
 
 /** White 1 px squares for the "X"s of a bitmap, one rect per run. */
@@ -246,9 +247,10 @@ function bitmapRects(bitmap: readonly string[], left: number, top: number) {
 
 /**
  * The tiles alone (#17), hinted for one small icon size. Each tile, with its
- * letter, is moved and scaled onto whole pixels: a few per cent at most, which
- * nobody can see at 16–48 px. Without it the tile edges and gaps fall between
- * pixels and the colours blur into each other.
+ * letter, is moved and scaled onto whole pixels. Fully transparent gutters
+ * and symmetric outer margins keep the colours distinct even on dark tabs.
+ * Without whole-pixel hinting the tile edges and gaps fall between pixels
+ * and blur into each other.
  */
 export function hintedTiles(
   { inner, tiles, wordmarkElement }: Master,

@@ -64,8 +64,8 @@
         "code_expired": "That code has run out. Send yourself a new one.",
         "too_many_attempts": "That code had too many wrong tries. Send yourself a new one.",
         "no_account": "There's no account with this phone number yet.",
-        "unsupported_country": "We can only text Indian mobile numbers for now. Use your email address instead.",
-        "sms_disabled": "We can't text codes right now. Use your email address instead.",
+        "unsupported_country": "We can only text Indian mobile numbers for now.",
+        "sms_disabled": "We can't text codes right now. Please try again later.",
         "failed": "Something went wrong on our side. Please try again."
       }
     },

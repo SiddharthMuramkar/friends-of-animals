@@ -52,7 +52,7 @@ FOA has no original artwork file (AI, CDR, EPS or PDF) and doesn't know the word
 
 ## Regenerating
 
-Every PNG and ICO, the favicon SVG and the single-colour SVGs are derived from `foa-logo.svg`:
+Every generated PNG and ICO, and the single-colour SVGs, are derived from `foa-logo.svg`:
 
 ```bash
 pnpm brand:assets      # scripts/brand-assets.ts, renders with resvg
@@ -68,9 +68,9 @@ The derivations live in `scripts/brand-logo.ts`, and `scripts/brand-logo.test.ts
 
 At 16–48 px the tile edges and gaps fall between pixels and blur, so `hintedTiles` in `scripts/brand-logo.ts` fits each size to whole pixels (`FAVICON_GRIDS`):
 
-- Each tile, with its letter, is moved and scaled onto a whole-pixel box: a few per cent, the way fonts are hinted at small sizes.
-- At 16 and 24 px the traced letters are 3–5 px tall and blur away, so F, O and A are placed pixel by pixel instead.
-- There's no SVG favicon: a vector can't be sharp at every size, and browsers would prefer it over the ICO.
+- Each tile, with its letter, is optically fitted to a whole-pixel box, with a fully transparent gutter and symmetric outer margins. The colours no longer merge on the smallest browser tabs.
+- At 16 and 24 px the detailed letters are too small to read, so F, O and A use crisp, size-specific six-pixel-high shapes. Larger frames retain the original letter-and-paw artwork.
+- There's no SVG favicon: an ICO lets browsers select the individually hinted frame for the display's pixel density instead of resampling a single image.
 
 
 ## Uses FOA approved

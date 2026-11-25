@@ -1,7 +1,8 @@
 /*
  * CSS-only filters for /competitions (0 KB of JS; the route stays static).
- * A radio in each group hides the cards that don't carry its value. One rule
- * per value: statuses (StatusLabel), disciplines and AGE_BANDS in view.ts.
+ * A radio in each group hides cards that do not offer its value. When age
+ * and discipline are selected together, the pair must exist in a single
+ * category (not merely somewhere in its separate age and discipline lists).
  */
 .root:has(input[name="status"][value="upcoming"]:checked)
   .card:not([data-status="upcoming"]),
@@ -25,10 +26,121 @@
   .card:not([data-disciplines~="PHOTOGRAPHY"]),
 .root:has(input[name="discipline"][value="VIDEOGRAPHY"]:checked)
   .card:not([data-disciplines~="VIDEOGRAPHY"]),
-.root:has(input[name="age"][value="a5"]:checked) .card:not([data-ages~="a5"]),
+.root:has(input[name="age"][value="a3"]:checked) .card:not([data-ages~="a3"]),
 .root:has(input[name="age"][value="a9"]:checked) .card:not([data-ages~="a9"]),
 .root:has(input[name="age"][value="a13"]:checked) .card:not([data-ages~="a13"]),
-.root:has(input[name="age"][value="a18"]:checked)
-  .card:not([data-ages~="a18"]) {
+.root:has(input[name="age"][value="a18"]:checked) .card:not([data-ages~="a18"]),
+.root:has(input[name="discipline"][value="DRAWING"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="DRAWING-a3"]),
+.root:has(input[name="discipline"][value="DRAWING"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="DRAWING-a9"]),
+.root:has(input[name="discipline"][value="DRAWING"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="DRAWING-a13"]),
+.root:has(input[name="discipline"][value="DRAWING"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="DRAWING-a18"]),
+.root:has(input[name="discipline"][value="PAINTING"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="PAINTING-a3"]),
+.root:has(input[name="discipline"][value="PAINTING"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="PAINTING-a9"]),
+.root:has(input[name="discipline"][value="PAINTING"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="PAINTING-a13"]),
+.root:has(input[name="discipline"][value="PAINTING"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="PAINTING-a18"]),
+.root:has(input[name="discipline"][value="ART"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="ART-a3"]),
+.root:has(input[name="discipline"][value="ART"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="ART-a9"]),
+.root:has(input[name="discipline"][value="ART"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="ART-a13"]),
+.root:has(input[name="discipline"][value="ART"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="ART-a18"]),
+.root:has(input[name="discipline"][value="CRAFT"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="CRAFT-a3"]),
+.root:has(input[name="discipline"][value="CRAFT"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="CRAFT-a9"]),
+.root:has(input[name="discipline"][value="CRAFT"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="CRAFT-a13"]),
+.root:has(input[name="discipline"][value="CRAFT"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="CRAFT-a18"]),
+.root:has(input[name="discipline"][value="ESSAY"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="ESSAY-a3"]),
+.root:has(input[name="discipline"][value="ESSAY"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="ESSAY-a9"]),
+.root:has(input[name="discipline"][value="ESSAY"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="ESSAY-a13"]),
+.root:has(input[name="discipline"][value="ESSAY"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="ESSAY-a18"]),
+.root:has(input[name="discipline"][value="PHOTOGRAPHY"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="PHOTOGRAPHY-a3"]),
+.root:has(input[name="discipline"][value="PHOTOGRAPHY"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="PHOTOGRAPHY-a9"]),
+.root:has(input[name="discipline"][value="PHOTOGRAPHY"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="PHOTOGRAPHY-a13"]),
+.root:has(input[name="discipline"][value="PHOTOGRAPHY"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="PHOTOGRAPHY-a18"]),
+.root:has(input[name="discipline"][value="VIDEOGRAPHY"]:checked):has(
+    input[name="age"][value="a3"]:checked
+  )
+  .card:not([data-categories~="VIDEOGRAPHY-a3"]),
+.root:has(input[name="discipline"][value="VIDEOGRAPHY"]:checked):has(
+    input[name="age"][value="a9"]:checked
+  )
+  .card:not([data-categories~="VIDEOGRAPHY-a9"]),
+.root:has(input[name="discipline"][value="VIDEOGRAPHY"]:checked):has(
+    input[name="age"][value="a13"]:checked
+  )
+  .card:not([data-categories~="VIDEOGRAPHY-a13"]),
+.root:has(input[name="discipline"][value="VIDEOGRAPHY"]:checked):has(
+    input[name="age"][value="a18"]:checked
+  )
+  .card:not([data-categories~="VIDEOGRAPHY-a18"]) {
   display: none;
 }

@@ -81,6 +81,56 @@ test("the list shows the seeded published competitions and never the draft", asy
   await hasNoSidewaysScroll(page, "/competitions");
 });
 
+test("age and discipline filters match a single offered category", async ({
+  page,
+}) => {
+  await page.goto("/competitions");
+  const filters = page.getByRole("form", { name: "Filter the competitions" });
+  const age = filters.getByRole("group", { name: "Age", exact: true });
+  const discipline = filters.getByRole("group", { name: "What you make" });
+  const status = filters.getByRole("group", { name: "Status" });
+  const card = page.locator("li[data-categories]").filter({
+    has: page.getByRole("link", { name: PUBLISHED.name, exact: true }),
+  });
+  await expect(card).toBeVisible();
+  await expect(card).toHaveAttribute("data-categories", /DRAWING-a3/);
+  await expect(card).toHaveAttribute("data-categories", /PHOTOGRAPHY-a18/);
+  await expect(age.getByRole("radio", { name: "3 to 8" })).toBeVisible();
+  await expect(age.getByRole("radio", { name: "18 to 99" })).toBeVisible();
+
+  // Use an intentionally sparse category set for this browser-only CSS
+  // test, without changing the database seed shared with other journeys.
+  // The token builder's unit tests cover the category-to-token mapping.
+  await card.evaluate((el) => {
+    el.setAttribute("data-categories", "DRAWING-a3 PHOTOGRAPHY-a18");
+    el.setAttribute("data-disciplines", "DRAWING PHOTOGRAPHY");
+    el.setAttribute("data-ages", "a3 a18");
+  });
+  await discipline.getByRole("radio", { name: "Drawing" }).check();
+  await age.getByRole("radio", { name: "3 to 8" }).check();
+  await expect(card).toBeVisible();
+
+  // The competition offers drawing and an adult age group, but not
+  // adult drawing, so independently matching both values is insufficient.
+  await age.getByRole("radio", { name: "18 to 99" }).check();
+  await expect(card).toBeHidden();
+  await discipline.getByRole("radio", { name: "Photography" }).check();
+  await expect(card).toBeVisible();
+  await age.getByRole("radio", { name: "3 to 8" }).check();
+  await expect(card).toBeHidden();
+  await age.getByRole("radio", { name: "All", exact: true }).check();
+  await expect(card).toBeVisible();
+  await discipline.getByRole("radio", { name: "All", exact: true }).check();
+  await age.getByRole("radio", { name: "18 to 99" }).check();
+  await expect(card).toBeVisible();
+
+  await status.getByRole("radio", { name: "Upcoming" }).check();
+  await expect(card).toBeHidden();
+  await status.getByRole("radio", { name: "All", exact: true }).check();
+  await age.getByRole("radio", { name: "All", exact: true }).check();
+  await expect(card).toBeVisible();
+});
+
 test("a competition page shows its theme, categories, rules, scope and IST key dates", async ({
   page,
 }) => {
@@ -118,6 +168,49 @@ test("a competition page shows its theme, categories, rules, scope and IST key d
 
   await expectAccessibleInDark(page, path);
   await hasNoSidewaysScroll(page, path);
+});
+
+test("live registration gives real actions instead of coming-soon copy", async ({
+  page,
+}) => {
+  await page.goto(`/competitions/${PUBLISHED.slug}`);
+  const participation = page.locator("#take-part");
+  await expect(
+    participation.getByRole("heading", { name: "Registration is open" })
+  ).toBeVisible();
+  await expect(
+    participation.getByRole("link", { name: "Register your school" })
+  ).toHaveAttribute("href", "/institutions/register");
+  await expect(
+    participation.getByRole("link", { name: "Register as an individual" })
+  ).toHaveAttribute("href", `/participate?competition=${PUBLISHED.slug}`);
+  await expect(
+    participation.getByText(
+      "Online registration opens with the first real competition"
+    )
+  ).toHaveCount(0);
+});
+
+test("ongoing school-only competitions do not offer individual registration", async ({
+  page,
+}) => {
+  await page.goto("/competitions/trees-for-birds");
+  const participation = page.locator("#take-part");
+  await expect(
+    participation.getByRole("heading", { name: "This competition is underway" })
+  ).toBeVisible();
+  await expect(
+    participation.getByRole("link", { name: "Open your dashboard" })
+  ).toHaveAttribute("href", "/dashboard");
+  await expect(
+    participation.getByRole("link", { name: "Register as an individual" })
+  ).toHaveCount(0);
+  await expect(
+    participation.getByRole("link", { name: "Register your school" })
+  ).toHaveCount(0);
+  await expect(
+    participation.getByText(/once accounts are switched on/)
+  ).toHaveCount(0);
 });
 
 test("a draft, an unknown slug and the build placeholder answer 404", async ({

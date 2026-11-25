@@ -19,6 +19,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
 import { TileMarker } from "@/components/site/tile";
 import { feeDisplay } from "@/content/sample/selectors";
+import { APP_ROUTES, individualRegisterPath } from "@/lib/app-routes";
 import type { SiteArtId } from "@/lib/art";
 import { ROUTES } from "@/lib/routes";
 import { placeholder } from "@/lib/site";
@@ -32,6 +33,7 @@ import {
   type CompetitionView,
   type Discipline,
   fileRules,
+  liveRegistrationMode,
   nextKeyDate,
   paragraphs,
   type PrimaryAction,
@@ -127,13 +129,19 @@ export async function CompetitionDetail({
   const next = nextKeyDate(c.keyDates, now);
   const steps = timeline(c.keyDates, now);
   const action = primaryAction(c.status);
+  const registration = liveRegistrationMode(c);
+  const liveUnderway = action === "underway" && !c.sample;
   const opens = c.keyDates.find((d) => d.kind === "registrationOpens");
   const actionLabel =
-    action !== "opensSoon"
-      ? t(`action.${action}.label`)
-      : opens
-        ? t("action.opensSoon.label", { date: date(opens.at) })
-        : t("action.opensSoon.title");
+    registration === "school"
+      ? t("action.register.schoolLabel")
+      : liveUnderway
+        ? t("action.underway.liveLabel")
+        : action !== "opensSoon"
+          ? t(`action.${action}.label`)
+          : opens
+            ? t("action.opensSoon.label", { date: date(opens.at) })
+            : t("action.opensSoon.title");
   const route = (r: "INSTITUTION" | "INDIVIDUAL") =>
     c.routes.find((x) => x.route === r);
   const school = route("INSTITUTION");
@@ -407,6 +415,15 @@ export async function CompetitionDetail({
                 <span className="font-semibold">{t("routes.fee")}</span>
                 <Fee fee={school.fee} line={termsFee("institution")} />
               </p>
+              {registration ? (
+                <ButtonLink
+                  href={APP_ROUTES.institutionRegister}
+                  variant="secondary"
+                  className="mt-5"
+                >
+                  {t("routes.school.register")}
+                </ButtonLink>
+              ) : null}
             </article>
           ) : null}
           {self ? (
@@ -422,11 +439,15 @@ export async function CompetitionDetail({
                 <span className="font-semibold">{t("routes.fee")}</span>
                 <Fee fee={self.fee} line={termsFee("individual")} />
               </p>
-              {/* Through the chooser, which recommends the school route
-                  first (#78). */}
-              {c.status === "REGISTRATION_OPEN" && !c.sample ? (
+              {/* Recommend the school route via the chooser only when
+                  that route is also offered by this competition (#78). */}
+              {registration ? (
                 <ButtonLink
-                  href={`${ROUTES.participate.path}?${new URLSearchParams({ competition: c.slug }).toString()}`}
+                  href={
+                    registration === "both"
+                      ? `${ROUTES.participate.path}?${new URLSearchParams({ competition: c.slug }).toString()}`
+                      : individualRegisterPath(c.slug)
+                  }
                   variant="secondary"
                   className="mt-5"
                 >
@@ -437,21 +458,35 @@ export async function CompetitionDetail({
           ) : null}
         </div>
         <ExplainState
-          title={t(`action.${action}.title`)}
+          title={
+            registration
+              ? t("action.register.liveTitle")
+              : t(`action.${action}.title`)
+          }
           back={{
             href:
               action === "cancelled"
                 ? ROUTES.refunds.path
-                : ROUTES.contact.path,
+                : liveUnderway
+                  ? APP_ROUTES.dashboard
+                  : ROUTES.contact.path,
             label:
               action === "cancelled"
                 ? t("consent.refunds")
-                : t("action.contact"),
+                : liveUnderway
+                  ? t("action.underway.dashboard")
+                  : t("action.contact"),
           }}
           art={WAIT_ART[action]}
           className="mt-8"
         >
-          <p>{t(`action.${action}.body`)}</p>
+          <p>
+            {registration
+              ? t(`action.register.liveBody.${registration}`)
+              : liveUnderway
+                ? t("action.underway.liveBody")
+                : t(`action.${action}.body`)}
+          </p>
         </ExplainState>
         {c.terms ? (
           <CompetitionTerms

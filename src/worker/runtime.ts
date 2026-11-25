@@ -94,20 +94,24 @@ function realIo(config: WorkerConfig, errors: WorkerErrors): WorkerIo {
         { processMediaInChild },
         { ffmpegVideoProcessor },
         { popplerPdfProcessor },
+        { stampProcessor },
       ] = await Promise.all([
         import("../worker-media/process-media"),
         import("../server/ports/media-ffmpeg"),
         import("../server/ports/media-pdf"),
+        import("../server/ports/media-stamp"),
       ]);
       // Images in a child process with a hard deadline; videos in ffmpeg,
       // which has its own per clip (#86).
       const images = processMediaInChild(timeoutSeconds);
       const videos = ffmpegVideoProcessor();
       const pdfs = popplerPdfProcessor();
+      const stamps = stampProcessor();
       return {
         processImage: (input) => images.processImage(input),
         processVideo: (input) => videos.processVideo(input),
         processPdf: (input) => pdfs.processPdf(input),
+        stampImage: (input) => stamps.stampImage(input),
       };
     },
     openDatabase(url, connections) {
