@@ -96,6 +96,10 @@ services:
       # Optional: without them each such delivery fails and retries.
       - path: /etc/foa/secrets/worker_prod_field_keys.env
         required: false
+      # Approved SES and MSG91 credentials, root 0600. Only the production
+      # default worker reads them; without this file it refuses provider sends.
+      - path: /etc/foa/secrets/worker_prod_notifications.env
+        required: false
     environment:
       <<: *clamd
       WORKER_MODE: single

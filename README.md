@@ -35,24 +35,24 @@ FOA is a non-profit in India that nurtures compassion for animals among children
 
 Production serves commit `375eb35d` (deployed 2026-11-24, before this session's merges). **Nothing merged this session is live yet.** The worker runs even older code, `646cb69` (2026-11-22). See [Live state](#live-state).
 
-| Area                                                          | In production today                             | Why, and what turns it on                                                                            |
-| ------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Public pages (home, about, impact, competitions, blog, legal) | Works                                           | -                                                                                                    |
-| `/api/health`, `/api/health/worker`                           | Works; health says `"facts":"incomplete"`       | FOA's real facts are not entered (HR-21)                                                             |
-| Email sign-in                                                 | **Off**: `/sign-in` shows "Sign-in opens soon"  | AWS has not approved SES production access (HR-12)                                                   |
-| Staff area (`/admin/*`)                                       | Nobody can use it                               | Needs sign-in, then the first super admin (HR-17, HR-18)                                             |
-| Phone (SMS) sign-in                                           | Off                                             | DLT registration through MSG91 (HR-14), then the `sms.enabled` setting                               |
-| Payments, refunds                                             | Every payment refused                           | No live Razorpay keys (HR-15)                                                                        |
-| Uploads, entries                                              | Refused                                         | No Cloudflare R2 account (HR-13); scans need R2 on the worker; derivatives need worker-media (HR-35) |
-| Guardian, minor, consent-link and paper-consent flows         | Off in code (PR #279)                           | Safeguarding sign-off and legal copy (HR-32, HR-33)                                                  |
-| Email and SMS queued through the outbox                       | Refused by the worker                           | A code gap plus SES and MSG91 keys ([Code gaps](#code-gaps))                                         |
-| Error tracking                                                | On (GlitchTip)                                  | -                                                                                                    |
-| Analytics                                                     | Off: `/stats/script.js` answers 404             | `UMAMI_ORIGIN` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` missing on Vercel (HR-52)                          |
-| Content Security Policy                                       | Report-Only                                     | Enforcing it is HR-19 and a change in `src/lib/csp.ts`                                               |
-| Canonical URL, sitemap, `robots.txt`                          | Wrong host (`friends-of-animals.vercel.app`)    | Vercel `APP_URL` must be `https://friendsofanimals.dev` ([Go-live](#go-live))                        |
-| Database backups                                              | Nightly, on the same disk; restore drill passed | No off-site copy yet (HR-25; no open issue tracks it)                                                |
-| Off-site copy of files                                        | Not configured; both runs failed                | B2 bucket and keys (HR-25)                                                                           |
-| Worker                                                        | Running, healthy heartbeat, old code            | Rebuild from `main` ([Rebuild the production worker](#rebuild-the-production-worker))                |
+| Area                                                          | In production today                             | Why, and what turns it on                                                                                                    |
+| ------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Public pages (home, about, impact, competitions, blog, legal) | Works                                           | -                                                                                                                            |
+| `/api/health`, `/api/health/worker`                           | Works; health says `"facts":"incomplete"`       | FOA's real facts are not entered (HR-21)                                                                                     |
+| Email sign-in                                                 | **Off**: `/sign-in` shows "Sign-in opens soon"  | AWS has not approved SES production access (HR-12)                                                                           |
+| Staff area (`/admin/*`)                                       | Nobody can use it                               | Needs sign-in, then the first super admin (HR-17, HR-18)                                                                     |
+| Phone (SMS) sign-in                                           | Off                                             | DLT registration through MSG91 (HR-14), then the `sms.enabled` setting                                                       |
+| Payments, refunds                                             | Every payment refused                           | No live Razorpay keys (HR-15)                                                                                                |
+| Uploads, entries                                              | Refused                                         | No Cloudflare R2 account (HR-13); scans need R2 on the worker; derivatives need worker-media (HR-35)                         |
+| Guardian, minor, consent-link and paper-consent flows         | Off in code (PR #279)                           | Safeguarding sign-off and legal copy (HR-32, HR-33)                                                                          |
+| Email and SMS queued through the outbox                       | Refused by the worker                           | Requires the updated worker and approved SES/MSG91 keys ([worker docs](docker/README.md#notification-providers-worker-prod)) |
+| Error tracking                                                | On (GlitchTip)                                  | -                                                                                                                            |
+| Analytics                                                     | Off: `/stats/script.js` answers 404             | `UMAMI_ORIGIN` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID` missing on Vercel (HR-52)                                                  |
+| Content Security Policy                                       | Report-Only                                     | Enforcing it is HR-19 and a change in `src/lib/csp.ts`                                                                       |
+| Canonical URL, sitemap, `robots.txt`                          | Wrong host (`friends-of-animals.vercel.app`)    | Vercel `APP_URL` must be `https://friendsofanimals.dev` ([Go-live](#go-live))                                                |
+| Database backups                                              | Nightly, on the same disk; restore drill passed | No off-site copy yet (HR-25; no open issue tracks it)                                                                        |
+| Off-site copy of files                                        | Not configured; both runs failed                | B2 bucket and keys (HR-25)                                                                                                   |
+| Worker                                                        | Running, healthy heartbeat, old code            | Rebuild from `main` ([Rebuild the production worker](#rebuild-the-production-worker))                                        |
 
 ### Landed this session
 
@@ -2440,7 +2440,7 @@ Refs #<n> (Unit <id>) or Closes #<n>
 
 ### Code gaps
 
-- **The worker refuses outbox email and SMS in production.** `src/worker/worker.ts` builds its senders with an empty config, so welcome, confirmation, acknowledgement and notification messages fail even after SES and MSG91 keys exist. Fix: pass the SES and MSG91 config to the worker and its env files. Sign-in codes are not affected.
+- **Production outbox email and SMS await rollout and owner setup.** The updated worker reads the same provider configuration as the app from its own optional credential file; SES requires approved production access, and SMS still requires DLT approval and runtime enablement. The currently deployed worker predates this change. See [worker notification providers](docker/README.md#notification-providers-worker-prod).
 - **No idempotency key on the email and SMS ports.** If the worker dies after a send but before marking the row, the retry sends again (`notifications/dispatch.ts` header). #262 added an optional `deliveryId` to `EmailSender.send` and a `competition_cancellation_email` send record for the cancellation email only; other sends are unchanged.
 - **No payment reconciliation sweep.** Nothing re-checks open batches against the gateway; comments say "later a sweep" (`payments/domain/capture-decision.ts`, `sync-batch.ts`). The nightly ledger job only posts missed captures and refunds.
 - **Contact-only breach recipients.** #267 noted them as a follow-up. (The breach log's retention is registered with the sweep as `BREACH_RECORDS`.)

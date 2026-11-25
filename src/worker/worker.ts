@@ -29,6 +29,7 @@ import {
 } from "../server/outbox";
 import type { Clock } from "../server/ports/clock";
 import { emailSenderFor } from "../server/ports/email-sender-for";
+import type { SesTransport } from "../server/ports/email-ses";
 import type { ErrorReporter } from "../server/ports/errors";
 import type { MalwareScanner } from "../server/ports/malware-scanner";
 import { unconfiguredMedia, type MediaProcessor } from "../server/ports/media";
@@ -56,6 +57,9 @@ export type WorkerIo = {
   storage: ObjectStorage;
   /** Checks each upload for malware (#63). */
   scanner: MalwareScanner;
+  /** Optional provider transports: real defaults, fakes in seam tests. */
+  sesTransport?: SesTransport;
+  msg91Fetch?: typeof fetch;
   /**
    * Makes worker-media's media processor (sharp, #85). Only the media queue
    * calls it, so the default workers never load the image libraries.
@@ -136,16 +140,25 @@ export function createWorker(config: WorkerConfig, io: WorkerIo): Worker {
   const isMedia = config.queue.name === "media";
   const drain: DrainOptions = { queue: config.queue.name };
 
-  // The same adapters as the app's deps (src/server/deps.ts). No MSG91
-  // or SES keys yet, so production refuses SMS, as it does while
-  // sms.enabled is off, and email, until AWS grants SES production access
-  // (DECISIONS R-27); the runtime settings are the database's own.
+  // The same adapters as the app's deps (src/server/deps.ts). Production
+  // refuses messages without configured providers (and respects the runtime
+  // settings). Other environments always use the capture mailbox.
   const depsFor = (db: AppDb, database: string): OutboxDeps => ({
     appEnv: config.appEnv,
     db,
     clock: io.clock,
-    email: emailSenderFor(config.appEnv, { db, clock: io.clock }, {}),
-    sms: smsSenderFor(config.appEnv, { db, clock: io.clock }, {}),
+    email: emailSenderFor(
+      config.appEnv,
+      { db, clock: io.clock },
+      config.ses ?? {},
+      io.sesTransport
+    ),
+    sms: smsSenderFor(
+      config.appEnv,
+      { db, clock: io.clock },
+      config.msg91 ?? {},
+      io.msg91Fetch
+    ),
     settings: databaseSettings(db),
     cipher,
     blindIndex,

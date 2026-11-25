@@ -1081,6 +1081,21 @@ recreate worker-prod together with the app's change. `worker-staging` and
 today (`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`). Give them their
 site's `APP_URL`, and staging its keys, if one comes back.
 
+### Notification providers (worker-prod)
+
+The production default worker reads its own optional
+`/etc/foa/secrets/worker_prod_notifications.env` (root-owned, mode 0600), never
+shared with staging, preview or media workers. Once FOA has approved SES
+production access (HR-12), the file may contain `SES_REGION`,
+`SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_FROM`, optional
+`SES_CONFIGURATION_SET` and `SES_PRODUCTION_ACCESS=true`. Without the access
+flag or all three key/sender values the production worker refuses email. For
+DLT-approved MSG91 (HR-14), configure `MSG91_AUTH_KEY`, `MSG91_OTP_TEMPLATE_ID`
+and, for coordinator invitations, `MSG91_COORDINATOR_INVITATION_TEMPLATE_ID`.
+The existing runtime `sms.enabled` and template DLT requirements still apply.
+Only the owner provisions the values and recreates the production worker;
+nonproduction always captures messages without calling either provider.
+
 ### Scan, PDF and media sidecars
 
 | Service         | Connection and health check                                                                                             | Memory |
