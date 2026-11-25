@@ -481,6 +481,9 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // disclosing an unfinished result.
   score_sheet: "confidential_judging_assessment",
   criterion_score: "confidential_judging_assessment",
+  // Locking a round freezes the internal assessment; it does not publish
+  // a result. #99's two-person release can expose approved outcomes only.
+  round_result: "unpublished_judging_result",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };
