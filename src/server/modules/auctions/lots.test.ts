@@ -128,13 +128,13 @@ describe("auction lot lifecycle", () => {
       code: "forbidden",
     });
     const worker = h.as({ kind: "system", process: "worker" });
-    expect(await worker.openLot(ref)).toMatchObject({
-      ok: false,
-      error: "not_due",
-    });
     expect(await staff.scheduleLot(ref)).toMatchObject({
       ok: true,
       status: "scheduled",
+    });
+    expect(await worker.openLot(ref)).toMatchObject({
+      ok: false,
+      error: "not_due",
     });
     expect(await visitor.browseLots()).toEqual([
       expect.objectContaining({

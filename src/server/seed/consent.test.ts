@@ -8,6 +8,7 @@ import {
   SEED_TERMS_COMPETITIONS,
   seedCompetitionTerms,
 } from "./competition-terms";
+import { seedAuctions } from "./auctions";
 import { seedCompetitions } from "./competitions";
 import { seedConsent } from "./consent";
 import { SEED_GUARDIANS, seedGuardians } from "./guardians";
@@ -136,6 +137,7 @@ describe("the guardian consents seed (#82)", () => {
         documentId: view.communications.document.id,
       })
     ).toEqual({ ok: true, changed: true });
+    await seedAuctions(h.deps);
     const history = await guardian.childConsentHistory({
       childId: child.profileId,
     });
@@ -148,6 +150,7 @@ describe("the guardian consents seed (#82)", () => {
         registrations.filter((each) => each.participantName === child.fullName)
       ).toMatchObject([
         { status: "pending_guardian", heldFor: "consent" },
+        { status: "confirmed", competition: { slug: "art-for-kindness" } },
         { status: "confirmed", competition: { slug: "originals-for-animals" } },
       ]);
       expect(

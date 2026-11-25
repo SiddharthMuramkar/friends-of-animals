@@ -18,7 +18,8 @@ import {
 import { ensureVerifiedAccount } from "../identity/verified-account";
 import { ensureGrant } from "./access";
 import { ensureSeedAuthenticator } from "./second-factor";
-import { competitionBuilder } from "./competitions";
+import { SEED_AUCTION_COMPETITION } from "./competitions";
+import { emit } from "../outbox/emit";
 import { SEED_GUARDIANS } from "./guardians";
 import { SEED_PARTICIPANTS } from "./participants";
 import type { Seeder } from "./types";
@@ -32,7 +33,7 @@ export const SEED_AUCTIONS = {
     email: "auction-manager@example.test",
     name: "Sample Auction Manager",
   },
-  competitionCode: "AUCT27",
+  competitionCode: SEED_AUCTION_COMPETITION.code,
   open: lotCode(1),
   scheduled: lotCode(2),
   unsold: lotCode(3),
@@ -50,23 +51,11 @@ export const seedAuctions: Seeder = async (deps) => {
   await ensureSeedAuthenticator(deps, manager.id);
   const now = clock.now(),
     days = (n: number) => new Date(now.getTime() + n * 86400000);
-  const [existing] = await db
+  const [comp] = await db
     .select({ id: competition.id })
     .from(competition)
     .where(eq(competition.code, SEED_AUCTIONS.competitionCode));
-  const comp =
-    existing ??
-    (await competitionBuilder(deps)({
-      code: SEED_AUCTIONS.competitionCode,
-      name: "Art for kindness",
-      status: "school_judging",
-      auctionPermitted: true,
-      ageGroups: [
-        { label: "6–12", minAge: 6, maxAge: 12 },
-        { label: "13–17", minAge: 13, maxAge: 17 },
-        { label: "Adults", minAge: 18, maxAge: 99 },
-      ],
-    }));
+  if (!comp) return;
   const [doc] = await db
     .select({ id: consentDocument.id })
     .from(consentDocument)
@@ -275,6 +264,22 @@ export const seedAuctions: Seeder = async (deps) => {
             at: days(-2),
           })
           .onConflictDoNothing();
+        const aggregate = { type: "auction_lot" as const, id: inserted.id };
+        const payload = { lotId: inserted.id };
+        if (status === "scheduled") {
+          await emit(
+            db,
+            clock,
+            { type: "auction.lot.open", aggregate, payload },
+            { availableAt: days(starts) }
+          );
+        }
+        await emit(
+          db,
+          clock,
+          { type: "auction.lot.close", aggregate, payload },
+          { availableAt: days(ends) }
+        );
       }
     }
   }

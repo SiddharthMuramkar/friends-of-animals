@@ -737,6 +737,26 @@ A verified original still held by FOA (verified, on exhibition or retained). An 
 **Return window**:
 The period beginning when Results are actually published, not when the competition is scheduled. Adult creators, verified guardians and the institution's coordinator may request the original back during it. Unrequested verified work is then retained.
 
+## Auctions
+
+**Auction lot**:
+One original Physical artwork reserved by FOA for an auction, with current
+auction Consent, a public story, starting and reserve prices in INR, an opening
+time, a closing time, and a Lot code. A minor's public credit is at most their
+first name and last initial.
+
+**Auction manager**:
+The Staff role that creates, schedules or cancels Auction lots.
+
+**Lot code**:
+A public code identifying one Auction lot, such as `LOT-27-8H3TZ`. It is
+independent of the private Artwork ID.
+
+**Auction reservation**:
+An active Auction lot's exclusive hold on its original. It prevents another
+lot and conflicting custody moves without changing the physical status.
+Cancelling or settling an unsold lot releases the original.
+
 ## Files
 
 **File**:
