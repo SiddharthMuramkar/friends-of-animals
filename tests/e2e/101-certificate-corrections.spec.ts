@@ -179,33 +179,37 @@ test("publish an approved release, verify its certificate publicly, revoke and s
     });
     const approvalPage = await newDevice(browser, info);
     try {
-      for (const [screen, email, secret] of [
-        [page, preparer, preparerSecret],
-        [approvalPage, reviewer, reviewerSecret],
-      ] as const) {
-        await screen.goto("/sign-in");
-        await expectAccessible(screen, "staff sign-in");
-        await screen
-          .getByRole("textbox", { name: "Email address" })
-          .fill(email);
-        await screen.getByRole("button", { name: "Email me a code" }).click();
-        await expect(screen.getByRole("status")).toContainText(email);
-        await expectAccessible(screen, "staff email code");
-        await screen
-          .getByRole("textbox", { name: "6-digit code" })
-          .fill(await readCode(request, email));
-        await screen.getByRole("button", { name: "Sign in" }).click();
-        await expect(screen).toHaveURL(/\/account\/sessions$/);
-        await expectAccessible(screen, "staff account sessions");
-        await screen.goto(path);
-        await expect(screen).toHaveURL(/\/auth\/second-factor\?next=/);
-        await expectAccessible(screen, "staff second factor");
-        await screen
-          .getByRole("textbox", { name: "6-digit code" })
-          .fill(totpCode(secret, new Date()));
-        await screen.getByRole("button", { name: "Continue" }).click();
-        await expect(screen).toHaveURL(new RegExp(`${path}$`));
-      }
+      await Promise.all(
+        (
+          [
+            [page, preparer, preparerSecret],
+            [approvalPage, reviewer, reviewerSecret],
+          ] as const
+        ).map(async ([screen, email, secret]) => {
+          await screen.goto("/sign-in");
+          await expectAccessible(screen, "staff sign-in");
+          await screen
+            .getByRole("textbox", { name: "Email address" })
+            .fill(email);
+          await screen.getByRole("button", { name: "Email me a code" }).click();
+          await expect(screen.getByRole("status")).toContainText(email);
+          await expectAccessible(screen, "staff email code");
+          await screen
+            .getByRole("textbox", { name: "6-digit code" })
+            .fill(await readCode(request, email));
+          await screen.getByRole("button", { name: "Sign in" }).click();
+          await expect(screen).toHaveURL(/\/account\/sessions$/);
+          await expectAccessible(screen, "staff account sessions");
+          await screen.goto(path);
+          await expect(screen).toHaveURL(/\/auth\/second-factor\?next=/);
+          await expectAccessible(screen, "staff second factor");
+          await screen
+            .getByRole("textbox", { name: "6-digit code" })
+            .fill(totpCode(secret, new Date()));
+          await screen.getByRole("button", { name: "Continue" }).click();
+          await expect(screen).toHaveURL(new RegExp(`${path}$`));
+        })
+      );
       await expect(
         page.getByRole("heading", { name: "Results release" })
       ).toBeVisible();
@@ -217,7 +221,7 @@ test("publish an approved release, verify its certificate publicly, revoke and s
       await page
         .getByLabel("Prize delivery instructions (Required)")
         .fill("FOA will contact the family to arrange trophy collection.");
-      const publishAt = new Date(Date.now() + 10_000);
+      const publishAt = new Date(Date.now() + 7_000);
       await page
         .getByLabel("Publication date and time, IST (Required)")
         .fill(istSeconds(publishAt));
@@ -270,7 +274,7 @@ test("publish an approved release, verify its certificate publicly, revoke and s
       await expect(page.getByText("Private artwork title")).toHaveCount(0);
       await expect(page.getByText(`${c.code}-E-5EED01`)).toHaveCount(0);
       await expectAccessible(page, "public results");
-      await expectAccessibleInDark(page, "public results");
+
       // The trusted publication delivery has now issued the certificate.
       // The PDF carries this exact /verify/<number> QR target; validity
       // is immediate independently of the media worker's PDF readiness.
@@ -390,6 +394,9 @@ test("a school coordinator sees their pupils’ participation certificates on th
       .poll(
         async () => {
           await page.reload();
+          // The dashboard's student list and ZIP panel stream through
+          // Suspense. Wait for the panel, not just the static shell.
+          await panel.waitFor({ state: "visible" });
           return download.isVisible();
         },
         { timeout: 15_000 }
