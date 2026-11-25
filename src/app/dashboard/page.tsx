@@ -26,7 +26,10 @@ import {
   ADMIN_COMMUNITY_MEMBERS,
   ADMIN_EVENTS,
   DASHBOARD_EVENTS,
+  DASHBOARD_SURVEYS,
   DASHBOARD_COMMUNITY,
+  DASHBOARD_CLUBS,
+  ADMIN_CLUBS,
   DASHBOARD_TIMELINE,
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
@@ -260,7 +263,9 @@ async function AreaBody({
             { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_COMMUNITY, label: t("member.community") },
+            { href: DASHBOARD_CLUBS, label: t("member.clubs") },
             { href: DASHBOARD_TIMELINE, label: t("member.timeline") },
+            { href: DASHBOARD_SURVEYS, label: t("member.surveys") },
             { href: DASHBOARD_EVENTS, label: t("member.events") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
@@ -338,6 +343,7 @@ async function AreaBody({
                     label: t("admin.community"),
                   },
                   { href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") },
+                  { href: ADMIN_CLUBS, label: t("admin.clubs") },
                 ]
               : []),
             ...(verifier

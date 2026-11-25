@@ -148,6 +148,7 @@ describe("consentLinkHeaders", () => {
 
   it.each([
     "/consent/abc",
+    "/feedback/abc",
     "/donate/checkout/0193a8f0-0000-7000-8000-000000000001",
     "/donate/thank-you",
     "/receipts/abc",

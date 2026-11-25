@@ -824,7 +824,53 @@ function communityField(
   })(column, category);
 }
 
+const CLUB_APPLICATION_RECORD = {
+  policy: "clubApplications",
+  periodKey: "clubApplications",
+  basis:
+    "Preserve private application evidence for a limited time after the club ends",
+  toConfirm: true,
+} as const;
+const CLUB_DECISION_RECORD = {
+  ...CLUB_APPLICATION_RECORD,
+  policy: "clubDecisions",
+} as const;
+const CLUB_MEMBERSHIP_RECORD = {
+  policy: "clubMemberships",
+  periodKey: "clubMemberships",
+  basis:
+    "Keep club membership evidence for a limited period after leaving; private timeline remains until erasure",
+  toConfirm: true,
+} as const;
 const INVENTORY_FIELDS: readonly InventoryField[] = [
+  ...["applicant_user_id", "applicant_kind", "applicant_verified"].map(
+    (column) =>
+      rowsOf("club", {
+        subject: { kind: "user", via: "applicant_user_id" },
+        retention: CLUB_APPLICATION_RECORD,
+        onExpiry: column === "applicant_user_id" ? "set_null" : "retain",
+      })(column, column === "applicant_user_id" ? "identity" : "content")
+  ),
+  ...[
+    "club_id",
+    "user_id",
+    "role",
+    "affiliation_verified",
+    "joined_at",
+    "left_at",
+  ].map((column) =>
+    rowsOf("club_membership", {
+      subject: { kind: "user", via: "user_id" },
+      retention: CLUB_MEMBERSHIP_RECORD,
+      onExpiry: "delete_row",
+    })(column, column === "user_id" ? "identity" : "content")
+  ),
+  actorColumn("club_decision", "decided_by_user_id", CLUB_DECISION_RECORD),
+  rowsOf("club_decision", {
+    subject: { kind: "user", via: "club_id -> club.applicant_user_id" },
+    retention: CLUB_DECISION_RECORD,
+    onExpiry: "set_null",
+  })("reason_ciphertext", "content"),
   // Private community history follows the account/profile; text left after
   // departure is cleared by the configured 365-day policy.
   ...[
@@ -1888,6 +1934,25 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
   // Campaigns (#126): staff accounts, and each message's recipient and the
   // consents it rested on.
+  ...(
+    [
+      ["user_id", "identity"],
+      ["survey_id", "technical"],
+      ["answers", "content"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("survey_invitation", {
+      subject: { kind: "user", via: "user_id" },
+      retention: {
+        policy: "surveyResponses",
+        periodKey: "surveyResponses",
+        basis:
+          "FOA can invite each person once and count their feedback; individual records expire after the survey closes",
+        toConfirm: true,
+      },
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
   actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
   actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
   rowsOf("campaign_recipient", {

@@ -184,6 +184,13 @@ export const eventCheckInPath = (id: string) =>
   `${adminEventPath(id)}/check-in`;
 export const guardianChildEventsPath = (id: string) =>
   `${guardianChildPath(id)}/events`;
+export const CLUB_APPLY = "/clubs/apply";
+export const DASHBOARD_CLUBS = "/dashboard/clubs";
+export const ADMIN_CLUBS = "/admin/community/clubs";
+export const clubPath = (id: string) =>
+  `${DASHBOARD_CLUBS}/${encodeURIComponent(id)}`;
+export const adminClubPath = (id: string) =>
+  `${ADMIN_CLUBS}/${encodeURIComponent(id)}`;
 export const DASHBOARD_COMMUNITY = "/dashboard/community";
 export const DASHBOARD_TIMELINE = "/dashboard/timeline";
 export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
@@ -360,6 +367,19 @@ export function adoptableAnimalPath(slug: string): string {
 }
 
 /** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_SURVEYS = "/admin/surveys";
+export const DASHBOARD_SURVEYS = "/dashboard/surveys";
+export const FEEDBACK_PREFIX = "/feedback";
+export function adminSurveyPath(id: string) {
+  return `${ADMIN_SURVEYS}?competitionId=${encodeURIComponent(id)}`;
+}
+export function surveyAnswerPath(id: string) {
+  return `${DASHBOARD_SURVEYS}?competitionId=${encodeURIComponent(id)}`;
+}
+export function feedbackPath(token: string) {
+  return `${FEEDBACK_PREFIX}/${encodeURIComponent(token)}`;
+}
+
 export const ADMIN_CAMPAIGNS = "/admin/campaigns";
 export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
 
@@ -680,6 +700,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/donations/[id]",
   DASHBOARD_DONATIONS,
   "/dashboard/donations/recurring/[id]",
+  ADMIN_SURVEYS,
+  "/admin/surveys/export.csv",
+  DASHBOARD_SURVEYS,
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",
@@ -722,6 +745,11 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/events/[id]/registrations",
   "/admin/events/[id]/check-in",
   "/guardian/children/[id]/events",
+  CLUB_APPLY,
+  DASHBOARD_CLUBS,
+  `${DASHBOARD_CLUBS}/[clubId]`,
+  ADMIN_CLUBS,
+  `${ADMIN_CLUBS}/[clubId]`,
   DASHBOARD_COMMUNITY,
   DASHBOARD_TIMELINE,
   ADMIN_COMMUNITY_MEMBERS,
@@ -800,6 +828,7 @@ export const SIGNED_IN_PREFIXES = [
   "/admin",
   "/auth",
   "/dashboard",
+  "/clubs",
   "/institution",
   "/institutions/register",
   "/participant",

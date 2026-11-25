@@ -62,7 +62,9 @@ import { galleryUseCases } from "./modules/gallery";
 import { auctionsUseCases } from "./modules/auctions";
 import { physicalArtworkUseCases } from "./modules/physical-artwork";
 import { verificationUseCases } from "./modules/verification";
+import { surveysUseCases } from "./modules/surveys";
 import { reportsUseCases } from "./modules/reports";
+import { clubsUseCases } from "./modules/clubs";
 import { composeUseCases } from "./use-cases";
 
 // Keep each composition shallow enough for TypeScript's instantiation
@@ -88,6 +90,7 @@ const coreUseCases = composeUseCases(
   judgingUseCases,
   resultsUseCases,
   communityUseCases,
+  clubsUseCases,
   eventsUseCases,
   certificateUseCases,
   competitionTermsUseCases,
@@ -118,6 +121,7 @@ const operationUseCases = composeUseCases(
   auctionsUseCases,
   galleryUseCases,
   socialExportUseCases,
+  surveysUseCases,
   reportsUseCases
 );
 const useCases = composeUseCases(coreUseCases, operationUseCases);

@@ -5,6 +5,7 @@ import {
   invitationPath,
   SIGNED_IN_PREFIXES,
   withdrawalPath,
+  feedbackPath,
 } from "../app-routes";
 import { publicCsp, signedInCsp } from "../csp";
 import { CSP_SOURCES, cspContext } from "../csp-sources";
@@ -147,6 +148,7 @@ describe("isExcludedPath", () => {
       invitationPath(TOKEN),
       // A campaign message's withdrawal link is its bearer credential (#126).
       withdrawalPath(TOKEN),
+      feedbackPath(TOKEN),
     ]) {
       expect(isExcludedPath(path, ANALYTICS_EXCLUDED_PREFIXES)).toBe(true);
     }

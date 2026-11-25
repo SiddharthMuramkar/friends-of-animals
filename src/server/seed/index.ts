@@ -50,9 +50,11 @@ import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
 import { seedEvents } from "./events";
+import { seedClubs } from "./clubs";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedReports } from "./reports";
+import { seedSurveys } from "./surveys";
 import { seedResults } from "./results";
 import { seedGallery } from "./gallery";
 import { seedSocialExport } from "./social-export";
@@ -137,10 +139,12 @@ const seeders: readonly Seeder[] = [
   seedPhysicalArtwork,
   seedAuctions,
   seedResults,
+  seedSurveys,
   seedGallery,
   seedSocialExport,
   seedReports,
   seedCommunity,
+  seedClubs,
   seedEvents,
   seedCertificates,
   seedScoring,

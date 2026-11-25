@@ -76,6 +76,8 @@ export * from "./certificates";
 export * from "./volunteer-work";
 export * from "./events";
 export * from "./gallery";
+export * from "./clubs";
+export * from "./surveys";
 
 export * from "./social-export";
 

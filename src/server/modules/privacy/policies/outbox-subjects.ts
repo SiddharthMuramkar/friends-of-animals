@@ -3,8 +3,11 @@ import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 
 import type { AppDb } from "../../../db/app-db";
 import {
+  surveyInvitation,
   campaignRecipient,
   communityMember,
+  club,
+  clubDecision,
   event,
   eventRegistration,
   engagementMilestone,
@@ -43,6 +46,16 @@ type AggregateSource = {
 // The aggregate links that identify people or institutions in the event.
 // Read them in batches alongside payload subjects, which can outlive the links.
 const aggregateSources = {
+  club_decision: {
+    table: clubDecision,
+    subjects: [
+      ["user", clubDecision.decidedByUserId],
+      [
+        "user",
+        sql`(SELECT ${club.applicantUserId} FROM ${club} WHERE ${club.id}=${clubDecision.clubId})`,
+      ],
+    ],
+  },
   event: { table: event, subjects: [["user", event.createdByUserId]] },
   event_registration: {
     table: eventRegistration,
@@ -67,6 +80,10 @@ const aggregateSources = {
       ["user", engagementMilestone.subjectUserId],
       ["participant_profile", engagementMilestone.subjectProfileId],
     ],
+  },
+  survey_invitation: {
+    table: surveyInvitation,
+    subjects: [["user", surveyInvitation.userId]],
   },
   campaign_recipient: {
     table: campaignRecipient,

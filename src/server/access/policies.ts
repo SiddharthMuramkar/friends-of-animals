@@ -19,6 +19,7 @@ import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
 import { EVENTS_POLICY } from "../modules/events/policy";
+import { CLUBS_POLICY } from "../modules/clubs/policy";
 import { COMMUNITY_POLICY } from "../modules/community/policy";
 import { CERTIFICATES_POLICY } from "../modules/certificates/policy";
 import { RESULTS_POLICY } from "../modules/results/policy";
@@ -40,6 +41,7 @@ import { DIRECTORY_POLICY } from "../modules/directory/policy";
 import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
+import { SURVEYS_POLICY } from "../modules/surveys/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
 import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
@@ -51,7 +53,8 @@ import { REPORTS_POLICY } from "../modules/reports/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
-export const POLICY = composePolicies(
+// Keep the type-level duplicate check shallow as the platform grows.
+const corePolicy = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   SECOND_FACTOR_POLICY,
@@ -71,10 +74,13 @@ export const POLICY = composePolicies(
   JUDGING_POLICY,
   RESULTS_POLICY,
   COMMUNITY_POLICY,
+  CLUBS_POLICY,
   EVENTS_POLICY,
   CERTIFICATES_POLICY,
   COMPETITION_TERMS_POLICY,
-  PAYMENTS_POLICY,
+  PAYMENTS_POLICY
+);
+const operationPolicy = composePolicies(
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
   LEDGER_POLICY,
@@ -89,6 +95,7 @@ export const POLICY = composePolicies(
   ADOPTION_POLICY,
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
+  SURVEYS_POLICY,
   CAMPAIGNS_POLICY,
   INSTITUTION_SUBMISSIONS_POLICY,
   SCHOOL_ROUND_POLICY,
@@ -99,5 +106,7 @@ export const POLICY = composePolicies(
   AUCTIONS_POLICY,
   REPORTS_POLICY
 );
+
+export const POLICY = composePolicies(corePolicy, operationPolicy);
 
 export type Action = keyof typeof POLICY;

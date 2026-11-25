@@ -39,6 +39,7 @@ import adminGrievance from "../../messages/en-IN/adminGrievance.json";
 import privacyRequests from "../../messages/en-IN/privacyRequests.json";
 import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import surveys from "../../messages/en-IN/surveys.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -64,6 +65,7 @@ import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
 import events from "../../messages/en-IN/events.json";
+import clubs from "../../messages/en-IN/clubs.json";
 import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -144,6 +146,7 @@ export const NAMESPACES = [
   "privacyRequests",
   "adminDirectory",
   "adminVolunteers",
+  "surveys",
   "campaigns",
   "auth",
   "authPhone",
@@ -170,6 +173,7 @@ export const NAMESPACES = [
   "adoption",
   "adoptionApplications",
   "community",
+  "clubs",
   "events",
   "donate",
   "donationCheckout",
@@ -256,6 +260,7 @@ export const messages = {
   ...privacyRequests,
   ...adminDirectory,
   ...adminVolunteers,
+  ...surveys,
   ...campaigns,
   ...auth,
   ...authPhone,
@@ -282,6 +287,7 @@ export const messages = {
   ...adoption,
   ...adoptionApplications,
   ...community,
+  ...clubs,
   ...events,
   ...donate,
   ...donationCheckout,

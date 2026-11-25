@@ -1,5 +1,5 @@
 {
-  "id": "4e532799-12d7-43c7-87ab-778e89aff9c3",
+  "id": "ed77b83e-eb28-42e1-886f-42d06347291a",
   "prevId": "3eeeee82-6d09-4238-81c4-f1c3bcd8dfcc",
   "version": "7",
   "dialect": "postgresql",
@@ -23507,6 +23507,227 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.survey": {
+      "name": "survey",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "competition_id": {
+          "name": "competition_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "questions": {
+          "name": "questions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closes_at": {
+          "name": "closes_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "survey_competition_id_competition_id_fk": {
+          "name": "survey_competition_id_competition_id_fk",
+          "tableFrom": "survey",
+          "tableTo": "competition",
+          "columnsFrom": [
+            "competition_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "survey_competition_id_unique": {
+          "name": "survey_competition_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "competition_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "survey_send_dates": {
+          "name": "survey_send_dates",
+          "value": "(\"survey\".\"sent_at\" IS NULL) = (\"survey\".\"closes_at\" IS NULL) AND (\"survey\".\"closes_at\" IS NULL OR \"survey\".\"closes_at\" > \"survey\".\"sent_at\") AND (\"survey\".\"closed_at\" IS NULL OR \"survey\".\"sent_at\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.survey_invitation": {
+      "name": "survey_invitation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "survey_id": {
+          "name": "survey_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "survey_delivery_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'queued'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "answers": {
+          "name": "answers",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "answered_at": {
+          "name": "answered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "survey_invitation_user_idx": {
+          "name": "survey_invitation_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "survey_invitation_survey_id_survey_id_fk": {
+          "name": "survey_invitation_survey_id_survey_id_fk",
+          "tableFrom": "survey_invitation",
+          "tableTo": "survey",
+          "columnsFrom": [
+            "survey_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "survey_invitation_user_id_user_id_fk": {
+          "name": "survey_invitation_user_id_user_id_fk",
+          "tableFrom": "survey_invitation",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "survey_invitation_token_hash_unique": {
+          "name": "survey_invitation_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        },
+        "survey_person_once": {
+          "name": "survey_person_once",
+          "nullsNotDistinct": false,
+          "columns": [
+            "survey_id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "survey_answer_stamp": {
+          "name": "survey_answer_stamp",
+          "value": "(\"survey_invitation\".\"answers\" IS NULL) = (\"survey_invitation\".\"answered_at\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.social_export": {
       "name": "social_export",
       "schema": "",
@@ -23640,168 +23861,6 @@
       },
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.ambassador_application": {
-      "name": "ambassador_application",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "applicant_user_id": {
-          "name": "applicant_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "ambassador_application_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "submitted_at": {
-          "name": "submitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decided_at": {
-          "name": "decided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decided_by_user_id": {
-          "name": "decided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "decline_reason_ciphertext": {
-          "name": "decline_reason_ciphertext",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "ambassador_application_live_unique": {
-          "name": "ambassador_application_live_unique",
-          "columns": [
-            {
-              "expression": "applicant_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"ambassador_application\".\"status\" IN ('submitted','approved')",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ambassador_application_applicant_idx": {
-          "name": "ambassador_application_applicant_idx",
-          "columns": [
-            {
-              "expression": "applicant_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "submitted_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ambassador_application_decider_idx": {
-          "name": "ambassador_application_decider_idx",
-          "columns": [
-            {
-              "expression": "decided_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "ambassador_application_queue_idx": {
-          "name": "ambassador_application_queue_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "submitted_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "ambassador_application_applicant_user_id_user_id_fk": {
-          "name": "ambassador_application_applicant_user_id_user_id_fk",
-          "tableFrom": "ambassador_application",
-          "tableTo": "user",
-          "columnsFrom": [
-            "applicant_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "ambassador_application_decided_by_user_id_user_id_fk": {
-          "name": "ambassador_application_decided_by_user_id_user_id_fk",
-          "tableFrom": "ambassador_application",
-          "tableTo": "user",
-          "columnsFrom": [
-            "decided_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "ambassador_application_decision": {
-          "name": "ambassador_application_decision",
-          "value": "(\"ambassador_application\".\"status\" = 'submitted' AND \"ambassador_application\".\"decided_at\" IS NULL AND \"ambassador_application\".\"decided_by_user_id\" IS NULL AND \"ambassador_application\".\"decline_reason_ciphertext\" IS NULL) OR (\"ambassador_application\".\"status\" = 'approved' AND \"ambassador_application\".\"decided_at\" IS NOT NULL AND \"ambassador_application\".\"decline_reason_ciphertext\" IS NULL) OR (\"ambassador_application\".\"status\" = 'declined' AND \"ambassador_application\".\"decided_at\" IS NOT NULL AND \"ambassador_application\".\"decline_reason_ciphertext\" IS NOT NULL)"
-        }
-      },
       "isRLSEnabled": false
     }
   },
@@ -25155,21 +25214,21 @@
         "dismissed"
       ]
     },
+    "public.survey_delivery_status": {
+      "name": "survey_delivery_status",
+      "schema": "public",
+      "values": [
+        "queued",
+        "sent",
+        "skipped"
+      ]
+    },
     "public.social_export_status": {
       "name": "social_export_status",
       "schema": "public",
       "values": [
         "pending",
         "posted"
-      ]
-    },
-    "public.ambassador_application_status": {
-      "name": "ambassador_application_status",
-      "schema": "public",
-      "values": [
-        "submitted",
-        "approved",
-        "declined"
       ]
     }
   },

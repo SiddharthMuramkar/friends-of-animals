@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} paise {{count, number} paise} minutes {{count, plural, one {# minute} other {# minutes}}} offers {{count, plural, one {# offer} other {# offers}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} paise {{count, number} paise} minutes {{count, plural, one {# minute} other {# minutes}}} offers {{count, plural, one {# offer} other {# offers}}} clubs {{count, plural, one {# club} other {# clubs}}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} paise {paise} minutes {minutes} offers {offers} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} paise {paise} minutes {minutes} offers {offers} clubs {clubs} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -189,6 +189,16 @@
           "description": "When on, erasing a person who paid FOA keeps their name and contact on their account until 8 years after the payment's financial year ends, so the payment still names who paid. Everything else is erased. When off, the account is deleted and the payment records stay without the payer's name."
         }
       },
+      "clubs": {
+        "enabled": {
+          "label": "Clubs open",
+          "description": "Allows club applications, approval and joining. Keep off until M6 safeguarding is signed off."
+        },
+        "maxPerInstitution": {
+          "label": "Maximum clubs per institution",
+          "description": "Approved and suspended clubs share this cap. Between 1 and 20."
+        }
+      },
       "volunteers": {
         "applicationsOpen": {
           "label": "Volunteer applications open",
@@ -315,9 +325,21 @@
           "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
         },
         "ambassadorApplicationsDays": { "label": "Retention of declined ambassador applications", "description": "Days after decline before deletion, unless legally held. HR-31 remains provisional." },
+        "clubApplicationsDays": {
+          "label": "Anonymise closed club records",
+          "description": "Days after closure, decline or withdrawal before the applicant and reviewer links and decision text are removed."
+        },
+        "clubMembershipsDays": {
+          "label": "Keep former club memberships",
+          "description": "Days after leaving a club before the private membership record is removed; the person's engagement timeline remains until erasure."
+        },
         "communityMembersDays": {
           "label": "Keep former member profiles",
           "description": "Days after departure before the daily retention job clears a former member’s display name and introduction."
+        },
+        "surveyResponsesDays": {
+          "label": "Keep survey invitations and answers",
+          "description": "Days after a survey closes before invitations and linked answers are deleted."
         }
       },
       "artwork": {
@@ -372,6 +394,12 @@
         "maxPaymentOffers": {
           "label": "Maximum payment offers",
           "description": "Number of distinct buyers offered payment before the original is released for relisting."
+        }
+      },
+      "surveys": {
+        "enabled": {
+          "label": "Competition feedback surveys",
+          "description": "Allow competition managers to send feedback surveys after published results, and respondents to answer. Off until FOA approves feedback surveys."
         }
       }
     }

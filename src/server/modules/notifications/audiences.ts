@@ -1,5 +1,10 @@
 import { ambassadorApplicant, ambassadorReviewers, ambassadorDeclineValues } from "../community/ambassadors/messages";
 import {
+  clubNoticeRecipients,
+  clubNoticeValues,
+  CLUB_NOTICE_VARIABLES,
+} from "../clubs/notices";
+import {
   eventNoticeRecipients,
   eventNoticeValues,
   eventReminderRecipients,
@@ -326,6 +331,7 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "privacy_request.erasure_approved":
       // The export and erasure jobs (#115b); no route row names them.
       return null;
+    case "club.decision_recorded":
     case "volunteer.guardian_approval_requested":
     case "volunteer.application_submitted":
     case "volunteer.application_approved":
@@ -336,6 +342,7 @@ function subjectUserOf(delivery: Delivery): string | null {
       // About an application or service (#123/#124): `volunteer_applicant`,
       // `volunteer_guardians` and `community_managers` find who hears.
       return null;
+    case "survey.invitation_due":
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
       return null;
@@ -730,6 +737,10 @@ export const AUDIENCES = {
     }
   },
   ambassador_reviewers: async (db, delivery) => delivery.eventType === "ambassador.application_submitted" ? ambassadorReviewers(db, delivery.payload.applicationId) : [],
+  club_applicant: async (db, delivery) =>
+    delivery.eventType === "club.decision_recorded"
+      ? clubNoticeRecipients(db, delivery.payload.decisionId)
+      : [],
   volunteer_applicant: async (db, delivery) => {
     const work = volunteerWorkOf(delivery);
     if (work) return volunteerWorkAudience(db, work, false);
@@ -767,6 +778,7 @@ export const AUDIENCES = {
    * person it planned, on the consent the message rests on, so the generic
    * resolver grants no recipients.
    */
+  survey_invitation: async () => [],
   campaign_recipient: async () => [],
 } satisfies Record<string, Audience>;
 
@@ -1192,6 +1204,11 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: EVENT_REGISTRATION_VARIABLES,
     load: eventNoticeValues,
   },
+  "club.decision_recorded": {
+    names: CLUB_NOTICE_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      clubNoticeValues(db, payload.decisionId, cipher),
+  },
   "volunteer.guardian_approval_requested": {
     names: APPLICATION_VARIABLES,
     load: (db, { payload }, cipher) =>
@@ -1214,6 +1231,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: DECLINED_VARIABLES,
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
+  },
+  "survey.invitation_due": {
+    names: ["survey.title", "survey.link"],
+    load: async () => ({}),
   },
   "campaign.message_due": {
     names: CAMPAIGN_VARIABLES,

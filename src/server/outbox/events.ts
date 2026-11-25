@@ -884,6 +884,11 @@ export type DomainEvent =
       };
     }
   | {
+      type: "survey.invitation_due";
+      aggregate: { type: "survey_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       /**
        * One recipient's message of a sent campaign (#126) is due. The
        * handler checks the consent it rests on again before it goes.
@@ -969,6 +974,11 @@ export type DomainEvent =
   | AmbassadorApplicationEvent<"ambassador.application_submitted">
   | AmbassadorApplicationEvent<"ambassador.application_approved">
   | AmbassadorApplicationEvent<"ambassador.application_declined">
+  | {
+      type: "club.decision_recorded";
+      aggregate: { type: "club_decision"; id: string };
+      payload: { decisionId: string };
+    }
   | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
@@ -1312,6 +1322,7 @@ export const EVENT_PAYLOADS = {
     overdue: z.int().min(1),
     assignedToYou: z.int().min(0),
   }),
+  "survey.invitation_due": z.object({ invitationId: z.uuid() }),
   "campaign.message_due": z.object({
     campaignId: z.uuid(),
     recipientId: z.uuid(),
@@ -1326,6 +1337,7 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "club.decision_recorded": z.object({ decisionId: z.uuid() }),
   "volunteer.guardian_approval_requested": VOLUNTEER_APPLICATION,
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
@@ -1610,6 +1622,7 @@ export const SUBSCRIBERS = {
   "privacy_request.erasure_approved": ["privacy.execute_erasure"],
   // The campaigns module plans its own channels on the consent each
   // message rests on, with its route's template (#126).
+  "survey.invitation_due": ["surveys.deliver_invitation"],
   "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
@@ -1622,6 +1635,7 @@ export const SUBSCRIBERS = {
   "institution_registration.competition_cancelled": ["notifications.dispatch"],
   // The applicant, their guardians and the community team are told by
   // route row (#123).
+  "club.decision_recorded": ["notifications.dispatch"],
   "volunteer.guardian_approval_requested": ["notifications.dispatch"],
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
