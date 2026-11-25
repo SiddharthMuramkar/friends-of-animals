@@ -103,6 +103,7 @@
         "donationRecords": "8 years after the end of the financial year of the donation",
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
+        "ambassadorApplications": "365 days after a decline; open and approved applications remain until subject erasure",
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
         "adoptionApplications": "2 years after the application closes. One behind a published success story stays while the story is up",
         "privacyRequests": "While the request is open, then 3 years after it is closed",
@@ -614,6 +615,11 @@
           "consent_event_id": "The adopter's consent to share the story",
           "published_by_user_id": "The adoption coordinator who published the story"
         },
+        "ambassador_application": {
+          "applicant_user_id": "Identifies the member applying to represent FOA",
+          "decline_reason_ciphertext": "The community manager's reason for declining, shared privately with the applicant (encrypted)",
+          "decided_by_user_id": "Identifies the community manager who reviewed the application"
+        },
         "volunteer_application": {
           "applicant_user_id": "Links the application to the person who applied, so they can follow it and FOA can grant them the volunteer role",
           "participant_profile_id": "The participant profile the date of birth came from: a teen's, kept by their guardian, or an adult's own",
@@ -957,6 +963,10 @@
         "breachRecords": {
           "name": "Breach log",
           "rule": "Kept while the breach is open, then deleted, with its timeline and notices, 5 years after it is closed."
+        },
+        "ambassadorApplications": {
+          "name": "Declined ambassador applications",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after decline, unless legally held. Open and approved applications remain until subject erasure."
         },
         "volunteerApplications": {
           "name": "Closed volunteer applications",

@@ -9,6 +9,12 @@
 // Loads under plain Node (the seed script): no "server-only", no "@/"
 // imports.
 
+import {
+  DEFAULT_MEMBERSHIP_DAYS,
+  ADULT_AGE_FLOOR,
+  DEFAULT_QUALIFICATION,
+  qualificationSetting,
+} from "../community/ambassadors/domain/eligibility";
 import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
   DEFAULT_APPROVAL_EXPIRY_DAYS,
@@ -93,6 +99,23 @@ export const SETTINGS = {
     max: 5000,
     unit: "texts",
   }),
+  // Provisional FOA product thresholds (HR-57); no minor application flow.
+  "ambassadors.minMembershipDays": integerSetting({
+    default: DEFAULT_MEMBERSHIP_DAYS,
+    min: 0,
+    max: 3650,
+    unit: "days",
+  }),
+  "ambassadors.minAgeYears": integerSetting({
+    default: ADULT_AGE_FLOOR,
+    min: ADULT_AGE_FLOOR,
+    max: 100,
+    unit: "years",
+  }),
+  "ambassadors.qualifyingMilestones": {
+    ...textSetting({ default: DEFAULT_QUALIFICATION, maxLength: 80 }),
+    schema: qualificationSetting,
+  },
   // Organisation facts. Off until FOA holds 80G (HR-16) and is registered
   // under FCRA; they gate tax receipts and foreign donations (M5).
   "org.has80G": booleanSetting({ default: false }),
@@ -353,6 +376,9 @@ export const SETTINGS = {
   }),
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.ambassadorApplicationsDays": retentionDays(
+    RETENTION_PERIODS.ambassadorApplications
   ),
   "retention.clubMembershipsDays": retentionDays(
     RETENTION_PERIODS.clubMemberships

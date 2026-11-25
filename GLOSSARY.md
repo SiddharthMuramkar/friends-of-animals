@@ -1059,6 +1059,13 @@ consenting adult participant or the verified Guardian who currently consents
 for a child. Each selected opportunity is recorded as interest, not enrolment
 or an earned Engagement milestone.
 
+**Ambassador application**:
+A private request by an eligible adult Community member to represent FOA. It
+is Submitted, then Approved or Declined by a Community manager (a decline
+requires a reason the person is told). The settings define eligibility; the
+same checks apply again when approving. An approval earns the Ambassador
+Engagement milestone once, not a new permission-bearing role.
+
 ## Events and campaigns
 
 **Event**:

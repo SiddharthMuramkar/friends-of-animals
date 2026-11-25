@@ -67,6 +67,7 @@ import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
 import events from "../../messages/en-IN/events.json";
 import clubs from "../../messages/en-IN/clubs.json";
+import ambassadors from "../../messages/en-IN/ambassadors.json";
 import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
@@ -175,6 +176,7 @@ export const NAMESPACES = [
   "adoption",
   "adoptionApplications",
   "community",
+  "ambassadors",
   "clubs",
   "events",
   "donate",
@@ -290,6 +292,7 @@ export const messages = {
   ...adoption,
   ...adoptionApplications,
   ...community,
+  ...ambassadors,
   ...clubs,
   ...events,
   ...donate,

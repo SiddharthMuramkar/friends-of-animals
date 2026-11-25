@@ -51,6 +51,7 @@ import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
 import { seedEvents } from "./events";
 import { seedClubs } from "./clubs";
+import { seedAmbassadors } from "./ambassadors";
 import { seedCommunity } from "./community";
 import { seedCertificates } from "./certificates";
 import { seedReports } from "./reports";
@@ -155,6 +156,7 @@ const seeders: readonly Seeder[] = [
   // linked teen (#123).
   seedVolunteers,
   seedVolunteerWork,
+  seedAmbassadors,
   // After the adoption and consent seeds: applications on the seeded
   // animals, on version 1 of the adopter's consents (#130).
   seedAdoptionApplications,

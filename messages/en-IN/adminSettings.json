@@ -56,6 +56,20 @@
       "too_long": "Use {maxLength} characters or fewer."
     },
     "settings": {
+      "ambassadors": {
+        "minMembershipDays": {
+          "label": "Ambassador minimum membership duration",
+          "description": "Whole days since joining the FOA community, while currently an active member. Provisional HR-57 default."
+        },
+        "minAgeYears": {
+          "label": "Ambassador minimum age",
+          "description": "Completed years on the Indian calendar. Ambassador applications are adult-only; this cannot be set below 18."
+        },
+        "qualifyingMilestones": {
+          "label": "Ambassador qualifying milestones",
+          "description": "A comma-separated list, with no spaces, of one or more earned milestones; any one counts. Allowed values: participant, school_winner, foa_finalist, volunteer."
+        }
+      },
       "auth": {
         "staffSessionHours": {
           "label": "Staff session length",
@@ -318,6 +332,10 @@
         "privacyRequestsDays": {
           "label": "Keep closed privacy requests",
           "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
+        },
+        "ambassadorApplicationsDays": {
+          "label": "Retention of declined ambassador applications",
+          "description": "Days after decline before deletion, unless legally held. HR-31 remains provisional."
         },
         "clubApplicationsDays": {
           "label": "Anonymise closed club records",

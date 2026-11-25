@@ -36,6 +36,7 @@ import {
   surveyInvitation,
   competitionInvitation,
   communityMember,
+  ambassadorApplication,
   club,
   clubDecision,
   clubMembership,
@@ -591,6 +592,12 @@ export async function gatherErasure(
       (await n(
         db
           .select({ n: count() })
+          .from(ambassadorApplication)
+          .where(within(ambassadorApplication.applicantUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
           .from(clubMembership)
           .where(within(clubMembership.userId, users))
       )) +
@@ -865,6 +872,13 @@ async function eraseRecords(
   );
   // A paid account or profile can remain for a statutory floor, but its
   // community history is not a financial record. Erase both subject keys.
+  await tx
+    .delete(ambassadorApplication)
+    .where(within(ambassadorApplication.applicantUserId, users));
+  await tx
+    .update(ambassadorApplication)
+    .set({ decidedByUserId: null })
+    .where(within(ambassadorApplication.decidedByUserId, users));
   await tx
     .delete(timelineEntry)
     .where(

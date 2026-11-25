@@ -81,3 +81,5 @@ export * from "./surveys";
 
 export * from "./social-export";
 export * from "./competition-invitations";
+
+export * from "./ambassadors";
