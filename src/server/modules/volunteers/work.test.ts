@@ -149,9 +149,17 @@ it("issues an adult service certificate for approved minutes only without creati
   await expect(
     manager.getCertificateDownloadUrl({ certificateId: cert.certificateId })
   ).rejects.toMatchObject({ code: "forbidden" });
+  const pdf = h.pdf.rendered.find((job) => job.data.number === cert.number);
+  expect(pdf?.data).toMatchObject({
+    type: "volunteer_service",
+    approvedMinutes: 95,
+    competition: null,
+  });
+  const verifyPath = new URL(pdf!.data.verifyUrl).pathname;
+  expect(verifyPath).toBe(`/verify/${cert.number}`);
   const verification = await h
     .as(h.visitor())
-    .verifyCertificate({ number: cert.number });
+    .verifyCertificate({ number: verifyPath.split("/").at(-1)! });
   expect(verification).toMatchObject({
     outcome: "valid",
     type: "volunteer_service",

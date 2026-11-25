@@ -25,7 +25,7 @@
     "loading": "Checking certificate…",
     "award": "Recognition",
     "date": "Issued on",
-    "approvedService": "Approved service: {hours} hours {minutes} minutes",
+    "approvedService": "Approved service: {hours, plural, one {# hour} other {# hours}} {minutes, plural, one {# minute} other {# minutes}}",
     "recipient": "Recipient",
     "download": "Download PDF",
     "prepareShare": "Prepare share image",

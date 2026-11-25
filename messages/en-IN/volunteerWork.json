@@ -14,7 +14,7 @@
     "mineIntro": "See your assignments, update their progress and log completed service.",
     "hoursIntro": "Log service only for a task you have been assigned. Only approved hours count towards recognition.",
     "certificateIntro": "Request a numbered certificate for your approved service. Each certificate records the total at issue; older certificates remain valid as your total grows.",
-    "approvedTotal": "Approved service: {hours} hours {minutes} minutes",
+    "approvedTotal": "Approved service: {hours, plural, one {# hour} other {# hours}} {minutes, plural, one {# minute} other {# minutes}}",
     "duration": "{hours} h {minutes} min",
     "none": "Nothing to show yet.",
     "noAssignees": "No active assignees.",
