@@ -28,6 +28,7 @@ const FIELD_OF: Record<string, DonateField> = {
   donorType: "donorType",
   name: "name",
   email: "email",
+  pan: "pan",
   organisationName: "organisationName",
   wallName: "wallName",
 };
@@ -78,7 +79,11 @@ export async function startDonationAction(
 
   let result: StartDonationResult;
   try {
-    result = await as(actor).startDonation(parsed.input);
+    const pan = formData.get("pan");
+    result = await as(actor).startDonation({
+      ...parsed.input,
+      ...(typeof pan === "string" ? { pan } : {}),
+    });
   } catch (error) {
     console.error(`startDonation failed: ${errorSummaryForLogs(error)}`);
     return view({ alert: t("alerts.failed") });

@@ -461,10 +461,14 @@
           "name_ciphertext": "The donor's name, or an organisation's contact person, printed on the receipt",
           "email_ciphertext": "Where the donor's receipt link and messages about the donation go",
           "email_hash": "Finds the donor's receipt when they ask for a new link with their email, without storing it readably",
-          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that"
+          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that",
+          "pan_ciphertext": "The donor’s PAN, collected while 80G is enabled and encrypted at rest"
         },
         "donation": {
-          "wall_name": "The name the donor chose to appear under on the public donor wall"
+          "wall_name": "The name the donor chose to appear under on the public donor wall",
+          "offline_reference": "The cheque, bank transfer or cash receipt reference for the donation",
+          "offline_proof_file_id": "Links the donation to its private proof of payment, readable only by finance",
+          "offline_recorded_by": "Names the finance account that recorded the offline donation"
         },
         "receipt": {
           "snapshot": "The receipt as issued, with the donor's name, frozen so it never changes"

@@ -61,7 +61,16 @@ export async function ReceiptSheet({
           : null}
         {row(t("amount"), formatPaise(BigInt(snapshot.amount.minor)))}
         {row(t("inWords"), snapshot.amount.inWords)}
-        {row(t("mode"), t("online"))}
+        {row(t("mode"), t(snapshot.payment.mode))}
+        {snapshot.payment.mode !== "online"
+          ? row(
+              t("receivedOn"),
+              format.dateTime(
+                new Date(`${snapshot.payment.receivedOn}T12:00:00+05:30`),
+                { dateStyle: "long", timeZone: "Asia/Kolkata" }
+              )
+            )
+          : null}
         {row(t("reference"), snapshot.payment.reference)}
       </dl>
       <h2 className="mt-6 text-h4">{t("issuer")}</h2>
@@ -73,7 +82,19 @@ export async function ReceiptSheet({
         {row(t("address"), fact(snapshot.org.address))}
       </dl>
       <p className="mt-6 text-ink">{t("noGoods")}</p>
-      <p className="mt-2 text-ink-muted">{t("noTax")}</p>
+      {snapshot.taxExemption ? (
+        <section aria-labelledby="tax-title" className="mt-6">
+          <h2 id="tax-title" className="text-h4">
+            {t("taxTitle")}
+          </h2>
+          <dl className="mt-2 divide-y divide-border">
+            {row(t("donorPan"), snapshot.taxExemption.donorPanMasked)}
+          </dl>
+          <p className="mt-2 text-ink">{t("taxWording")}</p>
+        </section>
+      ) : (
+        <p className="mt-2 text-ink-muted">{t("noTax")}</p>
+      )}
     </article>
   );
 }

@@ -140,6 +140,7 @@ export function adminRefundPath(refundId: string): string {
 
 /** Finance's donations (#106): the list and each donation's page. */
 export const ADMIN_DONATIONS = "/admin/donations";
+export const ADMIN_OFFLINE_DONATION = `${ADMIN_DONATIONS}/offline` as const;
 export const ADMIN_RECURRING_DONATIONS = "/admin/donations/recurring";
 export const DASHBOARD_DONATIONS = "/dashboard/donations";
 export const MONTHLY_CHECKOUT_ROUTE = "/donate/checkout/monthly/[id]";

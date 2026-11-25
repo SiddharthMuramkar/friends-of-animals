@@ -155,6 +155,70 @@
         "failed": "Something went wrong and nothing changed. Try again.",
         "cancellation_refund_required": "The competition was cancelled, so this refund must be paid."
       }
+    },
+    "offline": {
+      "title": "Record offline donation",
+      "lead": "Record money already received by cheque, bank transfer or cash. A receipt is numbered and the donation is posted to the ledger.",
+      "back": "Back to donations",
+      "method": "Payment method",
+      "methods": {
+        "cheque": "Cheque",
+        "bank_transfer": "Bank transfer",
+        "cash": "Cash"
+      },
+      "donorType": "Donor type",
+      "types": {
+        "individual": "Person",
+        "corporate": "Company",
+        "csr": "CSR partner"
+      },
+      "reference": "Payment reference",
+      "referenceHint": "Cheque number, transfer reference (UTR), or FOA cash receipt number.",
+      "receivedOn": "Donation date (India)",
+      "amount": "Amount (₹)",
+      "name": "Donor or contact person’s full name",
+      "email": "Donor email",
+      "organisation": "Organisation name",
+      "pan": "Donor PAN",
+      "panHint": "10 characters. Needed while 80G is on. Stored encrypted.",
+      "proof": "Proof of donation",
+      "proofHint": "Upload a PDF or photo (PNG, JPEG or WebP), up to 10 MB. Only finance can open it after the malware scan.",
+      "declarations": "Donor declarations",
+      "adult": "The donor declared they are 18 or over.",
+      "indian": "The donor declared this is their own Indian-source money.",
+      "save": "Record donation",
+      "saving": "Recording…",
+      "openProof": "Open private proof",
+      "proofStatus": "Proof status",
+      "proofUnavailable": "The proof is not available yet or did not pass its scan.",
+      "errors": {
+        "failed": "Something went wrong. Reload the donation list before retrying.",
+        "invalid_input": "Check the information entered and try again.",
+        "proof_already_used": "That proof is already attached to a donation.",
+        "proof_invalid": "Upload a new, valid proof file.",
+        "upload_failed": "The proof could not be uploaded. Select it and try again.",
+        "donations_closed": "Donations are not open for recording yet.",
+        "declaration_required": "Both donor declarations are required.",
+        "type_not_allowed": "Choose a PDF, JPEG, PNG or WebP file.",
+        "too_large": "Choose a file no larger than 10 MB.",
+        "empty": "The proof file is empty.",
+        "reference": "Enter a valid reference for the chosen method.",
+        "receivedOn": "Enter a valid donation date within the past year.",
+        "amountMinor": "Enter a positive amount in rupees.",
+        "name": "Enter the donor’s full name.",
+        "email": "Enter a valid donor email.",
+        "organisationName": "Enter the organisation’s name.",
+        "pan": "Enter a valid 10-character PAN. If the 80G setting changed, reload this form."
+      },
+      "proofStatuses": {
+        "pending_upload": "Upload pending",
+        "uploaded": "Awaiting scan",
+        "scanning": "Scan in progress",
+        "clean": "Scan passed",
+        "quarantined": "Quarantined",
+        "rejected": "Rejected",
+        "deleted": "Deleted"
+      }
     }
   }
 }

@@ -869,6 +869,20 @@
       "when": 1795587620166,
       "tag": "0123_107_recurring_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1795587704675,
+      "tag": "0124_108_pre_offline_donation_proof",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1795587706387,
+      "tag": "0125_108_offline_donations",
+      "breakpoints": true
     }
   ]
 }

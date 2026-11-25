@@ -280,6 +280,8 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "gateway_payment_id",
     "id",
     "origin",
+    "offline_method",
+    "offline_received_on",
     "payment_batch_id",
     "show_on_wall",
     "status",

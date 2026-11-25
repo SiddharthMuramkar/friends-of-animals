@@ -54,6 +54,7 @@ describe("getDonationTerms", () => {
 
     expect(await h.as(h.visitor()).getDonationTerms()).toEqual({
       open: false,
+      has80G: false,
       recurringEnabled: false,
       guestsAllowed: true,
       minAmountMinor: 10_000n,

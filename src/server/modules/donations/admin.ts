@@ -21,6 +21,7 @@ import { authorize } from "../../access/can";
 import {
   donation,
   donor,
+  fileAsset,
   paymentBatch,
   paymentReviewCase,
   receipt,
@@ -53,6 +54,8 @@ import {
 } from "./domain/donation-status";
 import { DONOR_TYPES, type DonorType } from "./domain/donor";
 import { donorContact } from "./donors";
+import type { OfflinePaymentMethod } from "../payments/domain/offline-payment";
+import type { FileStatus } from "../files/domain/file-status";
 
 /** The most donations one list shows. */
 export const DONATION_LIST_LIMIT = 200;
@@ -165,6 +168,12 @@ export type DonationView = DonationListItem & {
     status: PaymentBatchStatus;
     gatewayPaymentId: string | null;
   } | null;
+  offline: {
+    method: OfflinePaymentMethod;
+    reference: string;
+    receivedOn: string;
+    proofStatus: FileStatus;
+  } | null;
   refunds: {
     id: string;
     kind: RefundKind;
@@ -216,6 +225,10 @@ export async function getDonation(
       showOnWall: donation.showOnWall,
       wallName: donation.wallName,
       capturedAt: donation.capturedAt,
+      offlineMethod: donation.offlineMethod,
+      offlineReference: donation.offlineReference,
+      offlineReceivedOn: donation.offlineReceivedOn,
+      proofStatus: fileAsset.status,
       expiresAt: donation.expiresAt,
       donorType: donor.type,
       name: donor.name,
@@ -234,6 +247,7 @@ export async function getDonation(
     .innerJoin(donor, eq(donor.id, donation.donorId))
     .leftJoin(receipt, eq(receipt.donationId, donation.id))
     .leftJoin(paymentBatch, eq(paymentBatch.id, donation.paymentBatchId))
+    .leftJoin(fileAsset, eq(fileAsset.id, donation.offlineProofFileId))
     .where(eq(donation.id, parsed.data.donationId));
   if (!row) return { ok: false, error: "not_found" };
 
@@ -299,6 +313,18 @@ export async function getDonation(
               batchId: row.batchId,
               status: row.batchStatus,
               gatewayPaymentId: row.gatewayPaymentId,
+            }
+          : null,
+      offline:
+        row.offlineMethod &&
+        row.offlineReference &&
+        row.offlineReceivedOn &&
+        row.proofStatus
+          ? {
+              method: row.offlineMethod,
+              reference: row.offlineReference,
+              receivedOn: row.offlineReceivedOn,
+              proofStatus: row.proofStatus,
             }
           : null,
       refunds,

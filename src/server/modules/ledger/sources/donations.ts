@@ -18,7 +18,7 @@ export type DonationFact = {
   method: MoneyMethod;
   donorType: DonationIncome;
   /** The gateway payment it was captured with. */
-  gatewayPaymentId: string;
+  gatewayPaymentId: string | null;
 };
 
 export type ForeignDonationFact = {
@@ -38,18 +38,20 @@ export async function readDonation(
       currency: donation.currency,
       capturedAt: donation.capturedAt,
       gatewayPaymentId: donation.gatewayPaymentId,
+      offlineMethod: donation.offlineMethod,
       donorType: donor.type,
     })
     .from(donation)
     .innerJoin(donor, eq(donor.id, donation.donorId))
     .where(and(eq(donation.id, donationId), isNotNull(donation.capturedAt)));
-  if (!row?.capturedAt || !row.gatewayPaymentId) return undefined;
+  if (!row?.capturedAt || (!row.gatewayPaymentId && !row.offlineMethod))
+    return undefined;
   if (row.currency !== "INR") throw new Error("A donation posts in INR");
   return {
     source: { type: "donation", id: donationId },
     occurredAt: row.capturedAt,
     amountMinor: row.amountMinor,
-    method: "gateway",
+    method: row.offlineMethod ?? "gateway",
     donorType: row.donorType,
     gatewayPaymentId: row.gatewayPaymentId,
   };

@@ -1440,6 +1440,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       ["email_ciphertext", "contact", "retain"],
       ["email_hash", "contact", "retain"],
       ["organisation_name", "identity", "retain"],
+      ["pan_ciphertext", "financial", "retain"],
     ] as const
   ).map(([column, category, onExpiry]) =>
     rowsOf("donor", {
@@ -1453,6 +1454,14 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     retention: DONATION_RECORD,
     onExpiry: "set_null",
   })("wall_name", "identity"),
+  ...(["offline_reference", "offline_proof_file_id"] as const).map((column) =>
+    rowsOf("donation", {
+      subject: { kind: "donor", via: "donor_id" },
+      retention: DONATION_RECORD,
+      onExpiry: "retain",
+    })(column, "financial")
+  ),
+  actorColumn("donation", "offline_recorded_by", DONATION_RECORD),
   rowsOf("receipt", {
     subject: { kind: "donor", via: "donation_id" },
     retention: DONATION_RECORD,

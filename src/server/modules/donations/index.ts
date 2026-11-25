@@ -40,10 +40,19 @@ import {
   type RequestReceiptLinkByEmailInput,
 } from "./receipt-links";
 import { startDonation, type StartDonationInput } from "./start-donation";
+import {
+  getOfflineDonationTerms,
+  recordOfflineDonation,
+  requestOfflineDonationProofUpload,
+  getOfflineDonationProof,
+  type RecordOfflineDonationInput,
+  type RequestOfflineDonationProofUploadInput,
+} from "./offline/record";
 import { recurringUseCases } from "./recurring";
 import { getDonationTerms } from "./terms";
 
 export type * from "./admin";
+export type * from "./offline/record";
 export type * from "./checkout";
 export type * from "./expire";
 export type * from "./outcome";
@@ -75,5 +84,13 @@ export const donationsUseCases = (ctx: UseCaseContext) => ({
   getDonation: (input: GetDonationInput) => getDonation(ctx, input),
   requestDonationRefund: (input: RequestDonationRefundInput) =>
     requestDonationRefund(ctx, input),
+  getOfflineDonationTerms: () => getOfflineDonationTerms(ctx),
+  recordOfflineDonation: (input: RecordOfflineDonationInput) =>
+    recordOfflineDonation(ctx, input),
+  requestOfflineDonationProofUpload: (
+    input: RequestOfflineDonationProofUploadInput
+  ) => requestOfflineDonationProofUpload(ctx, input),
+  getOfflineDonationProof: (input: GetDonationInput) =>
+    getOfflineDonationProof(ctx, input),
   expirePendingDonations: () => expirePendingDonations(ctx),
 });

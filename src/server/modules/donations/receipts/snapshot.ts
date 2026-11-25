@@ -13,9 +13,10 @@
 
 import type { OrgFacts } from "../../cms/domain/org-facts";
 import { amountInWords } from "../domain/amount-in-words";
+import type { OfflinePaymentMethod } from "../../payments/domain/offline-payment";
 import type { DonorType } from "../domain/donor";
 
-export const RECEIPT_TEMPLATE_VERSION = 1;
+export const RECEIPT_TEMPLATE_VERSION = 2;
 
 /** A fact as printed: its value, or null while FOA hadn't confirmed it. */
 type PrintedFact = string | null;
@@ -32,7 +33,7 @@ export type ReceiptOrgFacts = {
 };
 
 export type ReceiptSnapshot = {
-  templateVersion: typeof RECEIPT_TEMPLATE_VERSION;
+  templateVersion: 1 | typeof RECEIPT_TEMPLATE_VERSION;
   number: string;
   /** The financial-year token, e.g. "2627". */
   fy: string;
@@ -52,9 +53,11 @@ export type ReceiptSnapshot = {
     currency: "INR";
     inWords: string;
   };
-  payment: { mode: "online"; reference: string };
+  payment:
+    | { mode: "online"; reference: string }
+    | { mode: OfflinePaymentMethod; reference: string; receivedOn: string };
   /** The 80G block; null while FOA has no 80G (HR-16). */
-  taxExemption: null;
+  taxExemption: { scheme: "80G"; donorPanMasked: string } | null;
   /** Prints "No goods or services were provided in return" (HR-47). */
   noGoodsOrServices: true;
 };
@@ -86,7 +89,8 @@ export function buildReceiptSnapshot(input: {
   org: ReceiptOrgFacts;
   donor: ReceiptSnapshot["donor"];
   amountMinor: bigint;
-  gatewayPaymentId: string;
+  payment: ReceiptSnapshot["payment"];
+  taxExemption: ReceiptSnapshot["taxExemption"];
 }): ReceiptSnapshot {
   return {
     templateVersion: RECEIPT_TEMPLATE_VERSION,
@@ -103,8 +107,8 @@ export function buildReceiptSnapshot(input: {
         currency: "INR",
       }),
     },
-    payment: { mode: "online", reference: input.gatewayPaymentId },
-    taxExemption: null,
+    payment: input.payment,
+    taxExemption: input.taxExemption,
     noGoodsOrServices: true,
   };
 }

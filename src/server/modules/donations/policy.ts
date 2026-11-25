@@ -13,6 +13,7 @@ import {
   role,
   signedIn,
   signedOut,
+  stepUp,
   system,
   type Policy,
 } from "../../access/domain/policy";
@@ -37,6 +38,7 @@ export const DONATIONS_POLICY = {
   // Finance's list and detail. Names and emails of donors are personal
   // data: finance only, and super admin is no wildcard.
   "donation.read": role("finance"),
+  "donation.offline.record": stepUp(role("finance")),
   // Asking for a donation's money back. Finance decides it as any refund
   // (refunds.decide), and nobody decides their own request.
   "donation.refund.request": role("finance", "staff_admin", "super_admin"),
