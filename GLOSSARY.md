@@ -429,8 +429,9 @@ dispatched or failed, and a failed delivery stays visible to staff.
 _Avoid_: Job, task, message
 
 **Derivative**:
-A copy the platform makes of an uploaded picture, such as a thumbnail or a
-display copy: upright, resized and stripped of location and camera details.
+A copy the platform makes of an uploaded picture or video, such as a
+thumbnail, a display copy, or a video's playable copy and its poster:
+upright, resized and stripped of location and camera details.
 Whoever may see the original may see its derivatives, once its scan passes.
 _Avoid_: Rendition, variant, thumbnail (one kind of derivative)
 
@@ -588,10 +589,10 @@ The work a participant submits for a competition registration; a registration
 has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
-The reference assigned to an entry when its first upload is confirmed, such as `NEIGH27-E-7K3QZ9`.
+The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
 
 **Live file**
-The entry’s current image after it passes its safety and processing checks.
+The entry’s current work (an image, a video, or an essay typed or as a PDF) after it passes its safety and processing checks. A typed essay has none to pass and is live as soon as it is saved.
 
 **Pending replacement**
 A new upload for a submitted entry. The live file stays in place until the new upload passes its checks.

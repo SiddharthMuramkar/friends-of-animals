@@ -23,6 +23,7 @@ import {
   type EntryRow,
 } from "../../db/schema";
 import { monotonicUuidv7 } from "../../ids";
+import { mediaJobFor } from "../files/domain/media-work";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import { outcomesOf } from "./domain/file-outcome";
@@ -97,6 +98,7 @@ const AUDIT_ACTION: Record<EntryTrigger, string> = {
   school_shortlisted: "entry.school_shortlisted",
   sent_to_foa: "entry.submitted_to_foa",
   not_shortlisted: "entry.not_shortlisted",
+  essay_typed: "entry.submitted",
 };
 
 /** Records a status change while the entry is locked or newly inserted. */
@@ -244,6 +246,8 @@ export async function settleEntryFile(
   const [state] = await tx
     .select({
       status: fileAsset.status,
+      purpose: fileAsset.purpose,
+      contentType: fileAsset.contentType,
       processing: fileProcessing.status,
       ownerKind: participantProfile.ownerKind,
     })
@@ -259,7 +263,8 @@ export async function settleEntryFile(
 
   const audit = { clock, actor: WORKER };
   let current = locked;
-  for (const outcome of outcomesOf(state)) {
+  const hasMediaJob = mediaJobFor(state) !== null;
+  for (const outcome of outcomesOf({ ...state, hasMediaJob })) {
     const decision = decideFileOutcome(
       snapshotOf(current),
       entryFileId,

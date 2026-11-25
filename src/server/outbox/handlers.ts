@@ -21,6 +21,7 @@ import { deliverConsentLink } from "../modules/consent-links/delivery";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { uploadKeyFor } from "../modules/files/domain/storage-key";
 import { processImageAsset } from "../modules/files/process-image";
+import { processVideoAsset } from "../modules/files/process-video";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
 import { publishPostImage } from "../modules/cms/posts/images";
@@ -139,6 +140,7 @@ export const HANDLERS: Handlers = {
     deliverConsentLink(deps, payload),
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
+  "files.process_video": (deps, delivery) => processVideoAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
   "institutions.send_coordinator_invitation": (deps, { payload }) =>

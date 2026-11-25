@@ -29,12 +29,16 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   ["rejected", "not_shortlisted"],
   ["failed", "not_shortlisted"],
   ["submitted", "not_shortlisted"],
+  // A typed essay (#86).
+  [null, "submitted"],
 ];
 
 const ALLOWED_FILE_MOVES: ReadonlyArray<
   [EntryFileStatus | null, EntryFileStatus]
 > = [
   [null, "pending"],
+  // A typed essay (#86).
+  [null, "live"],
   ["pending", "processing"],
   ["pending", "rejected"],
   ["processing", "live"],

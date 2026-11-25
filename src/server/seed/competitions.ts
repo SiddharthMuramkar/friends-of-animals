@@ -92,7 +92,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Open for submissions, with registration already closed, for the entries
- * seed (#85): Asha's processing and rejected examples are entered here.
+ * seed (#85): Asha's processing and rejected examples are entered here,
+ * and Ravi's video and typed essay (#86).
  */
 export const SEED_ENTRY_COMPETITIONS = [
   {
@@ -101,7 +102,8 @@ export const SEED_ENTRY_COMPETITIONS = [
     slug: "life-on-the-rooftops",
     name: "Life on the Rooftops",
     theme:
-      "Draw an animal you see from your rooftop and what makes that space safe for it.",
+      "Draw or film an animal you see from your rooftop and what makes that space safe for it.",
+    disciplines: ["drawing", "videography"],
   },
   {
     id: "01938a00-0000-7000-8000-000000008502",
@@ -109,7 +111,8 @@ export const SEED_ENTRY_COMPETITIONS = [
     slug: "birds-in-our-gardens",
     name: "Birds in Our Gardens",
     theme:
-      "Draw a bird that visits your neighbourhood and the plants it depends on.",
+      "Draw or write about a bird that visits your neighbourhood and the plants it depends on.",
+    disciplines: ["drawing", "essay"],
   },
 ] as const;
 
@@ -176,7 +179,7 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           ...COMMON,
           ...fields,
           participation: "individuals",
-          disciplines: ["drawing"],
+          disciplines: [...fields.disciplines],
           ageGroups: [ADULT_AGE_GROUP],
           ageCutoffDate: "2027-01-01",
           keyDates: {

@@ -1,10 +1,14 @@
-import { and, eq, gt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, or } from "drizzle-orm";
 
 import type { AppDb } from "../../db/app-db";
 import { entryUploadGrant, fileAsset } from "../../db/schema";
 import { emit } from "../../outbox/emit";
 import type { Clock } from "../../ports/clock";
 import type { ObjectStorage } from "../../ports/storage";
+import {
+  ENTRY_FILE_PURPOSES,
+  type EntryFilePurpose,
+} from "../files/domain/purposes";
 import {
   quarantineKeyFor,
   storageKeyFor,
@@ -124,8 +128,11 @@ export async function pendingUploadFileId(
   return pending?.id;
 }
 
-/** The file lock serializes preparation, acceptance and expiry. */
-export async function lockEntryImage(
+/**
+ * An entry's upload (a picture, a video or an essay's PDF), locked: the
+ * file lock serializes preparation, acceptance and expiry.
+ */
+export async function lockEntryUpload(
   tx: AppDb,
   fileId: string,
   ownerId?: string
@@ -136,7 +143,7 @@ export async function lockEntryImage(
     .where(
       and(
         eq(fileAsset.id, fileId),
-        eq(fileAsset.purpose, "entry_image"),
+        inArray(fileAsset.purpose, [...ENTRY_FILE_PURPOSES]),
         ownerId === undefined ? undefined : eq(fileAsset.ownerUserId, ownerId)
       )
     )
@@ -178,7 +185,7 @@ export async function expireUploadGrant(
   { fileId }: { fileId: string }
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    const upload = await lockEntryImage(tx, fileId);
+    const upload = await lockEntryUpload(tx, fileId);
     if (!upload?.grant || upload.grant.expiresAt > clock.now()) return;
     const { file, grant } = upload;
     if (prefix === null) {
@@ -186,7 +193,10 @@ export async function expireUploadGrant(
     }
     const keyFields = { prefix, fileId: file.id };
     const stagedKey = uploadKeyFor(keyFields);
-    const originalKey = storageKeyFor({ ...keyFields, purpose: "entry_image" });
+    const originalKey = storageKeyFor({
+      ...keyFields,
+      purpose: file.purpose as EntryFilePurpose,
+    });
     // A scan can already have moved an accepted file by the time its grant expires.
     const quarantinedInScope =
       file.uploadedAt !== null &&
