@@ -11,19 +11,21 @@ import {
 import { revalidatePath } from "next/cache";
 import { errorSummaryForLogs } from "@/server/errors";
 
-export type StartState = { error?: string };
+export type StartState = { error?: string; panError?: string };
 export async function startMonthlyAction(
   _state: StartState,
   form: FormData
 ): Promise<StartState> {
   const t = await getTranslations("donorDashboard.errors");
   const amount = form.get("amount");
+  const pan = form.get("pan");
   if (typeof amount !== "string" || !/^\d{1,6}$/.test(amount))
     return { error: t("invalid_input") };
   let result;
   try {
     result = await as(await currentActor()).startRecurringDonation({
       amountMinor: BigInt(amount) * 100n,
+      pan: typeof pan === "string" ? pan : undefined,
       showOnWall: form.has("wall"),
       declaredAdult: form.has("adult"),
       declaredIndianSource: form.has("indian"),
@@ -32,7 +34,11 @@ export async function startMonthlyAction(
     console.error("Start monthly donation:", errorSummaryForLogs(error));
     return { error: t("generic") };
   }
-  if (!result.ok) return { error: t(result.error) };
+  if (!result.ok) {
+    if (result.error === "invalid_input" && result.fields.includes("pan"))
+      return { panError: t("pan") };
+    return { error: t(result.error) };
+  }
   redirect(monthlyCheckoutPath(result.id));
 }
 

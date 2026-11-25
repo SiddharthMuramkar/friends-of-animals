@@ -1,19 +1,33 @@
 "use client";
-import { useActionState } from "react";
-import { SubmitButton } from "@/components/form";
+import { useActionState, useEffect, useRef } from "react";
+import { SubmitButton, TextField } from "@/components/form";
 import { startMonthlyAction } from "../_lib/actions";
 type Labels = {
   title: string;
   amount: string;
   amountHelp: string;
+  pan: string;
+  panHelp: string;
   adult: string;
   indian: string;
   wall: string;
   submit: string;
   submitting: string;
 };
-export function StartForm({ labels }: { labels: Labels }) {
+export function StartForm({
+  labels,
+  has80G,
+}: {
+  labels: Labels;
+  has80G: boolean;
+}) {
   const [state, action] = useActionState(startMonthlyAction, {});
+  const panRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (state.panError) panRef.current?.focus();
+    else if (state.error) errorRef.current?.focus();
+  }, [state]);
   return (
     <form
       action={action}
@@ -38,6 +52,23 @@ export function StartForm({ labels }: { labels: Labels }) {
         aria-describedby="monthly-amount-hint"
         className="w-full rounded-xl border-2 border-border-strong bg-surface px-4 py-3 text-ink"
       />
+      {has80G || state.panError ? (
+        <TextField
+          id="monthly-pan"
+          ref={panRef}
+          name="pan"
+          label={labels.pan}
+          hint={labels.panHelp}
+          required
+          minLength={10}
+          maxLength={10}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          error={state.panError}
+        />
+      ) : null}
       <label htmlFor="monthly-adult" className="flex items-start gap-3">
         <input
           id="monthly-adult"
@@ -68,7 +99,12 @@ export function StartForm({ labels }: { labels: Labels }) {
         {labels.wall}
       </label>
       {state.error && (
-        <p role="alert" className="text-ink font-semibold">
+        <p
+          ref={errorRef}
+          tabIndex={-1}
+          role="alert"
+          className="text-ink font-semibold"
+        >
           {state.error}
         </p>
       )}

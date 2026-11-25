@@ -43,14 +43,12 @@ describe("recurring authorisation and access", () => {
     const actor = await h.signIn(await h.seed.member());
     const other = await h.signIn(await h.seed.member());
     const app = createApp({ ...h.deps, payments: gateway });
-    const started = await app
-      .as(actor)
-      .startRecurringDonation({
-        amountMinor: 100_000n,
-        showOnWall: false,
-        declaredAdult: true,
-        declaredIndianSource: true,
-      });
+    const started = await app.as(actor).startRecurringDonation({
+      amountMinor: 100_000n,
+      showOnWall: false,
+      declaredAdult: true,
+      declaredIndianSource: true,
+    });
     if (!started.ok) throw new Error("Not started");
     const id = started.id;
     expect(await app.as(other).payRecurringTestCheckout({ id })).toEqual({

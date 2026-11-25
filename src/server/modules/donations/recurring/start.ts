@@ -13,10 +13,12 @@ import { invalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import { DONOR_PURPOSE, donorEmailHash } from "../donors";
 import { defaultWallName } from "../domain/donor";
+import { normalizePan } from "../domain/pan";
 import { isKnownMinor } from "../minor";
 
 const startInput = z.strictObject({
   amountMinor: z.bigint().positive(),
+  pan: z.string().max(100).optional(),
   showOnWall: z.boolean(),
   declaredAdult: z.boolean(),
   declaredIndianSource: z.boolean(),
@@ -49,6 +51,12 @@ export async function startRecurringDonation(
     return { ok: false, error: "amount_too_small" } as const;
   if (amountMinor > 1_500_000n)
     return { ok: false, error: "amount_too_large" } as const;
+  // Gate before creating anything at the gateway. A mandate uses the donor
+  // facts supplied at its start; every charge issues its own frozen receipt.
+  const has80G = await ctx.settings.get("org.has80G");
+  const pan = has80G ? normalizePan(parsed.data.pan) : null;
+  if (has80G && !pan)
+    return { ok: false, error: "invalid_input", fields: ["pan"] } as const;
   const [account] = await ctx.db
     .select({ name: user.name, email: user.email })
     .from(user)
@@ -96,6 +104,7 @@ export async function startRecurringDonation(
       type: "individual",
       name: ctx.cipher.encrypt(DONOR_PURPOSE.name, account.name),
       email: ctx.cipher.encrypt(DONOR_PURPOSE.email, email),
+      pan: pan ? ctx.cipher.encrypt(DONOR_PURPOSE.pan, pan) : null,
       emailHash: donorEmailHash(ctx.blindIndex, email),
       createdAt: now,
     });

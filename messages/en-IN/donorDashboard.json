@@ -7,6 +7,8 @@
     "closed": "New monthly donations are not available yet.",
     "amount": "Monthly amount (₹)",
     "amountHelp": "Choose an amount from ₹100 to ₹15,000, charged each month for up to 120 months.",
+    "pan": "Donor PAN",
+    "panHelp": "Enter the 10-character PAN for your 80G receipts. This is encrypted and never shown publicly.",
     "adult": "I am 18 or over.",
     "indian": "This is my own money, paid from India.",
     "wall": "Show my first name and last initial on the donor wall.",
@@ -45,7 +47,8 @@
       "amount_too_small": "The monthly amount must be at least ₹100.",
       "amount_too_large": "The monthly amount must not exceed ₹15,000.",
       "email_required": "Add an email address to your account so we can send you receipts.",
-      "invalid_input": "Please check your amount and declarations."
+      "invalid_input": "Please check your amount and declarations.",
+      "pan": "Enter a valid 10-character PAN, for example ABCDE1234F."
     },
     "statuses": {
       "pending_authorisation": "Awaiting authorisation",

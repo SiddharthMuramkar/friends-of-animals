@@ -59,10 +59,13 @@ export default async function Page() {
         )}
         {terms.open && terms.recurringEnabled ? (
           <StartForm
+            has80G={terms.has80G}
             labels={{
               title: t("start"),
               amount: t("amount"),
               amountHelp: t("amountHelp"),
+              pan: t("pan"),
+              panHelp: t("panHelp"),
               adult: t("adult"),
               indian: t("indian"),
               wall: t("wall"),

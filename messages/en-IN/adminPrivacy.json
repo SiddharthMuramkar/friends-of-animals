@@ -476,6 +476,10 @@
         "receipt_link": {
           "created_by_user_id": "Who asked for a receipt link: the donor's account, or finance"
         },
+        "recurring_donation": {
+          "wall_name": "The name the monthly donor chose to appear under on the public donor wall",
+          "user_id": "Links the monthly mandate to its donor's account so they can see and cancel it"
+        },
         "refund": {
           "decided_by": "Who in finance approved or rejected a refund, so FOA can answer for it",
           "decision_note": "Finance's note on approving or rejecting a refund: free text the requester reads",

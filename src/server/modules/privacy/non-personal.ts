@@ -283,6 +283,7 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "offline_method",
     "offline_received_on",
     "payment_batch_id",
+    "recurring_donation_id",
     "show_on_wall",
     "status",
     "updated_at",
@@ -362,6 +363,8 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "updated_at",
   ],
   form_rate_limit: ["count", "form", "scope", "window_start"],
+  gateway_plan: ["gateway", "amount_minor", "gateway_plan_id"],
+  gateway_test_plan: ["id", "amount_minor"],
   gateway_test_order: [
     "amount_minor",
     "created_at",
@@ -386,6 +389,17 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "notes",
     "payment_id",
     "status",
+  ],
+  // The fallback subscription stores only the gateway IDs, timing and the
+  // internal recurring donation ID in notes, never contact details or PAN.
+  gateway_test_subscription: [
+    "id",
+    "plan_id",
+    "status",
+    "current_start",
+    "charge_at",
+    "ended_at",
+    "notes",
   ],
   gateway_webhook_event: [
     "event_id",
@@ -722,6 +736,33 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "token_hash",
   ],
   receipt_sequence: ["fy", "last_seq"],
+  recurring_charge_failure: [
+    "recurring_donation_id",
+    "cycle_key",
+    "notified_at",
+  ],
+  recurring_donation: [
+    "id",
+    "donor_id",
+    "amount_minor",
+    "status",
+    "gateway",
+    "gateway_plan_id",
+    "gateway_subscription_id",
+    "show_on_wall",
+    "next_charge_at",
+    "cancel_requested_at",
+    "cancel_requested_by",
+    "cancelled_at",
+    "cancelled_by",
+    "created_at",
+    "updated_at",
+  ],
+  recurring_refused_charge: [
+    "gateway_payment_id",
+    "recurring_donation_id",
+    "refund_id",
+  ],
   refund: [
     "amount_minor",
     "attempt",
