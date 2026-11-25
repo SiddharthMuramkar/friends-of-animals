@@ -38,6 +38,7 @@
     "log": "Log hours",
     "approve": "Approve hours",
     "reject": "Reject hours",
+    "rejectForm": "Reject hours entry {index}: {volunteer}, {task}, {date}",
     "reason": "Rejection reason (required)",
     "request": "Request certificate",
     "viewCertificates": "View and download certificates",

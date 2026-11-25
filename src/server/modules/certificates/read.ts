@@ -93,7 +93,7 @@ export async function listCertificates(
   }));
 }
 export async function listVolunteerCertificates(ctx: UseCaseContext) {
-  await authorize(ctx, "certificates.retry_volunteer_render");
+  await authorize(ctx, "certificates.list_volunteer");
   return ctx.db
     .select({ ...publicFields, recipientName: certificate.nameSnapshot })
     .from(certificate)

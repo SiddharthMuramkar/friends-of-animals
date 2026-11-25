@@ -52,8 +52,10 @@ export default async function Page({
   return (
     <WorkFrame title={task.title} staff>
       <WorkNotice result={q.result} />
-      <section className={workCard}>
-        <h2 className="text-h2">{t("taskDetails")}</h2>
+      <section className={workCard} aria-labelledby="task-detail-heading">
+        <h2 className="text-h2" id="task-detail-heading">
+          {t("taskDetails")}
+        </h2>
         <p>{t(`states.${task.status}`)}</p>
         <p>{task.description}</p>
         <div className="flex flex-wrap gap-3">

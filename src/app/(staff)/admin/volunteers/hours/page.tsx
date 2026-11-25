@@ -44,7 +44,7 @@ export default async function Page({
           <p>{t("none")}</p>
         ) : (
           <ul className="grid gap-4">
-            {loaded.value.hours.map((entry) => (
+            {loaded.value.hours.map((entry, index) => (
               <li key={entry.id} className={workCard}>
                 <h3 className="text-h3">
                   {entry.volunteerName} · {entry.taskTitle}
@@ -71,7 +71,12 @@ export default async function Page({
                     <form
                       action={decideHours.bind(null, entry.id, "reject")}
                       className="grid gap-3"
-                      aria-label={`${t("reject")} ${entry.taskTitle}`}
+                      aria-label={t("rejectForm", {
+                        index: index + 1,
+                        volunteer: entry.volunteerName,
+                        task: entry.taskTitle,
+                        date: entry.workedOn,
+                      })}
                     >
                       <label
                         htmlFor={`reason-${entry.id}`}

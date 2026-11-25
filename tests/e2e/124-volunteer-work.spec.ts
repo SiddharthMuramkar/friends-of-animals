@@ -69,10 +69,16 @@ test("manager creates, publishes, assigns and tracks a task", async ({
     .getByLabel("Volunteer (required)")
     .selectOption({ label: volunteerName });
   await page.getByRole("button", { name: "Assign volunteer" }).click();
-  await expect(page.getByText(volunteerName, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Remove assignment ${volunteerName}` })
+  ).toBeVisible();
   await check(page, "task detail assigned");
   await page.getByRole("button", { name: "Cancel task" }).click();
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Task details" })
+      .getByText("Cancelled", { exact: true })
+  ).toBeVisible();
 });
 
 test("volunteer logs service and requests an approved-hours certificate through the existing pipeline", async ({
@@ -124,10 +130,12 @@ test("volunteer logs service and requests an approved-hours certificate through 
     expect(response.ok()).toBe(true);
     expect((await response.body()).subarray(0, 5).toString()).toBe("%PDF-");
   }
-  await page
+  const qrPath = await page
     .getByRole("link", { name: /Verify certificate/ })
     .first()
-    .click();
+    .getAttribute("href");
+  if (!qrPath) throw Error("Certificate QR path missing");
+  await page.goto(qrPath);
   await expect(
     page.getByRole("heading", { name: "Valid certificate" })
   ).toBeVisible();
