@@ -7,12 +7,12 @@ import { SEED_SCORING_COMPETITION } from "../../src/server/seed/competitions";
 import { SEED_SCORING } from "../../src/server/seed/scoring";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { newDevice, signInByCode } from "./support/sign-in";
-import { test } from "./support/seed-account";
+import { test } from "./support/seed-judging";
 
 const base = "/admin/judging/rounds";
 const code = SEED_SCORING.entryCodes[2];
 
-test("links rounds and admits only eligible locked finalists", async ({
+test("links rounds, refuses admission before the source lock, and scores and locks the source", async ({
   page,
   request,
   browser,
@@ -142,47 +142,90 @@ test("links rounds and admits only eligible locked finalists", async ({
       page.getByText("Round locked.", { exact: true })
     ).toBeVisible();
     await expectAccessible(page, "locked source");
+    // Locking the original source also updates the already-linked target.
     await page.goto(`${targetPath}/pool`);
     await expect(
       page.getByText("0 advancing outcomes in the locked source round.")
     ).toBeVisible();
     await expectAccessible(page, "untagged source");
-    await page.goto(`${sourcePath}/rankings`);
-    const form = page.getByRole("form", { name: `Recognition for ${code}` });
-    await form.getByLabel("Outcome and award").selectOption("finalist");
-    await form.getByRole("button", { name: "Save recognition" }).click();
-    await expect(
-      page.getByText("Outcome saved.", { exact: true })
-    ).toBeVisible();
-    await page.goto(`${targetPath}/pool`);
-    await expect(
-      page.getByText("1 advancing outcome in the locked source round.")
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Admit eligible entries" }).click();
-    await expect(page.getByText("1 not physically ready")).toBeVisible();
-    await expectAccessible(page, "physical admission refused");
-    await page.goto(targetPath);
-    await page.getByLabel("Judge the physical artwork").uncheck();
-    await page.getByRole("button", { name: "Save settings" }).click();
-    await expect(page.getByText("Round settings saved.")).toBeVisible();
-    await page.goto(`${targetPath}/pool`);
-    await page.getByRole("button", { name: "Admit eligible entries" }).click();
-    await expect(page.getByText("1 admitted; 0 refused.")).toBeVisible();
-    await expect(page.getByText(code, { exact: true })).toBeVisible();
-    for (const other of SEED_SCORING.entryCodes.slice(0, 2))
-      await expect(page.getByText(other, { exact: true })).toHaveCount(0);
-    await expectAccessible(page, "advanced pool");
-    await expectAccessibleInDark(page, "advanced pool");
-    await page.goto(targetPath);
-    await page.getByRole("button", { name: "Open round", exact: true }).click();
-    await expect(page.getByText("Round opened.")).toBeVisible();
-    await page.goto(`${targetPath}/rankings`);
-    await expect(
-      page.getByText("No entries have complete eligible scores yet.")
-    ).toBeVisible();
-    await expect(page.getByText("80.00 / 100 · 1 sheet")).toHaveCount(0);
-    await expectAccessible(page, "independent downstream ranking");
   } finally {
     await judge.context().close();
   }
+});
+
+test("admits only eligible locked finalists, with an independent downstream ranking", async ({
+  page,
+  request,
+  seedAccount,
+  judgingSetup,
+}, testInfo) => {
+  const competitionId = SEED_SCORING_COMPETITION.id;
+  const secret = generateTotpSecret();
+  const manager = await seedAccount({
+    name: "Chained round manager",
+    grants: [
+      {
+        role: "competition_manager",
+        scope: { type: "competition", id: competitionId },
+      },
+    ],
+    totpSecret: secret,
+  });
+  const suffix = `${testInfo.project.name} ${Date.now()}`;
+  const { sourceRoundId, targetRoundId } = await judgingSetup.lockedChain({
+    manager,
+    competitionId,
+    sourceName: `Locked state ${suffix}`,
+    targetName: `Downstream national ${suffix}`,
+    entryCode: code,
+  });
+  const sourcePath = `${base}/${sourceRoundId}`;
+  const targetPath = `${base}/${targetRoundId}`;
+  await signInByCode(page, request, manager);
+  await page.goto(`${targetPath}/pool`);
+  await expect(page).toHaveURL(/\/auth\/second-factor\?next=/);
+  await expectAccessible(page, "manager factor before advancement");
+  await page
+    .getByRole("textbox", { name: "6-digit code" })
+    .fill(totpCode(secret, new Date()));
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(new RegExp(`${targetPath}/pool$`));
+  await expect(
+    page.getByText("0 advancing outcomes in the locked source round.")
+  ).toBeVisible();
+  await expectAccessible(page, "untagged fixture source");
+  await page.goto(`${sourcePath}/rankings`);
+  await expect(page.getByText("80.00 / 100 · 1 sheet")).toBeVisible();
+  const form = page.getByRole("form", { name: `Recognition for ${code}` });
+  await form.getByLabel("Outcome and award").selectOption("finalist");
+  await form.getByRole("button", { name: "Save recognition" }).click();
+  await expect(page.getByText("Outcome saved.", { exact: true })).toBeVisible();
+  await page.goto(`${targetPath}/pool`);
+  await expect(
+    page.getByText("1 advancing outcome in the locked source round.")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Admit eligible entries" }).click();
+  await expect(page.getByText("1 not physically ready")).toBeVisible();
+  await expectAccessible(page, "physical admission refused");
+  await page.goto(targetPath);
+  await page.getByLabel("Judge the physical artwork").uncheck();
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Round settings saved.")).toBeVisible();
+  await page.goto(`${targetPath}/pool`);
+  await page.getByRole("button", { name: "Admit eligible entries" }).click();
+  await expect(page.getByText("1 admitted; 0 refused.")).toBeVisible();
+  await expect(page.getByText(code, { exact: true })).toBeVisible();
+  for (const other of SEED_SCORING.entryCodes.slice(0, 2))
+    await expect(page.getByText(other, { exact: true })).toHaveCount(0);
+  await expectAccessible(page, "advanced pool");
+  await expectAccessibleInDark(page, "advanced pool");
+  await page.goto(targetPath);
+  await page.getByRole("button", { name: "Open round", exact: true }).click();
+  await expect(page.getByText("Round opened.")).toBeVisible();
+  await page.goto(`${targetPath}/rankings`);
+  await expect(
+    page.getByText("No entries have complete eligible scores yet.")
+  ).toBeVisible();
+  await expect(page.getByText("80.00 / 100 · 1 sheet")).toHaveCount(0);
+  await expectAccessible(page, "independent downstream ranking");
 });
