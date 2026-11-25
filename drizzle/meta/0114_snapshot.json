@@ -1,6 +1,6 @@
 {
-  "id": "641897de-d3ff-4eb2-b41b-41f72005f4b9",
-  "prevId": "84e77341-7243-48b9-80ba-ceac60349761",
+  "id": "ee074137-6f64-431f-95a9-948ea757421c",
+  "prevId": "02897cf5-1142-465a-a627-e55ba6508fec",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5207,7 +5207,7 @@
         },
         "competition_cancellation_complete": {
           "name": "competition_cancellation_complete",
-          "value": "(\"competition\".\"status\"::text = 'cancelled') = (\"competition\".\"cancelled_at\" IS NOT NULL)\n        AND (\"competition\".\"cancelled_at\" IS NULL) = (\"competition\".\"cancel_reason\" IS NULL)"
+          "value": "(\"competition\".\"status\" NOT IN ('draft', 'published', 'registration_open', 'registration_closed', 'school_judging')) = (\"competition\".\"cancelled_at\" IS NOT NULL)\n        AND (\"competition\".\"cancelled_at\" IS NULL) = (\"competition\".\"cancel_reason\" IS NULL)"
         },
         "competition_cancel_reason_present": {
           "name": "competition_cancel_reason_present",
@@ -15933,24 +15933,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "closed_by_user_id": {
-          "name": "closed_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "close_reason": {
-          "name": "close_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -16000,21 +15982,6 @@
           "columns": [
             {
               "expression": "finalised_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_closed_by_user_id_idx": {
-          "name": "school_round_closed_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "closed_by_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -16078,19 +16045,6 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        },
-        "school_round_closed_by_user_id_user_id_fk": {
-          "name": "school_round_closed_by_user_id_user_id_fk",
-          "tableFrom": "school_round",
-          "tableTo": "user",
-          "columnsFrom": [
-            "closed_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -16104,104 +16058,7 @@
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "school_round_close_reason_present": {
-          "name": "school_round_close_reason_present",
-          "value": "\"school_round\".\"close_reason\" IS NULL OR length(trim(\"school_round\".\"close_reason\")) > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.school_round_family_notice": {
-      "name": "school_round_family_notice",
-      "schema": "",
-      "columns": {
-        "entry_id": {
-          "name": "entry_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "round_id": {
-          "name": "round_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "outcome": {
-          "name": "outcome",
-          "type": "school_round_outcome",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "told_at": {
-          "name": "told_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "school_round_family_notice_round_id_idx": {
-          "name": "school_round_family_notice_round_id_idx",
-          "columns": [
-            {
-              "expression": "round_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "school_round_family_notice_entry_id_entry_id_fk": {
-          "name": "school_round_family_notice_entry_id_entry_id_fk",
-          "tableFrom": "school_round_family_notice",
-          "tableTo": "entry",
-          "columnsFrom": [
-            "entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "school_round_family_notice_round_id_school_round_id_fk": {
-          "name": "school_round_family_notice_round_id_school_round_id_fk",
-          "tableFrom": "school_round_family_notice",
-          "tableTo": "school_round",
-          "columnsFrom": [
-            "round_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "school_round_family_notice_position_shortlisted": {
-          "name": "school_round_family_notice_position_shortlisted",
-          "value": "\"school_round_family_notice\".\"position\" IS NULL OR (\"school_round_family_notice\".\"outcome\" = 'shortlisted' AND \"school_round_family_notice\".\"position\" >= 1)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.school_round_panel_member": {
@@ -16585,6 +16442,195 @@
         }
       },
       "isRLSEnabled": false
+    },
+    "public.entry_verification": {
+      "name": "entry_verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision": {
+          "name": "decision",
+          "type": "entry_verification_decision",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_text": {
+          "name": "reason_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_user_id": {
+          "name": "decided_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resubmission_due_at": {
+          "name": "resubmission_due_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmitted_at": {
+          "name": "resubmitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmitted_by_user_id": {
+          "name": "resubmitted_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmission_with_file": {
+          "name": "resubmission_with_file",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "entry_verification_entry_id_decided_at_idx": {
+          "name": "entry_verification_entry_id_decided_at_idx",
+          "columns": [
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "entry_verification_decided_by_user_id_idx": {
+          "name": "entry_verification_decided_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "decided_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "entry_verification_resubmitted_by_user_id_idx": {
+          "name": "entry_verification_resubmitted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "resubmitted_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "entry_verification_entry_id_entry_id_fk": {
+          "name": "entry_verification_entry_id_entry_id_fk",
+          "tableFrom": "entry_verification",
+          "tableTo": "entry",
+          "columnsFrom": [
+            "entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entry_verification_decided_by_user_id_user_id_fk": {
+          "name": "entry_verification_decided_by_user_id_user_id_fk",
+          "tableFrom": "entry_verification",
+          "tableTo": "user",
+          "columnsFrom": [
+            "decided_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "entry_verification_resubmitted_by_user_id_user_id_fk": {
+          "name": "entry_verification_resubmitted_by_user_id_user_id_fk",
+          "tableFrom": "entry_verification",
+          "tableTo": "user",
+          "columnsFrom": [
+            "resubmitted_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "entry_verification_sent_back_has_deadline": {
+          "name": "entry_verification_sent_back_has_deadline",
+          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"resubmission_due_at\" IS NOT NULL)"
+        },
+        "entry_verification_sent_back_has_reason": {
+          "name": "entry_verification_sent_back_has_reason",
+          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"reason_code\" IS NOT NULL)"
+        },
+        "entry_verification_reason_text_length": {
+          "name": "entry_verification_reason_text_length",
+          "value": "\"entry_verification\".\"reason_text\" IS NULL OR char_length(\"entry_verification\".\"reason_text\") BETWEEN 1 AND 500"
+        },
+        "entry_verification_resubmission_complete": {
+          "name": "entry_verification_resubmission_complete",
+          "value": "(\"entry_verification\".\"resubmitted_at\" IS NULL) = (\"entry_verification\".\"resubmission_with_file\" IS NULL) AND (\"entry_verification\".\"resubmitted_at\" IS NULL OR \"entry_verification\".\"decision\" = 'sent_back')"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -16654,7 +16700,8 @@
         "auction_manager",
         "adoption_coordinator",
         "safeguarding_lead",
-        "grievance_officer"
+        "grievance_officer",
+        "foa_verifier"
       ]
     },
     "public.role_scope_type": {
@@ -16930,7 +16977,6 @@
         "registration_open",
         "registration_closed",
         "school_judging",
-        "foa_judging",
         "cancelled"
       ]
     },
@@ -17583,14 +17629,6 @@
         "community_building"
       ]
     },
-    "public.school_round_outcome": {
-      "name": "school_round_outcome",
-      "schema": "public",
-      "values": [
-        "shortlisted",
-        "not_shortlisted"
-      ]
-    },
     "public.school_round_status": {
       "name": "school_round_status",
       "schema": "public",
@@ -17599,6 +17637,14 @@
         "overdue",
         "finalised",
         "closed_on_behalf"
+      ]
+    },
+    "public.entry_verification_decision": {
+      "name": "entry_verification_decision",
+      "schema": "public",
+      "values": [
+        "verified",
+        "sent_back"
       ]
     }
   },

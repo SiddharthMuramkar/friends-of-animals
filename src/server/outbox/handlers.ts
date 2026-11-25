@@ -63,6 +63,11 @@ import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
 import { runRoundDeadlineJob } from "../modules/school-round/overdue";
+import {
+  forwardOnSubmissionsClosed,
+  forwardLateEntry,
+} from "../modules/verification/forward-individual-entries";
+import { returnResubmission } from "../modules/verification/return-resubmission";
 import { openSchoolRounds } from "../modules/school-round/open-school-rounds";
 import {
   queueFamilyOutcomes,
@@ -136,6 +141,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "verification.forward_individual_entries": (deps, { payload }) =>
+    forwardOnSubmissionsClosed(deps, payload),
+  "verification.forward_late_entry": (deps, { payload }) =>
+    forwardLateEntry(deps, payload),
+  "verification.return_resubmission": (deps, { payload }) =>
+    returnResubmission(deps, payload),
   "ledger.post_capture": async (deps, { payload }) => {
     await postPaymentCapture({ ...deps, actor: ledgerWorker }, payload);
   },

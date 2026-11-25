@@ -119,7 +119,6 @@ describe("decideUpload", () => {
       "not_shortlisted",
       "submitted_to_foa",
       "foa_verified",
-      "sent_back",
     ] as const) {
       expect(
         decideUpload({
@@ -129,6 +128,42 @@ describe("decideUpload", () => {
         })
       ).toEqual({ ok: false, reason: "entry_locked" });
     }
+  });
+
+  // #92: an FOA verifier sent the entry back; it can be fixed with a new
+  // file until its resubmission deadline, whatever the submission window.
+  const SENT_BACK_DUE = new Date("2027-02-20T04:30:00.000Z");
+
+  it("replaces a sent-back entry's file before its resubmission deadline, after submissions close", () => {
+    expect(
+      decideUpload({
+        entry: entry("sent_back", [
+          ["a", "live"],
+          ["b", "pending"],
+        ]),
+        window: WINDOW,
+        now: new Date("2027-02-19T04:30:00.000Z"),
+        resubmissionDueAt: SENT_BACK_DUE,
+      })
+    ).toEqual({ ok: true, action: "replace", supersede: ["b"] });
+  });
+
+  it("refuses a sent-back entry from its resubmission deadline on", () => {
+    expect(
+      decideUpload({
+        entry: entry("sent_back", [["a", "live"]]),
+        window: WINDOW,
+        now: SENT_BACK_DUE,
+        resubmissionDueAt: SENT_BACK_DUE,
+      })
+    ).toEqual({ ok: false, reason: "resubmission_closed" });
+    expect(
+      decideUpload({
+        entry: entry("sent_back", [["a", "live"]]),
+        window: WINDOW,
+        now: DURING,
+      })
+    ).toEqual({ ok: false, reason: "resubmission_closed" });
   });
 });
 

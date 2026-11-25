@@ -390,6 +390,16 @@ describe("listSettings", () => {
         updatedBy: null,
       },
       {
+        key: "entries.resubmissionDays",
+        value: 7,
+        defaultValue: 7,
+        source: "default",
+        storedInvalid: false,
+        input: { kind: "integer", min: 1, max: 60, unit: "days" },
+        updatedAt: null,
+        updatedBy: null,
+      },
+      {
         key: "retention.enforce",
         value: false,
         defaultValue: false,

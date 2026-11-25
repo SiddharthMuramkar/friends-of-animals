@@ -18,6 +18,9 @@ test("a competition manager closes an overdue school round with a reason and reo
   seedFinalisableRound,
 }) => {
   const round = await seedFinalisableRound({ overdue: true });
+  // A second unfinished school keeps the competition in school judging,
+  // where a manager may reopen the first round.
+  await seedFinalisableRound({ overdue: true });
   const path = `/admin/competitions/${SEED_SCHOOL_ROUND.competitionId}/school-rounds`;
   const secret = generateTotpSecret();
   const email = await seedAccount({

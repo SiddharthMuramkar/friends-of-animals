@@ -38,6 +38,7 @@ import {
   entry,
   entryFile,
   entryTransition,
+  entryVerification,
   fileAsset,
   guardian,
   guardianInvitation,
@@ -279,6 +280,12 @@ export const SECTIONS: readonly Section[] = [
     table: entryTransition,
     where: (scope) => sql`${entryTransition.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],
+  },
+  {
+    table: entryVerification,
+    where: (scope) => sql`${entryVerification.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
+    withhold: ["decided_by_user_id", "resubmitted_by_user_id"],
   },
   {
     table: fileAsset,

@@ -48,6 +48,15 @@ type DirectoryListingEvent<T extends `directory.${string}`> = {
   payload: { listingId: string; userId: string };
 };
 
+/** One verification decision on an entry (#92). */
+type EntryVerificationPayload = {
+  entryId: string;
+  registrationId: string;
+  /** The school route's institution registration; null on the individual route. */
+  institutionRegistrationId: string | null;
+  verificationId: string;
+};
+
 export type DomainEvent =
   /** A listing was registered, or renamed and sent back for review. */
   | DirectoryListingEvent<"directory.listing_submitted">
@@ -372,6 +381,42 @@ export type DomainEvent =
       };
     }
   | {
+      /**
+       * A competition's submissions closed (#92): its status job for the
+       * submissions_close key date ran. Individual entries go on to FOA.
+       */
+      type: "competition.submissions_closed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * An FOA verifier verified an entry (#92). The participant or their
+       * guardian is told; on the school route, its coordinators.
+       */
+      type: "entry.foa_verified";
+      aggregate: { type: "entry"; id: string };
+      payload: EntryVerificationPayload;
+    }
+  | {
+      /**
+       * An FOA verifier sent an entry back with a reason (#92); whoever can
+       * resubmit it is told the reason and the deadline.
+       */
+      type: "entry.sent_back";
+      aggregate: { type: "entry"; id: string };
+      payload: EntryVerificationPayload;
+    }
+  | {
+      /**
+       * A replacement file of a sent-back entry went live (#92): the entry
+       * returns to FOA if it was resubmitted with that file.
+       */
+      type: "entry.replacement_live";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; entryFileId: string };
+    }
+  | {
       /** An entry was shortlisted in a finalised school round (#89). */
       type: "entry.school_shortlisted";
       aggregate: { type: "entry"; id: string };
@@ -673,6 +718,12 @@ const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
   position: z.int().min(1).nullable().optional(),
 });
 
+const ENTRY_VERIFICATION_EVENT = z.object({
+  entryId: z.uuid(),
+  registrationId: z.uuid(),
+  institutionRegistrationId: z.uuid().nullable(),
+  verificationId: z.uuid(),
+});
 const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
@@ -787,6 +838,13 @@ export const EVENT_PAYLOADS = {
     roundId: z.uuid(),
     competitionId: z.uuid(),
     institutionRegistrationId: z.uuid(),
+  }),
+  "competition.submissions_closed": z.object({ competitionId: z.uuid() }),
+  "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
+  "entry.sent_back": ENTRY_VERIFICATION_EVENT,
+  "entry.replacement_live": z.object({
+    entryId: z.uuid(),
+    entryFileId: z.uuid(),
   }),
   "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
@@ -927,7 +985,13 @@ export const SUBSCRIBERS = {
   // The participant's, or their guardian's, messages go by route row (#85).
   // A school's student's family contact isn't a user: their receipt goes
   // by its own handler (#87).
-  "entry.submitted": ["notifications.dispatch", "entries.send_family_receipt"],
+  // An individual entry submitted after submissions closed goes on to FOA
+  // at once (#92).
+  "entry.submitted": [
+    "notifications.dispatch",
+    "entries.send_family_receipt",
+    "verification.forward_late_entry",
+  ],
   "entry.file_rejected": ["notifications.dispatch"],
   "entry.file_failed": ["notifications.dispatch"],
   // The owner hears FOA's decisions by route row (#127). No route names
@@ -974,6 +1038,13 @@ export const SUBSCRIBERS = {
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
   // The competition's school rounds open (#89).
   "competition.school_judging_started": ["school_round.open_rounds"],
+  // Individual entries go on to FOA when submissions close (#92).
+  "competition.submissions_closed": ["verification.forward_individual_entries"],
+  // The participant, guardian or coordinators hear by route row (#92).
+  "entry.foa_verified": ["notifications.dispatch"],
+  "entry.sent_back": ["notifications.dispatch"],
+  // A resubmitted file went live: the entry returns to FOA (#92).
+  "entry.replacement_live": ["verification.return_resubmission"],
   // Each family is told the outcome, one event per entry (#89).
   // A finished round also retries the refused move to FOA judging (#90).
   "school_round.shortlist_finalised": [

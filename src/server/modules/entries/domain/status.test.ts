@@ -40,6 +40,13 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   ["not_shortlisted", "submitted"],
   ["not_shortlisted", "rejected"],
   ["not_shortlisted", "failed"],
+  // FOA verification (#92): an individual entry is forwarded once
+  // submissions close; a verifier verifies it or sends it back; a
+  // sent-back entry is resubmitted and waits for a verifier again.
+  ["submitted", "submitted_to_foa"],
+  ["submitted_to_foa", "foa_verified"],
+  ["submitted_to_foa", "sent_back"],
+  ["sent_back", "submitted_to_foa"],
 ];
 
 const ALLOWED_FILE_MOVES: ReadonlyArray<

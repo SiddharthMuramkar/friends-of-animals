@@ -314,6 +314,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "to_status",
     "trigger",
   ],
+  entry_verification: [
+    "id",
+    "decision",
+    "reason_code",
+    "decided_at",
+    "resubmission_due_at",
+    "resubmitted_at",
+    "resubmission_with_file",
+  ],
   entry_upload_grant: ["expires_at", "prepared", "retired"],
   file_asset: [
     "bucket",

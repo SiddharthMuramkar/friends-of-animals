@@ -176,6 +176,7 @@ describe("resolveAllSettings", () => {
       ["reminders.entrySubmissionDueSecondHours", 24, "default"],
       ["reminders.schoolRoundShortlistDueFirstHours", 72, "default"],
       ["reminders.schoolRoundShortlistDueSecondHours", 24, "default"],
+      ["entries.resubmissionDays", 7, "default"],
       ["retention.enforce", false, "default"],
       ["retention.expiredVerificationsDays", 1, "default"],
       ["retention.expiredSessionsDays", 30, "default"],

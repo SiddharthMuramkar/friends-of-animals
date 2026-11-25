@@ -21,6 +21,7 @@ import type { AppDb } from "../../db/app-db";
 import {
   competition,
   competitionKeyDate,
+  entry,
   institutionRegistration,
   participantProfile,
   registration,
@@ -78,6 +79,7 @@ export async function authorizeEntrySubmission(
             route: registration.route,
             institutionId: institutionRegistration.institutionId,
             digitalScope: competition.digitalScope,
+            entryStatus: entry.status,
           })
           .from(registration)
           .innerJoin(
@@ -91,6 +93,7 @@ export async function authorizeEntrySubmission(
               registration.institutionRegistrationId
             )
           )
+          .leftJoin(entry, eq(entry.registrationId, registration.id))
           .where(eq(registration.id, registrationId))
       : [];
   if (row?.route === "institution" && row.institutionId) {
@@ -103,7 +106,10 @@ export async function authorizeEntrySubmission(
       role,
       whose: "student",
       scopeRefusal:
-        row.digitalScope === "all_participants" ? null : "shortlist_only",
+        row.digitalScope === "all_participants" ||
+        row.entryStatus === "sent_back"
+          ? null
+          : "shortlist_only",
     };
   }
   const visible =

@@ -1,6 +1,6 @@
 // What reopening a decided school round does, decided without touching the
 // database. A competition manager reopens a round the school finalised, or
-// one closed on its behalf, while the competition is still in judging
+// one closed on its behalf, while the competition is still in school judging
 // and before FOA has verified any of its entries. Every entry
 // goes back to where it was before the round was decided; the saved picks
 // stay as the school's draft, and families hear nothing until the round is
@@ -50,7 +50,7 @@ export type ReopenFacts = {
 
 /** Why the round can't be reopened. */
 export type ReopenBlocker =
-  /** Reopening is only possible during school or FOA judging. */
+  /** Reopening is only possible during school judging. */
   | { code: "competition_not_in_judging" }
   /** The round is still open or overdue: there is nothing to reopen. */
   | { code: "round_not_finished" }

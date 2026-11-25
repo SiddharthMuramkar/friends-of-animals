@@ -240,7 +240,7 @@ export async function reopenSchoolRound(
         before.set(move.entryId, move.fromStatus);
     }
     const plan = planReopen({
-      competitionInJudging: judging(comp.status),
+      competitionInJudging: comp.status === "school_judging",
       roundStatus: round.status,
       shortlistDeadline: await shortlistDeadlineOf(tx, competitionId),
       now: ctx.clock.now(),
@@ -367,7 +367,8 @@ export async function listSchoolRoundsForManager(
     rounds: rows.map((row) => ({
       ...row,
       canClose: judging(comp.status) && row.status === "overdue",
-      canReopen: judging(comp.status) && isSchoolRoundFinished(row.status),
+      canReopen:
+        comp.status === "school_judging" && isSchoolRoundFinished(row.status),
     })),
   };
 }

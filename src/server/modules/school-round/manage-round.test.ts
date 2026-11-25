@@ -170,7 +170,7 @@ describe("manager round corrections and family outcomes", () => {
     expect(h.email.sent.at(-1)?.text).toContain("placed it 2nd");
   });
 
-  it("reopens a round after its competition reaches FOA judging but before its entries are verified", async () => {
+  it("refuses reopening after its competition reaches FOA judging even before verification", async () => {
     const h = await createHarness();
     const school = await schoolInJudging(h);
     await readyRound(h, school);
@@ -188,19 +188,14 @@ describe("manager round corrections and family outcomes", () => {
     });
     await pastShortlistDeadline(h);
     expect(await manager.reopenSchoolRound(ref)).toMatchObject({
-      ok: true,
-      status: "overdue",
+      ok: false,
+      error: "reopen_blocked",
+      blockers: [{ code: "competition_not_in_judging" }],
     });
-    expect(await coordinator.getSchoolRound(school.ref)).toMatchObject({
+    expect(await manager.listSchoolRoundsForManager(ref)).toMatchObject({
       ok: true,
-      round: { status: "overdue", canEdit: true },
+      rounds: [{ id: ref.roundId, canReopen: false }],
     });
-    expect(
-      await coordinator.finaliseSchoolRound({
-        ...school.ref,
-        judgingAttested: true,
-      })
-    ).toMatchObject({ ok: true });
   });
 
   it("lists rounds for the competition manager but not for the coordinator or another competition's manager", async () => {
