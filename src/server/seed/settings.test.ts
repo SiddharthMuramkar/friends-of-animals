@@ -42,6 +42,8 @@ describe("the settings seed", () => {
       { key: "donations.pendingExpiryHours", value: 24 },
       { key: "donations.recurringEnabled", value: true },
       { key: "entries.resubmissionDays", value: 7 },
+      { key: "gallery.reportsPerIpPerHour", value: 10 },
+      { key: "gallery.withdrawalPurgeMinutes", value: 15 },
       // The accountant's export waits for HR-47 only in production (#109).
       { key: "ledger.accountantExport", value: true },
       { key: "ledger.approvalExpiryDays", value: 7 },

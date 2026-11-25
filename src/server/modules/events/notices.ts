@@ -166,7 +166,9 @@ export async function eventNoticeValues(db: AppDb, delivery: Notice) {
       ...(await eventValues(db, delivery.payload.eventId)),
       "event.changes":
         delivery.eventType === "event.changed"
-          ? delivery.payload.changes.join(" and ")
+          ? delivery.payload.changes === "time_and_place"
+            ? "time and place"
+            : delivery.payload.changes
           : "",
     };
   }

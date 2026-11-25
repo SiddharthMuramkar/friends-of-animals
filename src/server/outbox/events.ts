@@ -938,7 +938,7 @@ export type DomainEvent =
       aggregate: { type: "event"; id: string };
       payload: {
         eventId: string;
-        changes: ("time" | "place")[];
+        changes: "time" | "place" | "time_and_place";
         startMoved: boolean;
       };
     }
@@ -1037,7 +1037,7 @@ export const EVENT_PAYLOADS = {
   "event.cancelled": z.object({ eventId: z.uuid() }),
   "event.changed": z.object({
     eventId: z.uuid(),
-    changes: z.array(z.enum(["time", "place"])),
+    changes: z.enum(["time", "place", "time_and_place"]),
     startMoved: z.boolean(),
   }),
   "event.end_due": z.object({ eventId: z.uuid(), endsAt: z.iso.datetime() }),
