@@ -1045,6 +1045,8 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     WHILE_REGISTRATION_KEPT
   ),
   actorColumn("school_round", "finalised_by_user_id", WHILE_REGISTRATION_KEPT),
+  // Who closed an overdue round on the school's behalf (#90).
+  actorColumn("school_round", "closed_by_user_id", WHILE_REGISTRATION_KEPT),
   actorColumn(
     "school_round_pick",
     "picked_by_user_id",

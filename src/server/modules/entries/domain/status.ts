@@ -62,7 +62,9 @@ export type EntryTrigger =
   | "sent_to_foa"
   /** Not picked in a finalised school round (#89). */
   | "not_shortlisted"
-  | "essay_typed";
+  | "essay_typed"
+  /** Its school round was reopened: back to where it was before (#90). */
+  | "school_round_reopened";
 
 export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   { from: null, to: "processing", trigger: "upload_completed" },
@@ -91,6 +93,25 @@ export const ENTRY_MOVES: readonly Move<EntryStatus, EntryTrigger>[] = [
   // one goes back to processing first, then here.
   { from: null, to: "submitted", trigger: "essay_typed" },
   { from: "processing", to: "submitted", trigger: "essay_typed" },
+  // A competition manager reopens the school round (#90): each entry goes
+  // back to the status it had before the round was decided.
+  {
+    from: "school_shortlisted",
+    to: "submitted",
+    trigger: "school_round_reopened",
+  },
+  {
+    from: "submitted_to_foa",
+    to: "submitted",
+    trigger: "school_round_reopened",
+  },
+  ...(["processing", "submitted", "rejected", "failed"] as const).map(
+    (to) => ({
+      from: "not_shortlisted" as const,
+      to,
+      trigger: "school_round_reopened" as const,
+    })
+  ),
 ];
 
 export type EntryFileTrigger =

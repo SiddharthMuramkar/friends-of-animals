@@ -16,7 +16,7 @@ import { createHarness, type Harness } from "@/test/harness";
 import { JUDGING_STATEMENT_VERSION } from "./domain/judging-statement";
 import {
   anotherSchool,
-  categoryOf,
+  readyRound,
   schoolInJudging,
   type RoundWorld,
 } from "./testing";
@@ -29,25 +29,6 @@ import {
 // not_shortlisted. Only finalising emits school_round.shortlist_finalised.
 
 const PANEL = [{ fullName: "Lata Kulkarni", designation: "Art teacher" }];
-
-/** Panel recorded, conduct certified, students 1 (1st) and 2 picked. */
-async function readyRound(h: Harness, world: RoundWorld) {
-  const coordinator = h.as(world.coordinator.actor);
-  await coordinator.recordPanel({ ...world.ref, members: PANEL });
-  const certified = await coordinator.certifyConduct(world.ref);
-  if (!certified.ok) throw new Error(JSON.stringify(certified));
-  const categoryId = await categoryOf(h, world, "photography");
-  const saved = await coordinator.saveShortlist({
-    ...world.ref,
-    categoryId,
-    picks: [
-      { entryId: world.entryIds[1]!, position: 1 },
-      { entryId: world.entryIds[2]!, position: null },
-    ],
-  });
-  if (!saved.ok) throw new Error(JSON.stringify(saved));
-  return categoryId;
-}
 
 async function statusesOf(h: Harness, ids: string[]) {
   const rows = await h.db

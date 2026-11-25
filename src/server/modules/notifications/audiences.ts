@@ -103,6 +103,10 @@ import {
   outcomeValues,
   SCHOOL_ROUND_OUTCOME_VARIABLES,
 } from "../school-round/family-outcomes";
+import {
+  overdueValues,
+  SCHOOL_ROUND_OVERDUE_VARIABLES,
+} from "../school-round/overdue";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -265,8 +269,12 @@ function subjectUserOf(delivery: Delivery): string | null {
       return null;
     case "competition.school_judging_started":
     case "school_round.shortlist_finalised":
-      // Open the rounds and queue the families' messages (#89); no route
-      // row names them.
+    case "school_round.closed_on_behalf":
+      // Open the rounds and queue the families' messages (#89, #90); no
+      // route row names them.
+      return null;
+    case "school_round.overdue":
+      // For the school's coordinators (`institution_coordinators`, #90).
       return null;
     case "entry.school_shortlisted":
     case "entry.not_shortlisted":
@@ -370,10 +378,11 @@ export const AUDIENCES = {
   /**
    * Everyone who acts for an institution registration's institution: its
    * coordinators and its authorised person (#80: its competition was
-   * cancelled).
+   * cancelled; #90: its school round is overdue).
    */
   institution_coordinators: async (db, delivery) =>
-    delivery.eventType === "institution_registration.competition_cancelled"
+    delivery.eventType === "institution_registration.competition_cancelled" ||
+    delivery.eventType === "school_round.overdue"
       ? institutionCoordinators(db, delivery.payload.institutionRegistrationId)
       : [],
   /**
@@ -587,6 +596,13 @@ function reasonSentence(block: TransitionBlock): string {
           "and"
         ),
       });
+    case "school_rounds_unfinished":
+      return statusWords("blockReason.school_rounds_unfinished", {
+        unfinished: block.missing + block.open + block.overdue,
+        missing: block.missing,
+        open: block.open,
+        overdue: block.overdue,
+      });
   }
 }
 
@@ -731,6 +747,11 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   "competition.school_judging_started": { names: [], load: async () => ({}) },
   "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "school_round.closed_on_behalf": { names: [], load: async () => ({}) },
+  "school_round.overdue": {
+    names: SCHOOL_ROUND_OVERDUE_VARIABLES,
+    load: (db, { payload }) => overdueValues(db, payload.roundId),
+  },
   "entry.school_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,
     load: (db, { payload }) => outcomeValues(db, payload),

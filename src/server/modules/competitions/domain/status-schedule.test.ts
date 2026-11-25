@@ -237,7 +237,7 @@ describe("planStatusJob", () => {
     }
   });
 
-  it("advances nothing for a date no status change hangs on yet", () => {
+  it("moves on to FOA judging at the shortlist deadline (#90)", () => {
     const ROUND = new Date("2027-03-25T12:30:00.000Z");
     expect(
       planStatusJob(
@@ -246,10 +246,21 @@ describe("planStatusJob", () => {
           status: "school_judging",
           keyDates: { ...DATES, school_round_closes: ROUND },
         },
-        after(ROUND)
+        ROUND
       )
-    ).toEqual({ kind: "advance", transitions: [] });
+    ).toEqual({
+      kind: "advance",
+      transitions: [
+        {
+          from: "school_judging",
+          to: "foa_judging",
+          keyDate: "school_round_closes",
+          at: ROUND,
+        },
+      ],
+    });
   });
+
 });
 
 describe("upcomingChange", () => {
@@ -289,8 +300,19 @@ describe("upcomingChange", () => {
     });
   });
 
-  it("has nothing ahead once school judging starts", () => {
+  it("has nothing ahead in school judging without a shortlist deadline", () => {
     expect(upcomingChange("school_judging", DATES, after(SUBMIT))).toBeNull();
+  });
+
+  it("counts down to FOA judging at the shortlist deadline (#90)", () => {
+    const ROUND = new Date("2027-03-25T12:30:00.000Z");
+    expect(
+      upcomingChange(
+        "school_judging",
+        { ...DATES, school_round_closes: ROUND },
+        after(SUBMIT)
+      )
+    ).toEqual({ kind: "scheduled", to: "foa_judging", at: ROUND });
   });
 
   it("has nothing ahead for a draft or a missing date", () => {

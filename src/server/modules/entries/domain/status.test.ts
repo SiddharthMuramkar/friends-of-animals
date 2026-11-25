@@ -31,6 +31,14 @@ const ALLOWED_ENTRY_MOVES: ReadonlyArray<[EntryStatus | null, EntryStatus]> = [
   ["submitted", "not_shortlisted"],
   // A typed essay (#86).
   [null, "submitted"],
+  // A competition manager reopens the school round (#90): each entry goes
+  // back to where it was before the round was decided.
+  ["school_shortlisted", "submitted"],
+  ["submitted_to_foa", "submitted"],
+  ["not_shortlisted", "processing"],
+  ["not_shortlisted", "submitted"],
+  ["not_shortlisted", "rejected"],
+  ["not_shortlisted", "failed"],
 ];
 
 const ALLOWED_FILE_MOVES: ReadonlyArray<

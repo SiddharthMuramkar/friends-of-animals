@@ -2,23 +2,24 @@
 // school_round.open_rounds after competition.school_judging_started: one
 // open round per confirmed institution registration, that is an active one
 // with at least one confirmed student, even if none of them submitted. The
-// round exists for schools that never visit and for the overdue job (#90).
+// round exists for schools that never visit and for the overdue job (#90),
+// which also runs here when the shortlist deadline has already passed.
 // Running again adds nothing: the round's registration is unique.
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, eq, exists } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Actor } from "../../actor";
 import type { AppDb } from "../../db/app-db";
-import {
-  competition,
-  institutionRegistration,
-  registration,
-  schoolRound,
-} from "../../db/schema";
+import { competition, schoolRound } from "../../db/schema";
 import type { Clock } from "../../ports/clock";
-import { nextRoundRowId, recordRoundTransition } from "./store";
+import {
+  confirmedRegistrations,
+  nextRoundRowId,
+  recordRoundTransition,
+} from "./store";
+import { markRoundsOverdue, shortlistDeadlineOf } from "./overdue";
 
 const WORKER: Actor = { kind: "system", process: "worker" };
 
@@ -36,30 +37,7 @@ export async function openSchoolRounds(
       .for("share");
     // Cancelled since, or never got there: nothing to open.
     if (held?.status !== "school_judging") return 0;
-    const confirmed = await tx
-      .select({ id: institutionRegistration.id })
-      .from(institutionRegistration)
-      .where(
-        and(
-          eq(institutionRegistration.competitionId, competitionId),
-          eq(institutionRegistration.status, "active"),
-          exists(
-            tx
-              .select({ id: registration.id })
-              .from(registration)
-              .where(
-                and(
-                  eq(
-                    registration.institutionRegistrationId,
-                    institutionRegistration.id
-                  ),
-                  eq(registration.status, "confirmed")
-                )
-              )
-          )
-        )
-      )
-      .orderBy(institutionRegistration.id);
+    const confirmed = await confirmedRegistrations(tx, competitionId);
     let opened = 0;
     for (const { id } of confirmed) {
       const now = deps.clock.now();
@@ -83,6 +61,12 @@ export async function openSchoolRounds(
         { roundId: row.id, from: null, to: "open" }
       );
       opened += 1;
+    }
+    // Entered school judging only after the shortlist deadline (#90): the
+    // rounds are overdue from the start.
+    const deadline = await shortlistDeadlineOf(tx, competitionId);
+    if (deadline && deadline.getTime() <= deps.clock.now().getTime()) {
+      await markRoundsOverdue(tx, { clock: deps.clock, actor }, competitionId);
     }
     return opened;
   });

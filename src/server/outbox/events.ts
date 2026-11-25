@@ -344,6 +344,34 @@ export type DomainEvent =
       };
     }
   | {
+      /**
+       * A competition manager closed an overdue school round on the
+       * school's behalf (#90), applying its saved picks. Not
+       * shortlist-finalised: only the school finalises. Each family is
+       * told the outcome as after finalising.
+       */
+      type: "school_round.closed_on_behalf";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /**
+       * The shortlist deadline passed with the school round unfinished
+       * (#90): its coordinators are told it is overdue.
+       */
+      type: "school_round.overdue";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
       /** An entry was shortlisted in a finalised school round (#89). */
       type: "entry.school_shortlisted";
       aggregate: { type: "entry"; id: string };
@@ -690,6 +718,16 @@ export const EVENT_PAYLOADS = {
     competitionId: z.uuid(),
     institutionRegistrationId: z.uuid(),
   }),
+  "school_round.closed_on_behalf": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "school_round.overdue": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
   "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "payment.batch_captured": z.object({
@@ -825,7 +863,11 @@ export const SUBSCRIBERS = {
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
-  "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // The shortlist deadline also makes unfinished school rounds overdue (#90).
+  "competitions.key_date_scheduled": [
+    "competitions.advance_status",
+    "school_round.mark_overdue",
+  ],
   // Each keeps the competition's reminders in step with it (#84).
   "competition.published": ["reminders.schedule"],
   "competition.key_dates_changed": ["reminders.schedule"],
@@ -855,7 +897,17 @@ export const SUBSCRIBERS = {
   // The competition's school rounds open (#89).
   "competition.school_judging_started": ["school_round.open_rounds"],
   // Each family is told the outcome, one event per entry (#89).
-  "school_round.shortlist_finalised": ["school_round.queue_family_outcomes"],
+  // A finished round also retries the refused move to FOA judging (#90).
+  "school_round.shortlist_finalised": [
+    "school_round.queue_family_outcomes",
+    "competitions.retry_blocked_moves",
+  ],
+  "school_round.closed_on_behalf": [
+    "school_round.queue_family_outcomes",
+    "competitions.retry_blocked_moves",
+  ],
+  // Its coordinators hear by route row (`institution_coordinators`, #90).
+  "school_round.overdue": ["notifications.dispatch"],
   // The family contact isn't a user: the message goes by the school
   // round's own handler, by its `family_contact` route (#89).
   "entry.school_shortlisted": ["school_round.send_family_outcome"],
