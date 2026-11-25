@@ -92,7 +92,9 @@ test("a finalist applies, the manager approves or declines, and the applicant se
         "Application declined. The reason was recorded and the applicant will be notified."
       )
     ).toBeVisible();
-    await manager.getByLabel("Filter by status").selectOption("all");
+    await manager
+      .getByRole("combobox", { name: "Filter by status" })
+      .selectOption("all");
     await manager.getByRole("button", { name: "Show applications" }).click();
     await expect(
       manager.getByText("Please complete the outreach orientation first.")
