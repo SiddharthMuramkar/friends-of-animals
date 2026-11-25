@@ -87,9 +87,7 @@ async function Rounds({ params, searchParams }: Props) {
         {t("back")}
       </ButtonLink>
       {notice ? (
-        <output className="font-semibold">
-          {t(`outcome.${notice}`)}
-        </p>
+        <output className="font-semibold">{t(`outcome.${notice}`)}</output>
       ) : null}
       {result.rounds.length === 0 ? (
         <p>{t("empty")}</p>
