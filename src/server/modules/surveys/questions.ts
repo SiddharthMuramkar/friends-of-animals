@@ -28,11 +28,9 @@ export function validAnswers(
   return (
     Array.isArray(input) &&
     input.length === questions.length &&
-    input.every(
-      (value, i) =>
-        Number.isInteger(value) &&
-        value >= 0 &&
-        value < questions[i]!.choices.length
-    )
+    questions.every((q, i) => {
+      const value = input[i];
+      return Number.isInteger(value) && value >= 0 && value < q.choices.length;
+    })
   );
 }

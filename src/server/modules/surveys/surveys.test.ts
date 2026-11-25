@@ -143,6 +143,9 @@ describe("competition surveys", () => {
         .answerSurvey({ token: token!, answers: [3, 0] })
     ).rejects.toMatchObject({ code: "forbidden" });
     expect(
+      await visitor.answerSurvey({ token: token!, answers: Array(2) })
+    ).toMatchObject({ ok: false, error: "invalid_input" });
+    expect(
       await visitor.answerSurvey({ token: token!, answers: [3, 0, 1] })
     ).toMatchObject({ ok: false, error: "invalid_input" });
     expect(
