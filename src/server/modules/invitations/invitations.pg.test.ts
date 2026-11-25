@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { expect, it } from "vitest";
 import { createPgWorld } from "@/test/pg";
 import { openToIndividuals, adultForm } from "../participants/testing";
@@ -14,12 +14,15 @@ it("serializes the live publication and pilot backfill at the durable invitation
   const world = createPgWorld();
   try {
     await world.deps.settings.set("invitations.enabled", true);
-    const code = `IV${randomUUID()
-      .replace(/[^a-f]/g, "")
-      .slice(0, 3)
-      .toUpperCase()
-      .padEnd(3, "A")}27`;
-    const comp = await openToIndividuals(world, { code, fee: 0n });
+    // The PG suite shares a database with other historical fixtures.
+    const suffix = Array.from(randomBytes(4), (byte) =>
+      String.fromCharCode(65 + (byte % 26))
+    ).join("");
+    const comp = await openToIndividuals(world, {
+      code: `IV${suffix}27`,
+      name: `Invitation race ${randomUUID()}`,
+      fee: 0n,
+    });
     const superAdmin = await world.seed.superAdmin({
       email: world.uniqueEmail(),
     });
