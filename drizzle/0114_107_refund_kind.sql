@@ -1,1 +1,0 @@
-ALTER TYPE "public"."refund_kind" ADD VALUE 'recurring_after_cancel';

@@ -314,6 +314,15 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "to_status",
     "trigger",
   ],
+  entry_verification: [
+    "id",
+    "decision",
+    "reason_code",
+    "decided_at",
+    "resubmission_due_at",
+    "resubmitted_at",
+    "resubmission_with_file",
+  ],
   entry_upload_grant: ["expires_at", "prepared", "retired"],
   file_asset: [
     "bucket",
@@ -837,6 +846,10 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "updated_at",
   ],
   school_round: [
+    // Why a competition manager closed the round for the school (#90):
+    // about the school's round, like the transition's reason.
+    "close_reason",
+    "closed_at",
     "competition_id",
     "created_at",
     "families_notified_at",
@@ -848,6 +861,20 @@ export const NON_PERSONAL: NonPersonalColumns = {
     "opened_at",
     "status",
     "updated_at",
+  ],
+  school_round_declaration: [
+    "declarations",
+    "declared_at",
+    "entry_id",
+    "round_id",
+    "statement_version",
+  ],
+  school_round_family_notice: [
+    "registration_id",
+    "outcome",
+    "position",
+    "round_id",
+    "told_at",
   ],
   school_round_panel_member: ["id", "round_id", "sort_order"],
   school_round_pick: [

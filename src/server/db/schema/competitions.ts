@@ -38,7 +38,7 @@ import { outbox } from "./outbox";
 /**
  * The status machine's statuses. #71 added the ones the schedule moves to
  * (registration open and closed) in a migration of their own; #80 adds
- * cancelled the same way. A value is never used in the migration that adds
+ * cancelled the same way, and #90 foa_judging. A value is never used in the migration that adds
  * it (rule F2).
  */
 export const competitionStatusEnum = pgEnum(
@@ -145,12 +145,12 @@ export const competition = pgTable(
       "competition_published_at_matches_status",
       sql`(${table.status} <> 'draft' OR ${table.publishedAt} IS NULL) AND (${table.publishedAt} IS NOT NULL OR ${table.status} = 'draft' OR ${table.cancelledAt} IS NOT NULL)`
     ),
-    // Use only previously committed enum values here (F2). When adding
-    // another status, include it among the statuses without cancellation
-    // metadata.
+    // Only a cancelled competition carries cancellation metadata. Compared
+    // as text, so no enum value is looked up and a status added later
+    // (#90's foa_judging) needs no change here (rule F2).
     check(
       "competition_cancellation_complete",
-      sql`(${table.status} NOT IN ('draft', 'published', 'registration_open', 'registration_closed', 'school_judging')) = (${table.cancelledAt} IS NOT NULL)
+      sql`(${table.status}::text = 'cancelled') = (${table.cancelledAt} IS NOT NULL)
         AND (${table.cancelledAt} IS NULL) = (${table.cancelReason} IS NULL)`
     ),
     check(

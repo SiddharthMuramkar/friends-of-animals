@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
 
 const SERVER = join(process.cwd(), "src/server");
 const EVENT = '"school_round.shortlist_finalised"';
-const CATALOGUE = ["outbox/events.ts", "modules/notifications/audiences.ts"];
+const CATALOGUE = [
+  "outbox/events.ts",
+  "modules/notifications/audiences.ts",
+  "modules/school-round/rounds-finished-guard.ts",
+];
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

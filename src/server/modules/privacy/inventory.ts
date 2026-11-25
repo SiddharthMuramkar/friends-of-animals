@@ -1080,6 +1080,8 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     WHILE_REGISTRATION_KEPT
   ),
   actorColumn("school_round", "finalised_by_user_id", WHILE_REGISTRATION_KEPT),
+  // Who closed an overdue round on the school's behalf (#90).
+  actorColumn("school_round", "closed_by_user_id", WHILE_REGISTRATION_KEPT),
   actorColumn(
     "school_round_pick",
     "picked_by_user_id",
@@ -1088,6 +1090,12 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn(
     "school_round_transition",
     "actor_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  // Who made a shortlisted entry's declarations (#91).
+  actorColumn(
+    "school_round_declaration",
+    "declared_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
   {
@@ -1370,6 +1378,18 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     })(column, "technical")
   ),
   actorColumn("entry_transition", "actor_user_id", ENTRY_RECORD),
+  rowsOf("entry_verification", {
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+  })("entry_id", "technical"),
+  rowsOf("entry_verification", {
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+  })("reason_text", "content"),
+  actorColumn("entry_verification", "decided_by_user_id", ENTRY_RECORD),
+  actorColumn("entry_verification", "resubmitted_by_user_id", ENTRY_RECORD),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",

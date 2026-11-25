@@ -1,6 +1,6 @@
 {
-  "id": "8f22a1b7-7a9c-4d48-9c6e-7224ff5a2ac0",
-  "prevId": "da6e4b9c-63c5-4932-adca-73e3b0bfb343",
+  "id": "00b33cf7-f363-4f25-92e9-20f8d42a5b5c",
+  "prevId": "ee074137-6f64-431f-95a9-948ea757421c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12550,12 +12550,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "recurring_donation_id": {
-          "name": "recurring_donation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "expires_at": {
           "name": "expires_at",
           "type": "timestamp with time zone",
@@ -12660,30 +12654,10 @@
           ],
           "onUpdate": "no action",
           "onDelete": "restrict"
-        },
-        "donation_recurring_donation_id_recurring_donation_id_fk": {
-          "name": "donation_recurring_donation_id_recurring_donation_id_fk",
-          "tableFrom": "donation",
-          "columnsFrom": [
-            "recurring_donation_id"
-          ],
-          "tableTo": "recurring_donation",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "donation_gateway_payment_unique": {
-          "name": "donation_gateway_payment_unique",
-          "columns": [
-            "gateway_payment_id"
-          ],
-          "nullsNotDistinct": false
-        },
         "donation_payment_batch_unique": {
           "name": "donation_payment_batch_unique",
           "columns": [
@@ -16469,187 +16443,8 @@
       },
       "isRLSEnabled": false
     },
-    "public.gateway_plan": {
-      "name": "gateway_plan",
-      "schema": "",
-      "columns": {
-        "gateway": {
-          "name": "gateway",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gateway_plan_id": {
-          "name": "gateway_plan_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "gateway_plan_amount_unique": {
-          "name": "gateway_plan_amount_unique",
-          "columns": [
-            "gateway",
-            "amount_minor"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "gateway_plan_positive": {
-          "name": "gateway_plan_positive",
-          "value": "\"gateway_plan\".\"amount_minor\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.gateway_test_plan": {
-      "name": "gateway_test_plan",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.gateway_test_subscription": {
-      "name": "gateway_test_subscription",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "plan_id": {
-          "name": "plan_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "current_start": {
-          "name": "current_start",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "charge_at": {
-          "name": "charge_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ended_at": {
-          "name": "ended_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.recurring_charge_failure": {
-      "name": "recurring_charge_failure",
-      "schema": "",
-      "columns": {
-        "recurring_donation_id": {
-          "name": "recurring_donation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cycle_key": {
-          "name": "cycle_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notified_at": {
-          "name": "notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "recurring_charge_failure_recurring_donation_id_recurring_donation_id_fk": {
-          "name": "recurring_charge_failure_recurring_donation_id_recurring_donation_id_fk",
-          "tableFrom": "recurring_charge_failure",
-          "columnsFrom": [
-            "recurring_donation_id"
-          ],
-          "tableTo": "recurring_donation",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "recurring_charge_failure_cycle": {
-          "name": "recurring_charge_failure_cycle",
-          "columns": [
-            "recurring_donation_id",
-            "cycle_key"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.recurring_donation": {
-      "name": "recurring_donation",
+    "public.entry_verification": {
+      "name": "entry_verification",
       "schema": "",
       "columns": {
         "id": {
@@ -16658,110 +16453,110 @@
           "primaryKey": true,
           "notNull": true
         },
-        "donor_id": {
-          "name": "donor_id",
+        "entry_id": {
+          "name": "entry_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_minor": {
-          "name": "amount_minor",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "recurring_donation_status",
+        "decision": {
+          "name": "decision",
+          "type": "entry_verification_decision",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "gateway": {
-          "name": "gateway",
+        "reason_code": {
+          "name": "reason_code",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_text": {
+          "name": "reason_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_user_id": {
+          "name": "decided_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         },
-        "gateway_plan_id": {
-          "name": "gateway_plan_id",
-          "type": "text",
+        "resubmission_due_at": {
+          "name": "resubmission_due_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "gateway_subscription_id": {
-          "name": "gateway_subscription_id",
-          "type": "text",
+        "resubmitted_at": {
+          "name": "resubmitted_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "show_on_wall": {
-          "name": "show_on_wall",
+        "resubmitted_by_user_id": {
+          "name": "resubmitted_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resubmission_with_file": {
+          "name": "resubmission_with_file",
           "type": "boolean",
           "primaryKey": false,
-          "notNull": true
-        },
-        "wall_name": {
-          "name": "wall_name",
-          "type": "text",
-          "primaryKey": false,
           "notNull": false
-        },
-        "next_charge_at": {
-          "name": "next_charge_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_requested_at": {
-          "name": "cancel_requested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_requested_by": {
-          "name": "cancel_requested_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by": {
-          "name": "cancelled_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
         }
       },
       "indexes": {
-        "recurring_donation_user_idx": {
-          "name": "recurring_donation_user_idx",
+        "entry_verification_entry_id_decided_at_idx": {
+          "name": "entry_verification_entry_id_decided_at_idx",
           "columns": [
             {
-              "expression": "user_id",
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "entry_verification_decided_by_user_id_idx": {
+          "name": "entry_verification_decided_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "decided_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "entry_verification_resubmitted_by_user_id_idx": {
+          "name": "entry_verification_resubmitted_by_user_id_idx",
+          "columns": [
+            {
+              "expression": "resubmitted_by_user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -16774,24 +16569,24 @@
         }
       },
       "foreignKeys": {
-        "recurring_donation_donor_id_donor_id_fk": {
-          "name": "recurring_donation_donor_id_donor_id_fk",
-          "tableFrom": "recurring_donation",
+        "entry_verification_entry_id_entry_id_fk": {
+          "name": "entry_verification_entry_id_entry_id_fk",
+          "tableFrom": "entry_verification",
           "columnsFrom": [
-            "donor_id"
+            "entry_id"
           ],
-          "tableTo": "donor",
+          "tableTo": "entry",
           "columnsTo": [
             "id"
           ],
           "onUpdate": "no action",
-          "onDelete": "restrict"
+          "onDelete": "cascade"
         },
-        "recurring_donation_user_id_user_id_fk": {
-          "name": "recurring_donation_user_id_user_id_fk",
-          "tableFrom": "recurring_donation",
+        "entry_verification_decided_by_user_id_user_id_fk": {
+          "name": "entry_verification_decided_by_user_id_user_id_fk",
+          "tableFrom": "entry_verification",
           "columnsFrom": [
-            "user_id"
+            "decided_by_user_id"
           ],
           "tableTo": "user",
           "columnsTo": [
@@ -16800,95 +16595,41 @@
           "onUpdate": "no action",
           "onDelete": "set null"
         },
-        "recurring_donation_gateway_plan_id_gateway_plan_gateway_plan_id_fk": {
-          "name": "recurring_donation_gateway_plan_id_gateway_plan_gateway_plan_id_fk",
-          "tableFrom": "recurring_donation",
+        "entry_verification_resubmitted_by_user_id_user_id_fk": {
+          "name": "entry_verification_resubmitted_by_user_id_user_id_fk",
+          "tableFrom": "entry_verification",
           "columnsFrom": [
-            "gateway_plan_id"
+            "resubmitted_by_user_id"
           ],
-          "tableTo": "gateway_plan",
-          "columnsTo": [
-            "gateway_plan_id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "recurring_donation_gateway_subscription_id_unique": {
-          "name": "recurring_donation_gateway_subscription_id_unique",
-          "columns": [
-            "gateway_subscription_id"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "recurring_donation_positive": {
-          "name": "recurring_donation_positive",
-          "value": "\"recurring_donation\".\"amount_minor\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.recurring_refused_charge": {
-      "name": "recurring_refused_charge",
-      "schema": "",
-      "columns": {
-        "gateway_payment_id": {
-          "name": "gateway_payment_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "recurring_donation_id": {
-          "name": "recurring_donation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "refund_id": {
-          "name": "refund_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "recurring_refused_charge_recurring_donation_id_recurring_donation_id_fk": {
-          "name": "recurring_refused_charge_recurring_donation_id_recurring_donation_id_fk",
-          "tableFrom": "recurring_refused_charge",
-          "columnsFrom": [
-            "recurring_donation_id"
-          ],
-          "tableTo": "recurring_donation",
+          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
           "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "recurring_refused_charge_refund_id_refund_id_fk": {
-          "name": "recurring_refused_charge_refund_id_refund_id_fk",
-          "tableFrom": "recurring_refused_charge",
-          "columnsFrom": [
-            "refund_id"
-          ],
-          "tableTo": "refund",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "entry_verification_sent_back_has_deadline": {
+          "name": "entry_verification_sent_back_has_deadline",
+          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"resubmission_due_at\" IS NOT NULL)"
+        },
+        "entry_verification_sent_back_has_reason": {
+          "name": "entry_verification_sent_back_has_reason",
+          "value": "(\"entry_verification\".\"decision\" = 'sent_back') = (\"entry_verification\".\"reason_code\" IS NOT NULL)"
+        },
+        "entry_verification_reason_text_length": {
+          "name": "entry_verification_reason_text_length",
+          "value": "\"entry_verification\".\"reason_text\" IS NULL OR char_length(\"entry_verification\".\"reason_text\") BETWEEN 1 AND 500"
+        },
+        "entry_verification_resubmission_complete": {
+          "name": "entry_verification_resubmission_complete",
+          "value": "(\"entry_verification\".\"resubmitted_at\" IS NULL) = (\"entry_verification\".\"resubmission_with_file\" IS NULL) AND (\"entry_verification\".\"resubmitted_at\" IS NULL OR \"entry_verification\".\"decision\" = 'sent_back')"
+        }
+      },
       "isRLSEnabled": false
     }
   },
@@ -16959,7 +16700,8 @@
         "auction_manager",
         "adoption_coordinator",
         "safeguarding_lead",
-        "grievance_officer"
+        "grievance_officer",
+        "foa_verifier"
       ]
     },
     "public.role_scope_type": {
@@ -17531,8 +17273,7 @@
         "discretionary",
         "cancellation",
         "duplicate",
-        "foreign_payment",
-        "recurring_after_cancel"
+        "foreign_payment"
       ]
     },
     "public.refund_manual_method": {
@@ -17898,16 +17639,12 @@
         "closed_on_behalf"
       ]
     },
-    "public.recurring_donation_status": {
-      "name": "recurring_donation_status",
+    "public.entry_verification_decision": {
+      "name": "entry_verification_decision",
       "schema": "public",
       "values": [
-        "pending_authorisation",
-        "active",
-        "past_due",
-        "halted",
-        "cancelled",
-        "completed"
+        "verified",
+        "sent_back"
       ]
     }
   },

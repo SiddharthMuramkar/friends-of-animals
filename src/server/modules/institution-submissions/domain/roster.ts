@@ -78,6 +78,8 @@ export type RosterEntry = {
   status: EntryStatus;
   /** Its newest upload is still being checked. */
   checking: boolean;
+  /** An active FOA correction window overrides the ordinary submission gate. */
+  correctionOpen?: boolean;
 };
 
 export type RosterRow = RosterStudent & {
@@ -107,6 +109,7 @@ function actionFor(entry: RosterEntry | undefined): RosterAction | null {
     case "failed":
       return "retry";
     case "submitted":
+    case "sent_back":
       return entry.checking ? null : "replace";
     default:
       return null;
@@ -142,7 +145,7 @@ export function buildSubmissionRoster(input: {
     const hold: RosterHold | null =
       student.registrationStatus !== "confirmed"
         ? "registration_not_confirmed"
-        : input.gate === "open"
+        : input.gate === "open" || entry?.correctionOpen
           ? null
           : input.gate;
     return {

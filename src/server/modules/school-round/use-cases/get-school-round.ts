@@ -37,9 +37,13 @@ import {
   loadPicks,
   loadRound,
   loadRoundEntries,
+  loadRoundStudents,
   type PanelMember,
   type RoundEntry,
+  type RoundStudent,
 } from "../store";
+
+export type { RoundStudent } from "../store";
 
 export const roundInput = z.object({
   institutionId: z.uuid(),
@@ -82,6 +86,11 @@ export type SchoolRoundView = {
   panel: PanelMember[];
   /** Categories that have entries, by discipline then age group. */
   categories: RoundCategoryView[];
+  /**
+   * Shortlist-only scope (#91): every confirmed student, with the entry
+   * the coordinator created for them, if any. Empty under all participants.
+   */
+  students: RoundStudent[];
   /** How many entries the round has in all, every status. */
   entryCount: number;
   conductCertified: boolean;
@@ -92,6 +101,7 @@ export type SchoolRoundView = {
   blockers: FinaliseBlocker[];
   /** Whether the panel and picks may still change. */
   canEdit: boolean;
+  closed: { at: Date; reason: string } | null;
   finalised: {
     at: Date;
     byName: string | null;
@@ -127,7 +137,9 @@ export function roundEditable(
   competitionStatus: CompetitionStatus
 ): boolean {
   return (
-    isSchoolRoundEditable(status) && competitionStatus === "school_judging"
+    isSchoolRoundEditable(status) &&
+    (competitionStatus === "school_judging" ||
+      competitionStatus === "foa_judging")
   );
 }
 
@@ -180,13 +192,17 @@ export async function roundView(
     await isConductCertified(db, scope.id),
     await limitsOf(db, round.competitionId),
   ];
+  const shortlistOnly = scope.competition.digitalScope === "shortlist_only";
+  // Shortlist-only entries are already school-shortlisted, even while their
+  // uploads are checking; they can be finalised without waiting for the file.
   const plan = planFinalisation({
     panelSize: panel.length,
     conductCertified,
     judgingAttested: true,
     entries: entries.map((each) => ({
       entryId: each.entryId,
-      submitted: each.status === "submitted",
+      submitted:
+        each.status === (shortlistOnly ? "school_shortlisted" : "submitted"),
     })),
     picks,
   });
@@ -213,10 +229,15 @@ export async function roundView(
       entries,
       new Map(picks.map((pick) => [pick.entryId, pick.position]))
     ),
+    students: shortlistOnly ? await loadRoundStudents(db, scope.id) : [],
     entryCount: entries.length,
     conductCertified,
     blockers: plan.ok ? [] : plan.blockers,
     canEdit: roundEditable(round.status, scope.competition.status),
+    closed:
+      round.closedAt && round.closeReason
+        ? { at: round.closedAt, reason: round.closeReason }
+        : null,
     finalised: round.finalisedAt
       ? {
           at: round.finalisedAt,

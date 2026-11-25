@@ -246,6 +246,11 @@ export function adoptionApplicationsPath(
  * public stories page, /adopt/stories, is in src/lib/routes.ts.
  */
 export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_VERIFICATION = "/admin/verification";
+export function adminVerificationEntryPath(entryId: string): string {
+  return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
+}
+
 export const ADMIN_ADOPTIONS = "/admin/adoptions";
 
 export function myAdoptionApplicationPath(applicationId: string): string {
@@ -289,6 +294,10 @@ export function adminBatchRefundPath(batchId: string): string {
  * Where a super admin cancels a competition (#80). Listed with
  * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
  */
+export function adminSchoolRoundsPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/school-rounds`;
+}
+
 export function adminCompetitionCancelPath(competitionId: string): string {
   return `/admin/competitions/${encodeURIComponent(competitionId)}/cancel`;
 }
@@ -520,6 +529,8 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_VERIFICATION,
+  "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
   "/admin/competitions/[id]/preview",
@@ -533,6 +544,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/safeguarding/[id]",
   "/admin/blog/[id]",
   "/admin/competitions/[id]/rubrics",
+  "/admin/competitions/[id]/school-rounds",
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,

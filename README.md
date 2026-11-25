@@ -877,7 +877,7 @@ const done = await as(actor).completeEntryUpload({
 | `rejected` or `failed`      | `retry`   | back to `processing`                                 |
 | `processing` or `submitted` | `replace` | unchanged; the new file is a **pending replacement** |
 
-Any other status returns `entry_locked`. A new upload supersedes any file still `pending` or `processing`; the live file stays until the new one is `live`. Text limits (`domain/entry-text.ts`): title 120, description 500, statement 1,500, after trim; title and description required. A replacement's words wait on the file as `pendingText` and move onto the Entry only when it goes live.
+A `sent_back` entry is also replaceable until its verification resubmission deadline (#92). Other statuses return `entry_locked`. A new upload supersedes any file still `pending` or `processing`; the live file stays until the new one is `live`. Text limits (`domain/entry-text.ts`): title 120, description 500, statement 1,500, after trim; title and description required. A replacement's words wait on the file as `pendingText` and move onto the Entry only when it goes live.
 
 **Statuses.** Files: `pending` → `processing` (clean scan) → `live` (derivatives ready); bad scan `pending` → `rejected`; unopenable `processing` → `failed`; replaced → `superseded`. At most one file per Entry is `live`. Entries:
 
@@ -890,7 +890,7 @@ Any other status returns `entry_locked`. A new upload supersedes any file still 
 | `rejected`, `failed` | `processing` | the participant retries          |
 | new, `processing`    | `submitted`  | a typed essay is saved (#86)     |
 
-Finalising a school round (#89, [`school-round`](#school-round)) adds `submitted` → `school_shortlisted` → `submitted_to_foa` and `processing`, `rejected`, `failed`, `submitted` → `not_shortlisted`. The enum also has `foa_verified` and `sent_back`; no move reaches them yet. Each move writes a history row. Outcomes that arrive late, twice, or for a dropped file change nothing.
+Finalising a school round (#89, [`school-round`](#school-round)) adds `submitted` → `school_shortlisted` → `submitted_to_foa` and `processing`, `rejected`, `failed`, `submitted` → `not_shortlisted`. Shortlist-only entries start `school_shortlisted` and move to `submitted_to_foa` once their upload is live and the round is finished (#91). Individual entries go straight from `submitted` to `submitted_to_foa` at submission close; verification moves forwarded entries to `foa_verified` or `sent_back`, and corrections return them to `submitted_to_foa` (#92). Each move writes a history row. Outcomes that arrive late, twice, or for a dropped file change nothing.
 
 **Who sees what:** `listMyEntries` returns the member's and their wards' entries, newest first, with `checking` while an upload is in flight. `getEntry({ code })` is for the participant, linked teen or guardian; another person's code and an unknown code both throw forbidden. `listCompetitionEntries` (staff) omits `processing`, `rejected` and `failed` and does not include who made the work.
 
@@ -902,7 +902,7 @@ Finalising a school round (#89, [`school-round`](#school-round)) adds `submitted
 | `entry.file_rejected` | virus check failed (also on replacement)       | `entry.file_rejected`     | `entry.file_rejected.guardian`     |
 | `entry.file_failed`   | file could not be opened (also on replacement) | `entry.processing_failed` | `entry.processing_failed.guardian` |
 
-A replacement that goes live emits no event. On the school route nobody has an account, so the route rows reach nobody; `entries.send_family_receipt` (`family-receipt.ts`, #87) emails the student's family contact (a minor's guardian or the adult student) template `entry.received.family` by its `family_contact` route, as the registration confirmation does. The coordinator gets nothing.
+A replacement that goes live emits `entry.replacement_live` for the verification resubmission handler (#92). On the school route nobody has an account, so the route rows reach nobody; `entries.send_family_receipt` (`family-receipt.ts`, #87) emails the student's family contact (a minor's guardian or the adult student) template `entry.received.family` by its `family_contact` route, as the registration confirmation does. The coordinator gets nothing.
 
 **Refusals.** `startEntryUpload`: `shortlist_only` (school route), `registration_not_confirmed`, `participation_consent_required`, `discipline_not_offered`, `discipline_required`, `empty`, `wrong_type`, `too_large`, `too_long`, `submission_not_open`, `deadline_passed`, `entry_locked`, `upload_limit`. `completeEntryUpload` adds `file_not_found`, `upload_missing` (PUT, then complete again) and `upload_rejected` (storage held something else and deleted it). Both return `invalid_input` for a bad body.
 
@@ -1195,15 +1195,16 @@ A school's first Round on the institution route (#89). The words are in `GLOSSAR
 
 - **Tables** (`school-round.ts`): `school_round` (one per institution registration, unique; status `open`, `overdue`, `finalised`, `closed_on_behalf`, all declared now; the attestation and finalise columns; `families_notified_at`), `school_round_panel_member`, `school_round_pick` (a row exists exactly when the entry is shortlisted; `position` nullable; unique position per round and category), `school_round_transition`.
 - **Opening:** `competition.school_judging_started` (emitted by `makeScheduledMoves` when a competition enters school judging) → `school_round.open_rounds`: one open round per active institution registration with at least one confirmed student, even with no entries. Safe to repeat.
-- **Use cases:** `getSchoolRound`, `recordPanel` (1 to 10 members, name and role up to 120 characters; replaces the list), `saveShortlist` (one category at a time over `domain/picks.ts`: only `submitted` entries of that category, up to `shortlist_per_category`, positions 1 to `school_positions`, each once; a refused save names every problem and changes nothing), `finaliseSchoolRound`, `listSchoolRoundOutcomes` (`pending` until finalised, then `shortlisted` with position or `not_shortlisted`; for M4 #100). Changes lock the round row; only an `open` round in a competition in school judging changes (`round_not_editable`).
-- **Finalising** (`domain/finalise.ts` plans it): needs a panel, the conduct certification (#87) and the judging attestation (`finalise_blocked` lists every blocker). In one transaction each pick moves `submitted → school_shortlisted → submitted_to_foa` (all-participants scope; owner decision 2026-11-19) and every other entry of the registration `not_shortlisted`, through `entries/school-round-outcome.ts`; the round records who attested and finalised and the statement version (`domain/judging-statement.ts`, wording HR-36); one audit row `school_round.finalised`; and `school_round.shortlist_finalised`, emitted nowhere else (`only-finalise-emits.test.ts`). The shortlist-only scope answers `shortlist_only` until #91.
-- **Families:** `school_round.queue_family_outcomes` queues one `entry.school_shortlisted` or `entry.not_shortlisted` per entry, once (`families_notified_at`); `school_round.send_family_outcome` emails the family contact (a minor's guardian or the adult student) by the `family_contact` route (`drizzle/0103_89_school_round_messages.sql`). Email only (HR-14).
+- **Use cases:** `getSchoolRound`, `recordPanel` (1 to 10 members, name and role up to 120 characters; replaces the list), `saveShortlist` (one category at a time over `domain/picks.ts`: only `submitted` entries of that category, up to `shortlist_per_category`, positions 1 to `school_positions`, each once; a refused save names every problem and changes nothing), `finaliseSchoolRound`, `listSchoolRoundOutcomes` (`pending` until finalised, then `shortlisted` with position or `not_shortlisted`; for M4 #100). Changes lock the round row; `open` and `overdue` rounds can be changed while the competition is in judging (`round_not_editable`).
+- **Finalising** (`domain/finalise.ts` plans it): needs a panel, the conduct certification (#87) and the judging attestation (`finalise_blocked` lists every blocker). In one transaction each pick moves `submitted → school_shortlisted → submitted_to_foa` (all-participants scope; owner decision 2026-11-19) and every other entry of the registration `not_shortlisted`, through `entries/school-round-outcome.ts`; the round records who attested and finalised and the statement version (`domain/judging-statement.ts`, wording HR-36); one audit row `school_round.finalised`; and `school_round.shortlist_finalised`, emitted nowhere else (`only-finalise-emits.test.ts`). Under shortlist-only scope (#91), the coordinator creates each pick's entry during the school round, with a digital file and versioned declarations. It goes to FOA only after both the upload is live and the round is finished.
+- **Families:** `school_round.queue_family_outcomes` queues one `entry.school_shortlisted` or `entry.not_shortlisted` per entry, or `registration.not_shortlisted` for a confirmed student without an entry in shortlist-only scope, once per decision (`families_notified_at`); `school_round.send_family_outcome` emails the family contact (a minor's guardian or the adult student) by the `family_contact` route (`drizzle/0103_89_school_round_messages.sql`). Email only (HR-14).
 - **Who may call:** `school_round.read`, `.manage`, `.finalise`: the institution's coordinators and authorised person. `school_round.outcomes.read`: the platform, a competition manager of the competition (or global), the institution.
 - **Page:** `/institution/registrations/[ref]/school-round` (panel form, a form per category, the finalise checklist and attestation, the finalised shortlist); linked from the submissions roster.
 - **Seed:** `src/server/seed/school-round.ts`: Kinder Skies (SKIES26, now all-participants) has the verified school's open round with three submitted entries, a panel of two and two picks, one placed 1st; conduct not certified.
 - **Migrations:** `0102_89_school_round`, `0103_89_school_round_messages`.
-- **Not yet:** overdue, closing on behalf and reopening (#90); shortlist-only scope (#91).
-- **Tests:** `domain/*.test.ts`, `open-school-rounds.test.ts`, `record-panel.test.ts`, `save-shortlist.test.ts`, `finalise-school-round.test.ts`, `family-outcomes.test.ts`, `list-school-round-outcomes.test.ts`, `only-finalise-emits.test.ts`, `seed/school-round.test.ts`; E2E `89-school-round.spec.ts`.
+- **Deadline and corrections (#90):** the status job at `school_round_closes` marks unfinished rounds `overdue` and tells coordinators; nothing finalises automatically. The `school_round_shortlist_due` reminder uses the shared registry, with 72- and 24-hour defaults. Competition status reaches `foa_judging` at that date only once every school round is finished. `listSchoolRoundsForManager`, `closeSchoolRoundOnBehalf` (overdue only, reason required, applies the school’s draft picks), and `reopenSchoolRound` (only during school judging, reverts entry histories, keeps draft picks, refuses verified entries) are scoped to competition managers, on `/admin/competitions/[id]/school-rounds`. Closing on behalf emits `school_round.closed_on_behalf` and is audit-logged. Reopening resets the old attestation and only changed family outcomes or positions are emailed again (`school_round_family_notice`).
+- **Shortlist-only (#91):** `startShortlistedEntry` and `completeShortlistedEntry` are scoped to the school's coordinators. They create the entry, pick and versioned `school_round_declaration` together, within the category's shortlist limit. No entry is manufactured for an unshortlisted student. A failed upload can be retried after the round finishes; the registration-keyed `school_round_family_notice` deduplicates outcomes across reopening in both scopes.
+- **Tests:** `domain/*.test.ts`, `open-school-rounds.test.ts`, `record-panel.test.ts`, `save-shortlist.test.ts`, `finalise-school-round.test.ts`, `family-outcomes.test.ts`, `list-school-round-outcomes.test.ts`, `only-finalise-emits.test.ts`, `seed/school-round.test.ts`; E2E `89-school-round.spec.ts`, `90-overdue-rounds.spec.ts`; #90 use-case tests `overdue-school-rounds.test.ts`, `manage-round.test.ts`.
 
 ### second-factor
 
@@ -1249,6 +1250,14 @@ Runtime settings a super admin changes without a deploy.
   | `adoption.minAdopterAgeYears`                                                | 18                         | 18 to 25 years (HR-62)                                |
 
 - **Tests:** `settings.test.ts`, `catalogue.test.ts`, `values.test.ts`; E2E `62-settings.spec.ts`.
+
+### verification
+
+FOA verification of digital entries (#92).
+
+- **Use cases:** `listVerificationQueue`, `getVerificationEntry`, `verifyEntry`, `sendBackEntry` (global FOA verifier, staff second factor required); `resubmitEntry` (participant, guardian or school coordinator).
+- **Rules:** school-route entries are forwarded by the finished school round, individual entries at submissions close. A verifier may verify or send back with a reason; the decision records entry history, audit and notification. A sent-back entry may be corrected until its captured deadline (`entries.resubmissionDays`, default seven); a changed file must pass processing before the entry returns to FOA.
+- **Tables and pages:** `entry_verification`, preserving each decision and resubmission; `/admin/verification`, `/admin/verification/[id]`, and correction actions on entry detail pages. Tests: `verification/*.test.ts`, `verification/domain/decide.test.ts`, E2E `92-foa-verification.spec.ts`.
 
 ### volunteers
 
@@ -1702,7 +1711,7 @@ PGlite is Postgres compiled to WebAssembly, running inside the test process. `vi
 pnpm test                                                   # everything, once
 pnpm test src/server/modules/payments/pay-again.test.ts     # one file
 pnpm test -t "<part of a test name>"                        # matching tests
-pnpm exec vitest run --shard=3/8                            # one CI shard
+pnpm exec vitest run --shard=3/10                           # one CI shard
 ```
 
 ### Seam 1: use-case tests through the harness
@@ -1831,7 +1840,7 @@ The CI job "Test integrity" fails if any test file (`tests/`, `src/test/`, `*.te
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Choose the jobs to run (`scope`) | `full` is true for non-PR runs, PR branches starting `revert/`, and PRs labelled `full-ci`                                                     |
 | Lint, Typecheck, Format check    | `pnpm lint`, `pnpm typecheck`, `pnpm format:check`                                                                                             |
-| Vitest (shard n/8)               | 8 parallel jobs                                                                                                                                |
+| Vitest (shard n/10)              | 10 parallel jobs                                                                                                                               |
 | Test integrity                   | The rules above                                                                                                                                |
 | Build without a database         | `pnpm build && pnpm check:build` with empty database URLs: pages must prerender without a database; bundle-size, browser-syntax and CSP checks |
 | Migrations                       | [What CI checks on migrations](#what-ci-checks-on-migrations)                                                                                  |

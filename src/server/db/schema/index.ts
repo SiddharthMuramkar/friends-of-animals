@@ -56,3 +56,4 @@ export * from "./volunteers";
 export * from "./school-round";
 
 export * from "./recurring-donations";
+export * from "./verification";

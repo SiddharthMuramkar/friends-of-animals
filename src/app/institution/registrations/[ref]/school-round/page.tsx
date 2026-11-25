@@ -24,6 +24,7 @@ import {
   type SchoolRoundView,
 } from "@/server/modules/school-round";
 
+import { ShortlistOnlyStudents } from "./_components/shortlist-only-students";
 import { EntryStatusChip } from "../../../../participant/entries/_components/entry-status";
 import { actingFor } from "../submissions/_lib/acting-institution";
 import {
@@ -164,7 +165,15 @@ async function RoundView({
           {t("reference", { reference: round.reference })}
         </p>
         <p className="mt-3 flex flex-wrap items-center gap-2">
-          <Chip tone={round.status === "open" ? "marigold" : "green"}>
+          <Chip
+            tone={
+              round.status === "overdue"
+                ? "pink"
+                : round.status === "open"
+                  ? "marigold"
+                  : "green"
+            }
+          >
             {t(`status.${round.status}`)}
           </Chip>
         </p>
@@ -192,17 +201,25 @@ async function RoundView({
         />
       ) : null}
 
+      {round.status === "overdue" ? (
+        <p className="text-ink font-semibold">{t("overdueNotice")}</p>
+      ) : null}
       <PanelSection round={round} hidden={hidden} />
-      {round.finalised ? (
+      {round.competition.digitalScope === "shortlist_only" ? (
+        <ShortlistOnlyStudents round={round} institutionId={institutionId} />
+      ) : null}
+      {round.finalised || round.closed ? (
         <ResultSection round={round} />
       ) : (
         <>
-          <ShortlistSection
-            round={round}
-            hidden={hidden}
-            problemCategory={problemCategory}
-            problems={problems}
-          />
+          {round.competition.digitalScope === "all_participants" ? (
+            <ShortlistSection
+              round={round}
+              hidden={hidden}
+              problemCategory={problemCategory}
+              problems={problems}
+            />
+          ) : null}
           <FinaliseSection round={round} hidden={hidden} />
         </>
       )}
@@ -458,14 +475,7 @@ async function FinaliseSection({
   hidden: Hidden;
 }) {
   const t = await getTranslations("schoolRound.finalise");
-  if (round.competition.digitalScope !== "all_participants") {
-    return (
-      <section aria-labelledby="round-finalise" className={CARD}>
-        <SectionHeading id="round-finalise" title={t("title")} />
-        <p className="mt-3 text-ink">{t("shortlistOnly")}</p>
-      </section>
-    );
-  }
+  const shortlistOnly = round.competition.digitalScope === "shortlist_only";
   const blocked = new Set(round.blockers.map((blocker) => blocker.code));
   const picksOk =
     !blocked.has("pick_not_in_round") && !blocked.has("pick_not_submitted");
@@ -480,7 +490,9 @@ async function FinaliseSection({
   return (
     <section aria-labelledby="round-finalise" className={CARD}>
       <SectionHeading id="round-finalise" title={t("title")} />
-      <p className="mt-3 text-ink-muted">{t("lead")}</p>
+      <p className="mt-3 text-ink-muted">
+        {t(shortlistOnly ? "shortlistOnlyLead" : "lead")}
+      </p>
       <h3 className="mt-5">{t("checklist")}</h3>
       <ul className="mt-2 flex flex-col gap-2">
         {checks.map((check) => (
@@ -491,7 +503,13 @@ async function FinaliseSection({
             <Chip tone={check.ok ? "green" : "pink"}>
               {check.ok ? t("done") : t("todo")}
             </Chip>
-            <span>{t(check.key)}</span>
+            <span>
+              {t(
+                shortlistOnly && check.key === "picks"
+                  ? "shortlistOnlyPicks"
+                  : check.key
+              )}
+            </span>
             {check.key === "conduct" && !check.ok ? (
               <ButtonLink
                 href={conductCertificationPath(
@@ -508,9 +526,11 @@ async function FinaliseSection({
       </ul>
       <h3 className="mt-5">{t("summaryTitle")}</h3>
       <p className="mt-2 text-ink">
-        {t("summary", {
+        {t(shortlistOnly ? "shortlistOnlySummary" : "summary", {
           shortlisted,
-          others: round.entryCount - shortlisted,
+          others:
+            (shortlistOnly ? round.students.length : round.entryCount) -
+            shortlisted,
         })}
       </p>
       {round.canEdit ? (
@@ -560,7 +580,10 @@ async function ResultSection({ round }: { round: SchoolRoundView }) {
   ]);
   const { finalised } = round;
   const all = round.categories.flatMap((category) => category.entries);
-  const others = round.entryCount - all.filter((each) => each.picked).length;
+  const shortlistOnly = round.competition.digitalScope === "shortlist_only";
+  const others =
+    (shortlistOnly ? round.students.length : round.entryCount) -
+    all.filter((each) => each.picked).length;
   return (
     <section aria-labelledby="round-result" className={CARD}>
       <SectionHeading id="round-result" title={t("title")} />
@@ -574,6 +597,14 @@ async function ResultSection({ round }: { round: SchoolRoundView }) {
             : finalise("finalisedByFormer", {
                 date: format.dateTime(finalised.at, "longDateTime"),
               })}
+        </p>
+      ) : null}
+      {round.closed ? (
+        <p className="mt-3 text-ink">
+          {t("closed", {
+            date: format.dateTime(round.closed.at, "longDateTime"),
+            reason: round.closed.reason,
+          })}
         </p>
       ) : null}
       {all.every((each) => !each.picked) ? (
@@ -612,7 +643,9 @@ async function ResultSection({ round }: { round: SchoolRoundView }) {
         })
       )}
       <p className="mt-5 text-ink-muted">
-        {t("notShortlisted", { count: others })}
+        {t(shortlistOnly ? "notShortlistedStudents" : "notShortlisted", {
+          count: others,
+        })}
       </p>
     </section>
   );
