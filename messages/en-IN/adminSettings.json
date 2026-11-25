@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} paise {{count, number} paise} minutes {{count, plural, one {# minute} other {# minutes}}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} paise {{count, number} paise} minutes {{count, plural, one {# minute} other {# minutes}}} offers {{count, plural, one {# offer} other {# offers}}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} paise {paise} minutes {minutes} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} paise {paise} minutes {minutes} offers {offers} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -336,6 +336,14 @@
         "enabled": {
           "label": "Enable auctions",
           "description": "Allow scheduling, public viewing and bidding on auction lots. Leave off until FOA and counsel approve auction eligibility and consent terms."
+        },
+        "paymentWindowHours": {
+          "label": "Payment window",
+          "description": "Hours a winning bidder has to pay for the lot."
+        },
+        "maxPaymentOffers": {
+          "label": "Maximum payment offers",
+          "description": "Number of distinct buyers offered payment before the original is released for relisting."
         }
       }
     }

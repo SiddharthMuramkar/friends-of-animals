@@ -35,7 +35,11 @@ export type PaymentCaptureMethod = (typeof PAYMENT_CAPTURE_METHODS)[number];
 /** What a batch pays for (#106): registrations' fees, or one donation,
  * whose module decides what its payments do (../purposes.ts). Auctions
  * (#133) add theirs, with their handler. */
-export const PAYMENT_PURPOSES = ["registration_fee", "donation"] as const;
+export const PAYMENT_PURPOSES = [
+  "registration_fee",
+  "donation",
+  "auction_sale",
+] as const;
 
 export type PaymentPurpose = (typeof PAYMENT_PURPOSES)[number];
 

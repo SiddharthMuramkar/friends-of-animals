@@ -52,6 +52,7 @@ import {
   artworkCustodyEvent,
   auctionLot,
   auctionBid,
+  auctionOffer,
   artworkDiscrepancy,
   artworkReturnRequest,
   artworkVerification,
@@ -428,6 +429,20 @@ export const SECTIONS: readonly Section[] = [
     table: paymentBatch,
     where: (scope) => within(paymentBatch.payerUserId, users(scope)),
     owners: ["payer_user_id"],
+  },
+  {
+    table: auctionOffer,
+    where: (scope) =>
+      or(
+        sql`${auctionOffer.bidId} IN (SELECT ${auctionBid.id} FROM ${auctionBid} WHERE ${within(auctionBid.bidderUserId, users(scope))})`,
+        sql`${auctionOffer.batchId} IN ${paidBatchesOf(scope)}`,
+        and(
+          eq(auctionOffer.status, "paid"),
+          sql`${auctionOffer.lotId} IN (SELECT ${auctionLot.id} FROM ${auctionLot} JOIN ${physicalArtwork} ON ${physicalArtwork.id}=${auctionLot.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`
+        )
+      )!,
+    owners: ["bid_id", "batch_id", "lot_id"],
+    decrypt: { address_ciphertext: "auction_offer.address" },
   },
   {
     table: paymentBatchItem,

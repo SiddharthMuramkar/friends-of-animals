@@ -61,6 +61,8 @@ describe("the settings catalogue", () => {
       "auctions.enabled": false,
       "auctions.minIncrementPaise": 5000,
       "auctions.antiSnipingWindowMinutes": 5,
+      "auctions.paymentWindowHours": 72,
+      "auctions.maxPaymentOffers": 3,
       "artwork.returnWindowDays": 30,
       "artwork.dispatchReminderLeadHours": 72,
       "artwork.packagingInstructions":

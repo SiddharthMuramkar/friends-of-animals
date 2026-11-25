@@ -59,6 +59,9 @@ export const SYSTEM_ACCOUNT_CODES = {
   gatewayClearing: "1100",
   /** Foreign money held until it goes back (FCRA off, #106). */
   foreignContributions: "2100",
+  creatorSharePayable: "2200",
+  auctionReviewLiability: "2210",
+  auctionProceeds: "4300",
   accumulatedFund: "3000",
   registrationFees: "4100",
   /** Donations by donor type (#106). */
@@ -105,6 +108,27 @@ export const SEEDED_ACCOUNTS: readonly SeededAccount[] = [
     kind: "liability",
     isSystem: true,
     publicGroup: null,
+  },
+  {
+    code: "2200",
+    name: "Creator auction shares payable",
+    kind: "liability",
+    isSystem: true,
+    publicGroup: null,
+  },
+  {
+    code: "2210",
+    name: "Auction payments in review",
+    kind: "liability",
+    isSystem: true,
+    publicGroup: null,
+  },
+  {
+    code: "4300",
+    name: "Auction proceeds",
+    kind: "income",
+    isSystem: true,
+    publicGroup: "income",
   },
   {
     code: "3000",

@@ -1,4 +1,11 @@
 import {
+  offeredBuyer,
+  offerValues,
+  creatorRecipients,
+  schoolRecipients,
+  saleValues,
+} from "../auctions/messages";
+import {
   PRIZE_VARIABLES,
   prizeRecipients,
   prizeValues,
@@ -325,6 +332,9 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "auction.lot_opened":
     case "auction.lot_closed":
     case "auction.bid_outbid":
+    case "auction.offer_opened":
+    case "auction.offer.expire":
+    case "auction.sale_captured":
     case "auction.lot_cancelled":
     case "artwork.retain_unrequested":
     case "artwork.requested":
@@ -427,6 +437,18 @@ type Audience = (
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  auction_winner: async (db, delivery) =>
+    delivery.eventType === "auction.offer_opened"
+      ? offeredBuyer(db, delivery.payload.offerId)
+      : [],
+  auction_creator: async (db, delivery, cipher) =>
+    delivery.eventType === "auction.sale_captured" && cipher
+      ? creatorRecipients(db, delivery.payload.offerId, cipher)
+      : [],
+  auction_school: async (db, delivery) =>
+    delivery.eventType === "auction.sale_captured"
+      ? schoolRecipients(db, delivery.payload.offerId)
+      : [],
   prize_recipients: async (db, delivery, cipher) =>
     delivery.eventType === "results.prize_awarded" && cipher
       ? prizeRecipients(db, delivery.payload, cipher)
@@ -950,6 +972,15 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "auction.bid_outbid": {
     names: ["lot.code"],
     load: async (_db, { payload }) => ({ "lot.code": payload.lotCode }),
+  },
+  "auction.offer_opened": {
+    names: ["lot.code", "offer.link", "offer.deadline"],
+    load: (db, { payload }) => offerValues(db, payload.offerId),
+  },
+  "auction.offer.expire": { names: [], load: async () => ({}) },
+  "auction.sale_captured": {
+    names: ["lot.code"],
+    load: (db, { payload }) => saleValues(db, payload.offerId),
   },
   "auction.lot_cancelled": { names: [], load: async () => ({}) },
   "artwork.retain_unrequested": { names: [], load: async () => ({}) },

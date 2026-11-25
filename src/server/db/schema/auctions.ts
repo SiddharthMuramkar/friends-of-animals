@@ -3,6 +3,7 @@ import {
   bigint,
   check,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -14,6 +15,11 @@ import {
 import { physicalArtwork, physicalArtworkStatus } from "./physical-artwork";
 import { consentEvent } from "./consent";
 import { user } from "./identity";
+import { encryptedText } from "../types/encrypted-text";
+import { paymentBatch } from "./payments";
+import { competition } from "./competitions";
+import { OFFER_STATUSES } from "../../modules/auctions/domain/payment-offer";
+import { DELIVERY_STATUSES } from "../../modules/auctions/domain/delivery-status";
 import {
   ACTIVE_LOT_STATUSES,
   LOT_STATUSES,
@@ -110,3 +116,61 @@ export const auctionBid = pgTable(
   ]
 );
 export type AuctionBidRow = typeof auctionBid.$inferSelect;
+
+export const auctionOfferStatus = pgEnum(
+  "auction_offer_status",
+  OFFER_STATUSES
+);
+export const auctionDeliveryStatus = pgEnum(
+  "auction_delivery_status",
+  DELIVERY_STATUSES
+);
+
+/** Permanent financial facts; links to an erased entry and bid may disappear. */
+export const auctionOffer = pgTable(
+  "auction_offer",
+  {
+    id: uuid().primaryKey(),
+    lotId: uuid("lot_id").references(() => auctionLot.id, {
+      onDelete: "set null",
+    }),
+    bidId: uuid("bid_id").references(() => auctionBid.id, {
+      onDelete: "set null",
+    }),
+    batchId: uuid("batch_id").references(() => paymentBatch.id, {
+      onDelete: "restrict",
+    }),
+    competitionId: uuid("competition_id")
+      .notNull()
+      .references(() => competition.id, { onDelete: "restrict" }),
+    lotCode: text("lot_code").notNull(),
+    status: auctionOfferStatus().notNull(),
+    amountPaise: bigint("amount_paise", { mode: "bigint" }).notNull(),
+    creatorShareBps: integer("creator_share_bps").notNull(),
+    offeredAt: stamp("offered_at").notNull(),
+    expiresAt: stamp("expires_at").notNull(),
+    paidAt: stamp("paid_at"),
+    deliveryStatus: auctionDeliveryStatus("delivery_status"),
+    addressCiphertext: encryptedText("address_ciphertext"),
+    courier: text(),
+    trackingNumber: text("tracking_number"),
+    deliveryUpdatedAt: stamp("delivery_updated_at"),
+  },
+  (t) => [
+    unique("auction_offer_batch_unique").on(t.batchId),
+    uniqueIndex("auction_offer_one_live_lot")
+      .on(t.lotId)
+      .where(sql`${t.status} IN ('open','paid')`),
+    index("auction_offer_bid_idx").on(t.bidId),
+    index("auction_offer_lot_idx").on(t.lotId),
+    check(
+      "auction_offer_terms",
+      sql`${t.amountPaise} > 0 AND ${t.expiresAt} > ${t.offeredAt} AND ${t.creatorShareBps} BETWEEN 0 AND 10000`
+    ),
+    check(
+      "auction_offer_paid",
+      sql`(${t.status} = 'paid') = (${t.paidAt} IS NOT NULL AND ${t.batchId} IS NOT NULL AND ${t.deliveryStatus} IS NOT NULL)`
+    ),
+  ]
+);
+export type AuctionOfferRow = typeof auctionOffer.$inferSelect;

@@ -1597,6 +1597,48 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
           : "technical"
     )
   ),
+  // Auction offer financial evidence outlives account and artwork links.
+  ...(
+    [
+      "lot_id",
+      "bid_id",
+      "batch_id",
+      "lot_code",
+      "amount_paise",
+      "creator_share_bps",
+    ] as const
+  ).map((column) =>
+    rowsOf("auction_offer", {
+      subject: {
+        kind: "payer",
+        via: "bid_id → auction_bid.bidder_user_id; batch_id → payment_batch.payer_user_id",
+      },
+      retention: PAYMENT_RECORD,
+      onExpiry: "retain",
+    })(
+      column,
+      column === "amount_paise" || column === "creator_share_bps"
+        ? "financial"
+        : "technical"
+    )
+  ),
+  ...(["address_ciphertext", "courier", "tracking_number"] as const).map(
+    (column) =>
+      rowsOf("auction_offer", {
+        subject: {
+          kind: "payer",
+          via: "bid_id → auction_bid.bidder_user_id; batch_id → payment_batch.payer_user_id",
+        },
+        retention: {
+          policy: "auctionBids",
+          periodKey: "auctionBids",
+          basis:
+            "Delivery details are used only for fulfilment; the encrypted address is removed on confirmed receipt and all delivery contact details are removed on erasure.",
+          toConfirm: true,
+        },
+        onExpiry: "set_null",
+      })(column, column === "address_ciphertext" ? "contact" : "technical")
+  ),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",

@@ -20,7 +20,7 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, count, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../../access/can";
@@ -44,6 +44,7 @@ import {
   directoryListing,
   entry,
   auctionBid,
+  auctionOffer,
   entryFile,
   entryUploadGrant,
   erasureRecord,
@@ -706,6 +707,15 @@ async function eraseRecords(
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
   // Preserve accepted amounts and deadlines, even for an account retained
   // only for other financial records. Erasure never lowers the lot's price.
+  await tx
+    .update(auctionOffer)
+    .set({ addressCiphertext: null, courier: null, trackingNumber: null })
+    .where(
+      or(
+        sql`${auctionOffer.bidId} IN (SELECT ${auctionBid.id} FROM ${auctionBid} WHERE ${within(auctionBid.bidderUserId, users)})`,
+        sql`${auctionOffer.batchId} IN (SELECT ${paymentBatch.id} FROM ${paymentBatch} WHERE ${within(paymentBatch.payerUserId, users)})`
+      )
+    );
   await tx
     .update(auctionBid)
     .set({ bidderUserId: null })
