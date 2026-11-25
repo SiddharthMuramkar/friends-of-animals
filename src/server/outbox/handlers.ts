@@ -1,3 +1,4 @@
+import { renderStamp } from "../modules/stamping";
 import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 // What each handler named in ./events.ts SUBSCRIBERS does with a delivery.
 // A handler may run more than once for one delivery (a worker that dies
@@ -165,6 +166,7 @@ export const HANDLERS: Handlers = {
       payload
     );
   },
+  "stamping.render": (deps, { payload }) => renderStamp(deps, payload),
   "certificate.render": (deps, { payload }) =>
     renderCertificate(
       { ...deps, actor: { kind: "system", process: "worker" } },

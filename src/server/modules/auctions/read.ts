@@ -15,6 +15,8 @@ import { PUBLIC_LOT_STATUSES } from "./domain/lot-status";
 import { parseLotCode } from "./domain/lot-code";
 import { auctionsEnabled, currentLotConsent } from "./lifecycle";
 import { minimumNextBid } from "./domain/bid-rules";
+import { liveEntryStampSource, stampedImage } from "../stamping";
+import { ObjectMissingError } from "../../ports/storage";
 
 // Select only the amount, in the same SQL snapshot as the closing time,
 // so a live refresh cannot combine an old deadline with a new bid.
@@ -36,6 +38,7 @@ async function toPublic(
   // name. Neither an original File nor its private derivatives is joined.
   const consent = await currentLotConsent(ctx, row);
   if (!consent) return null;
+  const copy = await imageOf(ctx, consent.entryId);
   return {
     lotCode: row.lotCode,
     story: row.story,
@@ -54,9 +57,61 @@ async function toPublic(
     opensAt: row.opensAt,
     closesAt: row.closesAt,
     award: await publishedRecognitionForEntry(ctx.db, consent.entryId),
-    // #102: only a stamped public asset.
-    image: null as { url: string; alt: string } | null,
+    image: copy
+      ? {
+          url: `/media/auctions/${row.lotCode}`,
+          width: copy.width,
+          height: copy.height,
+          alt: "Artwork with the Friends of Animals logo",
+        }
+      : null,
   };
+}
+
+async function imageOf(ctx: UseCaseContext, entryId: string) {
+  const fileId = await liveEntryStampSource(ctx.db, entryId);
+  return fileId ? stampedImage(ctx, { fileId, variant: "gallery" }) : null;
+}
+
+/** Public media bytes only; a fresh consent and lot-state check on every
+ * request, with no CDN or signed storage URL. A missing stamp is not found. */
+export async function readLotImage(
+  ctx: UseCaseContext,
+  input: { lotCode: string }
+) {
+  await authorize(ctx, "auction.lot.read_image");
+  const missing = { ok: false, error: "not_found" } as const;
+  if (!(await auctionsEnabled(ctx)) || typeof input?.lotCode !== "string")
+    return missing;
+  const code = parseLotCode(input.lotCode);
+  if (!code) return missing;
+  const [lot] = await ctx.db
+    .select()
+    .from(auctionLot)
+    .where(
+      and(
+        eq(auctionLot.lotCode, code),
+        inArray(auctionLot.status, PUBLIC_LOT_STATUSES),
+        gt(auctionLot.closesAt, ctx.clock.now())
+      )
+    );
+  if (!lot) return missing;
+  const consent = await currentLotConsent(ctx, lot);
+  if (!consent) return missing;
+  const copy = await imageOf(ctx, consent.entryId);
+  if (!copy) return missing;
+  try {
+    const body = await ctx.storage.read({ bucket: copy.bucket, key: copy.key });
+    return {
+      ok: true,
+      body,
+      contentType: copy.contentType,
+      sizeBytes: copy.sizeBytes,
+    } as const;
+  } catch (error) {
+    if (error instanceof ObjectMissingError) return missing;
+    throw error;
+  }
 }
 
 export async function browseLots(ctx: UseCaseContext) {

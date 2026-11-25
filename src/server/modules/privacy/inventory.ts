@@ -992,7 +992,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     rowsOf("file_derivative", {
       subject: {
         kind: "user",
-        via: "file_asset_id → file_asset.owner_user_id",
+        via: "file_asset_id → file_asset.owner_user_id or certificate.pdf_file_id → certificate.participant_profile_id",
       },
       retention: WHILE_FILE_KEPT,
       onExpiry: "delete_row",

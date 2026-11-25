@@ -95,6 +95,7 @@ RUN apt-get update \
 COPY vitest.config.ts vitest.media.config.ts ./
 COPY fixtures/media ./fixtures/media
 COPY public/brand/foa-logo.svg ./public/brand/foa-logo.svg
+COPY public/brand/foa-logo-watermark*.png ./public/brand/
 USER node
 CMD ["node", "--import", "tsx", "src/worker-media/main.ts"]
 

@@ -33,7 +33,14 @@ import {
   type LotInput,
   type CancelLotInput,
 } from "./lifecycle";
-import { browseLots, getLot, listLotsForAdmin, getLotForAdmin } from "./read";
+import {
+  browseLots,
+  getLot,
+  listLotsForAdmin,
+  getLotForAdmin,
+  readLotImage,
+} from "./read";
+import { liveEntryStampSource, queueStamp } from "../stamping";
 import { emit } from "../../outbox";
 import { placeBid, type PlaceBidInput } from "./bidding";
 
@@ -123,6 +130,12 @@ async function createLot(ctx: UseCaseContext, input: CreateLotInput) {
         })
     );
     await recordAuctionReservation(tx, ctx, artworkId, id, previous);
+    const imageFileId = await liveEntryStampSource(tx, facts.work.entryId);
+    if (imageFileId)
+      await queueStamp(tx, ctx.clock, {
+        fileId: imageFileId,
+        variant: "gallery",
+      });
     await recordAudit(tx, ctx, {
       action: "auction_lot.created",
       entity: { type: "auction_lot", id },
@@ -170,6 +183,7 @@ async function listEligibleArtwork(ctx: UseCaseContext) {
 export const auctionsUseCases = (ctx: UseCaseContext) => ({
   placeBid: (input: PlaceBidInput) => placeBid(ctx, input),
   browseLots: () => browseLots(ctx),
+  readLotImage: (input: { lotCode: string }) => readLotImage(ctx, input),
   getLot: (input: { lotCode: string }) => getLot(ctx, input),
   listLotsForAdmin: () => listLotsForAdmin(ctx),
   getLotForAdmin: (input: { lotId: string }) => getLotForAdmin(ctx, input),

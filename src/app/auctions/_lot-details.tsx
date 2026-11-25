@@ -23,6 +23,17 @@ export async function LotDetails({ lot }: { lot: PublicLot }) {
     });
   return (
     <>
+      {lot.image && (
+        // oxlint-disable-next-line nextjs/no-img-element -- consent-gated, already resized stamped images; never cache them in the Next image optimizer
+        <img
+          src={lot.image.url}
+          alt={t("artworkImage")}
+          width={lot.image.width}
+          height={lot.image.height}
+          className="mt-4 h-auto w-full rounded-xl"
+          loading="lazy"
+        />
+      )}
       <p className="mt-2 font-semibold text-ink-muted">
         {t(`status.${lot.status}`)}
       </p>
