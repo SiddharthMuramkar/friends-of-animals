@@ -660,6 +660,13 @@ certificate or an identity proof. It is a File only Staff can open, not even
 the person who uploaded it.
 _Avoid_: Attachment, KYC document
 
+**Pin-code centre**:
+Where the directory search places a pin code: the middle of its post offices,
+from India Post's open pin-code directory. A Directory listing is found by
+distance from its pin-code centre, never from its address, so distances are
+approximate.
+_Avoid_: Geocode, listing location
+
 ## Engineering
 
 **Seed builder**:

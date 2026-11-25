@@ -2,7 +2,9 @@
 // seeded member, a verified independent rescuer, a shelter waiting for
 // review with a document, one rejected and one suspended listing, so a
 // preview's staff queue, the public page and the representative's page
-// have something in each state. Placeholder details only: example.test
+// have something in each state. For the search (#128), sample centres for
+// a handful of pin codes around Pune and Mumbai (SAMPLE_PINCODE_CENTRES):
+// rounded coordinates, not India Post's data, which waits on HR-59. Placeholder details only: example.test
 // addresses and numbers in a block no real subscriber holds. Loads under
 // plain Node (the seed script): relative imports only, no "server-only".
 
@@ -19,7 +21,9 @@ import type {
   ListingType,
 } from "../modules/directory/domain/catalogue";
 import type { ListingStatus } from "../modules/directory/domain/listing-status";
+import type { PincodeCentre } from "../modules/directory/domain/pincode-import";
 import { listingSlugBase } from "../modules/directory/domain/slug";
+import { savePincodeCentres } from "../modules/directory/pincodes";
 import { storageKeyFor } from "../modules/files/domain/storage-key";
 import { sealListingDetails } from "../modules/directory/stored-listing";
 import { ensureGrant } from "./access";
@@ -79,6 +83,40 @@ export const SEED_DIRECTORY = {
   },
 } as const;
 
+/**
+ * Sample pin-code centres, so a preview's search finds the seeded
+ * listings: two decimals, about a kilometre, from public maps. Not India
+ * Post's directory: its import waits on HR-59. Saved again on every seed.
+ */
+export const SAMPLE_PINCODE_CENTRES: readonly PincodeCentre[] = [
+  centre("411001", 18.52, 73.86, "Pune"),
+  centre("411004", 18.52, 73.84, "Pune"),
+  centre("411038", 18.51, 73.81, "Pune"),
+  centre("411014", 18.57, 73.91, "Pune"),
+  centre("411018", 18.63, 73.8, "Pune"),
+  centre("412105", 18.68, 73.9, "Pune"),
+  centre("410506", 18.73, 73.68, "Pune"),
+  centre("415001", 17.69, 74.0, "Satara"),
+  centre("422001", 20.0, 73.79, "Nashik"),
+  centre("400001", 18.94, 72.84, "Mumbai"),
+];
+
+function centre(
+  pinCode: string,
+  latitude: number,
+  longitude: number,
+  district: string
+): PincodeCentre {
+  return {
+    pinCode,
+    latitude,
+    longitude,
+    district,
+    state: "Maharashtra",
+    postOffices: 1,
+  };
+}
+
 type SeedListing = {
   id: string;
   slug: string;
@@ -86,6 +124,7 @@ type SeedListing = {
   type: ListingType;
   services: DirectoryService[];
   city: string;
+  pinCode: string;
   number: number;
   ownerUserId: string;
   registeredDaysAgo: number;
@@ -113,7 +152,7 @@ function rowFor(deps: SeedDeps, seed: SeedListing, now: Date) {
       address: `${seed.number} Seed Lane`,
       city: seed.city,
       state: "Maharashtra",
-      pinCode: "411001",
+      pinCode: seed.pinCode,
       contactPhone: `+9190000012${seed.number}0` as E164Phone,
       contactEmail: `listing${seed.number}@example.test`,
       website: null,
@@ -137,6 +176,7 @@ function rowFor(deps: SeedDeps, seed: SeedListing, now: Date) {
  */
 export async function seedDirectory(deps: SeedDeps): Promise<void> {
   const now = deps.clock.now();
+  await savePincodeCentres(deps, SAMPLE_PINCODE_CENTRES);
   const { ngo, rescuer, pending, rejected, suspended } = SEED_DIRECTORY;
   const ngoOwner = await ensureVerifiedAccount(deps, ngo.representative);
   const rescuerOwner = await ensureVerifiedAccount(
@@ -154,6 +194,7 @@ export async function seedDirectory(deps: SeedDeps): Promise<void> {
       type: "ngo",
       services: ["rescue", "veterinary_care", "sterilisation", "adoption"],
       city: "Pune",
+      pinCode: "411001",
       number: 1,
       ownerUserId: ngoOwner.id,
       registeredDaysAgo: 40,
@@ -166,6 +207,7 @@ export async function seedDirectory(deps: SeedDeps): Promise<void> {
       type: "independent_rescuer",
       services: ["rescue", "feeding"],
       city: "Pimpri-Chinchwad",
+      pinCode: "411018",
       number: 2,
       ownerUserId: rescuerOwner.id,
       registeredDaysAgo: 30,
@@ -178,6 +220,7 @@ export async function seedDirectory(deps: SeedDeps): Promise<void> {
       type: "shelter",
       services: ["shelter"],
       city: "Nashik",
+      pinCode: "422001",
       number: 4,
       ownerUserId: applicant.id,
       registeredDaysAgo: 20,
@@ -190,6 +233,7 @@ export async function seedDirectory(deps: SeedDeps): Promise<void> {
       type: "shelter",
       services: ["shelter", "adoption", "fostering"],
       city: "Nashik",
+      pinCode: "422001",
       number: 3,
       ownerUserId: applicant.id,
       registeredDaysAgo: 3,
@@ -202,6 +246,7 @@ export async function seedDirectory(deps: SeedDeps): Promise<void> {
       type: "foster_caregiver",
       services: ["fostering"],
       city: "Satara",
+      pinCode: "415001",
       number: 5,
       ownerUserId: fosterOwner.id,
       registeredDaysAgo: 50,
@@ -302,6 +347,7 @@ export function directoryListingBuilder(deps: SeedDeps) {
         type: options.type ?? "ngo",
         services: options.services ?? ["rescue"],
         city: options.city ?? "Pune",
+        pinCode: options.pinCode ?? "411001",
         number: made % 10,
         ownerUserId: owner.id,
         registeredDaysAgo: 0,
@@ -312,10 +358,7 @@ export function directoryListingBuilder(deps: SeedDeps) {
       },
       now
     );
-    await deps.db.insert(directoryListing).values({
-      ...row,
-      ...(options.pinCode ? { pinCode: options.pinCode } : {}),
-    });
+    await deps.db.insert(directoryListing).values(row);
     if (status === "verified" || status === "suspended") {
       await ensureGrant(deps, owner.id, {
         role: "organisation_representative",
@@ -324,4 +367,10 @@ export function directoryListingBuilder(deps: SeedDeps) {
     }
     return { listingId: id, slug: row.slug, owner };
   };
+}
+
+/** Saves pin-code centres as given, for tests of the search (#128). */
+export function pincodeCentresBuilder(deps: SeedDeps) {
+  return (centres: readonly PincodeCentre[]) =>
+    savePincodeCentres(deps, centres);
 }

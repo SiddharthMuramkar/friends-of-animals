@@ -1,5 +1,5 @@
 {
-  "id": "38884960-e8fb-4aa3-8086-e601d50259ad",
+  "id": "1d3e194d-7cec-45b3-9c34-63819f96c6ae",
   "prevId": "f5600752-04f7-48f2-9aeb-d0711e1c37ed",
   "version": "7",
   "dialect": "postgresql",
@@ -12413,6 +12413,21 @@
           "method": "btree",
           "with": {}
         },
+        "directory_listing_services_idx": {
+          "name": "directory_listing_services_idx",
+          "columns": [
+            {
+              "expression": "services",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        },
         "directory_listing_status_changed_by_idx": {
           "name": "directory_listing_status_changed_by_idx",
           "columns": [
@@ -12590,6 +12605,86 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pincode_location": {
+      "name": "pincode_location",
+      "schema": "",
+      "columns": {
+        "pin_code": {
+          "name": "pin_code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district": {
+          "name": "district",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "post_offices": {
+          "name": "post_offices",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "pincode_location_latitude_idx": {
+          "name": "pincode_location_latitude_idx",
+          "columns": [
+            {
+              "expression": "latitude",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pincode_location_pin_code_format": {
+          "name": "pincode_location_pin_code_format",
+          "value": "\"pincode_location\".\"pin_code\" ~ '^[1-9][0-9]{5}$'"
+        },
+        "pincode_location_coordinates_range": {
+          "name": "pincode_location_coordinates_range",
+          "value": "\"pincode_location\".\"latitude\" BETWEEN -90 AND 90 AND \"pincode_location\".\"longitude\" BETWEEN -180 AND 180"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.campaign": {
@@ -13247,587 +13342,6 @@
         "volunteer_application_reason_only_when_declined": {
           "name": "volunteer_application_reason_only_when_declined",
           "value": "\"volunteer_application\".\"status\" = 'declined' OR \"volunteer_application\".\"decline_reason_ciphertext\" IS NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.school_round": {
-      "name": "school_round",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "competition_id": {
-          "name": "competition_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "institution_registration_id": {
-          "name": "institution_registration_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "school_round_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "judging_attested_by_user_id": {
-          "name": "judging_attested_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "judging_attested_at": {
-          "name": "judging_attested_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "judging_statement_version": {
-          "name": "judging_statement_version",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finalised_by_user_id": {
-          "name": "finalised_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finalised_at": {
-          "name": "finalised_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "families_notified_at": {
-          "name": "families_notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "school_round_competition_id_idx": {
-          "name": "school_round_competition_id_idx",
-          "columns": [
-            {
-              "expression": "competition_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_judging_attested_by_user_id_idx": {
-          "name": "school_round_judging_attested_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "judging_attested_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_finalised_by_user_id_idx": {
-          "name": "school_round_finalised_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "finalised_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "school_round_competition_id_competition_id_fk": {
-          "name": "school_round_competition_id_competition_id_fk",
-          "tableFrom": "school_round",
-          "tableTo": "competition",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "school_round_institution_registration_id_institution_registration_id_fk": {
-          "name": "school_round_institution_registration_id_institution_registration_id_fk",
-          "tableFrom": "school_round",
-          "tableTo": "institution_registration",
-          "columnsFrom": [
-            "institution_registration_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "school_round_judging_attested_by_user_id_user_id_fk": {
-          "name": "school_round_judging_attested_by_user_id_user_id_fk",
-          "tableFrom": "school_round",
-          "tableTo": "user",
-          "columnsFrom": [
-            "judging_attested_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "school_round_finalised_by_user_id_user_id_fk": {
-          "name": "school_round_finalised_by_user_id_user_id_fk",
-          "tableFrom": "school_round",
-          "tableTo": "user",
-          "columnsFrom": [
-            "finalised_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "school_round_institution_registration_unique": {
-          "name": "school_round_institution_registration_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "institution_registration_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.school_round_panel_member": {
-      "name": "school_round_panel_member",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "round_id": {
-          "name": "round_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "full_name": {
-          "name": "full_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "designation": {
-          "name": "designation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "school_round_panel_member_round_id_school_round_id_fk": {
-          "name": "school_round_panel_member_round_id_school_round_id_fk",
-          "tableFrom": "school_round_panel_member",
-          "tableTo": "school_round",
-          "columnsFrom": [
-            "round_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "school_round_panel_member_round_order_unique": {
-          "name": "school_round_panel_member_round_order_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "round_id",
-            "sort_order"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "school_round_panel_member_order_not_negative": {
-          "name": "school_round_panel_member_order_not_negative",
-          "value": "\"school_round_panel_member\".\"sort_order\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.school_round_pick": {
-      "name": "school_round_pick",
-      "schema": "",
-      "columns": {
-        "entry_id": {
-          "name": "entry_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "round_id": {
-          "name": "round_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "picked_by_user_id": {
-          "name": "picked_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "picked_at": {
-          "name": "picked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "school_round_pick_position_unique": {
-          "name": "school_round_pick_position_unique",
-          "columns": [
-            {
-              "expression": "round_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "category_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"school_round_pick\".\"position\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_pick_round_id_idx": {
-          "name": "school_round_pick_round_id_idx",
-          "columns": [
-            {
-              "expression": "round_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_pick_category_id_idx": {
-          "name": "school_round_pick_category_id_idx",
-          "columns": [
-            {
-              "expression": "category_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_pick_picked_by_user_id_idx": {
-          "name": "school_round_pick_picked_by_user_id_idx",
-          "columns": [
-            {
-              "expression": "picked_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "school_round_pick_entry_id_entry_id_fk": {
-          "name": "school_round_pick_entry_id_entry_id_fk",
-          "tableFrom": "school_round_pick",
-          "tableTo": "entry",
-          "columnsFrom": [
-            "entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "school_round_pick_round_id_school_round_id_fk": {
-          "name": "school_round_pick_round_id_school_round_id_fk",
-          "tableFrom": "school_round_pick",
-          "tableTo": "school_round",
-          "columnsFrom": [
-            "round_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "school_round_pick_category_id_competition_category_id_fk": {
-          "name": "school_round_pick_category_id_competition_category_id_fk",
-          "tableFrom": "school_round_pick",
-          "tableTo": "competition_category",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "school_round_pick_picked_by_user_id_user_id_fk": {
-          "name": "school_round_pick_picked_by_user_id_user_id_fk",
-          "tableFrom": "school_round_pick",
-          "tableTo": "user",
-          "columnsFrom": [
-            "picked_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "school_round_pick_position_positive": {
-          "name": "school_round_pick_position_positive",
-          "value": "\"school_round_pick\".\"position\" IS NULL OR \"school_round_pick\".\"position\" >= 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.school_round_transition": {
-      "name": "school_round_transition",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "round_id": {
-          "name": "round_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "from_status": {
-          "name": "from_status",
-          "type": "school_round_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "to_status": {
-          "name": "to_status",
-          "type": "school_round_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_kind": {
-          "name": "actor_kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_user_id": {
-          "name": "actor_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "school_round_transition_round_id_idx": {
-          "name": "school_round_transition_round_id_idx",
-          "columns": [
-            {
-              "expression": "round_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "school_round_transition_actor_user_id_idx": {
-          "name": "school_round_transition_actor_user_id_idx",
-          "columns": [
-            {
-              "expression": "actor_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "school_round_transition_round_id_school_round_id_fk": {
-          "name": "school_round_transition_round_id_school_round_id_fk",
-          "tableFrom": "school_round_transition",
-          "tableTo": "school_round",
-          "columnsFrom": [
-            "round_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "school_round_transition_actor_user_id_user_id_fk": {
-          "name": "school_round_transition_actor_user_id_user_id_fk",
-          "tableFrom": "school_round_transition",
-          "tableTo": "user",
-          "columnsFrom": [
-            "actor_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "school_round_transition_actor_kind": {
-          "name": "school_round_transition_actor_kind",
-          "value": "\"school_round_transition\".\"actor_kind\" IN ('user', 'system')"
-        },
-        "school_round_transition_system_has_no_user": {
-          "name": "school_round_transition_system_has_no_user",
-          "value": "\"school_round_transition\".\"actor_kind\" = 'user' OR \"school_round_transition\".\"actor_user_id\" IS NULL"
         }
       },
       "isRLSEnabled": false
@@ -14660,16 +14174,6 @@
         "competition_management",
         "social_media",
         "community_building"
-      ]
-    },
-    "public.school_round_status": {
-      "name": "school_round_status",
-      "schema": "public",
-      "values": [
-        "open",
-        "overdue",
-        "finalised",
-        "closed_on_behalf"
       ]
     }
   },

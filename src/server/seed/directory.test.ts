@@ -94,4 +94,29 @@ describe("seedDirectory", () => {
       await h.as(await h.signIn(owner)).getMyListing({ listingId })
     ).toMatchObject({ ok: true });
   });
+
+  it("lets a preview's search find the verified listings near Pune, nearest first", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+
+    const result = await h
+      .as(h.visitor())
+      .searchListings({ pin: "411001", radius: "25" });
+
+    // Pune GPO to Pimpri (18.63, 73.80): 13.79 km on earthdistance's sphere.
+    expect(result).toMatchObject({
+      ok: true,
+      results: [
+        {
+          listing: { slug: SEED_DIRECTORY.ngo.slug },
+          distance: { kind: "under", km: 1 },
+        },
+        {
+          listing: { slug: SEED_DIRECTORY.rescuer.slug },
+          distance: { kind: "about", km: 14 },
+        },
+      ],
+    });
+    expect(result.ok && result.results).toHaveLength(2);
+  });
 });
