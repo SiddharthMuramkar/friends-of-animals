@@ -43,14 +43,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [DEFAULT_SOCIAL_IMAGE],
     },
     icons: {
-      // The ICO contains optically fitted frames (scripts/brand-logo.ts).
-      icon: [
-        {
-          url: "/favicon.ico?v=3",
-          sizes: "16x16 24x24 32x32 48x48",
-          type: "image/x-icon",
-        },
-      ],
+      // Only the ICO: its frames are hinted per size (scripts/brand-logo.ts),
+      // and browsers prefer an SVG over it when both are offered.
+      icon: [{ url: "/favicon.ico?v=2", sizes: "16x16 24x24 32x32 48x48" }],
       apple: "/brand/apple-touch-icon.png",
     },
   };

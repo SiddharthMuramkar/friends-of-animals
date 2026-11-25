@@ -19,93 +19,128 @@ import { H, type HeadingLevel, sub } from "./heading";
 import { QuoteFigure } from "./quote-figure";
 import { SeasonalCalendar } from "./seasonal-calendar";
 
-/** Starts on the current month in India and lets visitors browse the year. */
+/** Shows the current month in India. On /awareness, visitors can browse the year. */
 export async function SeasonalCard({
   id = "seasonal",
   headingLevel = 2,
+  interactive = false,
   className,
 }: {
   id?: string;
   headingLevel?: HeadingLevel;
+  interactive?: boolean;
   className?: string;
 }) {
   const current = seasonalGuideFor(new Date(await cachedNow()));
-  const [format, t] = await Promise.all([
-    getFormatter(),
-    getTranslations("showcase.seasonal"),
-  ]);
+  const format = await getFormatter();
   const months = SEASONAL_MONTHS.map((entry) => {
     const date = new Date(Date.UTC(2026, entry.month - 1, 15));
     return {
       entry,
       name: format.dateTime(date, { month: "long" }),
-      shortName: format.dateTime(date, { month: "short" }),
+      initial: format.dateTime(date, { month: "narrow" }),
       titleId: `${id}-${entry.slug}`,
     };
   });
-  return (
-    <SeasonalCalendar
-      key={current.month}
-      id={id}
-      initialMonth={current.month}
-      className={cn(
-        "@container/seasonal min-w-0 rounded-3xl border-2 border-border bg-surface p-[min(1.5rem,6%)] shadow-warm [--section-heading:var(--section-teal-heading)] sm:p-[min(2rem,6%)]",
-        className
-      )}
-      picker={
-        <div className="rounded-2xl bg-section-teal p-[min(1.25rem,5%)]">
-          <fieldset className="min-w-0">
-            <legend className="font-display text-lead font-bold text-(--section-heading)">
-              {t("monthPicker")}
-            </legend>
-            <div className="mt-3 grid grid-cols-2 gap-2 @min-[12rem]/seasonal:grid-cols-3 @min-[16rem]/seasonal:grid-cols-4 @min-[23rem]/seasonal:grid-cols-6 @min-[48rem]/seasonal:grid-cols-12">
-              {months.map(({ entry, name, shortName }) => {
-                const inputId = `${id}-month-${entry.month}`;
-                return (
-                  <label
-                    key={entry.month}
-                    htmlFor={inputId}
-                    className="relative block min-w-0 cursor-pointer"
-                  >
-                    <input
-                      id={inputId}
-                      name={`${id}-months`}
-                      type="radio"
-                      value={entry.month}
-                      aria-label={name}
-                      defaultChecked={entry.month === current.month}
-                      autoComplete="off"
-                      className="peer absolute inset-0 size-full cursor-pointer opacity-0"
-                    />
-                    <span className="flex h-full min-h-12 items-center justify-center gap-1 rounded-xl border border-border-strong bg-surface px-1 py-2.5 text-center font-display text-sm font-bold text-ink peer-checked:border-teal-700 peer-checked:bg-teal-700 peer-checked:text-white peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus peer-hover:ring-2 peer-hover:ring-teal-700 peer-checked:[&>svg]:block">
-                      <span className="min-w-0 wrap-anywhere">{shortName}</span>
-                      <Check
-                        aria-hidden="true"
-                        className="hidden size-3.5 shrink-0"
-                      />
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+  const cardClass = cn(
+    "grid grid-cols-1 gap-8 rounded-3xl border-2 border-border bg-surface p-6 shadow-warm [--section-heading:var(--section-teal-heading)] sm:p-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:gap-10",
+    className
+  );
+
+  if (interactive) {
+    const t = await getTranslations("showcase.seasonal");
+    return (
+      <SeasonalCalendar
+        initialMonth={current.month}
+        className={cn(
+          cardClass,
+          "items-start lg:grid-rows-[auto_1fr] lg:gap-y-6"
+        )}
+        picker={
+          <fieldset className="mt-6 grid min-w-0 grid-cols-3 gap-2 @min-[13.5rem]/seasonal-month:grid-cols-4 @min-[20.5rem]/seasonal-month:grid-cols-6">
+            <legend className="sr-only">{t("monthPicker")}</legend>
+            {months.map(({ entry, name, initial }) => (
+              <label
+                key={entry.month}
+                title={name}
+                className="relative grid aspect-square min-h-12 max-h-16 cursor-pointer place-items-center rounded-[22%] bg-surface font-display text-sm font-bold text-ink-muted hover:ring-2 hover:ring-teal-700 has-checked:bg-teal-700 has-checked:text-white has-checked:shadow-warm has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
+              >
+                <input
+                  name={`${id}-months`}
+                  type="radio"
+                  value={entry.month}
+                  defaultChecked={entry.month === current.month}
+                  autoComplete="off"
+                  className="peer absolute inset-0 size-full cursor-pointer opacity-0"
+                />
+                <span className="sr-only">{name}</span>
+                <span aria-hidden="true">{initial}</span>
+                <Check
+                  aria-hidden="true"
+                  className="absolute top-1 right-1 hidden size-3 peer-checked:block"
+                />
+              </label>
+            ))}
           </fieldset>
-        </div>
-      }
-      months={months.map(({ entry, name, titleId }) => ({
-        title: entry.title,
-        titleId,
-        copy: (
-          <SeasonalCopy
-            entry={entry}
-            headingLevel={headingLevel}
-            monthName={name}
-            titleId={titleId}
-            isCurrentMonth={entry.month === current.month}
-          />
-        ),
-        media: <SeasonalMedia entry={entry} />,
-      }))}
-    />
+        }
+        months={months.map(({ entry, name, titleId }) => ({
+          name,
+          title: entry.title,
+          titleId,
+          copy: (
+            <SeasonalCopy
+              entry={entry}
+              headingLevel={headingLevel}
+              monthName={name}
+              titleId={titleId}
+              isCurrentMonth={entry.month === current.month}
+            />
+          ),
+          media: <SeasonalMedia entry={entry} />,
+        }))}
+      />
+    );
+  }
+
+  const { name, titleId } = months[current.month - 1]!;
+  return (
+    <article aria-labelledby={titleId} className={cardClass}>
+      <SeasonalCopy
+        entry={current}
+        headingLevel={headingLevel}
+        monthName={name}
+        titleId={titleId}
+        isCurrentMonth
+      />
+      <div className="flex flex-col gap-6">
+        {!current.imageId && (
+          <div
+            aria-hidden="true"
+            className="@container/seasonal-month rounded-3xl bg-section-teal p-[min(1.5rem,8%)] sm:p-8"
+          >
+            <p className="font-display text-h2 leading-none font-bold wrap-anywhere text-(--section-heading)">
+              {name}
+            </p>
+            <ol className="mt-6 grid grid-cols-3 gap-2 @min-[12rem]/seasonal-month:grid-cols-6">
+              {months.map(({ entry, initial }) => (
+                <li
+                  key={entry.month}
+                  className={cn(
+                    "grid aspect-square place-items-center rounded-[22%] font-display text-sm font-bold",
+                    entry.month === current.month
+                      ? "bg-teal-700 text-white shadow-warm"
+                      : "bg-surface text-ink-muted"
+                  )}
+                >
+                  {initial}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+        <SeasonalMedia entry={current} />
+      </div>
+    </article>
   );
 }
 
@@ -193,9 +228,9 @@ function SeasonalMedia({ entry }: { entry: SeasonalMonth }) {
       {entry.artId && (
         <Illustration
           id={entry.artId}
-          sizes="(min-width: 1024px) 384px, (min-width: 532px) 448px, calc(100vw - 5.25rem)"
+          sizes="(min-width: 1024px) 320px, (min-width: 532px) 448px, calc(100vw - 5.25rem)"
           pop
-          className="mx-auto w-full max-w-md lg:max-w-sm"
+          className="mx-auto w-full max-w-md lg:max-w-xs"
         />
       )}
       {entry.imageId && (
