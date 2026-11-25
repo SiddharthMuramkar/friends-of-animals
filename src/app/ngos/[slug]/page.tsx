@@ -18,10 +18,9 @@ import { PLACEHOLDER_SLUG, publicListing } from "../_lib/public-reads";
 
 // Verified listings live in the database, which the build can't reach, so
 // the build prerenders only this route's App Shell (and the placeholder).
-// A listing's first visit gets the shell while its page renders; later
-// visits get the cached page, which a decision or an edit refreshes
-// through the listing's cache tag. src/proxy.ts answers any slug that
-// isn't a verified listing with a 404 before any of this runs.
+// Each visit reads the current listing behind Suspense: a worker erasure
+// cannot invalidate Next cache tags. The proxy normally answers slugs
+// which are not verified with a 404 before any of this runs.
 
 export function generateStaticParams() {
   return [{ slug: PLACEHOLDER_SLUG }];

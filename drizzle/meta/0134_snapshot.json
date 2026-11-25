@@ -1,5 +1,5 @@
 {
-  "id": "33bd0abc-2442-4f66-bc55-17f7cbd98c33",
+  "id": "4d766779-42b7-4a3a-ab6e-1e37c84e8533",
   "prevId": "f11a2975-d7a5-4a41-b1bc-0e400818ce9f",
   "version": "7",
   "dialect": "postgresql",
@@ -14043,7 +14043,7 @@
           "name": "owner_user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -14214,6 +14214,10 @@
         "directory_listing_verified_at_matches_status": {
           "name": "directory_listing_verified_at_matches_status",
           "value": "\"directory_listing\".\"status\" NOT IN ('verified', 'suspended') OR \"directory_listing\".\"verified_at\" IS NOT NULL"
+        },
+        "directory_listing_open_owner_present": {
+          "name": "directory_listing_open_owner_present",
+          "value": "\"directory_listing\".\"owner_user_id\" IS NOT NULL OR \"directory_listing\".\"status\" IN ('withdrawn', 'rejected')"
         }
       },
       "isRLSEnabled": false
@@ -17537,48 +17541,9 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "locked_at": {
-          "name": "locked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "locked_by_user_id": {
-          "name": "locked_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lock_override_reason": {
-          "name": "lock_override_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tie_break_rule": {
-          "name": "tie_break_rule",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
-        "judging_round_locked_by_idx": {
-          "name": "judging_round_locked_by_idx",
-          "columns": [
-            {
-              "expression": "locked_by_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "judging_round_created_by_idx": {
           "name": "judging_round_created_by_idx",
           "columns": [
@@ -17678,19 +17643,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "judging_round_locked_by_user_id_user_id_fk": {
-          "name": "judging_round_locked_by_user_id_user_id_fk",
-          "tableFrom": "judging_round",
-          "tableTo": "user",
-          "columnsFrom": [
-            "locked_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "judging_round_source_round_id_judging_round_id_fk": {
           "name": "judging_round_source_round_id_judging_round_id_fk",
           "tableFrom": "judging_round",
@@ -17729,10 +17681,6 @@
         "judging_round_cancel_reason": {
           "name": "judging_round_cancel_reason",
           "value": "(\"judging_round\".\"status\" = 'cancelled') = (\"judging_round\".\"cancelled_at\" IS NOT NULL AND \"judging_round\".\"cancel_reason\" IS NOT NULL)"
-        },
-        "judging_round_lock_metadata": {
-          "name": "judging_round_lock_metadata",
-          "value": "(\"judging_round\".\"status\" = 'locked') = (\"judging_round\".\"locked_at\" IS NOT NULL AND \"judging_round\".\"tie_break_rule\" IS NOT NULL) AND (\"judging_round\".\"lock_override_reason\" IS NULL OR \"judging_round\".\"status\" = 'locked')"
         }
       },
       "isRLSEnabled": false
@@ -19773,138 +19721,6 @@
         }
       },
       "isRLSEnabled": false
-    },
-    "public.round_result": {
-      "name": "round_result",
-      "schema": "",
-      "columns": {
-        "round_id": {
-          "name": "round_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entry_id": {
-          "name": "entry_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "discipline": {
-          "name": "discipline",
-          "type": "competition_discipline",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rank": {
-          "name": "rank",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "score_numerator": {
-          "name": "score_numerator",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "score_denominator": {
-          "name": "score_denominator",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sheets_counted": {
-          "name": "sheets_counted",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "decided_by": {
-          "name": "decided_by",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "outcome": {
-          "name": "outcome",
-          "type": "round_outcome",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'none'"
-        },
-        "award_position": {
-          "name": "award_position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "suitable_for_auction": {
-          "name": "suitable_for_auction",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "round_result_round_id_entry_id_round_entry_round_id_entry_id_fk": {
-          "name": "round_result_round_id_entry_id_round_entry_round_id_entry_id_fk",
-          "tableFrom": "round_result",
-          "tableTo": "round_entry",
-          "columnsFrom": [
-            "round_id",
-            "entry_id"
-          ],
-          "columnsTo": [
-            "round_id",
-            "entry_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "round_result_round_id_entry_id_pk": {
-          "name": "round_result_round_id_entry_id_pk",
-          "columns": [
-            "round_id",
-            "entry_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "round_result_rank": {
-          "name": "round_result_rank",
-          "value": "\"round_result\".\"rank\" > 0 AND \"round_result\".\"sheets_counted\" > 0"
-        },
-        "round_result_fraction": {
-          "name": "round_result_fraction",
-          "value": "\"round_result\".\"score_numerator\" ~ '^[0-9]+$' AND \"round_result\".\"score_denominator\" ~ '^[1-9][0-9]*$'"
-        },
-        "round_result_award_position": {
-          "name": "round_result_award_position",
-          "value": "CASE \"round_result\".\"outcome\" WHEN 'winner' THEN \"round_result\".\"award_position\" IS NOT DISTINCT FROM 1 WHEN 'runner_up' THEN \"round_result\".\"award_position\" IS NOT NULL AND \"round_result\".\"award_position\" BETWEEN 2 AND 3 ELSE \"round_result\".\"award_position\" IS NULL END"
-        }
-      },
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -21037,17 +20853,6 @@
         "front",
         "back",
         "detail"
-      ]
-    },
-    "public.round_outcome": {
-      "name": "round_outcome",
-      "schema": "public",
-      "values": [
-        "winner",
-        "runner_up",
-        "finalist",
-        "special_mention",
-        "none"
       ]
     }
   },

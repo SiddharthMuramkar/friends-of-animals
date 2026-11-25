@@ -8,6 +8,8 @@
 // them, and erasure hands the institution to someone else first. The same
 // holds for directory_listing.owner_user_id (#127): erasure withdraws the
 // person's listings, or hands them to another representative, first.
+// A terminal listing may have no owner; the FK still rejects accidental
+// deletion before erasure has taken care of it.
 
 import { is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";

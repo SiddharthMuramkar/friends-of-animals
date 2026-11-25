@@ -57,6 +57,14 @@ phone and email are encrypted; city, state and pin code stay plain because the
 public page shows them. The policy `directoryListings` keeps it while it is in the
 directory (no daily job yet, HR-31). Its documents are files of purpose
 `directory_document`, which only staff open.
+An approved erasure detaches and anonymises the owned listing (including its
+identifying public address) and deletes the subject's uploaded directory documents.
+The listing id, verification timestamp and non-identifying service data can stay
+with adoption records and existing representatives. An eligible representative of
+an organisation may take ownership, but publication waits for new details and
+staff verification. A legal hold preserves the data but withdraws the held listing from publication.
+Directory and adoption public read models are read fresh, since the erasure worker
+cannot invalidate Next.js caches.
 
 An adoption listing (#129) is about an animal, so its details are not personal data,
 but its state, city and pin code say where an individual foster caregiver lives; those

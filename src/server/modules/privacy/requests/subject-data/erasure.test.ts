@@ -20,12 +20,18 @@ import {
   session,
   user,
 } from "@/server/db/schema";
+import { published } from "@/server/modules/adoption/testing";
+import {
+  validListing,
+  verifiedListing,
+} from "@/server/modules/directory/testing";
 import { openToIndividuals } from "@/server/modules/participants/testing";
 import { PROFILE_PURPOSE } from "@/server/modules/registration/student-profile";
 import type { Actor } from "@/server/actor";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { requestRows, signedInOfficer } from "../testing";
+import { runExecuteErasure } from "./erasure";
 import {
   ASHA,
   paidCompetition,
@@ -34,7 +40,7 @@ import {
   type Participant,
 } from "./testing";
 
-async function erasureFiled(h: Harness, who: Participant) {
+async function erasureFiled(h: Harness, who: Pick<Participant, "actor">) {
   const filed = await h
     .as(who.actor)
     .submitPrivacyRequest({ type: "erasure", subject: { kind: "self" } });
@@ -65,6 +71,29 @@ async function erase(
   ).toEqual({ ok: true });
   await h.drain();
   return plan;
+}
+
+async function privateListingDocument(
+  h: Harness,
+  actor: Actor,
+  listingId: string
+) {
+  const bytes = new TextEncoder().encode(
+    "%PDF-1.7\n% Synthetic documentary proof\n%%EOF\n"
+  );
+  const upload = await h.as(actor).requestListingDocumentUpload({
+    listingId,
+    kind: "registration_certificate",
+    contentType: "application/pdf",
+    sizeBytes: bytes.length,
+  });
+  if (!upload.ok) throw new Error("Could not request document upload");
+  await h.storage.put(upload.uploadUrl, bytes, upload.headers);
+  expect(
+    await h.as(actor).completeUpload({ fileId: upload.fileId })
+  ).toMatchObject({ ok: true });
+  await h.drain();
+  return upload.documentId;
 }
 
 async function profileOf(h: Harness, id: string) {
@@ -364,6 +393,274 @@ describe("executeErasure", () => {
       await h.db.select({ payer: paymentBatch.payerUserId }).from(paymentBatch)
     ).toEqual([{ payer: null }]);
     expect((await profileOf(h, asha.profileId))?.fullName).toBe("[removed]");
+  });
+
+  it("erases the sole owner of a verified individual directory listing and stops publishing it", async () => {
+    const h = await createHarness();
+    await h.settings.set("privacy.erasureEnabled", true);
+    const listing = await verifiedListing(h, { type: "independent_rescuer" });
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: listing.slug })
+    ).toMatchObject({ ok: true });
+    const filed = await erasureFiled(h, listing);
+
+    const plan = await erase(h, filed);
+
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: listing.slug })
+    ).toEqual({ ok: false, error: "not_found" });
+    expect(
+      await h.db.select().from(user).where(eq(user.id, listing.person.id))
+    ).toEqual([]);
+    expect((await requestRows(h))[0]).toMatchObject({
+      status: "partially_completed",
+    });
+    const reviewed = await h
+      .as(listing.staff)
+      .getListingForReview({ listingId: listing.listingId });
+    expect(reviewed).toMatchObject({
+      ok: true,
+      listing: {
+        status: "withdrawn",
+        owner: null,
+        name: "[removed]",
+        contactPhone: "[removed]",
+        contactEmail: null,
+        publicContactFields: [],
+      },
+    });
+    expect(plan.categories).toContainEqual(
+      expect.objectContaining({
+        key: "directory_listings",
+        action: "anonymise",
+        count: 1,
+      })
+    );
+    const records = await h.db.select().from(erasureRecord);
+    expect(records).toHaveLength(1);
+    expect(
+      await h
+        .as(filed.officer.actor)
+        .executeErasure({ id: filed.requestId, fingerprint: plan.fingerprint })
+    ).toEqual({ ok: false, error: "request_closed" });
+    await runExecuteErasure(h.deps, { requestId: filed.requestId });
+    expect(await h.db.select().from(erasureRecord)).toEqual(records);
+    expect(
+      await h
+        .as(listing.staff)
+        .getListingForReview({ listingId: listing.listingId })
+    ).toEqual(reviewed);
+  });
+
+  it("hands an organisation's listing to an existing representative without publishing the erased person's details", async () => {
+    const h = await createHarness();
+    await h.settings.set("privacy.erasureEnabled", true);
+    const listing = await verifiedListing(h);
+    const next = await h.seed.member({ name: "New representative" });
+    await h.seed.grant(next, {
+      role: "organisation_representative",
+      scope: { type: "organisation", id: listing.listingId },
+    });
+    const representative = await h.signIn(next);
+    const unrelated = await h.signIn(await h.seed.member());
+    const ownerDocument = await privateListingDocument(
+      h,
+      listing.actor,
+      listing.listingId
+    );
+    const representativeDocument = await privateListingDocument(
+      h,
+      representative,
+      listing.listingId
+    );
+    const animal = await published(h, {
+      listingId: listing.listingId,
+      slug: listing.slug,
+      owner: next,
+      actor: representative,
+    });
+    expect(
+      await h.as(h.visitor()).getAdoptableAnimal({ slug: animal.slug })
+    ).toMatchObject({ ok: true });
+    const filed = await erasureFiled(h, listing);
+
+    await erase(h, filed);
+
+    expect(
+      await h.db.select().from(user).where(eq(user.id, listing.person.id))
+    ).toEqual([]);
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: listing.slug })
+    ).toEqual({ ok: false, error: "not_found" });
+    expect(
+      await h.as(representative).getMyListing({ listingId: listing.listingId })
+    ).toMatchObject({
+      ok: true,
+      listing: {
+        ownerUserId: next.id,
+        status: "pending_verification",
+        canEdit: true,
+        contactEmail: null,
+        contactPhone: "[removed]",
+      },
+    });
+    expect(
+      await h.as(h.visitor()).getAdoptableAnimal({ slug: animal.slug })
+    ).toEqual({ ok: false, error: "not_found" });
+    const privateView = await h
+      .as(listing.staff)
+      .getListingForReview({ listingId: listing.listingId });
+    expect(privateView).toMatchObject({
+      ok: true,
+      listing: {
+        documents: [expect.objectContaining({ id: representativeDocument })],
+      },
+    });
+    expect(privateView).not.toMatchObject({
+      ok: true,
+      listing: {
+        documents: expect.arrayContaining([
+          expect.objectContaining({ id: ownerDocument }),
+        ]),
+      },
+    });
+    await expect(
+      h.as(unrelated).getMyListing({ listingId: listing.listingId })
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
+      await h
+        .as(listing.staff)
+        .verifyListing({ listingId: listing.listingId, reason: "Rechecked" })
+    ).toEqual({ ok: false, error: "transition_not_allowed" });
+    const update = await h.as(representative).updateListing({
+      listingId: listing.listingId,
+      ...validListing({
+        name: "Paws Rescue",
+        contactEmail: "new@example.test",
+      }),
+    });
+    expect(update).toMatchObject({ ok: true });
+    if (!update.ok) throw new Error("Expected listing to be editable");
+    expect(
+      await h.as(listing.staff).verifyListing({
+        listingId: listing.listingId,
+        reason: "New details verified",
+      })
+    ).toMatchObject({ ok: true, status: "verified" });
+    expect(
+      await h.as(h.visitor()).getAdoptableAnimal({ slug: animal.slug })
+    ).toMatchObject({ ok: true });
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: update.slug })
+    ).toMatchObject({
+      ok: true,
+      listing: { name: "Paws Rescue", contact: { email: "new@example.test" } },
+    });
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: listing.slug })
+    ).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("withdraws publication but preserves listing evidence under a legal hold", async () => {
+    const h = await createHarness();
+    await h.settings.set("privacy.erasureEnabled", true);
+    const listing = await verifiedListing(h);
+    await withMessagesConsent(h, listing);
+    const filed = await erasureFiled(h, listing);
+    const officer = await h.signIn(await h.seed.superAdmin());
+    expect(
+      await h.as(officer).placeLegalHold({
+        subjectType: "user",
+        subjectId: listing.person.id,
+        reason: "Preserve evidence",
+      })
+    ).toMatchObject({ ok: true });
+
+    const plan = await erase(h, filed);
+
+    expect(plan.categories).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "directory_listings",
+          action: "retain",
+          basis: "legal_hold",
+        }),
+        expect.objectContaining({
+          key: "directory_publication",
+          action: "withdraw",
+        }),
+        expect.objectContaining({
+          key: "account",
+          action: "retain",
+          basis: "legal_hold",
+        }),
+      ])
+    );
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: listing.slug })
+    ).toEqual({ ok: false, error: "not_found" });
+    expect(
+      await h
+        .as(listing.staff)
+        .getListingForReview({ listingId: listing.listingId })
+    ).toMatchObject({
+      ok: true,
+      listing: {
+        status: "withdrawn",
+        ownerUserId: listing.person.id,
+        name: "Paws Trust",
+        contactEmail: "hello@pawstrust.example.test",
+      },
+    });
+    expect(
+      await h.as(listing.staff).reinstateListing({
+        listingId: listing.listingId,
+        reason: "Try to reinstate",
+      })
+    ).toEqual({ ok: false, error: "transition_not_allowed" });
+    expect(
+      await h.db.select().from(user).where(eq(user.id, listing.person.id))
+    ).toHaveLength(1);
+    expect(
+      await h.db
+        .select()
+        .from(consentEvent)
+        .where(eq(consentEvent.method, "staff_recorded"))
+    ).not.toEqual([]);
+  });
+
+  it("refuses a directory erasure if a new hold changes the approved plan, without touching the listing", async () => {
+    const h = await createHarness();
+    await h.settings.set("privacy.erasureEnabled", true);
+    const listing = await verifiedListing(h);
+    const filed = await erasureFiled(h, listing);
+    const { plan } = await previewOf(h, filed.officer, filed.requestId);
+    expect(
+      await h
+        .as(filed.officer.actor)
+        .executeErasure({ id: filed.requestId, fingerprint: plan.fingerprint })
+    ).toEqual({ ok: true });
+    const admin = await h.signIn(await h.seed.superAdmin());
+    expect(
+      await h.as(admin).placeLegalHold({
+        subjectType: "user",
+        subjectId: listing.person.id,
+        reason: "New legal hold",
+      })
+    ).toMatchObject({ ok: true });
+    await h.drain();
+    expect((await requestRows(h))[0]).toMatchObject({
+      status: "in_progress",
+      erasureFailure: "plan_changed",
+      erasureFingerprint: null,
+    });
+    expect(
+      await h.as(h.visitor()).getPublicListing({ slug: listing.slug })
+    ).toMatchObject({ ok: true });
+    expect(await h.db.select().from(erasureRecord)).toEqual([]);
+    expect(
+      await h.db.select().from(user).where(eq(user.id, listing.person.id))
+    ).toHaveLength(1);
   });
 
   it("keeps everything under a legal hold, withdrawing consents only", async () => {

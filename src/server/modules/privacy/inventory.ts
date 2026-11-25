@@ -1037,7 +1037,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   listing("status_reason", "content"),
   listing("owner_user_id", "identity", {
     subject: { kind: "user", via: "owner_user_id" },
-    onExpiry: "retain",
+    onExpiry: "set_null",
   }),
   actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
   // Adoption listings (#129): an animal fostered by an individual is

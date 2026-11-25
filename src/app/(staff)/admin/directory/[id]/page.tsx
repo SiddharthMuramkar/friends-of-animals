@@ -195,9 +195,11 @@ async function Details({ listing }: { listing: ListingForReview }) {
           items={[
             {
               label: t("registeredBy"),
-              value: [listing.owner.name, listing.owner.email]
-                .filter(Boolean)
-                .join(", "),
+              value: listing.owner
+                ? [listing.owner.name, listing.owner.email]
+                    .filter(Boolean)
+                    .join(", ")
+                : none,
             },
             ...(listing.statusReason
               ? [{ label: t("details.reason"), value: listing.statusReason }]
