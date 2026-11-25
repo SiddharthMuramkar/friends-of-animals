@@ -34,11 +34,9 @@ test("visitors browse consented lots; auction manager drafts, schedules and canc
     .getByRole("link", { name: `View lot ${SEED_AUCTIONS.open}` })
     .click();
   await expect(page).toHaveURL(`/auctions/${SEED_AUCTIONS.open}`);
-  const publicLot = page
-    .getByRole("article")
-    .filter({
-      has: page.getByRole("heading", { name: `Lot ${SEED_AUCTIONS.open}` }),
-    });
+  const publicLot = page.getByRole("article").filter({
+    has: page.getByRole("heading", { name: `Lot ${SEED_AUCTIONS.open}` }),
+  });
   await expect(
     publicLot.getByText("First place", { exact: true })
   ).toBeVisible();
