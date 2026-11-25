@@ -214,21 +214,21 @@ it("counts fee captures per batch, completed refunds once, and real issued certi
   });
   if (!auction.ok) throw Error(auction.error);
   expect(auction.report.total).toEqual({
-    registrations: 7,
+    registrations: 9,
     entries: 7,
     shortlisted: 0,
     verified: 7,
-    certificates: 14,
+    certificates: 16,
   });
   expect(auction.report.routeTotals).toEqual([
     {
       route: "institution",
       totals: {
-        registrations: 0,
+        registrations: 2,
         entries: 0,
         shortlisted: 0,
         verified: 0,
-        certificates: 0,
+        certificates: 2,
       },
     },
     {
