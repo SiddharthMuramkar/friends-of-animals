@@ -39,9 +39,10 @@ export type CheckoutLabels = {
 /** The few Razorpay Checkout options and events this island uses. */
 type RazorpayOptions = {
   key: string;
-  order_id: string;
-  amount: number;
-  currency: "INR";
+  order_id?: string;
+  subscription_id?: string;
+  amount?: number;
+  currency?: "INR";
   name: string;
   description: string;
   handler: (response: {
@@ -130,9 +131,13 @@ export function Checkout({
     const Razorpay = (window as RazorpayWindow).Razorpay!;
     const rzp = new Razorpay({
       key: checkout.publicKey!,
-      order_id: checkout.orderId,
-      amount: Number(checkout.amountMinor),
-      currency: "INR",
+      ...(checkout.subscriptionId
+        ? { subscription_id: checkout.subscriptionId }
+        : {
+            order_id: checkout.orderId,
+            amount: Number(checkout.amountMinor),
+            currency: "INR" as const,
+          }),
       name: labels.checkoutName,
       description: checkout.description,
       handler: (response) =>

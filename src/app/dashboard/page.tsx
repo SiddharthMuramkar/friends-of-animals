@@ -22,6 +22,7 @@ import {
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
   DASHBOARD_ADOPTIONS,
+  DASHBOARD_DONATIONS,
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -223,6 +224,7 @@ async function AreaBody({
             { href: MY_LISTINGS, label: t("member.directory") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
+            { href: DASHBOARD_DONATIONS, label: t("member.donations") },
           ])
         : null}
       {area === "organisation" && id

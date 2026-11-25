@@ -185,7 +185,7 @@ export async function createHarness(
   const storage = new FakeStorage(clock);
   const scanner = new FakeMalwareScanner();
   const media = new FakeMediaProcessor();
-  const gateway = new FakePaymentGateway();
+  const gateway = new FakePaymentGateway("", clock);
   const deps: Deps = {
     appEnv: options.appEnv ?? "local",
     db,

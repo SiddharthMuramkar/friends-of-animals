@@ -90,6 +90,7 @@
       "refund": "Refund",
       "donation": "Donation",
       "foreign_donation": "Foreign payment",
+      "recurring_after_cancel": "Recurring charge after cancellation",
       "manual": "Manual entry",
       "reversal": "Manual reversal",
       "other": "Other posting"
@@ -100,6 +101,8 @@
       "refund": "Registration fee refund",
       "donation": "Online donation",
       "foreign_donation": "Foreign payment to return",
+      "recurring_after_cancel": "Recurring charge to return",
+      "recurring_late_refund": "Recurring charge returned",
       "donation_refund": "Donation refund",
       "foreign_refund": "Foreign payment returned",
       "reversal": "Reversal of posting {seq}"

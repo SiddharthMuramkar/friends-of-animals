@@ -127,7 +127,7 @@ export async function backfillLedgerFromPayments(
         .from(refund)
         .where(
           and(
-            eq(refund.kind, "foreign_payment"),
+            sql`${refund.kind} IN ('foreign_payment', 'recurring_after_cancel')`,
             after === undefined ? undefined : gt(refund.id, after),
             notExists(
               db
@@ -135,7 +135,7 @@ export async function backfillLedgerFromPayments(
                 .from(ledgerPosting)
                 .where(
                   and(
-                    eq(ledgerPosting.sourceType, "foreign_donation"),
+                    sql`${ledgerPosting.sourceType} = CASE WHEN ${refund.kind} = 'recurring_after_cancel' THEN 'recurring_after_cancel' ELSE 'foreign_donation' END`,
                     eq(ledgerPosting.sourceId, refund.gatewayPaymentId)
                   )
                 )

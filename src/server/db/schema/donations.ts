@@ -29,6 +29,7 @@ import {
   boolean,
   char,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -49,7 +50,9 @@ import { DONOR_TYPES } from "../../modules/donations/domain/donor";
 import type { ReceiptSnapshot } from "../../modules/donations/receipts/snapshot";
 import { encryptedText } from "../types/encrypted-text";
 import { user } from "./identity";
-import { paymentBatch } from "./payments";
+import { offlinePaymentMethodEnum, paymentBatch } from "./payments";
+import { fileAsset } from "./files";
+import { recurringDonation } from "./recurring-donations";
 
 const timestamptz = (name: string) =>
   timestamp(name, { withTimezone: true, mode: "date" });
@@ -74,6 +77,8 @@ export const donor = pgTable(
     /** The person's name, or an organisation's contact person. */
     name: encryptedText("name_ciphertext").notNull(),
     email: encryptedText("email_ciphertext").notNull(),
+    /** Tax identifier collected only while 80G is held. */
+    pan: encryptedText("pan_ciphertext"),
     /** Blind index of the normalised email (`donor.email`). */
     emailHash: text("email_hash").notNull(),
     /** A company's or CSR partner's name; null for a person. */
@@ -131,14 +136,35 @@ export const donation = pgTable(
     checkoutTokenHash: text("checkout_token_hash"),
     /** The captured gateway payment; null until captured. */
     gatewayPaymentId: text("gateway_payment_id"),
+    recurringDonationId: uuid("recurring_donation_id").references(
+      () => recurringDonation.id,
+      { onDelete: "restrict" }
+    ),
     /** When a pending online donation expires unpaid. */
     expiresAt: timestamptz("expires_at"),
+    /** Offline gifts are recorded against a proof, not a gateway batch. */
+    offlineMethod: offlinePaymentMethodEnum("offline_method"),
+    offlineReference: text("offline_reference"),
+    offlineReceivedOn: date("offline_received_on"),
+    offlineProofFileId: uuid("offline_proof_file_id").references(
+      () => fileAsset.id,
+      { onDelete: "restrict" }
+    ),
+    offlineRecordedBy: uuid("offline_recorded_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     capturedAt: timestamptz("captured_at"),
     createdAt: timestamptz("created_at").notNull(),
     updatedAt: timestamptz("updated_at").notNull(),
   },
   (table) => [
+    unique("donation_gateway_payment_unique").on(table.gatewayPaymentId),
     unique("donation_payment_batch_unique").on(table.paymentBatchId),
+    unique("donation_offline_proof_unique").on(table.offlineProofFileId),
+    check(
+      "donation_offline_details",
+      sql`(${table.origin} = 'offline_entry' AND ${table.offlineMethod} IS NOT NULL AND ${table.offlineReference} IS NOT NULL AND ${table.offlineReceivedOn} IS NOT NULL AND ${table.offlineProofFileId} IS NOT NULL AND ${table.paymentBatchId} IS NULL) OR (${table.origin} <> 'offline_entry' AND ${table.offlineMethod} IS NULL AND ${table.offlineReference} IS NULL AND ${table.offlineReceivedOn} IS NULL AND ${table.offlineProofFileId} IS NULL AND ${table.offlineRecordedBy} IS NULL)`
+    ),
     unique("donation_checkout_token_hash_unique").on(table.checkoutTokenHash),
     check("donation_amount_positive", sql`${table.amountMinor} > 0`),
     // FOA takes domestic INR only while FCRA is off (#55).

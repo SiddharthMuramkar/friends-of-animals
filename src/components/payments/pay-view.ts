@@ -9,6 +9,7 @@ export type CheckoutView = {
   /** Which adapter made the order: "razorpay", "razorpay-test", "fallback". */
   gateway: string;
   orderId: string;
+  subscriptionId?: string;
   /** Paise, as digits. */
   amountMinor: string;
   /** The amount as the payer reads it, e.g. "₹3,000". */

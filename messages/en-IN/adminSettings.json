@@ -81,6 +81,10 @@
         }
       },
       "donations": {
+        "recurringEnabled": {
+          "label": "Monthly donations",
+          "description": "Accept recurring donations once the subscription gateway is configured and approved."
+        },
         "enabled": {
           "label": "Online donations",
           "description": "Lets people give on the donate page. Keep it off until Razorpay's live keys are set and the accountant has confirmed receipts and the chart of accounts; until then the page says donations open soon."

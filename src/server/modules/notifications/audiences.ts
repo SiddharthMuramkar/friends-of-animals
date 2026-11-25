@@ -219,6 +219,12 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "recurring_donation.activated":
+    case "recurring_donation.charge_failed":
+    case "recurring_donation.cancelled":
+    case "recurring_donation.refunded":
+    case "recurring_donation.payment_refused":
+    case "recurring_donation.cancel_requested":
     case "donation.captured":
     case "donation.foreign_payment_received":
     case "donation.refunded":
@@ -799,6 +805,12 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   // The donations module renders these itself (#106): only it can mint a
   // receipt link as the email goes. Declared so templates check out.
+  "recurring_donation.activated": { names: [], load: async () => ({}) },
+  "recurring_donation.charge_failed": { names: [], load: async () => ({}) },
+  "recurring_donation.cancelled": { names: [], load: async () => ({}) },
+  "recurring_donation.refunded": { names: [], load: async () => ({}) },
+  "recurring_donation.payment_refused": { names: [], load: async () => ({}) },
+  "recurring_donation.cancel_requested": { names: [], load: async () => ({}) },
   "donation.captured": {
     names: [
       "donation.amount",
