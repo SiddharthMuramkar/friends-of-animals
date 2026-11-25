@@ -161,22 +161,20 @@ export const seedResults: Seeder = async ({ db, clock }) => {
     await db
       .insert(roundEntry)
       .values({ roundId, entryId: row.entryId, admittedAt: days(-38) });
-    await db
-      .insert(roundResult)
-      .values({
-        roundId,
-        entryId: row.entryId,
-        code: row.code,
-        discipline: row.discipline,
-        categoryId: row.categoryId,
-        rank: awardPosition,
-        scoreNumerator: placed ? "90" : "80",
-        scoreDenominator: "1",
-        sheetsCounted: 2,
-        outcome,
-        awardPosition,
-        suitableForAuction: true,
-      });
+    await db.insert(roundResult).values({
+      roundId,
+      entryId: row.entryId,
+      code: row.code,
+      discipline: row.discipline,
+      categoryId: row.categoryId,
+      rank: awardPosition,
+      scoreNumerator: placed ? "90" : "80",
+      scoreDenominator: "1",
+      sheetsCounted: 2,
+      outcome,
+      awardPosition,
+      suitableForAuction: true,
+    });
     lines.push({
       releaseId,
       entryId: row.entryId,

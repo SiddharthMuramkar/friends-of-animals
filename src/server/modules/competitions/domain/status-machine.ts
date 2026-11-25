@@ -33,7 +33,11 @@ export type CompetitionStatus = (typeof COMPETITION_STATUSES)[number];
  * schedule (the worker, acting as the system) when a key date arrives, or
  * a cancellation (a super admin behind step-up, #80).
  */
-export type TransitionCause = "manager" | "schedule" | "cancellation" | "results";
+export type TransitionCause =
+  | "manager"
+  | "schedule"
+  | "cancellation"
+  | "results";
 
 /**
  * The allowed moves, each with the one cause that may make it. A pair that

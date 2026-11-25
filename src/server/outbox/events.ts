@@ -457,13 +457,18 @@ export type DomainEvent =
     }
   | {
       type: "results.release_due";
-      aggregate: { type:"competition"; id:string };
-      payload: { competitionId:string; releaseId:string };
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string; releaseId: string };
     }
   | {
       type: "results.prize_awarded";
-      aggregate: { type:"competition"; id:string };
-      payload: { competitionId:string; releaseId:string; entryId:string; registrationId:string };
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        entryId: string;
+        registrationId: string;
+      };
     }
   | {
       /** Actual public release, emitted transactionally by Results (#99). */
@@ -1013,8 +1018,16 @@ export const EVENT_PAYLOADS = {
   "artwork.retained": z.object({ artworkId: z.uuid() }),
   "artwork.return_requested": z.object({ artworkId: z.uuid() }),
   "artwork.returned": z.object({ artworkId: z.uuid() }),
-  "results.release_due": z.object({ competitionId:z.uuid(),releaseId:z.uuid() }),
-  "results.prize_awarded": z.object({ competitionId:z.uuid(),releaseId:z.uuid(),entryId:z.uuid(),registrationId:z.uuid() }),
+  "results.release_due": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+  }),
+  "results.prize_awarded": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    entryId: z.uuid(),
+    registrationId: z.uuid(),
+  }),
   "results.published": z.object({
     competitionId: z.uuid(),
     releaseId: z.uuid(),
@@ -1259,7 +1272,10 @@ export const SUBSCRIBERS = {
   "artwork.return_requested": ["notifications.dispatch"],
   "artwork.returned": ["notifications.dispatch"],
   "results.release_due": ["results.publish"],
-  "results.prize_awarded": ["notifications.dispatch", "results.send_family_prize"],
+  "results.prize_awarded": [
+    "notifications.dispatch",
+    "results.send_family_prize",
+  ],
   "results.published": ["artwork.open_results_window"],
   "artwork.retain_unrequested": ["artwork.retain_unrequested"],
   "auction.lot_created": ["notifications.dispatch"],

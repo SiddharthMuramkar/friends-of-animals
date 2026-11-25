@@ -9,6 +9,8 @@ import {
 } from "../../db/schema";
 import { scoringWorld } from "../judging/blind-testing";
 import { managerOf, signedInWith } from "../judging/testing";
+import { collectSubjectData } from "../privacy/requests/subject-data/collect";
+import { entry } from "../../db/schema";
 import { publishedResults } from "./read-published";
 
 const worker = { kind: "system", process: "worker" } as const;
@@ -24,14 +26,12 @@ async function lockedWorld(h: Harness) {
       .getBlindEntry({ roundId: w.roundId, entryCode });
     if (!detail.ok) throw Error(detail.error);
     expect(
-      await h
-        .as(actor)
-        .saveScoreSheet({
-          roundId: w.roundId,
-          entryCode,
-          baseVersion: detail.sheet.version,
-          scores: Object.fromEntries(detail.criteria.map((c) => [c.id, score])),
-        })
+      await h.as(actor).saveScoreSheet({
+        roundId: w.roundId,
+        entryCode,
+        baseVersion: detail.sheet.version,
+        scores: Object.fromEntries(detail.criteria.map((c) => [c.id, score])),
+      })
     ).toMatchObject({ ok: true, progress: "complete" });
   }
   // Let the actual deadline job move the competition to FOA judging.
@@ -74,6 +74,24 @@ describe("results publication", () => {
     await expect(wrong.prepareResultsRelease(prepare)).rejects.toMatchObject({
       code: "forbidden",
     });
+    const continuation = await api.createJudgingRound({
+      competitionId,
+      name: "Continuation",
+      entrySource: "round_finalists",
+      sourceRoundId: w.roundId,
+      judgesPhysical: false,
+    });
+    if (!continuation.ok) throw Error(continuation.error);
+    expect(await api.prepareResultsRelease(prepare)).toMatchObject({
+      ok: false,
+      error: "final_round_required",
+    });
+    expect(
+      await api.cancelJudgingRound({
+        roundId: continuation.roundId,
+        reason: "No longer proceeding to this round.",
+      })
+    ).toMatchObject({ ok: true });
     const made = await api.prepareResultsRelease(prepare);
     if (!made.ok) throw Error(made.error);
     const input = { competitionId, releaseId: made.releaseId };
@@ -87,6 +105,21 @@ describe("results publication", () => {
     });
     expect(await visitor.getPublicResults({ slug: comp.slug })).toBeNull();
     expect(await publishedResults(h.db, competitionId)).toBeNull();
+    const [subject] = await h.db
+      .select({ profileId: entry.participantProfileId })
+      .from(entry)
+      .where(eq(entry.id, w.entryId));
+    const subjectExport = () =>
+      collectSubjectData(h.deps, {
+        scope: { userIds: [], profileIds: [subject!.profileId] },
+        subject: { kind: "participant_profile", id: subject!.profileId },
+        reference: "TEST-RESULTS",
+        generatedAt: h.clock.now(),
+      });
+    expect(
+      (await subjectExport()).document.sections.result_award
+    ).toBeUndefined();
+
     expect(await h.as(worker).publishResultsRelease(input)).toMatchObject({
       ok: true,
       outcome: "ignored",
@@ -169,6 +202,11 @@ describe("results publication", () => {
         { entryId: w.otherEntryId, outcome: "runner_up", awardBand: "second" },
       ],
     });
+    const exported = (await subjectExport()).document.sections;
+    expect(exported.result_award).toMatchObject([
+      { entry_id: w.entryId, outcome: "winner", award_band: "first" },
+    ]);
+    expect(exported.round_result).toBeUndefined();
     expect(await visitor.getPublicResults({ slug: comp.slug })).toMatchObject({
       awards: [],
     });
@@ -236,6 +274,35 @@ describe("results publication", () => {
     expect(
       await h.as(manager).getResultsRelease({ competitionId })
     ).toMatchObject({ ok: true, release: { status: "published" } });
+    expect(
+      await api.createJudgingRound({
+        competitionId,
+        name: "Not after publication",
+        judgesPhysical: false,
+      })
+    ).toMatchObject({ ok: false, error: "results_published" });
+    expect(
+      await api.tagRoundOutcomes({
+        roundId: w.roundId,
+        tags: [
+          {
+            entryId: w.entryId,
+            outcome: "finalist",
+            awardPosition: null,
+            suitableForAuction: false,
+          },
+        ],
+      })
+    ).toMatchObject({ ok: false, error: "results_published" });
+    const admin = h.as(
+      await signedInWith(h, { role: "super_admin", scope: { type: "global" } })
+    );
+    expect(
+      await admin.cancelCompetition({
+        competitionId,
+        reason: "Cannot cancel now.",
+      })
+    ).toMatchObject({ ok: false, error: "results_published" });
   });
   it("allows an independent rejection, and never publishes after cancellation", async () => {
     const h = await createHarness();

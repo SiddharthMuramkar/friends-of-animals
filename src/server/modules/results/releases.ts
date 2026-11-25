@@ -429,7 +429,21 @@ export async function publishResultsRelease(
     if (!canTransitionRelease(release.status, "published", "system"))
       return { ok: true, outcome: "ignored" } as const;
     const now = ctx.clock.now();
-    if (now < release.publishAt) return { ok: true, outcome: "early" } as const;
+    if (now < release.publishAt) {
+      // The relay normally waits until availableAt. Requeue safely if the
+      // clock moved backwards between claiming and executing this job.
+      await emit(
+        tx,
+        ctx.clock,
+        {
+          type: "results.release_due",
+          aggregate: { type: "competition", id: c.id },
+          payload: { competitionId: c.id, releaseId: release.id },
+        },
+        { availableAt: release.publishAt }
+      );
+      return { ok: true, outcome: "early" } as const;
+    }
     const lines = await awardRows(tx, release.id);
     const valid =
       canTransition(c.status, "results_published", "results") &&

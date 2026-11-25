@@ -6,5 +6,8 @@ export const RESULTS_POLICY = {
   "results.approve": stepUp(reviewers),
   "results.reject": reviewers,
   "results.publish": system("worker"),
-  "results.public_read": (subject) => ({ allowed: subject.kind !== "system", role: null }),
+  "results.public_read": (subject) => ({
+    allowed: subject.kind !== "system",
+    role: null,
+  }),
 } satisfies Policy<string>;

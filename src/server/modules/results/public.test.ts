@@ -9,6 +9,28 @@ import { SEED_RESULTS } from "../../seed/results";
 import { SEED_GUARDIANS } from "../../seed/guardians";
 
 describe("the public results read", () => {
+  it("tells the adult winner and the verified guardian, never the child's own address", async () => {
+    const h = await createHarness();
+    await h.seed.preview();
+    await h.drain();
+    const prizes = h.email.sent.filter(
+      (m) => m.subject === "Recognition at Art for kindness"
+    );
+    expect(
+      prizes.some(
+        (m) =>
+          m.to === SEED_GUARDIANS.guardian.email &&
+          m.text.includes("Rohan Desai") &&
+          m.text.includes("prize collection")
+      )
+    ).toBe(true);
+    expect(prizes.some((m) => m.to === SEED_GUARDIANS.teen.email)).toBe(false);
+    expect(
+      prizes.some(
+        (m) => m.text.includes("Asha Rao") && m.text.includes("FOA trophy")
+      )
+    ).toBe(true);
+  });
   it("reads current consent and each guardian credit opt-in, never identifier or unconsented award", async () => {
     const h = await createHarness();
     await h.seed.preview();

@@ -83,89 +83,77 @@ test("two staff release approved results, and visitors see only consented recogn
     if (!group || !profile?.ownerUserId || !doc)
       throw Error("Missing results fixture facts");
     await db.transaction(async (tx) => {
-      await tx
-        .insert(schema.registration)
-        .values({
-          id: registrationId,
-          participantProfileId: profile.id,
-          competitionId: c.id,
-          ageGroupId: group.id,
-          route: "individual",
-          status: "confirmed",
-          registrationNumber: `${c.code}-R-5EED01`,
-          createdAt: now,
-          updatedAt: now,
-        });
-      await tx
-        .insert(schema.entry)
-        .values({
-          id: entryId,
-          code: `${c.code}-E-5EED01`,
-          competitionId: c.id,
-          registrationId,
-          participantProfileId: profile.id,
-          discipline: "drawing",
-          title: "Private artwork title",
-          description: "Private work",
-          status: "foa_verified",
-          submittedAt: now,
-          createdAt: now,
-          updatedAt: now,
-        });
-      await tx
-        .insert(schema.competitionConsentDocument)
-        .values({
-          competitionId: c.id,
-          purpose: "public_display",
-          consentDocumentId: doc.id,
-          attachedAt: now,
-        });
-      await tx
-        .insert(schema.consentEvent)
-        .values({
-          id: randomUUID(),
-          subjectType: "user",
-          subjectId: profile.ownerUserId!,
-          giverUserId: profile.ownerUserId!,
-          competitionId: c.id,
-          purpose: "public_display",
-          documentId: doc.id,
-          method: "web_form",
-          action: "given",
-          occurredAt: now,
-        });
-      await tx
-        .insert(schema.judgingRound)
-        .values({
-          id: roundId,
-          competitionId: c.id,
-          name: "National final",
-          nameKey: "national final",
-          status: "open",
-          judgesPhysical: false,
-          createdAt: now,
-          updatedAt: now,
-          openedAt: now,
-        });
+      await tx.insert(schema.registration).values({
+        id: registrationId,
+        participantProfileId: profile.id,
+        competitionId: c.id,
+        ageGroupId: group.id,
+        route: "individual",
+        status: "confirmed",
+        registrationNumber: `${c.code}-R-5EED01`,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.entry).values({
+        id: entryId,
+        code: `${c.code}-E-5EED01`,
+        competitionId: c.id,
+        registrationId,
+        participantProfileId: profile.id,
+        discipline: "drawing",
+        title: "Private artwork title",
+        description: "Private work",
+        status: "foa_verified",
+        submittedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await tx.insert(schema.competitionConsentDocument).values({
+        competitionId: c.id,
+        purpose: "public_display",
+        consentDocumentId: doc.id,
+        attachedAt: now,
+      });
+      await tx.insert(schema.consentEvent).values({
+        id: randomUUID(),
+        subjectType: "user",
+        subjectId: profile.ownerUserId!,
+        giverUserId: profile.ownerUserId!,
+        competitionId: c.id,
+        purpose: "public_display",
+        documentId: doc.id,
+        method: "web_form",
+        action: "given",
+        occurredAt: now,
+      });
+      await tx.insert(schema.judgingRound).values({
+        id: roundId,
+        competitionId: c.id,
+        name: "National final",
+        nameKey: "national final",
+        status: "open",
+        judgesPhysical: false,
+        createdAt: now,
+        updatedAt: now,
+        openedAt: now,
+      });
       await tx
         .insert(schema.roundEntry)
         .values({ roundId, entryId, admittedAt: now });
-      await tx
-        .insert(schema.roundResult)
-        .values({
-          roundId,
-          entryId,
-          code: `${c.code}-E-5EED01`,
-          discipline: "drawing",
-          categoryId: group.id,
-          rank: 1,
-          scoreNumerator: "90",
-          scoreDenominator: "1",
-          sheetsCounted: 1,
-          outcome: "winner",
-          awardPosition: 1,
-          suitableForAuction: false,
-        });
+      await tx.insert(schema.roundResult).values({
+        roundId,
+        entryId,
+        code: `${c.code}-E-5EED01`,
+        discipline: "drawing",
+        categoryId: group.id,
+        rank: 1,
+        scoreNumerator: "90",
+        scoreDenominator: "1",
+        sheetsCounted: 1,
+        outcome: "winner",
+        awardPosition: 1,
+        suitableForAuction: false,
+      });
       await tx
         .update(schema.judgingRound)
         .set({ status: "locked", lockedAt: now, tieBreakRule: TIE_BREAK_RULE })

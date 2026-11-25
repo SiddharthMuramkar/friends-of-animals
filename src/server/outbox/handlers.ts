@@ -155,7 +155,12 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
-  "results.publish": async (deps, delivery) => { await publishResultsRelease({...deps, actor:{kind:"system",process:"worker"}},delivery.payload); },
+  "results.publish": async (deps, delivery) => {
+    await publishResultsRelease(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      delivery.payload
+    );
+  },
   "results.send_family_prize": sendFamilyPrize,
   "verification.forward_individual_entries": (deps, { payload }) =>
     forwardOnSubmissionsClosed(deps, payload),
