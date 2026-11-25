@@ -22,7 +22,7 @@
     "verified": "Verified",
     "certificates": "Certificates",
     "feesTitle": "Registration fees (INR)",
-    "feesHint": "Accepted fee payments and completed fee refunds; duplicate payment returns are not fee refunds. Pending payments and refunds are excluded.",
+    "feesHint": "Accepted INR fee payments and completed INR fee refunds from those payments; duplicate payment returns are not fee refunds. Pending payments, pending refunds and unsupported historical non-INR receipts are excluded.",
     "captured": "Captured",
     "refunded": "Refunded",
     "net": "Net",

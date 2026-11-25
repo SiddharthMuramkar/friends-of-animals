@@ -24,7 +24,11 @@ import {
 } from "../../db/schema";
 import { invalidInput } from "../../input";
 import type { UseCaseContext } from "../../use-cases";
-import { eligibleCapture, readCapture } from "../ledger/sources/payments";
+import {
+  eligibleCapture,
+  readCapture,
+  UnsupportedCaptureCurrencyError,
+} from "../ledger/sources/payments";
 import { formatMinorAsDecimal } from "../ledger/domain/journal";
 import { BOM, formatCsv, neutraliseFormula } from "../registration/domain/csv";
 import {
@@ -249,11 +253,20 @@ export async function readReportFees(
     .where(
       and(eq(paymentBatch.competitionId, competitionId), eligibleCapture(db))
     );
+  const acceptedBatchIds: string[] = [];
   for (const batch of batches) {
     if (!batch.route) throw new Error("Fee batch has no route");
-    const capture = await readCapture(db, batch.id);
-    if (capture)
-      totalsByRoute[batch.route].capturedMinor += capture.amountMinor;
+    try {
+      const capture = await readCapture(db, batch.id);
+      if (capture) {
+        acceptedBatchIds.push(batch.id);
+        totalsByRoute[batch.route].capturedMinor += capture.amountMinor;
+      }
+    } catch (error) {
+      // Historical accepted non-INR receipts are held out of the INR
+      // ledger, too. Do not treat their minor units as rupee paise.
+      if (!(error instanceof UnsupportedCaptureCurrencyError)) throw error;
+    }
   }
   const refunds = await db
     .select({ route: paymentBatch.route, amountMinor: refund.amountMinor })
@@ -264,6 +277,8 @@ export async function readReportFees(
         eq(paymentBatch.competitionId, competitionId),
         eq(paymentBatch.purpose, "registration_fee"),
         eq(refund.status, "refunded"),
+        eq(refund.currency, "INR"),
+        inArray(refund.batchId, acceptedBatchIds),
         ne(refund.kind, "duplicate")
       )
     );

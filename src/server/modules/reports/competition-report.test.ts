@@ -1,5 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { SEED_PAYMENTS } from "../../seed/payments";
+import { uuidv7 } from "../../ids";
 import { createHarness } from "@/test/harness";
 import {
   registration,
@@ -7,6 +9,8 @@ import {
   ledgerPosting,
   ledgerAccount,
   ledgerLine,
+  paymentBatch,
+  paymentReviewCase,
 } from "../../db/schema";
 import { insertCertificate } from "../certificates/issue";
 import { signedInWith, managerOf } from "../judging/testing";
@@ -138,6 +142,35 @@ it("counts fee captures per batch, completed refunds once, and real issued certi
   const manager = h.as(
     await signedInWith(h, { role: "finance", scope: { type: "global" } })
   );
+  // Historical compatibility fixture (#80): an accepted receipt recorded
+  // in USD is not recognised as fee income by the ledger. A report in INR
+  // must not fail or treat its minor units as paise.
+  const [original] = await h.db
+    .select()
+    .from(paymentBatch)
+    .where(eq(paymentBatch.id, SEED_PAYMENTS.paid.batchId));
+  if (!original) throw Error("Missing preview fee batch");
+  const historicalId = uuidv7(h.clock.now());
+  const historicPayment = "pay_historical_report";
+  await h.db.insert(paymentBatch).values({
+    ...original,
+    id: historicalId,
+    gatewayOrderId: "order_historical_report",
+    gatewayPaymentId: historicPayment,
+  });
+  await h.db.insert(paymentReviewCase).values({
+    id: uuidv7(h.clock.now()),
+    batchId: historicalId,
+    reason: "amount_mismatch",
+    gatewayPaymentId: historicPayment,
+    amountMinor: 1200n,
+    currency: "USD",
+    batchStatusBefore: "order_created",
+    openedAt: h.clock.now(),
+    outcome: "confirm",
+    resolvedAt: h.clock.now(),
+    resolutionReason: "Historical accepted non-INR receipt",
+  });
   const skies = await manager.getCompetitionReport({
     competitionCode: "SKIES26",
   });

@@ -53,7 +53,7 @@ test("staff go from dashboard through real waiting queues and download the aggre
   ).toBeVisible();
   await expect(
     main.getByRole("link", { name: /Refunds to approve/ })
-  ).toContainText("1 item waiting");
+  ).toContainText(/^[\s\S]*[1-9]\d* items? waiting/);
   await expect(
     main.getByRole("link", { name: /Safeguarding reports to review/ })
   ).toHaveCount(0);
@@ -66,7 +66,12 @@ test("staff go from dashboard through real waiting queues and download the aggre
     main.getByRole("heading", { level: 1, name: "Results to approve" })
   ).toBeVisible();
   await expect(page).toHaveURL(/\/admin\/queues\/results_to_approve$/);
-  await expect(main.getByText("1 item waiting", { exact: true })).toBeVisible();
+  // Other isolated journeys may create their own draft release while this
+  // preview runs. The exact global counts are proved at Seam 1; this
+  // browser confirms the waiting list has its dedicated seeded release.
+  await expect(
+    main.getByRole("paragraph").filter({ hasText: /^[1-9]\d* items? waiting$/ })
+  ).toBeVisible();
   await expect(
     main.getByRole("link", { name: "Open item RSLT27" })
   ).toHaveAttribute(
@@ -86,31 +91,37 @@ test("staff go from dashboard through real waiting queues and download the aggre
     main.getByRole("heading", { level: 1, name: "Competition reports" })
   ).toBeVisible();
   await check(page, "competition reports list");
-  await main.getByRole("link", { name: /Kinder Skies SKIES26/ }).click();
+  await expect(
+    main.getByRole("link", { name: /Kinder Skies SKIES26/ })
+  ).toBeVisible();
+  // The dedicated report competition is unaffected by other test journeys
+  // building payments against the existing Kinder Skies fee batch.
+  await main.getByRole("link", { name: /Kindness in Words RSLT27/ }).click();
   const participation = main.getByRole("table", {
     name: "Participation by route and age group",
   });
   await expect(participation).toBeVisible();
   await expect(
     main.getByRole("table", { name: "Registration fees (INR)" })
-  ).toContainText("₹5,000.00");
+  ).toContainText("₹0.00");
   await check(page, "competition report details");
   const href = await main
     .getByRole("link", { name: "Download CSV" })
     .getAttribute("href");
-  expect(href).toBe("/admin/reports/competitions/SKIES26/export.csv");
+  expect(href).toBe("/admin/reports/competitions/RSLT27/export.csv");
   const response = await page.request.get(href!);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toBe("text/csv; charset=utf-8");
   expect(response.headers()["content-disposition"]).toContain("attachment");
   expect(response.headers()["cache-control"]).toBe("no-store");
   const text = await response.text();
-  expect(text).not.toContain("SKIES26-R-");
+  expect(text).not.toContain("RSLT27-R-");
   expect(text).not.toContain("@example.test");
   expect(parseCsv(text)).toMatchObject({
     ok: true,
     records: expect.arrayContaining([
-      ["institution", "6000.00", "1000.00", "5000.00"],
+      ["individual", "Adults", "1", "1", "", "1", "0"],
+      ["individual", "0.00", "0.00", "0.00"],
     ]),
   });
 });
