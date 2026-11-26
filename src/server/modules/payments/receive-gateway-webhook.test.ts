@@ -66,8 +66,14 @@ describe("receiveGatewayWebhook", () => {
     const h = await createHarness();
     const school = await schoolWithStudents(h);
     const { orderId } = await openOrder(school);
-    h.gateway.capture(orderId);
-    const webhook = capturedWebhook(h, orderId);
+    const paid = h.gateway.capture(orderId);
+    // Non-auction orders do not retain timing evidence even when the
+    // signature covers an exact capture snapshot.
+    const webhook = h.gateway.webhook({
+      type: "payment.captured",
+      orderId,
+      capture: { paymentId: paid.paymentId, occurredBy: h.clock.now() },
+    });
 
     await receive(h, webhook);
 
@@ -79,6 +85,8 @@ describe("receiveGatewayWebhook", () => {
         eventId,
         type: "payment.captured",
         orderId,
+        capturePaymentFingerprint: null,
+        captureOccurredBy: null,
         outcome: "captured",
         receivedAt: h.clock.now(),
         processedAt: h.clock.now(),

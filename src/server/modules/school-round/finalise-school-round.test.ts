@@ -14,12 +14,7 @@ import { globalManager, signedInWith } from "@/server/modules/judging/testing";
 import { createHarness, type Harness } from "@/test/harness";
 
 import { JUDGING_STATEMENT_VERSION } from "./domain/judging-statement";
-import {
-  anotherSchool,
-  categoryOf,
-  schoolInJudging,
-  type RoundWorld,
-} from "./testing";
+import { anotherSchool, readyRound, schoolInJudging } from "./testing";
 
 // #89: the coordinator attests the judging and finalises. Finalising needs
 // a panel of at least one, the institution's conduct certification (#87)
@@ -29,25 +24,6 @@ import {
 // not_shortlisted. Only finalising emits school_round.shortlist_finalised.
 
 const PANEL = [{ fullName: "Lata Kulkarni", designation: "Art teacher" }];
-
-/** Panel recorded, conduct certified, students 1 (1st) and 2 picked. */
-async function readyRound(h: Harness, world: RoundWorld) {
-  const coordinator = h.as(world.coordinator.actor);
-  await coordinator.recordPanel({ ...world.ref, members: PANEL });
-  const certified = await coordinator.certifyConduct(world.ref);
-  if (!certified.ok) throw new Error(JSON.stringify(certified));
-  const categoryId = await categoryOf(h, world, "photography");
-  const saved = await coordinator.saveShortlist({
-    ...world.ref,
-    categoryId,
-    picks: [
-      { entryId: world.entryIds[1]!, position: 1 },
-      { entryId: world.entryIds[2]!, position: null },
-    ],
-  });
-  if (!saved.ok) throw new Error(JSON.stringify(saved));
-  return categoryId;
-}
 
 async function statusesOf(h: Harness, ids: string[]) {
   const rows = await h.db
@@ -66,11 +42,18 @@ async function historyOf(h: Harness, entryId: string) {
   return rows.map((row) => row.to);
 }
 
-const finalisedEvents = (h: Harness) =>
+// One event has a delivery for each subscriber. In #90 the guard retry
+// joined the family-outcome handler; both rows must share one event id.
+const finalisedDeliveries = (h: Harness) =>
   h.db
-    .select({ payload: outbox.payload })
+    .select({
+      eventId: outbox.eventId,
+      handler: outbox.handler,
+      payload: outbox.payload,
+    })
     .from(outbox)
-    .where(eq(outbox.eventType, "school_round.shortlist_finalised"));
+    .where(eq(outbox.eventType, "school_round.shortlist_finalised"))
+    .orderBy(asc(outbox.handler));
 
 describe("finaliseSchoolRound", () => {
   it("names every blocker and changes nothing until the round is ready", async () => {
@@ -92,7 +75,7 @@ describe("finaliseSchoolRound", () => {
     });
     const [round] = await h.db.select().from(schoolRound);
     expect(round?.status).toBe("open");
-    expect(await finalisedEvents(h)).toEqual([]);
+    expect(await finalisedDeliveries(h)).toEqual([]);
   });
 
   it("shortlists the picks on to FOA, marks every other entry not shortlisted and records who attested and finalised", async () => {
@@ -154,13 +137,22 @@ describe("finaliseSchoolRound", () => {
       { from: null, to: "open", actorUserId: null },
       { from: "open", to: "finalised", actorUserId: school.coordinator.userId },
     ]);
-    expect(await finalisedEvents(h)).toEqual([
+    const deliveries = await finalisedDeliveries(h);
+    const payload = {
+      roundId: round!.id,
+      competitionId: school.competition.id,
+      institutionRegistrationId: school.registrationId,
+    };
+    expect(deliveries).toEqual([
       {
-        payload: {
-          roundId: round!.id,
-          competitionId: school.competition.id,
-          institutionRegistrationId: school.registrationId,
-        },
+        eventId: expect.any(String),
+        handler: "competitions.retry_blocked_moves",
+        payload,
+      },
+      {
+        eventId: deliveries[0]?.eventId,
+        handler: "school_round.queue_family_outcomes",
+        payload,
       },
     ]);
     const audit = await h.db
@@ -208,12 +200,19 @@ describe("finaliseSchoolRound", () => {
     const h = await createHarness();
     const school = await schoolInJudging(h);
     const categoryId = await readyRound(h, school);
-    expect(await finalisedEvents(h)).toEqual([]);
+    expect(await finalisedDeliveries(h)).toEqual([]);
     const coordinator = h.as(school.coordinator.actor);
     await coordinator.finaliseSchoolRound({
       ...school.ref,
       judgingAttested: true,
     });
+
+    const deliveries = await finalisedDeliveries(h);
+    expect(deliveries.map(({ handler }) => handler)).toEqual([
+      "competitions.retry_blocked_moves",
+      "school_round.queue_family_outcomes",
+    ]);
+    expect(new Set(deliveries.map(({ eventId }) => eventId)).size).toBe(1);
 
     expect(
       await coordinator.finaliseSchoolRound({
@@ -227,7 +226,7 @@ describe("finaliseSchoolRound", () => {
     expect(
       await coordinator.saveShortlist({ ...school.ref, categoryId, picks: [] })
     ).toEqual({ ok: false, error: "round_not_editable" });
-    expect(await finalisedEvents(h)).toHaveLength(1);
+    expect(await finalisedDeliveries(h)).toEqual(deliveries);
   });
 
   it("refuses another institution's coordinator, a participant and a competition manager", async () => {

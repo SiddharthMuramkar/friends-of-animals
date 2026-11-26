@@ -9,8 +9,18 @@
       "consentForms": "Signed forms",
       "privacy": "Data inventory",
       "volunteers": "Volunteers",
+      "certificates": "Certificates",
+      "artwork": "Physical artwork",
+      "verification": "FOA verification",
       "adoptions": "Adoptions",
-      "privacyRequests": "Privacy requests"
+      "privacyRequests": "Privacy requests",
+      "judging": "Judging rounds",
+      "auctions": "Auctions",
+      "events": "Events",
+      "community": "Community",
+      "home": "Home",
+      "reports": "Reports",
+      "surveys": "Feedback surveys"
     },
     "loading": "Loading…",
     "denied": {
@@ -36,17 +46,19 @@
       "auction_manager": "Auction manager",
       "adoption_coordinator": "Adoption coordinator",
       "safeguarding_lead": "Safeguarding lead",
-      "grievance_officer": "Grievance officer"
+      "grievance_officer": "Grievance officer",
+      "foa_verifier": "FOA verifier"
     },
     "scopes": {
       "global": "Everywhere",
       "institution": "One institution",
       "competition": "One competition",
-      "organisation": "One organisation"
+      "organisation": "One organisation",
+      "round": "One judging round"
     },
     "grant": {
       "global": "{role}, everywhere",
-      "scoped": "{role} for {scope, select, institution {institution} competition {competition} organisation {organisation} other {scope}} {id}"
+      "scoped": "{role} for {scope, select, institution {institution} competition {competition} organisation {organisation} round {judging round} other {scope}} {id}"
     },
     "facts": {
       "title": "Some of FOA's details are still missing",

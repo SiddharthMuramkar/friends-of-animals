@@ -14,6 +14,10 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
+import { AMBASSADOR_APPLICATIONS } from "./ambassadors";
+import { CLUB_MEMBERSHIPS, CLUB_DECISIONS, CLUB_APPLICATIONS } from "./clubs";
+import { SURVEY_RESPONSES } from "./surveys";
+import { COMMUNITY_MEMBERS } from "./community";
 import { CONTACT_MESSAGES } from "./contact";
 import { FINANCIAL_RECORDS } from "./financial";
 import { QUARANTINED_FILES } from "./files";
@@ -58,6 +62,12 @@ export const SWEPT_POLICIES: readonly RetentionPolicy[] = [
   SAFEGUARDING_REPORTS,
   BREACH_RECORDS,
   VOLUNTEER_APPLICATIONS,
+  COMMUNITY_MEMBERS,
+  AMBASSADOR_APPLICATIONS,
+  CLUB_MEMBERSHIPS,
+  CLUB_DECISIONS,
+  CLUB_APPLICATIONS,
+  SURVEY_RESPONSES,
   ADOPTION_APPLICATIONS,
   FINANCIAL_RECORDS,
   RELEASED_LEGAL_HOLDS,
@@ -86,6 +96,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "guardians",
   /** Who on staff did something: cleared when their account is deleted. */
   "staffRecords",
+  /** Judge records, scheduled retention awaits results and counsel (HR-31). */
+  "judgingRecords",
   /** The append-only audit log, kept by design (HR-30). */
   "auditLog",
   /** Consent given and withdrawn: proof FOA must keep (HR-30, HR-31). */
@@ -114,6 +126,8 @@ export const LIFECYCLE_POLICY_KEYS = [
   "entryMedia",
   "entryUploadGrants",
   "entryPendingText",
+  /** Auction bids remain with their lot; the bidder link is cleared on erasure. */
+  "auctionBids",
   /** Announcements (#84): kept while the competition's records are. */
   "announcements",
   /**
@@ -126,6 +140,9 @@ export const LIFECYCLE_POLICY_KEYS = [
   "erasureRecords",
   /** Campaigns (#126): kept with the campaign's record. */
   "campaigns",
+  "communityHistory",
+  "volunteerService",
+  "certificateRecords",
 ] as const;
 
 export type LifecyclePolicyKey = (typeof LIFECYCLE_POLICY_KEYS)[number];

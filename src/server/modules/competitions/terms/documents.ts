@@ -9,6 +9,7 @@
 // consent given for the competition always names the text people saw.
 // Loads under plain Node: relative imports only.
 
+import { hasUnsettledAuctionLots } from "../../auctions/reservations";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -37,12 +38,12 @@ export type AttachConsentDocumentResult =
       document: { id: string; version: number };
     }
   | InvalidInput
-  | { ok: false; error: "not_found" | AttachError };
+  | { ok: false; error: "not_found" | "auction_active" | AttachError };
 
 export type DetachConsentDocumentResult =
   | { ok: true; changed: boolean }
   | InvalidInput
-  | { ok: false; error: "not_found" | "not_attachable" };
+  | { ok: false; error: "not_found" | "not_attachable" | "auction_active" };
 
 const changeInput = z.object({
   competitionId: z.uuid(),
@@ -87,6 +88,11 @@ export async function attachConsentDocument(
       return { ok: true, changed: false, document } as const;
     }
 
+    if (
+      purpose === "auction" &&
+      (await hasUnsettledAuctionLots(tx, competitionId))
+    )
+      return { ok: false, error: "auction_active" } as const;
     await tx
       .insert(competitionConsentDocument)
       .values({
@@ -147,6 +153,11 @@ export async function detachConsentDocument(
     const pinned = await pinnedDocument(tx, competitionId, purpose);
     if (!pinned) return { ok: true, changed: false } as const;
 
+    if (
+      purpose === "auction" &&
+      (await hasUnsettledAuctionLots(tx, competitionId))
+    )
+      return { ok: false, error: "auction_active" } as const;
     await tx
       .delete(competitionConsentDocument)
       .where(

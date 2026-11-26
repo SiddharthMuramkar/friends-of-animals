@@ -39,6 +39,8 @@ import { FakeCookieJar } from "./fakes/cookies";
 import { FakeEmail } from "./fakes/email";
 import { FakeErrorReporter } from "./fakes/errors";
 import { FakeMalwareScanner } from "./fakes/malware-scanner";
+import { FakePdfRenderer } from "./fakes/pdf";
+import { FakeCdnPurger } from "./fakes/cdn-purger";
 import { FakeMediaProcessor } from "./fakes/media";
 import { FakePaymentGateway } from "./fakes/payment-gateway";
 import { FakeSms } from "./fakes/sms";
@@ -84,9 +86,11 @@ export function createPgWorld() {
   const db = drizzle(client, { schema });
   const clock = new FakeClock(new Date());
   // Separate fake gateway IDs even when multiple test files share this database.
-  const gateway = new FakePaymentGateway(`${randomUUID()}_`);
+  const gateway = new FakePaymentGateway(`${randomUUID()}_`, clock);
   const storage = new FakeStorage(clock);
   const media = new FakeMediaProcessor();
+  const pdf = new FakePdfRenderer();
+  const cdn = new FakeCdnPurger();
   const deps = {
     appEnv: "local",
     db,
@@ -106,6 +110,8 @@ export function createPgWorld() {
     errors: new FakeErrorReporter(),
     scanner: new FakeMalwareScanner(),
     media,
+    pdf,
+    cdn,
     humanCheck: proofOfWorkHumanCheck({
       secret: TEST_AUTH.secret,
       difficulty: TEST_HUMAN_CHECK_DIFFICULTY,
@@ -126,6 +132,8 @@ export function createPgWorld() {
     seed,
     storage,
     media,
+    pdf,
+    cdn,
     drain: () => drainUntilIdle(deps, { queue: "all" }),
     as: (actor: Actor): UseCases => app.as(actor),
     /** An address no other test in the shared database uses. */

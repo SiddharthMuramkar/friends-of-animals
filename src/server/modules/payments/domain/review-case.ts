@@ -38,6 +38,8 @@ export const PAYMENT_REVIEW_REASONS = [
   /** A donation's money arrived after the donation expired (#106): staff
    * may accept it, which captures the donation with its receipt. */
   "donation_expired",
+  /** Full auction capture exists, but the cutoff cannot yet be proven. */
+  "auction_capture_time_unknown",
 ] as const;
 
 export type PaymentReviewReason = (typeof PAYMENT_REVIEW_REASONS)[number];
@@ -149,8 +151,9 @@ export function allowedOutcomes(reviewCase: {
   currency: string;
   amountMinor: bigint;
   /** What the batch pays for; registration fees unless said. */
-  purpose?: "registration_fee" | "donation";
+  purpose?: "registration_fee" | "donation" | "auction_sale";
 }): readonly PaymentReviewOutcome[] {
+  if (reviewCase.purpose === "auction_sale") return ["refund", "keep"];
   const reasons =
     reviewCase.purpose === "donation" ? DONATION_CONFIRMABLE : CONFIRMABLE;
   const confirmable =
@@ -210,7 +213,7 @@ export function planResolution(input: {
     currency: string;
     amountMinor: bigint;
     resolvedAt: Date | null;
-    purpose?: "registration_fee" | "donation";
+    purpose?: "registration_fee" | "donation" | "auction_sale";
   };
   outcome: PaymentReviewOutcome;
   resolutionReason: string;

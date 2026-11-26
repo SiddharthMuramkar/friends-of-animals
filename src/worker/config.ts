@@ -45,6 +45,8 @@
 //                                    them every scan fails and files wait
 //   CLAMD_HOST, CLAMD_PORT           clamd (3310), which the scan asks; without
 //                                    a host every scan fails and files wait
+//   SES_* and MSG91_*                approved production notification providers,
+//                                    absent: the worker refuses provider sends.
 //   RAZORPAY_KEY_ID,                 the app's Razorpay keys, all three or none,
 //   RAZORPAY_KEY_SECRET,             to send approved refunds (#80). Without
 //   RAZORPAY_WEBHOOK_SECRET          them production's worker refuses each
@@ -58,12 +60,15 @@ import { z } from "zod";
 import {
   fieldKey,
   LOCAL_APP_URL,
+  notificationJobEnvSchema,
   parseEnv,
   refundJobEnvSchema,
   scanJobEnvSchema,
   type ScannerEnv,
 } from "../env.schema";
 import { parseDsn } from "../lib/observability/config";
+import type { SesVariables } from "../server/ports/email-sender-for";
+import type { Msg91Settings } from "../server/ports/sms-sender-for";
 import type { R2Config } from "../server/ports/storage-r2";
 import { parseBlindIndexKey } from "../server/crypto/blind-index";
 import { parseKeyRing } from "../server/crypto/field-cipher";
@@ -90,11 +95,15 @@ type Common = {
   queue: WorkerQueue;
   /** The site's base URL, for links in messages; unset, none. */
   siteUrl: string | undefined;
+  gotenbergUrl?: string | undefined;
   /** The app's field keys (FIELD_ENCRYPTION_KEYS, FIELD_HMAC_KEY). */
   fieldEncryptionKeys: string | undefined;
   fieldHmacKey: string | undefined;
   /** Razorpay's keys, to send refunds (#80); absent, none are set. */
   razorpay?: { keyId: string; keySecret: string; webhookSecret: string };
+  /** Providers are configured for production only after owner approval. */
+  ses?: SesVariables;
+  msg91?: Msg91Settings;
 };
 
 /**
@@ -167,6 +176,7 @@ const schema = z
     WORKER_VERSION: z.string().default("dev"),
     WORKER_PASSWORD_FILE: z.string().optional(),
     WORKER_QUEUE: z.enum(["default", "media"]).default("default"),
+    GOTENBERG_URL: z.url({ protocol: /^https?$/ }).optional(),
     MEDIA_TIMEOUT_SECONDS: seconds(60, MAX_MEDIA_TIMEOUT_SECONDS),
     SENTRY_DSN: z
       .string()
@@ -227,7 +237,7 @@ export function workerConfig(
   const env = parseEnv(
     z.intersection(
       z.intersection(schema, scanJobEnvSchema),
-      refundJobEnvSchema
+      z.intersection(refundJobEnvSchema, notificationJobEnvSchema)
     ),
     source
   );
@@ -262,10 +272,39 @@ export function workerConfig(
           }
         : undefined,
     clamd: { CLAMD_HOST: env.CLAMD_HOST, CLAMD_PORT: env.CLAMD_PORT },
+    gotenbergUrl: env.GOTENBERG_URL,
     siteUrl:
       env.APP_URL ?? (env.APP_ENV === "local" ? LOCAL_APP_URL : undefined),
     fieldEncryptionKeys: env.FIELD_ENCRYPTION_KEYS,
     fieldHmacKey: env.FIELD_HMAC_KEY,
+    // The worker must not send real email while SES is in the sandbox.
+    ...(env.APP_ENV === "production" &&
+    env.SES_PRODUCTION_ACCESS &&
+    env.SES_ACCESS_KEY_ID &&
+    env.SES_SECRET_ACCESS_KEY &&
+    env.SES_FROM
+      ? {
+          ses: {
+            SES_REGION: env.SES_REGION,
+            SES_ACCESS_KEY_ID: env.SES_ACCESS_KEY_ID,
+            SES_SECRET_ACCESS_KEY: env.SES_SECRET_ACCESS_KEY,
+            SES_FROM: env.SES_FROM,
+            SES_CONFIGURATION_SET: env.SES_CONFIGURATION_SET,
+          },
+        }
+      : {}),
+    ...(env.APP_ENV === "production" &&
+    env.MSG91_AUTH_KEY &&
+    env.MSG91_OTP_TEMPLATE_ID
+      ? {
+          msg91: {
+            authKey: env.MSG91_AUTH_KEY,
+            otpTemplateId: env.MSG91_OTP_TEMPLATE_ID,
+            coordinatorInvitationTemplateId:
+              env.MSG91_COORDINATOR_INVITATION_TEMPLATE_ID,
+          },
+        }
+      : {}),
     // The schema takes all three Razorpay variables or none.
     ...(env.RAZORPAY_KEY_ID &&
     env.RAZORPAY_KEY_SECRET &&

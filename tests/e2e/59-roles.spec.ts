@@ -326,7 +326,9 @@ test("a member with several roles switches between their areas", async ({
   request,
   seedAccount,
 }) => {
+  const secret = generateTotpSecret();
   const memberEmail = await seedAccount({
+    totpSecret: secret,
     name: SEED_ACCOUNTS.members[0].name,
     grants: [
       { role: "content_manager", scope: { type: "global" } },
@@ -362,9 +364,7 @@ test("a member with several roles switches between their areas", async ({
   ]);
   for (const [name, section] of [
     ["Member", "member"],
-    ["Admin", "admin"],
     [`Institution ${SCHOOL}`, `institution-${SCHOOL}`],
-    ["Judging", "judge"],
   ]) {
     await page
       .getByRole("navigation", { name: "Your areas" })
@@ -377,6 +377,33 @@ test("a member with several roles switches between their areas", async ({
         .getByRole("heading", { name, exact: true })
     ).toBeInViewport();
   }
+
+  // #95 moves judging into its own area as well.
+  await page
+    .getByRole("navigation", { name: "Your areas" })
+    .getByRole("link", { name: "Judging", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/judge$/);
+  await expect(
+    page.getByRole("heading", { name: "Your judging rounds" })
+  ).toBeVisible();
+  await expectAccessible(page, "judging area");
+  await page.getByRole("link", { name: "Back to your dashboard" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  // #117 gives Admin its own protected staff home, rather than a dashboard
+  // fragment. Switching must cross the actual second-factor boundary.
+  await page
+    .getByRole("navigation", { name: "Your areas" })
+    .getByRole("link", { name: "Admin", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/auth\/second-factor\?next=%2Fadmin$/);
+  await verifyStaffCode(page, secret);
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(
+    page.getByRole("heading", { name: "Admin home", exact: true })
+  ).toBeVisible();
+  await expectAccessible(page, "admin area");
 });
 
 test("staff without a second factor are sent to add one before an admin page", async ({

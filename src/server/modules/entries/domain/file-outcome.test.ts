@@ -29,7 +29,7 @@ describe("outcomesOf", () => {
     }
   );
 
-  it("reads a clean file with no media job as ready: an essay's PDF (#86)", () => {
+  it("reads a clean file with no media job as ready", () => {
     expect(
       outcomesOf({ status: "clean", processing: null, hasMediaJob: false })
     ).toEqual(["scan_clean", "processed"]);

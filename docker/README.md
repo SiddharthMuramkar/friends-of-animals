@@ -1081,6 +1081,21 @@ recreate worker-prod together with the app's change. `worker-staging` and
 today (`docs/adr/0001-ci-e2e-and-prebuilt-deploys.md`). Give them their
 site's `APP_URL`, and staging its keys, if one comes back.
 
+### Notification providers (worker-prod)
+
+The production default worker reads its own optional
+`/etc/foa/secrets/worker_prod_notifications.env` (root-owned, mode 0600), never
+shared with staging, preview or media workers. Once FOA has approved SES
+production access (HR-12), the file may contain `SES_REGION`,
+`SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_FROM`, optional
+`SES_CONFIGURATION_SET` and `SES_PRODUCTION_ACCESS=true`. Without the access
+flag or all three key/sender values the production worker refuses email. For
+DLT-approved MSG91 (HR-14), configure `MSG91_AUTH_KEY`, `MSG91_OTP_TEMPLATE_ID`
+and, for coordinator invitations, `MSG91_COORDINATOR_INVITATION_TEMPLATE_ID`.
+The existing runtime `sms.enabled` and template DLT requirements still apply.
+Only the owner provisions the values and recreates the production worker;
+nonproduction always captures messages without calling either provider.
+
 ### Scan, PDF and media sidecars
 
 | Service         | Connection and health check                                                                                             | Memory |
@@ -1088,6 +1103,11 @@ site's `APP_URL`, and staging its keys, if one comes back.
 | `foa-clamav`    | Database workers use `CLAMD_HOST=foa-clamav` and `CLAMD_PORT=3310`. The health check sends `PING` to `127.0.0.1:3310`.  | 2 GiB  |
 | `foa-gotenberg` | Media uses `GOTENBERG_URL=http://foa-gotenberg:3000`. The health check calls `GET /health` on loopback.                 | 1 GiB  |
 | `worker-media`  | Runs the media entry point with a read-only root and a 1 GiB `/tmp` tmpfs. Health requires a heartbeat under 120 s old. | 2 GiB  |
+
+The media image also copies the approved `public/brand/foa-logo-watermark*.png`
+assets and small tiles-only `apple-touch-icon.png`. The stamping job uses these exact files, sharp for safe artwork copies,
+and Poppler for the first-page certificate raster; it never renders in the web
+app or the default worker.
 
 All three log to journald and use private networks. Clamd listens on the
 internal `scan` bridge and loopback. FreshClam uses a separate bridge to
@@ -1123,6 +1143,8 @@ docker compose -f workers.yml up -d --wait worker-prod
 Put only the four `R2_` lines in these files: a service's `environment:`
 overrides anything else they set.
 
+The certificate renderer (#100) sends self-contained `index.html` with the bundled approved logo and QR to Gotenberg’s Chromium HTML route. It uses A4 landscape, tagged PDF output and the image’s Noto Sans Devanagari font. The web app and default worker cannot invoke the certificate PDF renderer.
+
 Gotenberg and the media worker share the internal `pdf` network. Send
 documents and their assets as file uploads. Chromium and LibreOffice
 accept local URLs under `/tmp` and API requests time out after 30 s.
@@ -1143,13 +1165,17 @@ write `/etc/foa/secrets/worker_media_r2.env` (root, mode 0600) with the four
 above. Only `worker-media` reads it. Its token must allow reads and writes in
 that bucket, because the media worker stores the derivatives there.
 
-The default worker scans uploads and queues image derivatives and video
-transcodes. The media worker connects directly to the same database (on `db`,
+The default worker scans uploads and queues image derivatives, video
+transcodes and raster-only PDF essay copies. The media worker connects directly to the same database (on `db`,
 which also routes to R2) and drains only those deliveries, one at a time.
 `MEDIA_TIMEOUT_SECONDS` defaults to 60 seconds for image processing. A video
 (#86) is transcoded by the image's own ffmpeg, with a deadline from its
 length (up to 13 minutes for a 3-minute clip) and a 20-minute relay lease;
-`pnpm test:media` runs the ffmpeg adapter's contract inside the image. It uses the container heartbeat
+the PDF adapter (#96) is Poppler, with a two-minute rendering deadline and
+40-page cap. `pnpm test:media` runs both real adapters' contracts inside the
+image. The default worker's `files.backfill_essay_pdfs` schedule queues
+previously clean essay PDFs that have no media processing record. The media
+worker uses the container heartbeat
 file for health checks. The database heartbeat read by `/api/health/worker`
 continues to track the default worker. The PDF adapter in #100 uses the
 Gotenberg endpoint.

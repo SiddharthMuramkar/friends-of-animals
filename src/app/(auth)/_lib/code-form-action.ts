@@ -9,6 +9,7 @@ import "server-only";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 
+import { signInNext } from "@/lib/sign-in-next";
 import { APP_ROUTES } from "@/lib/app-routes";
 import type { Actor } from "@/server/actor";
 import { currentActor } from "@/server/app";
@@ -132,7 +133,8 @@ export async function runCodeForm(
   const from = field(formData, "from") === "code" ? "code" : "contact";
 
   const actor = await currentActor();
-  if (actor.kind !== "visitor") redirect(APP_ROUTES.accountSessions);
+  const next = signInNext(field(formData, "next"));
+  if (actor.kind !== "visitor") redirect(next ?? APP_ROUTES.accountSessions);
   if (step === "restart") {
     return withText(channel, { ...START, name: entered.name });
   }
@@ -174,6 +176,8 @@ export async function runCodeForm(
   // Signed in: the session cookie is set. Outside the try, because
   // redirect() works by throwing.
   redirect(
-    consentNotRecorded ? APP_ROUTES.accountConsents : APP_ROUTES.accountSessions
+    consentNotRecorded
+      ? APP_ROUTES.accountConsents
+      : (next ?? APP_ROUTES.accountSessions)
   );
 }

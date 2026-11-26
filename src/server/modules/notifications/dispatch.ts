@@ -98,7 +98,8 @@ export type Message = InboxMessage & { recipient: Recipient };
 
 export async function dispatchEvent(
   deps: OutboxDeps,
-  delivery: Delivery
+  delivery: Delivery,
+  templateKey?: string
 ): Promise<void> {
   if (delivery.eventType === PRINCIPAL_NOTICE) {
     await dispatchBreachNotice(deps, delivery);
@@ -110,7 +111,8 @@ export async function dispatchEvent(
     .where(
       and(
         eq(messageRoute.eventType, delivery.eventType),
-        eq(messageRoute.enabled, true)
+        eq(messageRoute.enabled, true),
+        templateKey ? eq(messageRoute.templateKey, templateKey) : undefined
       )
     )
     .orderBy(asc(messageRoute.templateKey), asc(messageRoute.audience));
@@ -124,6 +126,16 @@ export async function dispatchEvent(
       cipher: FieldCipher
     ) => Promise<Record<string, string>>
   )(deps.db, delivery, deps.cipher);
+  if (
+    delivery.eventType === "auction.offer_opened" &&
+    eventValues["offer.link"] &&
+    deps.auth.baseUrl
+  ) {
+    eventValues["offer.link"] = new URL(
+      eventValues["offer.link"],
+      deps.auth.baseUrl
+    ).href;
+  }
   const failures: { deliveryId: string; error: unknown }[] = [];
 
   for (const route of routes) {
@@ -136,7 +148,8 @@ export async function dispatchEvent(
     }
     const members: AudienceMember[] = await AUDIENCES[route.audience](
       deps.db,
-      delivery
+      delivery,
+      deps.cipher
     );
     for (const member of members) {
       const userId = typeof member === "string" ? member : member.userId;
@@ -514,7 +527,8 @@ export async function deliverInApp(
     const title = content.subject ?? "";
     // An announcement's copy can name personal help contacts (#84).
     const copy =
-      message.delivery.eventType === "competition.announcement_sent"
+      message.delivery.eventType === "competition.announcement_sent" ||
+      message.delivery.eventType === "ambassador.application_declined"
         ? {
             title: "",
             body: "",
@@ -581,8 +595,9 @@ async function deliverByPort(
     channel === "email" &&
     (message.delivery.eventType === "registration.competition_cancelled" ||
       message.delivery.eventType ===
-        "institution_registration.competition_cancelled");
-  // A pending cancellation email with an attempt already recorded may
+        "institution_registration.competition_cancelled" ||
+      message.delivery.eventType === "competition_invitation.due");
+  // A pending tracked email with an attempt already recorded may
   // have reached the provider. Only a definite rejection can be retried.
   const [claimed] = await deps.db
     .update(messageDelivery)
@@ -610,7 +625,7 @@ async function deliverByPort(
   const uncertain = () => ({
     deliveryId,
     error: new Error(
-      `Cancellation email for delivery ${deliveryId} needs reconciliation`
+      `${message.delivery.eventType === "competition_invitation.due" ? "Competition invitation" : "Cancellation"} email for delivery ${deliveryId} needs reconciliation`
     ),
   });
   if (!claimed) return tracked ? uncertain() : null;

@@ -204,6 +204,9 @@ export const gatewayWebhookEvent = pgTable(
     eventId: text("event_id").notNull(),
     type: text().notNull(),
     orderId: text("order_id"),
+    /** A signed capture snapshot, no raw payload or payer contact. */
+    capturePaymentFingerprint: text("capture_payment_fingerprint"),
+    captureOccurredBy: timestamptz("capture_occurred_by"),
     /** What handling it did; null until handling finished. */
     outcome: text({ enum: WEBHOOK_OUTCOMES }),
     receivedAt: timestamptz("received_at").notNull(),
@@ -214,6 +217,10 @@ export const gatewayWebhookEvent = pgTable(
     check(
       "gateway_webhook_event_outcome_when_processed",
       sql`(${table.outcome} IS NULL) = (${table.processedAt} IS NULL)`
+    ),
+    check(
+      "gateway_webhook_capture_evidence_pair",
+      sql`(${table.capturePaymentFingerprint} IS NULL) = (${table.captureOccurredBy} IS NULL)`
     ),
     index("gateway_webhook_event_order_id_idx").on(table.orderId),
   ]

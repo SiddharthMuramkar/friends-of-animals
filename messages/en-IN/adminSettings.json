@@ -25,13 +25,13 @@
     "values": {
       "on": "On",
       "off": "Off",
-      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} other {{count, plural, one {# text} other {# texts}}}}",
+      "amount": "{unit, select, hours {{count, plural, one {# hour} other {# hours}}} reports {{count, plural, one {# report} other {# reports}}} days {{count, plural, one {# day} other {# days}}} months {{count, plural, one {# month} other {# months}}} years {{count, plural, one {# year} other {# years}}} rupees {₹{count, number}} paise {{count, number} paise} minutes {{count, plural, one {# minute} other {# minutes}}} offers {{count, plural, one {# offer} other {# offers}}} clubs {{count, plural, one {# club} other {# clubs}}} other {{count, plural, one {# text} other {# texts}}}}",
       "notSet": "Not set yet"
     },
     "storedInvalid": "The stored value no longer fits this setting, so the default applies. Save a new value to replace it.",
     "form": {
       "newValue": "New value",
-      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} other {texts}}",
+      "newAmount": "New value, in {unit, select, hours {hours} reports {reports} days {days} months {months} years {years} rupees {rupees} paise {paise} minutes {minutes} offers {offers} clubs {clubs} other {texts}}",
       "range": "A whole number from {min} to {max}.",
       "save": "Save",
       "saving": "Saving…",
@@ -56,6 +56,20 @@
       "too_long": "Use {maxLength} characters or fewer."
     },
     "settings": {
+      "ambassadors": {
+        "minMembershipDays": {
+          "label": "Ambassador minimum membership duration",
+          "description": "Whole days since joining the FOA community, while currently an active member. Provisional HR-57 default."
+        },
+        "minAgeYears": {
+          "label": "Ambassador minimum age",
+          "description": "Completed years on the Indian calendar. Ambassador applications are adult-only; this cannot be set below 18."
+        },
+        "qualifyingMilestones": {
+          "label": "Ambassador qualifying milestones",
+          "description": "A comma-separated list, with no spaces, of one or more earned milestones; any one counts. Allowed values: participant, school_winner, foa_finalist, volunteer."
+        }
+      },
       "auth": {
         "staffSessionHours": {
           "label": "Staff session length",
@@ -81,6 +95,10 @@
         }
       },
       "donations": {
+        "recurringEnabled": {
+          "label": "Monthly donations",
+          "description": "Accept recurring donations once the subscription gateway is configured and approved."
+        },
         "enabled": {
           "label": "Online donations",
           "description": "Lets people give on the donate page. Keep it off until Razorpay's live keys are set and the accountant has confirmed receipts and the chart of accounts; until then the page says donations open soon."
@@ -126,6 +144,10 @@
         "pan": {
           "label": "PAN",
           "description": "FOA's Permanent Account Number, 10 characters. It goes on donation receipts."
+        },
+        "foaFacilityAddress": {
+          "label": "Artwork receiving address",
+          "description": "The confirmed FOA facility address to which original artworks are couriered. Leave blank to refuse live requests."
         }
       },
       "safeguarding": {
@@ -176,6 +198,16 @@
           "description": "When on, erasing a person who paid FOA keeps their name and contact on their account until 8 years after the payment's financial year ends, so the payment still names who paid. Everything else is erased. When off, the account is deleted and the payment records stay without the payer's name."
         }
       },
+      "clubs": {
+        "enabled": {
+          "label": "Clubs open",
+          "description": "Allows club applications, approval and joining. Keep off until M6 safeguarding is signed off."
+        },
+        "maxPerInstitution": {
+          "label": "Maximum clubs per institution",
+          "description": "Approved and suspended clubs share this cap. Between 1 and 20."
+        }
+      },
       "volunteers": {
         "applicationsOpen": {
           "label": "Volunteer applications open",
@@ -197,6 +229,14 @@
         }
       },
       "reminders": {
+        "eventStartsFirstHours": {
+          "label": "First event reminder",
+          "description": "Hours before an event starts to remind confirmed attendees. Use 0 to disable."
+        },
+        "eventStartsSecondHours": {
+          "label": "Second event reminder",
+          "description": "Hours before an event starts to send a second reminder. Use 0 to disable."
+        },
         "entrySubmissionDueFirstHours": {
           "label": "First reminder before submissions close",
           "description": "How many hours before a competition's submission deadline the first reminder goes to everyone who still owes an entry: an adult who entered, a child's guardian, or a school's coordinators. Use 0 for no first reminder. A change applies to reminders not yet sent."
@@ -204,6 +244,20 @@
         "entrySubmissionDueSecondHours": {
           "label": "Second reminder before submissions close",
           "description": "How many hours before the submission deadline the second reminder goes, to whoever still owes an entry then. Use 0 for no second reminder."
+        },
+        "schoolRoundShortlistDueFirstHours": {
+          "label": "First reminder before school shortlists close",
+          "description": "Hours before the shortlist deadline to remind coordinators of unfinished school rounds. Use 0 for no first reminder."
+        },
+        "schoolRoundShortlistDueSecondHours": {
+          "label": "Second reminder before school shortlists close",
+          "description": "Hours before the shortlist deadline for the second reminder, to coordinators whose rounds remain unfinished. Use 0 to turn it off."
+        }
+      },
+      "entries": {
+        "resubmissionDays": {
+          "label": "Days to resubmit a sent-back entry",
+          "description": "When an FOA verifier sends an entry back, the participant, guardian or coordinator has this many days to fix it and resubmit. After that the entry stays sent back. Between 1 and 60; a change applies to entries sent back after it."
         }
       },
       "retention": {
@@ -278,6 +332,92 @@
         "privacyRequestsDays": {
           "label": "Keep closed privacy requests",
           "description": "Days a privacy request and the grievance officer's notes are kept after the request is closed. Open requests are always kept."
+        },
+        "ambassadorApplicationsDays": {
+          "label": "Retention of declined ambassador applications",
+          "description": "Days after decline before deletion, unless legally held. HR-31 remains provisional."
+        },
+        "clubApplicationsDays": {
+          "label": "Anonymise closed club records",
+          "description": "Days after closure, decline or withdrawal before the applicant and reviewer links and decision text are removed."
+        },
+        "clubMembershipsDays": {
+          "label": "Keep former club memberships",
+          "description": "Days after leaving a club before the private membership record is removed; the person's engagement timeline remains until erasure."
+        },
+        "communityMembersDays": {
+          "label": "Keep former member profiles",
+          "description": "Days after departure before the daily retention job clears a former member’s display name and introduction."
+        },
+        "surveyResponsesDays": {
+          "label": "Keep survey invitations and answers",
+          "description": "Days after a survey closes before invitations and linked answers are deleted."
+        }
+      },
+      "artwork": {
+        "returnWindowDays": {
+          "label": "Artwork return window",
+          "description": "Days from actual publication of results that families may request their original work back."
+        },
+        "dispatchDays": {
+          "label": "Artwork dispatch window",
+          "description": "Calendar days from request to the dispatch deadline."
+        },
+        "dispatchReminderLeadHours": {
+          "label": "Dispatch reminder lead",
+          "description": "Hours before dispatch closes. Set 0 to turn off."
+        },
+        "packagingInstructions": {
+          "label": "Packaging instructions",
+          "description": "Instructions sent with each artwork request."
+        },
+        "shippingPayer": {
+          "label": "FOA pays shipping",
+          "description": "When off, the sender pays shipping."
+        }
+      },
+      "gallery": {
+        "withdrawalPurgeMinutes": {
+          "label": "Gallery withdrawal purge deadline",
+          "description": "Minutes from a guardian’s public-display withdrawal to confirmed cache purge. The gallery immediately refuses the item before this deadline."
+        },
+        "reportsPerIpPerHour": {
+          "label": "Gallery reports per hour",
+          "description": "Maximum gallery reports from one network each hour."
+        }
+      },
+      "auctions": {
+        "minIncrementPaise": {
+          "label": "Minimum bid increment",
+          "description": "Every bid after the first must raise the highest accepted bid by at least this many paise (100 paise = ₹1). The change applies to the next bid."
+        },
+        "antiSnipingWindowMinutes": {
+          "label": "Late bid extension window",
+          "description": "An accepted bid inside this many minutes before closing extends the exact closing time by the same number of minutes. Use 0 to disable extensions."
+        },
+        "enabled": {
+          "label": "Enable auctions",
+          "description": "Allow scheduling, public viewing and bidding on auction lots. Leave off until FOA and counsel approve auction eligibility and consent terms."
+        },
+        "paymentWindowHours": {
+          "label": "Payment window",
+          "description": "Hours a winning bidder has to pay for the lot."
+        },
+        "maxPaymentOffers": {
+          "label": "Maximum payment offers",
+          "description": "Number of distinct buyers offered payment before the original is released for relisting."
+        }
+      },
+      "invitations": {
+        "enabled": {
+          "label": "Post-competition invitations",
+          "description": "Invite consenting competition participants after results publish. Keep off until FOA approves HR-58."
+        }
+      },
+      "surveys": {
+        "enabled": {
+          "label": "Competition feedback surveys",
+          "description": "Allow competition managers to send feedback surveys after published results, and respondents to answer. Off until FOA approves feedback surveys."
         }
       }
     }

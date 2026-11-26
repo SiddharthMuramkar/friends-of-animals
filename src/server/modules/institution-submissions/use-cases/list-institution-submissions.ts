@@ -21,6 +21,7 @@ import { invalidInput, type InvalidInput } from "../../../input";
 import type { UseCaseContext } from "../../../use-cases";
 import type { EntryFileStatus } from "../../entries/domain/status";
 import { submissionWindows } from "../../entries/registration-facts";
+import { latestVerification } from "../../verification/store";
 import { institutionResource } from "../../institutions/coordinators/policy";
 import { isConductCertified } from "../conduct";
 import {
@@ -140,13 +141,22 @@ async function rosterEntries(
     )
     .orderBy(asc(entryFile.attemptNumber));
   const newest = new Map(files.map((file) => [file.entryId, file.status]));
-  return rows.map((row) => {
-    const latest = newest.get(row.id);
-    return {
-      registrationId: row.registrationId,
-      code: row.code,
-      status: row.status,
-      checking: latest !== undefined && IN_FLIGHT.has(latest),
-    };
-  });
+  return Promise.all(
+    rows.map(async (row) => {
+      const latest = newest.get(row.id);
+      const correction =
+        row.status === "sent_back"
+          ? await latestVerification(ctx.db, row.id)
+          : null;
+      return {
+        registrationId: row.registrationId,
+        code: row.code,
+        status: row.status,
+        checking: latest !== undefined && IN_FLIGHT.has(latest),
+        ...(correction?.resubmissionDueAt
+          ? { correctionOpen: ctx.clock.now() < correction.resubmissionDueAt }
+          : {}),
+      };
+    })
+  );
 }

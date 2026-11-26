@@ -1,8 +1,8 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import { fieldCryptoFor } from "@/server/crypto/keys";
-import { user } from "@/server/db/schema";
+import { user, communityMember } from "@/server/db/schema";
 import { createTestDb } from "@/test/db";
 import { FakeClock } from "@/test/fakes/clock";
 
@@ -35,6 +35,13 @@ describe("seedPreview", () => {
       "adopter2@example.test",
       "adopter3@example.test",
       "adoption-coordinator@example.test",
+      "artwork-verifier@example.test",
+      "auction-artist@example.test",
+      "auction-buyer-mobile@example.test",
+      "auction-buyer@example.test",
+      "auction-manager@example.test",
+      "auction-mobile-artist@example.test",
+      "auction-other-artist@example.test",
       "community-manager@example.test",
       "competition-manager-2@example.test",
       "competition-manager@example.test",
@@ -48,11 +55,19 @@ describe("seedPreview", () => {
       "guardian1@example.test",
       "institution-admin@example.test",
       "institution-applicant@example.test",
+      "judging-new@example.test",
+      "judging-ready@example.test",
       "ledger-approver@example.test",
       "ledger-finance@example.test",
       "member1@example.test",
       "member2@example.test",
       "member3@example.test",
+      "reports-participant@example.test",
+      "scoring-judge-desktop@example.test",
+      "scoring-judge-mobile@example.test",
+      "scoring-participant-1@example.test",
+      "scoring-participant-2@example.test",
+      "scoring-participant-3@example.test",
       "super-admin@example.test",
       "teen1@example.test",
       "teen2@example.test",
@@ -87,6 +102,12 @@ describe("seedPreview", () => {
       ({ email }) => email === "member1@example.test"
     );
     expect(account?.id).toBe(existing.id);
+    expect(
+      await deps.db
+        .select()
+        .from(communityMember)
+        .where(eq(communityMember.subjectUserId, existing.id))
+    ).toEqual([]);
   });
 });
 

@@ -3,6 +3,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isListedCompetitionSlug } from "@/app/competitions/_lib/view";
 import type { SlugLookup } from "@/app/competitions/_lib/slug-lookup";
 import {
+  CERTIFICATE_VERIFY_PREFIX,
+  GALLERY_REPORT_PREFIX,
   CONSENT_LINK_PREFIX,
   DONATION_CHECKOUT_PREFIX,
   individualRegisterSlug,
@@ -10,17 +12,22 @@ import {
   isDonationCheckoutPage,
   isNonProductionPath,
   isSignedInPage,
+  JUDGE_INVITATIONS_PREFIX,
+  isJudgeInvitationPage,
   isSignedInPath,
   isUnderPrefix,
 } from "@/lib/app-routes";
 import { createNonce, publicCsp, signedInCsp } from "@/lib/csp";
 import { cspContext } from "@/lib/csp-sources";
 import { ROUTES } from "@/lib/routes";
+import { signInNext } from "@/lib/sign-in-next";
 import { PATH_HEADER } from "@/lib/second-factor-routes";
 import { appEnv } from "@/lib/site";
 import { hasSessionCookie } from "@/server/identity/session-cookie";
 import { checkPostSlug } from "@/server/modules/cms/domain/post-slug";
+import { parseLotCode } from "@/server/modules/auctions/domain/lot-code";
 import { ADOPTION_SLUG_PATTERN } from "@/server/modules/adoption/domain/slug";
+import { EVENT_SLUG_PATTERN } from "@/server/modules/events/domain/slug";
 import { isListingSlug } from "@/server/modules/directory/domain/slug";
 
 // What src/proxy.ts runs on each request it matches. It's built from its
@@ -103,6 +110,10 @@ export type RequestProxyDeps = {
    * Without one, every animal slug is the 404.
    */
   isAdoptableSlug?: SlugLookup;
+  /** Fresh auction visibility check; never cache consent across requests. */
+  isPublicAuctionLot?: SlugLookup;
+  isPublicEventSlug?: SlugLookup;
+  isPublicGalleryItem?: SlugLookup;
 };
 
 export type RequestProxy = (request: NextRequest) => Promise<NextResponse>;
@@ -112,6 +123,9 @@ export function createProxy({
   isPublicPostSlug,
   isPublicListingSlug = async () => false,
   isAdoptableSlug = async () => false,
+  isPublicAuctionLot = async () => false,
+  isPublicEventSlug = async () => false,
+  isPublicGalleryItem = async () => false,
 }: RequestProxyDeps): RequestProxy {
   /**
    * Whether /competitions/<raw> is published. If the database can't
@@ -191,6 +205,26 @@ export function createProxy({
     }
   }
 
+  async function isAuctionLot(raw: string): Promise<boolean> {
+    const code = parseLotCode(decodedSlug(raw));
+    if (!code) return false;
+    try {
+      return await isPublicAuctionLot(code);
+    } catch {
+      console.error("Proxy: could not verify auction lot visibility.");
+      return false;
+    }
+  }
+  async function isEvent(raw: string) {
+    const slug = decodedSlug(raw);
+    if (!EVENT_SLUG_PATTERN.test(slug)) return false;
+    try {
+      return await isPublicEventSlug(slug);
+    } catch {
+      console.error("Proxy: could not verify event visibility.");
+      return false;
+    }
+  }
   // Unlisted slugs render at request time, and the header's <Suspense>
   // starts streaming before the page's notFound() runs, so they would keep
   // a 200 status (cacheComponents rules out dynamicParams = false).
@@ -202,9 +236,17 @@ export function createProxy({
     if (appEnv() === "production" && isNonProductionPath(pathname)) {
       return missingSignedInPage(request);
     }
+    // Public certificate verification needs a full response even without JS.
+    if (isUnderPrefix(pathname, [CERTIFICATE_VERIFY_PREFIX]))
+      return withNonceCsp(request);
     // Bearer links use the nonce policy and render without sign-in.
     if (isUnderPrefix(pathname, [CONSENT_LINK_PREFIX])) {
       return isConsentLinkPage(pathname)
+        ? withNonceCsp(request)
+        : missingSignedInPage(request);
+    }
+    if (isUnderPrefix(pathname, [JUDGE_INVITATIONS_PREFIX])) {
+      return isJudgeInvitationPage(pathname)
         ? withNonceCsp(request)
         : missingSignedInPage(request);
     }
@@ -219,7 +261,13 @@ export function createProxy({
     // straight to sign in. With one, the page checks the session itself.
     if (isSignedInPath(pathname)) {
       if (!hasSessionCookie(request.headers)) {
-        return NextResponse.redirect(new URL(ROUTES.signIn.path, request.url));
+        const signIn = new URL(ROUTES.signIn.path, request.url);
+        // Winning offer and competition invitation messages return the
+        // recipient to their exact private page after authentication.
+        // signInNext limits the continuation to recognised local paths.
+        const next = signInNext(pathname);
+        if (next) signIn.searchParams.set("next", next);
+        return NextResponse.redirect(signIn);
       }
       if (!isSignedInPage(pathname)) return missingSignedInPage(request);
       // The individual register form names a public competition (#78):
@@ -235,6 +283,57 @@ export function createProxy({
       return withNonceCsp(request);
     }
 
+    if (pathname.startsWith(GALLERY_REPORT_PREFIX + "/")) {
+      const id = decodedSlug(pathname.split("/")[2] ?? "");
+      if (!(await isPublicGalleryItem(id))) return missingSignedInPage(request);
+      const response = withNonceCsp(request);
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+    if (pathname === "/gallery" || pathname.startsWith("/gallery/")) {
+      const segments = pathname.split("/");
+      const id = decodedSlug(segments[2] ?? "");
+      if (
+        segments.length === 5 &&
+        segments[3] === "report" &&
+        segments[4] === "plain"
+      )
+        return NextResponse.redirect(
+          new URL(
+            `${GALLERY_REPORT_PREFIX}/${encodeURIComponent(id)}`,
+            request.url
+          )
+        );
+      let known = pathname === "/gallery";
+      if (
+        !known &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id
+        ) &&
+        (segments.length === 3 ||
+          (segments.length === 4 && segments[3] === "report"))
+      ) {
+        try {
+          known = await isPublicGalleryItem(id);
+        } catch {
+          known = false;
+        }
+      }
+      const result = known
+        ? NextResponse.next()
+        : NextResponse.rewrite(new URL(MISSING, request.url));
+      result.headers.set("Cache-Control", "private, no-store, max-age=0");
+      result.headers.set("CDN-Cache-Control", "no-store");
+      // The validated, same-origin stamp can be discovered from the response
+      // headers before the live gallery component streams. The media route
+      // still checks the grant independently; no storage key is preloaded.
+      if (known && segments.length === 3)
+        result.headers.set(
+          "Link",
+          `</media/gallery/${id}?size=thumb>; rel=preload; as=image; media="(max-width: 639px)"; fetchpriority=high, </media/gallery/${id}>; rel=preload; as=image; media="(min-width: 640px)"; fetchpriority=high`
+        );
+      return result;
+    }
     const [, section, raw = ""] = pathname.split("/");
     const known =
       section === "blog"
@@ -243,7 +342,11 @@ export function createProxy({
           ? await isPublicListing(raw)
           : section === "adopt"
             ? await isAdoptable(raw)
-            : await isPublishedCompetition(raw);
+            : section === "auctions"
+              ? await isAuctionLot(raw)
+              : section === "events"
+                ? await isEvent(raw)
+                : await isPublishedCompetition(raw);
     if (known) return NextResponse.next();
     return NextResponse.rewrite(new URL(MISSING, request.url));
   };

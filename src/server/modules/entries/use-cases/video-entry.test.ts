@@ -287,6 +287,8 @@ describe("a video entry", () => {
     const media = h.deps.media;
     let calls = 0;
     h.deps.media = {
+      processPdf: (input) => media.processPdf(input),
+      stampImage: (input) => media.stampImage(input),
       processImage: (input) => media.processImage(input),
       processVideo: (input) => {
         calls += 1;
@@ -312,6 +314,8 @@ describe("a video entry", () => {
     const media = h.deps.media;
     const leases: (Date | null)[] = [];
     h.deps.media = {
+      processPdf: (input) => media.processPdf(input),
+      stampImage: (input) => media.stampImage(input),
       processImage: (input) => media.processImage(input),
       async processVideo(input) {
         const [row] = await h.db

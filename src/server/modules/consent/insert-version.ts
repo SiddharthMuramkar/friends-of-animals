@@ -27,6 +27,8 @@ const FIRST_TITLES: Record<ConsentPurpose, string> = {
   auction: "Consent to auction the artwork",
   communications: "Consent to messages about the child",
   volunteer_safeguarding_declaration: "Volunteer safeguarding declaration",
+  judge_conduct: "Judge code of conduct",
+  judge_confidentiality: "Judge confidentiality terms",
   volunteer_code_of_conduct: "Volunteer code of conduct",
   adoption_contact_sharing:
     "Sharing your contact details with the animal's organisation",

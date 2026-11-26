@@ -21,6 +21,10 @@
 //
 // Loads under plain Node: relative type imports only.
 
+import {
+  unconfiguredSubscriptionGateway,
+  type SubscriptionGateway,
+} from "./subscription-gateway";
 import type { Money } from "../modules/payments/domain/batch-amount";
 import type { GatewayPayment } from "../modules/payments/domain/capture-decision";
 import type { GatewayRefund } from "../modules/payments/domain/refund-sync";
@@ -57,12 +61,16 @@ export type GatewayWebhook = {
   type: string;
   /** The order it is about, or null for an event about no order. */
   orderId: string | null;
+  subscriptionId?: string;
+  /** Positive signed capture-event evidence only. The adapter supplies the
+   * latest possible instant of the captured snapshot, not payment creation. */
+  capture?: { paymentId: string; occurredBy: Date };
   /** For a refund event (#80): the gateway's refund and the payment it
    * returns. Absent on every other event. */
   refund?: { refundId: string; paymentId: string };
 };
 
-export interface PaymentGateway {
+export interface PaymentGateway extends SubscriptionGateway {
   readonly name: GatewayName;
 
   /**
@@ -159,6 +167,7 @@ export class PaymentGatewayNotConfiguredError extends Error {
 export function unconfiguredGateway(reason?: string): PaymentGateway {
   const refuse = () => new PaymentGatewayNotConfiguredError(reason);
   return {
+    ...unconfiguredSubscriptionGateway,
     name: "unconfigured",
     createOrder: () => Promise.reject(refuse()),
     checkout: () => {

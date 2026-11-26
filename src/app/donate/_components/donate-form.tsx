@@ -38,6 +38,7 @@ export type DonateFormLabels = {
   name: { label: string; hint: string };
   contactName: { label: string; hint: string };
   email: { label: string; hint: string };
+  pan: { label: string; hint: string };
   organisation: { label: string; hint: string };
   disclose: { legend: string; hint: string; yes: string; no: string };
   wall: { label: string; hint: string; nameLabel: string; nameHint: string };
@@ -85,7 +86,13 @@ const describedBy = (
  * `labels`. Sent from the submit event, not a form `action`: React
  * prerenders a client action as a javascript: URL, which the CSP blocks.
  */
-export function DonateForm({ labels }: { labels: DonateFormLabels }) {
+export function DonateForm({
+  labels,
+  has80G,
+}: {
+  labels: DonateFormLabels;
+  has80G: boolean;
+}) {
   const [view, formAction, sending] = useActionState(
     startDonationAction,
     START_VIEW
@@ -101,6 +108,7 @@ export function DonateForm({ labels }: { labels: DonateFormLabels }) {
       view={view}
       sending={sending || view.next !== undefined}
       labels={labels}
+      has80G={has80G || !!view.errors.pan}
       onSend={(formData) => startTransition(() => formAction(formData))}
     />
   );
@@ -110,11 +118,13 @@ function DonateFormRound({
   view,
   sending,
   labels,
+  has80G,
   onSend,
 }: {
   view: DonateFormView;
   sending: boolean;
   labels: DonateFormLabels;
+  has80G: boolean;
   onSend: (formData: FormData) => void;
 }) {
   const { entered, errors } = view;
@@ -267,6 +277,21 @@ function DonateFormRound({
         error={errors.email}
       />
 
+      {has80G ? (
+        <TextField
+          id="donate-pan"
+          name="pan"
+          label={labels.pan.label}
+          hint={labels.pan.hint}
+          required
+          minLength={10}
+          maxLength={10}
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          error={errors.pan}
+        />
+      ) : null}
       <fieldset
         hidden={!organisation}
         disabled={!organisation}

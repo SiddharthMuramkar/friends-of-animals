@@ -6,8 +6,8 @@
 import { eq } from "drizzle-orm";
 
 import type { Actor } from "@/server/actor";
-import { competition, entry } from "@/server/db/schema";
-import { submittedImage } from "@/server/modules/entries/testing";
+import { competition, entry, user } from "@/server/db/schema";
+import { PHOTO, submittedImage } from "@/server/modules/entries/testing";
 import {
   confirmedSchool,
   type ConfirmedSchool,
@@ -188,4 +188,148 @@ export async function setShortlistLimits(
         : { schoolPositions: limits.positions }),
     })
     .where(eq(competition.id, competitionId));
+}
+
+/**
+ * #91: a school like `schoolInJudging`'s whose competition takes digital
+ * work from the school shortlist only, so no student has an entry when the
+ * round opens.
+ */
+export async function shortlistOnlySchool(
+  h: Harness,
+  {
+    students = 3,
+    beforeJudging,
+  }: {
+    students?: number;
+    beforeJudging?: (school: ConfirmedSchool) => Promise<void>;
+  } = {}
+): Promise<RoundWorld> {
+  return schoolInJudging(h, {
+    students,
+    submit: [],
+    beforeJudging: async (school) => {
+      await h.db
+        .update(competition)
+        .set({ digitalScope: "shortlist_only" })
+        .where(eq(competition.id, school.competition.id));
+      await beforeJudging?.(school);
+    },
+  });
+}
+
+/** Every declaration the create form asks for (#91). */
+export const ALL_DECLARATIONS = [
+  "original_work",
+  "faithful_reproduction",
+  "participation_covered",
+  "physical_work_kept",
+];
+
+type ShortlistedOptions = {
+  bytes?: Uint8Array;
+  discipline?: string;
+  position?: number | null;
+  declarations?: string[];
+  title?: string;
+};
+
+/** The first two browser steps of creating a shortlisted entry (#91). */
+export async function putShortlistedEntry(
+  h: Harness,
+  world: RoundWorld,
+  student: number,
+  {
+    bytes = PHOTO,
+    discipline = "photography",
+    position = null,
+    declarations = ALL_DECLARATIONS,
+    title = "Kites over the lake",
+  }: ShortlistedOptions = {},
+  actor: Actor = world.coordinator.actor
+) {
+  const registrationId = world.registrationIds[student - 1]!;
+  const started = await h.as(actor).startShortlistedEntry({
+    ...world.ref,
+    registrationId,
+    discipline,
+    file: { name: "kites.jpg", type: "image/jpeg", size: bytes.length },
+    // As a fresh form does: retire this coordinator's unfinished upload.
+    restartPendingUpload: true,
+  });
+  if (!started.ok) throw new Error(`not started: ${JSON.stringify(started)}`);
+  const stored = await h.storage.put(started.uploadUrl, bytes, started.headers);
+  if (!stored.ok) throw new Error(`not stored: ${stored.error}`);
+  return {
+    ...world.ref,
+    registrationId,
+    discipline,
+    fileId: started.fileId,
+    title,
+    description: "A photo of the painting the school judged.",
+    position,
+    declarations,
+  };
+}
+
+/** Creates a shortlisted entry, which must succeed; returns its id and code. */
+export async function createdEntry(
+  h: Harness,
+  world: RoundWorld,
+  student: number,
+  options: ShortlistedOptions = {}
+): Promise<{ entryId: string; code: string }> {
+  const completed = await h
+    .as(world.coordinator.actor)
+    .completeShortlistedEntry(
+      await putShortlistedEntry(h, world, student, options)
+    );
+  if (!completed.ok) {
+    throw new Error(`not completed: ${JSON.stringify(completed)}`);
+  }
+  const [row] = await h.db
+    .select({ id: entry.id })
+    .from(entry)
+    .where(eq(entry.code, completed.entryCode));
+  return { entryId: row!.id, code: completed.entryCode };
+}
+
+const PANEL = [{ fullName: "Lata Kulkarni", designation: "Art teacher" }];
+
+/** Panel recorded, conduct certified, students 1 (1st) and 2 picked. */
+export async function readyRound(h: Harness, world: RoundWorld) {
+  const coordinator = h.as(world.coordinator.actor);
+  await coordinator.recordPanel({ ...world.ref, members: PANEL });
+  const certified = await coordinator.certifyConduct(world.ref);
+  if (!certified.ok) throw new Error(JSON.stringify(certified));
+  const categoryId = await categoryOf(h, world, "photography");
+  const saved = await coordinator.saveShortlist({
+    ...world.ref,
+    categoryId,
+    picks: [
+      { entryId: world.entryIds[1]!, position: 1 },
+      { entryId: world.entryIds[2]!, position: null },
+    ],
+  });
+  if (!saved.ok) throw new Error(JSON.stringify(saved));
+  return categoryId;
+}
+
+/**
+ * Moves the clock past the seed competition's shortlist deadline (90 days
+ * from the start, 23:59 IST; school judging began at day 81) and lets the
+ * jobs run.
+ */
+export async function pastShortlistDeadline(h: Harness): Promise<void> {
+  h.clock.advance({ days: 10 });
+  await h.drain();
+}
+
+/** A user's email address. */
+export async function emailOf(h: Harness, userId: string): Promise<string> {
+  const [row] = await h.db
+    .select({ email: user.email })
+    .from(user)
+    .where(eq(user.id, userId));
+  return row!.email!;
 }

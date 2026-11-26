@@ -16,7 +16,12 @@ import { isRefusal } from "../../_lib/refusal";
 import { CampaignForm } from "../_components/campaign-form";
 import { CampaignsDenied } from "../_components/denied";
 import { campaignFormView } from "../_lib/form";
-import { competitionChoices, formLabels, roleChoices } from "../_lib/labels";
+import {
+  competitionChoices,
+  formLabels,
+  roleChoices,
+  milestoneChoices,
+} from "../_lib/labels";
 
 export const metadata: Metadata = {
   ...messages.campaigns.admin.meta,
@@ -74,6 +79,7 @@ async function Composer() {
         revision={null}
         initial={campaignFormView(null)}
         roles={roles}
+        milestones={await milestoneChoices()}
         competitions={competitionChoices(competitions)}
         labels={labels}
         labelledBy="new-campaign-title"

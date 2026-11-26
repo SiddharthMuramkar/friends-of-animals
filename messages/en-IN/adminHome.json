@@ -1,0 +1,26 @@
+{
+  "adminHome": {
+    "title": "Admin home",
+    "lead": "See the work waiting for your roles. Open a queue to review the waiting items.",
+    "empty": "Nothing waiting for your roles.",
+    "waiting": "{count, plural, =0 {No items waiting} one {# item waiting} other {# items waiting}}",
+    "oldest": "Oldest since {date}",
+    "overdue": "{count, plural, one {# overdue dispatch} other {# overdue dispatches}}",
+    "back": "Back to admin home",
+    "next": "Next items",
+    "open": "Open item {code}",
+    "mine": "You prepared or requested this item. Another staff member must decide it.",
+    "overdueItem": "Dispatch overdue",
+    "competition": "Competition {code}",
+    "since": "Waiting since {date}",
+    "queue": {
+      "institutions_to_verify": "Institutions to verify",
+      "entries_to_verify": "Entries to verify",
+      "artwork_arriving": "Artwork arriving",
+      "results_to_approve": "Results to approve",
+      "refunds_to_approve": "Refunds to approve",
+      "reports_to_review": "Gallery reports to review",
+      "safeguarding_reports_to_review": "Safeguarding reports to review"
+    }
+  }
+}

@@ -7,6 +7,8 @@ import type { UseCaseContext } from "../../use-cases";
 
 export type DonationTerms = {
   open: boolean;
+  has80G: boolean;
+  recurringEnabled: boolean;
   guestsAllowed: boolean;
   minAmountMinor: bigint;
   maxAmountMinor: bigint;
@@ -15,6 +17,8 @@ export type DonationTerms = {
 /** What the page shows while the terms can't be read: closed. */
 export const CLOSED_TERMS: DonationTerms = {
   open: false,
+  has80G: false,
+  recurringEnabled: false,
   guestsAllowed: false,
   minAmountMinor: 10_000n,
   maxAmountMinor: 10_000_000n,
@@ -25,21 +29,28 @@ export const DONATION_TERMS_TAG = "donations:terms";
 
 /** The cached reads to refresh when the setting `key` changes. */
 export function donationTagsForSetting(key: string): string[] {
-  return key.startsWith("donations.") ? [DONATION_TERMS_TAG] : [];
+  return key.startsWith("donations.") || key === "org.has80G"
+    ? [DONATION_TERMS_TAG]
+    : [];
 }
 
 export async function getDonationTerms(
   ctx: UseCaseContext
 ): Promise<DonationTerms> {
   await authorize(ctx, "donation.start");
-  const [open, guestsAllowed, minRupees, maxRupees] = await Promise.all([
-    ctx.settings.get("donations.enabled"),
-    ctx.settings.get("donations.allowGuest"),
-    ctx.settings.get("donations.minAmountRupees"),
-    ctx.settings.get("donations.maxAmountRupees"),
-  ]);
+  const [open, recurringEnabled, guestsAllowed, minRupees, maxRupees, has80G] =
+    await Promise.all([
+      ctx.settings.get("donations.enabled"),
+      ctx.settings.get("donations.recurringEnabled"),
+      ctx.settings.get("donations.allowGuest"),
+      ctx.settings.get("donations.minAmountRupees"),
+      ctx.settings.get("donations.maxAmountRupees"),
+      ctx.settings.get("org.has80G"),
+    ]);
   return {
     open,
+    has80G,
+    recurringEnabled,
     guestsAllowed,
     minAmountMinor: BigInt(minRupees) * 100n,
     maxAmountMinor: BigInt(Math.max(minRupees, maxRupees)) * 100n,

@@ -25,11 +25,13 @@ import { revisionBodyOf } from "../../cms/repository";
 import { readSetting } from "../../settings/read";
 import { SITE } from "../../../../lib/site";
 import { financialYearOf, formatReceiptNumber } from "../domain/receipt-number";
-import { donorContact } from "../donors";
+import { DONOR_PURPOSE, donorContact } from "../donors";
+import { maskPan } from "../domain/pan";
 import {
   buildReceiptSnapshot,
   receiptOrgFacts,
   RECEIPT_TEMPLATE_VERSION,
+  type ReceiptSnapshot,
 } from "./snapshot";
 
 /** The next receipt number of financial year `fy`, locked until commit. */
@@ -77,15 +79,15 @@ export async function issueReceipt(
     donationId: string;
     donorId: string;
     amountMinor: bigint;
-    gatewayPaymentId: string;
     issuedAt: Date;
-  }
+  } & ({ gatewayPaymentId: string } | { payment: ReceiptSnapshot["payment"] })
 ): Promise<{ id: string; number: string }> {
   const [giver] = await tx
     .select({
       type: donor.type,
       name: donor.name,
       email: donor.email,
+      pan: donor.pan,
       organisationName: donor.organisationName,
     })
     .from(donor)
@@ -93,7 +95,21 @@ export async function issueReceipt(
   if (!giver) throw new Error(`Donation ${input.donationId} has no donor`);
   const fy = financialYearOf(input.issuedAt).token;
   // Read before taking the counter's lock, which then waits on no reads.
-  const org = await currentOrgFacts(tx);
+  const [org, has80G] = await Promise.all([
+    currentOrgFacts(tx),
+    readSetting(tx, "org.has80G"),
+  ]);
+  // A donation started with 80G off may be captured after it was turned on.
+  // Without a PAN captured for that donor we must not claim deductibility.
+  const taxExemption =
+    has80G && giver.pan
+      ? {
+          scheme: "80G" as const,
+          donorPanMasked: maskPan(
+            deps.cipher.decrypt(DONOR_PURPOSE.pan, giver.pan)
+          ),
+        }
+      : null;
   const seq = await nextReceiptSequence(tx, fy);
   const number = formatReceiptNumber(fy, seq);
   const id = uuidv7(input.issuedAt);
@@ -115,7 +131,11 @@ export async function issueReceipt(
         organisationName: giver.organisationName,
       },
       amountMinor: input.amountMinor,
-      gatewayPaymentId: input.gatewayPaymentId,
+      taxExemption,
+      payment:
+        "payment" in input
+          ? input.payment
+          : { mode: "online", reference: input.gatewayPaymentId },
     }),
     templateVersion: RECEIPT_TEMPLATE_VERSION,
   });

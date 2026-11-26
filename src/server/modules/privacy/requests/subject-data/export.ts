@@ -62,6 +62,13 @@ why: another person's confidential report, a sign-in secret, a test message.
 files/ holds the person's own uploads: pictures of their entries and signed
 consent forms.
 
+For auction payments, gateway_webhook_event lists the local payment batch
+and the time by which a signed provider event reported capture. This is not
+a separate finding of the exact capture time or a decision to accept the
+payment. See payment_batch and payment_review_case for the financial
+outcome. Internal gateway identifiers and fingerprints are not included
+with auction payment records.
+
 If something here is wrong, you can ask for a correction from your
 dashboard on the Friends of Animals website.
 `;

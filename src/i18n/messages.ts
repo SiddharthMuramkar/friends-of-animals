@@ -1,3 +1,8 @@
+import socialExport from "../../messages/en-IN/socialExport.json";
+import gallery from "../../messages/en-IN/gallery.json";
+import certificatePdf from "../../messages/en-IN/certificatePdf.json";
+import certificates from "../../messages/en-IN/certificates.json";
+import results from "../../messages/en-IN/results.json";
 // Every namespace file, imported statically so the merged messages are typed
 // and bundled at build time. One file per namespace: each agent edits its own.
 // Adding a namespace: create messages/en-IN/<name>.json ({ "<name>": {} }),
@@ -7,6 +12,9 @@ import about from "../../messages/en-IN/about.json";
 import account from "../../messages/en-IN/account.json";
 import adminInbox from "../../messages/en-IN/adminInbox.json";
 import adminSettings from "../../messages/en-IN/adminSettings.json";
+import adminHome from "../../messages/en-IN/adminHome.json";
+import adminReports from "../../messages/en-IN/adminReports.json";
+import objectiveReports from "../../messages/en-IN/objectiveReports.json";
 import admin from "../../messages/en-IN/admin.json";
 import adminAudit from "../../messages/en-IN/adminAudit.json";
 import adminTemplates from "../../messages/en-IN/adminTemplates.json";
@@ -32,6 +40,8 @@ import adminGrievance from "../../messages/en-IN/adminGrievance.json";
 import privacyRequests from "../../messages/en-IN/privacyRequests.json";
 import adminDirectory from "../../messages/en-IN/adminDirectory.json";
 import adminVolunteers from "../../messages/en-IN/adminVolunteers.json";
+import competitionInvitations from "../../messages/en-IN/competitionInvitations.json";
+import surveys from "../../messages/en-IN/surveys.json";
 import campaigns from "../../messages/en-IN/campaigns.json";
 import auth from "../../messages/en-IN/auth.json";
 import authPhone from "../../messages/en-IN/authPhone.json";
@@ -56,22 +66,35 @@ import credits from "../../messages/en-IN/credits.json";
 import dashboard from "../../messages/en-IN/dashboard.json";
 import directory from "../../messages/en-IN/directory.json";
 import adoption from "../../messages/en-IN/adoption.json";
+import events from "../../messages/en-IN/events.json";
+import clubs from "../../messages/en-IN/clubs.json";
+import ambassadors from "../../messages/en-IN/ambassadors.json";
+import community from "../../messages/en-IN/community.json";
 import adoptionApplications from "../../messages/en-IN/adoptionApplications.json";
 import donate from "../../messages/en-IN/donate.json";
+import donorDashboard from "../../messages/en-IN/donorDashboard.json";
 import donationCheckout from "../../messages/en-IN/donationCheckout.json";
 import donations from "../../messages/en-IN/donations.json";
 import receipts from "../../messages/en-IN/receipts.json";
 import adminDonations from "../../messages/en-IN/adminDonations.json";
+import artworkCustody from "../../messages/en-IN/artworkCustody.json";
+import auctions from "../../messages/en-IN/auctions.json";
+import artwork from "../../messages/en-IN/artwork.json";
 import entries from "../../messages/en-IN/entries.json";
 import error from "../../messages/en-IN/error.json";
 import files from "../../messages/en-IN/files.json";
 import footer from "../../messages/en-IN/footer.json";
 import guardian from "../../messages/en-IN/guardian.json";
+import volunteerWork from "../../messages/en-IN/volunteerWork.json";
 import volunteer from "../../messages/en-IN/volunteer.json";
 import home from "../../messages/en-IN/home.json";
 import impact from "../../messages/en-IN/impact.json";
+import transparency from "../../messages/en-IN/transparency.json";
 import inbox from "../../messages/en-IN/inbox.json";
 import institutions from "../../messages/en-IN/institutions.json";
+import judgeScoring from "../../messages/en-IN/judgeScoring.json";
+import adminJudging from "../../messages/en-IN/adminJudging.json";
+import judging from "../../messages/en-IN/judging.json";
 import judgingGuide from "../../messages/en-IN/judgingGuide.json";
 import institutionRegistration from "../../messages/en-IN/institutionRegistration.json";
 import legal from "../../messages/en-IN/legal.json";
@@ -99,6 +122,9 @@ export const NAMESPACES = [
   "adminInbox",
   "adminSettings",
   "admin",
+  "adminHome",
+  "adminReports",
+  "objectiveReports",
   "adminAudit",
   "adminTemplates",
   "adminRoles",
@@ -109,6 +135,7 @@ export const NAMESPACES = [
   "adminPrivacy",
   "adminBlog",
   "adminRubrics",
+  "adminJudging",
   "adminCompetitionTerms",
   "adminPayments",
   "adminConsentForms",
@@ -123,6 +150,8 @@ export const NAMESPACES = [
   "privacyRequests",
   "adminDirectory",
   "adminVolunteers",
+  "surveys",
+  "competitionInvitations",
   "campaigns",
   "auth",
   "authPhone",
@@ -148,22 +177,38 @@ export const NAMESPACES = [
   "directory",
   "adoption",
   "adoptionApplications",
+  "community",
+  "ambassadors",
+  "clubs",
+  "events",
   "donate",
   "donationCheckout",
+  "donorDashboard",
   "donations",
   "receipts",
   "adminDonations",
   "entries",
+  "artwork",
+  "certificates",
+  "certificatePdf",
+  "artworkCustody",
+  "auctions",
+  "gallery",
+  "socialExport",
   "error",
   "files",
   "footer",
   "guardian",
   "volunteer",
+  "volunteerWork",
   "home",
   "impact",
+  "transparency",
   "inbox",
   "institutions",
   "judgingGuide",
+  "judging",
+  "judgeScoring",
   "institutionRegistration",
   "legal",
   "nav",
@@ -175,6 +220,7 @@ export const NAMESPACES = [
   "refunds",
   "safeguardingReport",
   "registration",
+  "results",
   "sample",
   "schools",
   "security",
@@ -194,6 +240,9 @@ export const messages = {
   ...adminInbox,
   ...adminSettings,
   ...admin,
+  ...adminHome,
+  ...adminReports,
+  ...objectiveReports,
   ...adminAudit,
   ...adminTemplates,
   ...adminRoles,
@@ -218,6 +267,8 @@ export const messages = {
   ...privacyRequests,
   ...adminDirectory,
   ...adminVolunteers,
+  ...surveys,
+  ...competitionInvitations,
   ...campaigns,
   ...auth,
   ...authPhone,
@@ -243,22 +294,40 @@ export const messages = {
   ...directory,
   ...adoption,
   ...adoptionApplications,
+  ...community,
+  ...ambassadors,
+  ...clubs,
+  ...events,
   ...donate,
   ...donationCheckout,
+  ...donorDashboard,
   ...donations,
   ...receipts,
   ...adminDonations,
   ...entries,
+  ...artwork,
+  ...certificates,
+  ...certificatePdf,
+  ...artworkCustody,
+  ...auctions,
+  ...gallery,
+  ...socialExport,
   ...error,
   ...files,
   ...footer,
   ...guardian,
   ...volunteer,
+  ...volunteerWork,
   ...home,
   ...impact,
+  ...transparency,
   ...inbox,
   ...institutions,
   ...judgingGuide,
+  ...judging,
+  ...results,
+  ...adminJudging,
+  ...judgeScoring,
   ...institutionRegistration,
   ...legal,
   ...nav,

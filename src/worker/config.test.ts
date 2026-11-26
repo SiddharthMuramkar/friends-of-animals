@@ -91,6 +91,47 @@ describe("workerConfig", () => {
     ).toThrow(/RAZORPAY_KEY_SECRET/);
   });
 
+  it("passes SES only after production access is approved and reads configured MSG91", () => {
+    const base = {
+      APP_ENV: "production",
+      WORKER_DATABASE_URL: PROD_URL,
+    };
+    const providers = {
+      SES_REGION: "ap-south-1",
+      SES_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE",
+      SES_SECRET_ACCESS_KEY: "synthetic-secret",
+      SES_FROM: "FOA <sender@example.test>",
+      SES_CONFIGURATION_SET: "notifications-test",
+      MSG91_AUTH_KEY: "synthetic-msg91-key",
+      MSG91_OTP_TEMPLATE_ID: "otp-test",
+      MSG91_COORDINATOR_INVITATION_TEMPLATE_ID: "coordinator-test",
+    };
+    const config = workerConfig({
+      ...base,
+      ...providers,
+      SES_PRODUCTION_ACCESS: "true",
+    });
+    expect(config.ses).toEqual({
+      SES_REGION: providers.SES_REGION,
+      SES_ACCESS_KEY_ID: providers.SES_ACCESS_KEY_ID,
+      SES_SECRET_ACCESS_KEY: providers.SES_SECRET_ACCESS_KEY,
+      SES_FROM: providers.SES_FROM,
+      SES_CONFIGURATION_SET: providers.SES_CONFIGURATION_SET,
+    });
+    expect(config.msg91).toEqual({
+      authKey: providers.MSG91_AUTH_KEY,
+      otpTemplateId: providers.MSG91_OTP_TEMPLATE_ID,
+      coordinatorInvitationTemplateId:
+        providers.MSG91_COORDINATOR_INVITATION_TEMPLATE_ID,
+    });
+    expect(workerConfig({ ...base, ...providers }).ses).toBeUndefined();
+    expect(workerConfig(base).ses).toBeUndefined();
+    expect(workerConfig(base).msg91).toBeUndefined();
+    expect(() =>
+      workerConfig({ ...base, SES_ACCESS_KEY_ID: providers.SES_ACCESS_KEY_ID })
+    ).toThrow(/SES_SECRET_ACCESS_KEY/);
+  });
+
   it("names the worker after its environment", () => {
     const name = (APP_ENV: string) =>
       workerConfig({

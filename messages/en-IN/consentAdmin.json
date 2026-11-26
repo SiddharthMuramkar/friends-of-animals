@@ -28,7 +28,9 @@
       "volunteer_safeguarding_declaration": "Volunteer safeguarding declaration",
       "volunteer_code_of_conduct": "Volunteer code of conduct",
       "adoption_contact_sharing": "Adopter contact sharing",
-      "adoption_success_story": "Adoption success story"
+      "adoption_success_story": "Adoption success story",
+      "judge_conduct": "Judge code of conduct",
+      "judge_confidentiality": "Judge confidentiality terms"
     },
     "current": "Version {version}, published {date} by {name}.",
     "currentPublisherGone": "Version {version}, published {date} by an account that no longer exists.",
@@ -44,6 +46,7 @@
         "label": "Text",
         "hint": "Short-version points go first, each on a line starting with a dash. Start each section with two hash signs and its title. Write **bold** for strong words and [words](/page) for a link."
       },
+      "auctionProceedsHint": "For auction consent, include the section ## Auction proceeds and the exact sentence: The creator receives 25% of the auction proceeds; Friends of Animals receives the remainder. Replace 25 with the agreed percentage (up to two decimal places). If omitted, the document explicitly states 0%. The competition manager must pin this version and finance must match the percentage before the artwork is auctioned.",
       "preview": "Preview",
       "previewing": "Checking…",
       "publish": "Publish version {version}",
@@ -68,7 +71,8 @@
         "unknown_fact": "We don't know that fact. Use legalName, email, phone, address, grievanceOfficerName or grievanceOfficerEmail.",
         "unclosed_fact": "Close the fact with two closing braces.",
         "dangling_escape": "A backslash at the end of a line has nothing to escape.",
-        "invalid_document": "The text breaks a rule we can't point to a line for. Check the links and section ids."
+        "invalid_document": "The text breaks a rule we can't point to a line for. Check the links and section ids.",
+        "auction_proceeds_invalid": "Use the Auction proceeds section’s exact sentence with the creator percentage from 0 to 100."
       },
       "fact": "[{fact}]"
     },

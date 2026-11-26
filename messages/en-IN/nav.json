@@ -15,6 +15,8 @@
       "myInstitution": "My institution",
       "myCompetitions": "My competitions",
       "awareness": "Awareness",
+      "events": "Events",
+      "event": "Event details",
       "ngos": "Find animal help",
       "stories": "Stories",
       "story": "Story",
@@ -38,7 +40,13 @@
       "signIn": "Sign in",
       "signUpPhone": "Create an account with your phone",
       "signInPhone": "Sign in with your phone",
-      "myChildren": "My children"
+      "myChildren": "My children",
+      "gallery": "Gallery",
+      "galleryItem": "Gallery artwork",
+      "galleryReport": "Report artwork",
+      "auctions": "Artwork auctions",
+      "auctionLot": "Auction lot",
+      "competitionResults": "Competition results"
     }
   }
 }

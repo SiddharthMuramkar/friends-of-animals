@@ -9,9 +9,11 @@ import {
 } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
+import { seedFunctions } from "./builders";
 import {
   SEED_SAFEGUARDING_LEAD,
   SEED_SAFEGUARDING_REPORTS,
+  seedSafeguarding,
 } from "./safeguarding";
 
 describe("the safeguarding preview seed", () => {
@@ -38,22 +40,22 @@ describe("the safeguarding preview seed", () => {
         .orderBy(asc(safeguardingIncidentLog.id));
     const first = { reports: await reports(), log: await log() };
 
-    h.clock.advance({ days: 1 });
-    await h.seed.preview();
-
-    expect(await reports()).toEqual(first.reports);
-    expect(await log()).toEqual(first.log);
-    const [lead] = await h.db
-      .select({ id: user.id })
-      .from(user)
-      .where(eq(user.email, SEED_SAFEGUARDING_LEAD.email));
+    const leads = () =>
+      h.db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.email, SEED_SAFEGUARDING_LEAD.email));
+    const [lead] = await leads();
     expect(lead).toBeDefined();
-    expect(
-      await h.db
+    const grants = () =>
+      h.db
         .select({ role: userRole.role, scopeType: userRole.scopeType })
         .from(userRole)
-        .where(eq(userRole.userId, lead!.id))
-    ).toEqual([{ role: "safeguarding_lead", scopeType: "global" }]);
+        .where(eq(userRole.userId, lead!.id));
+    const firstGrants = await grants();
+    expect(firstGrants).toEqual([
+      { role: "safeguarding_lead", scopeType: "global" },
+    ]);
     expect(first.reports).toEqual([
       {
         id: SEED_SAFEGUARDING_REPORTS.fresh,
@@ -78,6 +80,16 @@ describe("the safeguarding preview seed", () => {
         )
         .map((entry) => entry.kind)
     ).toEqual(["status_change", "status_change", "note"]);
+
+    // The first full preview verifies the wiring. Rerun only the seeder
+    // responsible for these accounts, grants, reports and incident logs.
+    h.clock.advance({ days: 1 });
+    await seedFunctions([seedSafeguarding]).seedPreview(h.deps);
+
+    expect(await leads()).toEqual([lead]);
+    expect(await grants()).toEqual(firstGrants);
+    expect(await reports()).toEqual(first.reports);
+    expect(await log()).toEqual(first.log);
   });
 
   it("lets the seeded lead read the seeded reports", async () => {

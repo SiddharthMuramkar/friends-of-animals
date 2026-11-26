@@ -20,7 +20,9 @@
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
-import { and, count, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { retireGalleryItem } from "../../../gallery/curation";
+import { galleryItem } from "../../../../db/schema";
+import { and, count, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { authorize } from "../../../../access/can";
@@ -30,13 +32,34 @@ import type { FieldCipher } from "../../../../crypto/field-cipher";
 import type { AppDb } from "../../../../db/app-db";
 import {
   account,
+  certificate,
+  surveyInvitation,
+  competitionInvitation,
+  communityMember,
+  ambassadorApplication,
+  club,
+  clubDecision,
+  clubMembership,
+  event,
+  eventRegistration,
+  engagementMilestone,
+  timelineEntry,
+  certificateReadyNotice,
   auditLog,
+  artworkPhoto,
+  physicalArtwork,
+  roundEntry,
+  roundAssignment,
+  judgeConflict,
   consentDocument,
   consentEvent,
   consentForm,
   consentFormUpload,
   consentLink,
+  directoryListing,
   entry,
+  auctionBid,
+  auctionOffer,
   entryFile,
   entryUploadGrant,
   erasureRecord,
@@ -62,6 +85,10 @@ import {
   session,
   user,
   userRole,
+  volunteerApplication,
+  volunteerTask,
+  volunteerTaskAssignment,
+  volunteerHoursEntry,
   type PrivacyRequestRow,
 } from "../../../../db/schema";
 import { uuidv7 } from "../../../../ids";
@@ -86,6 +113,13 @@ import {
   type ConsentSubject,
 } from "../../../consent/repository";
 import {
+  donationErasureTargets,
+  prepareDonationErasure,
+  confirmDonationErasure,
+  withdrawDonationRecognition,
+} from "../../../donations/erasure";
+import { eraseOwnedListings } from "../../../directory/erase-owner";
+import {
   renderEmailHtml,
   renderTemplate,
 } from "../../../notifications/domain/template";
@@ -94,6 +128,7 @@ import { readSetting } from "../../../settings/read";
 import { TOMBSTONE } from "../../domain/anonymise";
 import { FINANCIAL_FLOOR } from "../../domain/periods";
 import { floorLapsesAt } from "../../domain/retention-period";
+import { purgeArchivesForErasure } from "../../../certificates/archive";
 import { activeLegalHolds } from "../../holds";
 import { lastActivity } from "../../policies/financial";
 import { privacyRequestAuditSnapshot } from "../domain/audit";
@@ -134,6 +169,7 @@ type ConsentToWithdraw = {
 export type ErasureTargets = {
   scope: SubjectScope;
   facts: ErasureFacts;
+  donations: Awaited<ReturnType<typeof donationErasureTargets>>;
   users: string[];
   consents: ConsentToWithdraw[];
   entryIds: string[];
@@ -346,6 +382,16 @@ export async function gatherErasure(
         .where(within(entryUploadGrant.registrationId, registrationIds))
     ).map((row) => row.id),
   ];
+  const artworkFileIds = (
+    await db
+      .select({ id: artworkPhoto.fileAssetId })
+      .from(artworkPhoto)
+      .innerJoin(
+        physicalArtwork,
+        eq(physicalArtwork.id, artworkPhoto.artworkId)
+      )
+      .where(within(physicalArtwork.entryId, entryIds))
+  ).map((row) => row.id);
   const uploadIds = (
     await db
       .select({ id: fileAsset.id })
@@ -353,11 +399,32 @@ export async function gatherErasure(
       .where(
         and(
           within(fileAsset.ownerUserId, users),
-          eq(fileAsset.purpose, "test_upload")
+          inArray(fileAsset.purpose, ["test_upload", "directory_document"])
         )
       )
   ).map((row) => row.id);
-  const fileIds = [...new Set([...entryFileIds, ...uploadIds])];
+  const certificateFileIds = (
+    await db
+      .select({ id: certificate.pdfFileId })
+      .from(certificate)
+      .where(
+        and(
+          or(
+            within(certificate.participantProfileId, profileIds),
+            within(certificate.recipientUserId, users)
+          ),
+          isNotNull(certificate.pdfFileId)
+        )
+      )
+  ).map((r) => r.id!);
+  const fileIds = [
+    ...new Set([
+      ...entryFileIds,
+      ...artworkFileIds,
+      ...uploadIds,
+      ...certificateFileIds,
+    ]),
+  ];
 
   // A registration a payment, a refund or consent evidence names stays.
   const paidRegistrations = new Set(
@@ -433,8 +500,12 @@ export async function gatherErasure(
   // Read through `db`: inside a transaction, the settings port's own
   // connection would wait for it.
   const keepPayer = await readSetting(db, "privacy.erasureKeepsPayerAccount");
+  const donations = await donationErasureTargets(db, users);
   const facts: ErasureFacts = {
     onLegalHold,
+    donorRecognition: donations.donorIds.length,
+    recurringMandates: donations.mandateIds.length,
+    donationRecords: donations.records,
     givenConsents: consents.length,
     accounts: users.length,
     accountKeeper: await accountKeeper(db, users, fileIds, keepPayer, now),
@@ -497,6 +568,130 @@ export async function gatherErasure(
       )),
     uploads: uploadIds.length,
     entries: entryIds.length,
+    surveyFeedback: await n(
+      db
+        .select({ n: count() })
+        .from(surveyInvitation)
+        .where(within(surveyInvitation.userId, users))
+    ),
+    communityHistory:
+      (await n(
+        db
+          .select({ n: count() })
+          .from(competitionInvitation)
+          .where(
+            or(
+              within(
+                competitionInvitation.participantProfileId,
+                scope.profileIds
+              ),
+              within(competitionInvitation.recipientUserId, users)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(ambassadorApplication)
+          .where(within(ambassadorApplication.applicantUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(clubMembership)
+          .where(within(clubMembership.userId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(club)
+          .where(within(club.applicantUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(eventRegistration)
+          .where(
+            or(
+              within(eventRegistration.subjectUserId, users),
+              within(eventRegistration.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(communityMember)
+          .where(
+            or(
+              within(communityMember.subjectUserId, users),
+              within(communityMember.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(engagementMilestone)
+          .where(
+            or(
+              within(engagementMilestone.subjectUserId, users),
+              within(engagementMilestone.subjectProfileId, profileIds)
+            )
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(timelineEntry)
+          .where(
+            or(
+              within(timelineEntry.subjectUserId, users),
+              within(timelineEntry.subjectProfileId, profileIds)
+            )
+          )
+      )),
+    volunteerService:
+      (await n(
+        db
+          .select({ n: count() })
+          .from(volunteerTaskAssignment)
+          .where(within(volunteerTaskAssignment.volunteerUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(volunteerHoursEntry)
+          .where(
+            sql`${volunteerHoursEntry.assignmentId} IN (SELECT ${volunteerTaskAssignment.id} FROM ${volunteerTaskAssignment} WHERE ${within(volunteerTaskAssignment.volunteerUserId, users)})`
+          )
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(volunteerApplication)
+          .where(within(volunteerApplication.applicantUserId, users))
+      )) +
+      (await n(
+        db
+          .select({ n: count() })
+          .from(certificate)
+          .where(
+            and(
+              eq(certificate.type, "volunteer_service"),
+              or(
+                within(certificate.recipientUserId, users),
+                within(certificate.participantProfileId, profileIds)
+              )
+            )
+          )
+      )),
+    auctionBids: await n(
+      db
+        .select({ n: count() })
+        .from(auctionBid)
+        .where(within(auctionBid.bidderUserId, users))
+    ),
     freeRegistrations: freeRegistrations.length,
     keptRegistrations: keptRegistrations.length,
     guardianLinks:
@@ -512,6 +707,27 @@ export async function gatherErasure(
           .from(guardianInvitation)
           .where(within(guardianInvitation.participantProfileId, profileIds))
       )),
+    directoryListings: await n(
+      db
+        .select({ n: count() })
+        .from(directoryListing)
+        .where(within(directoryListing.ownerUserId, users))
+    ),
+    directoryPublications: await n(
+      db
+        .select({ n: count() })
+        .from(directoryListing)
+        .where(
+          and(
+            within(directoryListing.ownerUserId, users),
+            inArray(directoryListing.status, [
+              "pending_verification",
+              "verified",
+              "suspended",
+            ])
+          )
+        )
+    ),
     deletableProfiles: deletableProfiles.length,
     keptProfiles: keptProfiles.length,
     keptProfileBasis: keptProfiles.some((id) => paidProfiles.has(id))
@@ -558,6 +774,7 @@ export async function gatherErasure(
   return {
     scope: live,
     facts,
+    donations,
     users,
     consents,
     entryIds,
@@ -614,7 +831,11 @@ async function deleteFiles(tx: AppDb, fileIds: readonly string[]) {
  */
 async function eraseRecords(
   tx: AppDb,
-  deps: { clock: OutboxDeps["clock"]; cipher: FieldCipher },
+  deps: {
+    clock: OutboxDeps["clock"];
+    cipher: FieldCipher;
+    storage: ObjectStorage;
+  },
   targets: ErasureTargets,
   plan: ErasurePlan,
   approverUserId: string
@@ -637,13 +858,209 @@ async function eraseRecords(
       actorRole: null,
     });
   }
+  if (targets.donations.liveMandateIds.length > 0) {
+    throw new Error("Recurring donation cancellation not confirmed");
+  }
+  await withdrawDonationRecognition(tx, targets.donations);
+  await eraseOwnedListings(tx, deps, targets.users, targets.facts.onLegalHold);
   if (targets.facts.onLegalHold) return;
 
   const { scope, entryIds, fileIds, registrations, profiles, users } = targets;
+  await purgeArchivesForErasure(
+    { db: tx, clock: deps.clock, storage: deps.storage },
+    scope.profileIds
+  );
+  // A paid account or profile can remain for a statutory floor, but its
+  // community history is not a financial record. Erase both subject keys.
+  await tx
+    .delete(ambassadorApplication)
+    .where(within(ambassadorApplication.applicantUserId, users));
+  await tx
+    .update(ambassadorApplication)
+    .set({ decidedByUserId: null })
+    .where(within(ambassadorApplication.decidedByUserId, users));
+  await tx
+    .delete(timelineEntry)
+    .where(
+      or(
+        within(timelineEntry.subjectUserId, users),
+        within(timelineEntry.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx
+    .delete(engagementMilestone)
+    .where(
+      or(
+        within(engagementMilestone.subjectUserId, users),
+        within(engagementMilestone.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx
+    .delete(competitionInvitation)
+    .where(
+      within(competitionInvitation.participantProfileId, scope.profileIds)
+    );
+  // Clearing a guardian's recipient reference must not delete a separate
+  // child's chosen actions or their durable one-invitation evidence.
+  await tx
+    .update(competitionInvitation)
+    .set({ recipientUserId: null, status: "skipped" })
+    .where(within(competitionInvitation.recipientUserId, users));
+  await tx
+    .delete(surveyInvitation)
+    .where(within(surveyInvitation.userId, users));
+  await tx
+    .delete(communityMember)
+    .where(
+      or(
+        within(communityMember.subjectUserId, users),
+        within(communityMember.subjectProfileId, scope.profileIds)
+      )
+    );
+  await tx.delete(clubMembership).where(within(clubMembership.userId, users));
+  await tx
+    .update(clubDecision)
+    .set({ reasonCiphertext: null })
+    .where(
+      sql`${clubDecision.clubId} IN (SELECT ${club.id} FROM ${club} WHERE ${within(club.applicantUserId, users)})`
+    );
+  await tx
+    .update(clubDecision)
+    .set({ decidedByUserId: null })
+    .where(within(clubDecision.decidedByUserId, users));
+  // An application without an applicant cannot be approved. Existing clubs
+  // may continue as an institution record with no link to the erased person.
+  await tx
+    .update(club)
+    .set({ status: "withdrawn", updatedAt: deps.clock.now() })
+    .where(
+      and(within(club.applicantUserId, users), eq(club.status, "applied"))
+    );
+  await tx
+    .update(club)
+    .set({ applicantUserId: null })
+    .where(within(club.applicantUserId, users));
+  const erasedEventPlaces = await tx
+    .delete(eventRegistration)
+    .where(
+      or(
+        within(eventRegistration.subjectUserId, users),
+        within(eventRegistration.subjectProfileId, scope.profileIds)
+      )
+    )
+    .returning({ eventId: eventRegistration.eventId });
+  await tx
+    .update(eventRegistration)
+    .set({ registeredByUserId: null })
+    .where(within(eventRegistration.registeredByUserId, users));
+  await tx
+    .update(eventRegistration)
+    .set({ checkedInByUserId: null })
+    .where(within(eventRegistration.checkedInByUserId, users));
+  await tx
+    .update(event)
+    .set({ createdByUserId: null })
+    .where(within(event.createdByUserId, users));
+  // Refill freed places via a trusted, ID-only job; erasure holds subject
+  // locks, while all place decisions serialize on their event lock.
+  for (const eventId of new Set(erasedEventPlaces.map((row) => row.eventId))) {
+    await emit(tx, deps.clock, {
+      type: "event.places_changed",
+      aggregate: { type: "event", id: eventId },
+      payload: { eventId },
+    });
+  }
+  // A retained guardian account is not the member's identity.
+  await tx
+    .update(communityMember)
+    .set({ joinedByUserId: null })
+    .where(within(communityMember.joinedByUserId, users));
+  // Private service histories are not financial records; remove them even
+  // when an account has to remain for a legitimate financial floor.
+  const assignments = await tx
+    .select({ taskId: volunteerTaskAssignment.taskId })
+    .from(volunteerTaskAssignment)
+    .where(within(volunteerTaskAssignment.volunteerUserId, users));
+  const taskIds = [...new Set(assignments.map((a) => a.taskId))].sort();
+  for (const taskId of taskIds)
+    await tx
+      .select({ id: volunteerTask.id })
+      .from(volunteerTask)
+      .where(eq(volunteerTask.id, taskId))
+      .for("update");
+  await tx
+    .delete(volunteerTaskAssignment)
+    .where(within(volunteerTaskAssignment.volunteerUserId, users));
+  await tx
+    .update(volunteerTask)
+    .set({ status: "open", updatedAt: deps.clock.now() })
+    .where(
+      and(
+        within(volunteerTask.id, taskIds),
+        inArray(volunteerTask.status, ["assigned", "in_progress"]),
+        sql`NOT EXISTS (SELECT 1 FROM ${volunteerTaskAssignment} WHERE ${volunteerTaskAssignment.taskId}=${volunteerTask.id} AND ${volunteerTaskAssignment.unassignedAt} IS NULL)`
+      )
+    );
+  await tx
+    .delete(volunteerApplication)
+    .where(within(volunteerApplication.applicantUserId, users));
+  await tx
+    .update(volunteerTask)
+    .set({ createdByUserId: null })
+    .where(within(volunteerTask.createdByUserId, users));
+  await tx
+    .update(volunteerTaskAssignment)
+    .set({ assignedByUserId: null })
+    .where(within(volunteerTaskAssignment.assignedByUserId, users));
+  await tx
+    .update(volunteerHoursEntry)
+    .set({ decidedByUserId: null })
+    .where(within(volunteerHoursEntry.decidedByUserId, users));
+  // Preserve accepted amounts and deadlines, even for an account retained
+  // only for other financial records. Erasure never lowers the lot's price.
+  await tx
+    .update(auctionOffer)
+    .set({ addressCiphertext: null, courier: null, trackingNumber: null })
+    .where(
+      or(
+        sql`${auctionOffer.bidId} IN (SELECT ${auctionBid.id} FROM ${auctionBid} WHERE ${within(auctionBid.bidderUserId, users)})`,
+        sql`${auctionOffer.batchId} IN (SELECT ${paymentBatch.id} FROM ${paymentBatch} WHERE ${within(paymentBatch.payerUserId, users)})`
+      )
+    );
+  await tx
+    .update(auctionBid)
+    .set({ bidderUserId: null })
+    .where(within(auctionBid.bidderUserId, users));
   const registrationIds = [...registrations.free, ...registrations.kept];
   await tx
     .delete(entryUploadGrant)
     .where(within(entryUploadGrant.registrationId, registrationIds));
+  // Judging (#95) references the entry with composite foreign keys.
+  // Remove its assignments and conflict flags before the pool row and entry.
+  await tx
+    .delete(roundAssignment)
+    .where(within(roundAssignment.entryId, entryIds));
+  await tx.delete(judgeConflict).where(within(judgeConflict.entryId, entryIds));
+  await tx.delete(roundEntry).where(within(roundEntry.entryId, entryIds));
+  await tx
+    .delete(certificateReadyNotice)
+    .where(within(certificateReadyNotice.recipientUserId, users));
+  await tx
+    .delete(certificate)
+    .where(
+      or(
+        within(certificate.participantProfileId, scope.profileIds),
+        within(certificate.recipientUserId, users)
+      )
+    );
+  // The entry cascade deletes the item and its reports. Queue the public
+  // route purge first in the same transaction so it survives erasure.
+  for (const row of await tx
+    .select()
+    .from(galleryItem)
+    .where(within(galleryItem.entryId, entryIds))
+    .for("update"))
+    await retireGalleryItem(ctx, row, "unpublished", "erasure", null);
   await tx.delete(entry).where(within(entry.id, entryIds));
   await deleteFiles(tx, fileIds);
   await tx
@@ -843,7 +1260,7 @@ export async function executeErasure(
 
 export type ErasureJobDeps = Pick<
   OutboxDeps,
-  "db" | "clock" | "cipher" | "storage" | "settings" | "email"
+  "db" | "clock" | "cipher" | "storage" | "settings" | "email" | "payments"
 > & { errors?: ErrorReporter };
 
 async function deleteObjects(
@@ -960,18 +1377,61 @@ export async function runExecuteErasure(
     await refuseApproval(deps, row.id, "erasure_disabled");
     return;
   }
-  const first = await gatherErasure(deps.db, row, deps.clock.now());
-  const firstPlan = planErasure(first.facts);
-  if (firstPlan.fingerprint !== row.erasureFingerprint) {
-    await refuseApproval(deps, row.id, "plan_changed");
-    return;
-  }
   if (row.erasureApprovedByUserId === null) {
     // The approving officer's account is gone: someone approves again.
     await refuseApproval(deps, row.id, "plan_changed");
     return;
   }
   const approver = row.erasureApprovedByUserId;
+  // Commit cancellation cutoffs before contacting the provider, and withdraw
+  // optional publicity immediately. A provider outage must leave the account
+  // and the approved request intact; both deliveries can then safely retry.
+  const preflight = await deps.db.transaction(async (tx) => {
+    const locked = await lockRequest(tx, row.id);
+    if (
+      !locked ||
+      locked.status !== "in_progress" ||
+      locked.erasureFingerprint !== row.erasureFingerprint ||
+      locked.erasureApprovedByUserId !== approver
+    )
+      return null;
+    const scope = await subjectScope(tx, locked);
+    for (const id of [...scope.userIds, ...scope.profileIds])
+      await lockSubject(tx, id);
+    const targets = await gatherErasure(tx, locked, deps.clock.now());
+    if (planErasure(targets.facts).fingerprint !== locked.erasureFingerprint) {
+      return "changed" as const;
+    }
+    const cancelling = await prepareDonationErasure(
+      tx,
+      { ...deps, actor: WORKER },
+      targets.donations
+    );
+    return { targets, cancelling };
+  });
+  if (preflight === null) return;
+  if (preflight === "changed") {
+    await refuseApproval(deps, row.id, "plan_changed");
+    return;
+  }
+  await confirmDonationErasure(
+    { ...deps, actor: WORKER },
+    preflight.cancelling
+  );
+  // A reconciled pre-cutoff charge may change the reason an account must
+  // stay. Recheck before deleting files or account data.
+  const first =
+    preflight.cancelling.length === 0
+      ? preflight.targets
+      : await gatherErasure(deps.db, row, deps.clock.now());
+  const firstPlan = planErasure(first.facts);
+  if (firstPlan.fingerprint !== row.erasureFingerprint) {
+    await refuseApproval(deps, row.id, "plan_changed");
+    return;
+  }
+  if (first.donations.liveMandateIds.length > 0) {
+    throw new Error("Recurring donation cancellation not confirmed");
+  }
   const accountGoes = !firstPlan.categories.some(
     (each) => each.key === "account" && each.action === "retain"
   );

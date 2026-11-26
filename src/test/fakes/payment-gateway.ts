@@ -1,3 +1,11 @@
+import { systemClock, type Clock } from "@/server/ports/clock";
+import type {
+  GatewaySubscription,
+  GatewaySubscriptionCharge,
+  NewSubscription,
+  SubscriptionPlanInput,
+  SubscriptionCheckoutReturn,
+} from "@/server/ports/subscription-gateway";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import {
@@ -50,6 +58,8 @@ type FakeWebhookBody = {
   id: string;
   event: string;
   orderId: string | null;
+  subscriptionId?: string;
+  capture?: { paymentId: string; occurredBy: string };
   refund?: { refundId: string; paymentId: string };
 };
 
@@ -65,6 +75,169 @@ type FakeWebhookBody = {
  */
 export class FakePaymentGateway implements PaymentGateway {
   readonly name = "fake";
+  readonly plans: (SubscriptionPlanInput & { planId: string })[] = [];
+  readonly subscriptions: (GatewaySubscription &
+    NewSubscription & { paid: number })[] = [];
+  readonly cancelCalls: string[] = [];
+  readonly #charges = new Map<string, GatewaySubscriptionCharge[]>();
+  #cancelFailure = false;
+
+  async createPlan(input: SubscriptionPlanInput) {
+    const planId = `plan_fake_${this.#next()}`;
+    this.plans.push({ ...input, planId });
+    return { planId };
+  }
+  async createSubscription(input: NewSubscription) {
+    if (!this.plans.some((p) => p.planId === input.planId))
+      throw new Error("Unknown plan");
+    const row = {
+      ...input,
+      id: `sub_fake_${this.#next()}`,
+      status: "created",
+      currentStart: null,
+      chargeAt: null,
+      endedAt: null,
+      paid: 0,
+    };
+    this.subscriptions.push(row);
+    return this.#viewSubscription(row);
+  }
+  #subscription(id: string) {
+    const row = this.subscriptions.find((s) => s.id === id);
+    if (!row) throw new Error("Unknown subscription");
+    return row;
+  }
+  subscriptionCheckout({
+    subscriptionId,
+    description,
+  }: {
+    subscriptionId: string;
+    description: string;
+  }) {
+    return { keyId: "rzp_test_fake", subscriptionId, description };
+  }
+  verifySubscriptionCheckout(returned: SubscriptionCheckoutReturn) {
+    return sameSignature(
+      sign(CHECKOUT_SECRET, `${returned.paymentId}|${returned.subscriptionId}`),
+      returned.signature
+    );
+  }
+  async fetchSubscription(id: string) {
+    return this.#viewSubscription(this.#subscription(id));
+  }
+  async fetchSubscriptionCharges(
+    id: string,
+    options?: { except?: ReadonlySet<string> }
+  ) {
+    return (this.#charges.get(id) ?? [])
+      .filter((c) => !options?.except?.has(c.paymentId))
+      .map((c) => ({ ...c }));
+  }
+  async cancelSubscription(id: string, _options: { atCycleEnd: false }) {
+    if (this.#cancelFailure) {
+      this.#cancelFailure = false;
+      throw new Error("Cancellation unavailable");
+    }
+    const row = this.#subscription(id);
+    if (["completed", "cancelled", "expired"].includes(row.status))
+      throw new Error("Subscription ended");
+    this.cancelCalls.push(id);
+    row.status = "cancelled";
+    row.chargeAt = null;
+    row.endedAt = this.clock.now();
+    return this.#viewSubscription(row);
+  }
+  refuseNextCancel() {
+    this.#cancelFailure = true;
+  }
+  authoriseSubscription(id: string) {
+    const row = this.#subscription(id);
+    if (row.status !== "created") throw new Error("Not awaiting authorisation");
+    row.status = "authenticated";
+    row.currentStart = this.clock.now();
+    row.chargeAt = this.clock.now();
+    const paymentId = `pay_mandate_${this.#next()}`;
+    return {
+      paymentId,
+      subscriptionId: id,
+      signature: sign(CHECKOUT_SECRET, `${paymentId}|${id}`),
+    };
+  }
+  chargeSubscription(
+    id: string,
+    options: { at?: Date; international?: boolean } = {}
+  ) {
+    const row = this.#subscription(id);
+    if (["cancelled", "completed", "expired", "created"].includes(row.status))
+      throw new Error("Subscription not chargeable");
+    const plan = this.plans.find((p) => p.planId === row.planId)!;
+    const now = options.at ?? this.clock.now();
+    const paymentId = `pay_fake_${this.#next()}`;
+    const charge = {
+      paymentId,
+      invoiceId: `inv_fake_${this.#next()}`,
+      captured: true,
+      amountMinor: plan.amountMinor,
+      currency: "INR",
+      international: options.international ?? false,
+      createdAt: now,
+    };
+    this.#payments.push({
+      id: paymentId,
+      orderId: id,
+      status: "captured",
+      amountMinor: plan.amountMinor,
+      currency: "INR",
+      international: charge.international,
+    });
+    this.#charges.set(id, [...(this.#charges.get(id) ?? []), charge]);
+    row.paid++;
+    row.currentStart = now;
+    row.status = row.paid === row.totalCount ? "completed" : "active";
+    const next = new Date(now);
+    next.setUTCMonth(next.getUTCMonth() + 1);
+    row.chargeAt = row.status === "completed" ? null : next;
+    row.endedAt = row.status === "completed" ? now : null;
+    return charge;
+  }
+  failSubscriptionCharge(id: string) {
+    const row = this.#subscription(id);
+    row.status = "pending";
+    row.currentStart = row.chargeAt ?? this.clock.now();
+  }
+  haltSubscription(id: string) {
+    this.#subscription(id).status = "halted";
+  }
+  runCycle() {
+    for (const row of this.subscriptions) {
+      if (
+        ["authenticated", "active"].includes(row.status) &&
+        row.chargeAt &&
+        row.chargeAt <= this.clock.now()
+      )
+        this.chargeSubscription(row.id, { at: row.chargeAt });
+    }
+  }
+
+  #viewSubscription({
+    id,
+    planId,
+    status,
+    currentStart,
+    chargeAt,
+    endedAt,
+    notes,
+  }: GatewaySubscription): GatewaySubscription {
+    return {
+      id,
+      planId,
+      status,
+      currentStart,
+      chargeAt,
+      endedAt,
+      notes: { ...notes },
+    };
+  }
   readonly #orders: FakeOrder[] = [];
   readonly #payments: GatewayPayment[] = [];
   readonly #refunds: FakeRefund[] = [];
@@ -74,7 +247,10 @@ export class FakePaymentGateway implements PaymentGateway {
   #fetchFailures = 0;
   #sequence = 0;
 
-  constructor(private readonly idNamespace = "") {}
+  constructor(
+    private readonly idNamespace = "",
+    private readonly clock: Clock = systemClock
+  ) {}
 
   async createOrder(order: {
     amount: Money;
@@ -126,7 +302,16 @@ export class FakePaymentGateway implements PaymentGateway {
       eventId: body.id,
       type: body.event,
       orderId: body.orderId,
+      ...(body.subscriptionId ? { subscriptionId: body.subscriptionId } : {}),
       ...(body.refund ? { refund: body.refund } : {}),
+      ...(body.event === "payment.captured" && body.capture
+        ? {
+            capture: {
+              paymentId: body.capture.paymentId,
+              occurredBy: new Date(body.capture.occurredBy),
+            },
+          }
+        : {}),
     };
   }
 
@@ -281,6 +466,8 @@ export class FakePaymentGateway implements PaymentGateway {
     event: {
       type: string;
       orderId: string | null;
+      subscriptionId?: string;
+      capture?: { paymentId: string; occurredBy: Date };
       refund?: { refundId: string; paymentId: string };
     },
     {
@@ -291,7 +478,16 @@ export class FakePaymentGateway implements PaymentGateway {
       id: `evt_fake_${this.#next()}`,
       event: event.type,
       orderId: event.orderId,
+      ...(event.subscriptionId ? { subscriptionId: event.subscriptionId } : {}),
       ...(event.refund ? { refund: event.refund } : {}),
+      ...(event.capture
+        ? {
+            capture: {
+              paymentId: event.capture.paymentId,
+              occurredBy: event.capture.occurredBy.toISOString(),
+            },
+          }
+        : {}),
     };
     const rawBody = JSON.stringify(body);
     const headers = new Headers({ "content-type": "application/json" });

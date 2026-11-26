@@ -4,6 +4,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { SiteLink } from "@/components/site/site-link";
+import { documentVersionPath } from "@/server/modules/competitions/domain/consent-attachments";
 import { SubmitButton } from "@/components/form";
 import { ConsentPolicyLink } from "@/components/legal/consent-policy-link";
 import {
@@ -21,7 +23,13 @@ import { legalKeyForConsentPurpose } from "@/server/modules/cms/domain/documents
 import type { MyConsent } from "@/server/modules/consent";
 
 import { ChangeNotice } from "./_components/change-notice";
-import { giveConsentAction, withdrawConsentAction } from "./_lib/actions";
+import {
+  giveConsentAction,
+  giveAuctionConsentAction,
+  withdrawConsentAction,
+  withdrawAuctionConsentAction,
+  withdrawPublicUseConsentAction,
+} from "./_lib/actions";
 import { CONSENT_NOTICES } from "./_lib/notice";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -71,11 +79,22 @@ function doneOf(done: string | string[] | undefined) {
 async function Consents({ searchParams }: { searchParams: SearchParams }) {
   const actor = await currentActor();
   if (actor.kind !== "user") redirect(ROUTES.signIn.path);
-  const [t, callout, format, consents, policy, { done }] = await Promise.all([
+  const [
+    t,
+    callout,
+    format,
+    consents,
+    auctionConsents,
+    publicUseConsents,
+    policy,
+    { done },
+  ] = await Promise.all([
     getTranslations("consent"),
     getTranslations("common.callout"),
     getFormatter(),
     as(actor).myConsents(),
+    as(actor).myAuctionConsents(),
+    as(actor).myPublicUseConsents(),
     // The messages consent rests on the privacy policy (#111).
     loadLegalVersion(legalKeyForConsentPurpose("messages")),
     searchParams,
@@ -153,6 +172,100 @@ async function Consents({ searchParams }: { searchParams: SearchParams }) {
         </div>
       </section>
 
+      {publicUseConsents.length > 0 ? (
+        <section aria-labelledby="public-use-consents" className={CARD}>
+          <h2 id="public-use-consents" className="text-lead font-bold text-ink">
+            {t("publicUse.title")}
+          </h2>
+          <p className="mt-3 text-ink">{t("publicUse.lead")}</p>
+          <ul className="mt-4 space-y-4">
+            {publicUseConsents.map((item) => (
+              <li key={`${item.competitionId}:${item.purpose}`}>
+                <p className="font-semibold text-ink">
+                  {item.title} · {t(`publicUse.purpose.${item.purpose}`)}
+                </p>
+                <p className="text-ink">{t(`publicUse.${item.state}`)}</p>
+                {item.state === "given" ? (
+                  <form
+                    className="mt-2"
+                    action={withdrawPublicUseConsentAction.bind(
+                      null,
+                      item.competitionId,
+                      item.purpose
+                    )}
+                  >
+                    <SubmitButton pendingLabel={t("saving")}>
+                      {t(`publicUse.withdraw.${item.purpose}`)}
+                    </SubmitButton>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {auctionConsents.length > 0 ? (
+        <section aria-labelledby="auction-consents" className={CARD}>
+          <h2 id="auction-consents" className="text-lead font-bold text-ink">
+            {t("auction.title")}
+          </h2>
+          <p className="mt-3 text-ink">{t("auction.lead")}</p>
+          <ul className="mt-4 space-y-4">
+            {auctionConsents.map((item) => (
+              <li key={item.competitionId}>
+                <p className="font-semibold text-ink">{item.title}</p>
+                <p className="text-ink">{t(`auction.${item.state}`)}</p>
+                {item.document ? (
+                  <div className="mt-2 space-y-2">
+                    {!item.onCurrent ? <p>{t("auction.renewal")}</p> : null}
+                    <SiteLink
+                      href={documentVersionPath(
+                        "auction",
+                        item.document.version
+                      )}
+                      className="underline"
+                    >
+                      {t("auction.read", { version: item.document.version })}
+                    </SiteLink>
+                    {!item.onCurrent ? (
+                      <form
+                        action={giveAuctionConsentAction.bind(
+                          null,
+                          item.competitionId
+                        )}
+                      >
+                        <input
+                          type="hidden"
+                          name="documentId"
+                          value={item.document.id}
+                        />
+                        <SubmitButton pendingLabel={t("saving")}>
+                          {t("auction.renew")}
+                        </SubmitButton>
+                      </form>
+                    ) : null}
+                  </div>
+                ) : item.state === "given" ? (
+                  <p>{t("auction.currentUnavailable")}</p>
+                ) : null}
+                {item.state === "given" ? (
+                  <form
+                    className="mt-2"
+                    action={withdrawAuctionConsentAction.bind(
+                      null,
+                      item.competitionId
+                    )}
+                  >
+                    <SubmitButton pendingLabel={t("saving")}>
+                      {t("auction.withdraw")}
+                    </SubmitButton>
+                  </form>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {currentDocument ? (
         <section aria-labelledby="consent-document">
           <SectionHeading id="consent-document" title={t("documentTitle")} />

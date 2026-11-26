@@ -20,6 +20,9 @@ export const FILE_PURPOSES = [
   "adoption_photo",
   "entry_video",
   "entry_document",
+  "offline_donation_proof",
+  "artwork_condition_photo",
+  "certificate_pdf",
 ] as const;
 
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
@@ -122,6 +125,13 @@ export const PURPOSE_RULES = {
    * admins read it, and only `requestOfflinePaymentProofUpload` presigns
    * one, after its own authorization.
    */
+  // A donation's proof is read only through the finance donation use case.
+  offline_donation_proof: {
+    contentTypes: STORABLE_CONTENT_TYPES,
+    maxBytes: 10 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
   offline_payment_proof: {
     contentTypes: STORABLE_CONTENT_TYPES,
     maxBytes: 10 * MiB,
@@ -159,7 +169,7 @@ export const PURPOSE_RULES = {
   },
   /**
    * A participant's essay as a PDF (#86). Only `startEntryUpload` presigns
-   * one; it is shown as stored once its scan passes.
+   * one; the scan and blind-judging raster copy must be ready (#96).
    */
   entry_document: {
     contentTypes: ["application/pdf"],
@@ -203,6 +213,19 @@ export const PURPOSE_RULES = {
       "image/heif",
     ],
     maxBytes: 15 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  /** Private custody evidence, uploaded by an artwork verifier only. */
+  artwork_condition_photo: {
+    contentTypes: ["image/jpeg", "image/png", "image/heic", "image/heif"],
+    maxBytes: 20 * MiB,
+    environments: "all",
+    directUpload: false,
+  },
+  certificate_pdf: {
+    contentTypes: ["application/pdf"],
+    maxBytes: 10 * MiB,
     environments: "all",
     directUpload: false,
   },

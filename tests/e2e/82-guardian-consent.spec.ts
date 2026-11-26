@@ -25,8 +25,12 @@ test("a guardian changes one purpose, previews public credit, and reads the chil
 
   const competition = page.getByRole("region", {
     name: "Neighbours on My Street",
+    exact: true,
   });
-  const credit = competition.getByRole("region", { name: "Public credit" });
+  const credit = competition.getByRole("region", {
+    name: "Neighbours on My Street Public credit",
+    exact: true,
+  });
   const gallery = credit.getByText("Gallery", { exact: true }).locator("..");
   const school = competition.getByRole("article", { name: "Show school" });
   await expect(gallery).toHaveText(/Isha D\..*Pune/);

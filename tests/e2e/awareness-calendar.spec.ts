@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { SEED_GALLERY } from "../../src/server/seed/gallery-samples";
 
 const guides = [
   ["January", "Kite season: plain cotton thread only"],
@@ -184,30 +185,41 @@ for (const [path, id] of [
   });
 }
 
-test("home gallery identifies each of its four illustrated prompts", async ({
+test("home gallery identifies its consented featured sample artworks", async ({
   page,
+  request,
 }) => {
   await page.goto("/");
-  const gallery = page
-    .locator("section")
-    .filter({ has: page.locator("#home-gallery") });
-  const frames = gallery
-    .locator("figure")
-    .filter({ has: page.getByText("AI illustration", { exact: true }) });
-  await expect(frames).toHaveCount(4);
-
-  for (const caption of [
-    "Your drawing could hang here",
-    "A painting of your street’s cat?",
-    "Your best bird photo",
-    "Something you made by hand",
-  ]) {
-    const frame = frames.filter({ hasText: caption });
+  const gallery = page.locator('section[aria-labelledby="home-gallery"]');
+  const cards = gallery.getByRole("listitem").filter({
+    has: page.locator('a[href^="/gallery/"]'),
+  });
+  await expect(cards).toHaveCount(SEED_GALLERY.featured.length);
+  for (const [index, title] of [
+    "A refuge for birds",
+    "A kinder street",
+  ].entries()) {
+    const id = SEED_GALLERY.featured[index]!;
+    const card = cards.filter({
+      has: page.getByRole("heading", { name: title, exact: true }),
+    });
+    await expect(card).toHaveCount(1);
+    await expect(card.getByRole("link")).toHaveAttribute(
+      "href",
+      `/gallery/${id}`
+    );
+    const image = card.getByRole("img", { name: `AI illustration: ${title}` });
+    await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute("src", `/media/gallery/${id}`);
     await expect(
-      frame.getByRole("img", { name: /^AI illustration:/ })
+      card.getByText(
+        "AI illustration — sample artwork, not a participant's submission",
+        { exact: true }
+      )
     ).toBeVisible();
-    await expect(
-      frame.getByText("AI illustration", { exact: true })
-    ).toBeVisible();
+    const media = await request.get(`/media/gallery/${id}`);
+    expect(media.ok()).toBe(true);
+    expect(media.headers()["content-type"]).toBe("image/webp");
+    expect(media.headers()["cache-control"]).toContain("no-store");
   }
 });

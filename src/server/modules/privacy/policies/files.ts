@@ -13,6 +13,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   consentForm,
+  donation,
   entryFile,
   fileAsset,
   fileDerivative,
@@ -27,7 +28,8 @@ import type { RetentionPolicy } from "./types";
 
 /** True while any row still points at the file, so it cannot be deleted. */
 const stillReferenced = (fileId: unknown) => sql`(
-  EXISTS (SELECT 1 FROM ${offlinePayment} WHERE ${offlinePayment.proofFileAssetId} = ${fileId})
+  EXISTS (SELECT 1 FROM ${donation} WHERE ${donation.offlineProofFileId} = ${fileId})
+  OR EXISTS (SELECT 1 FROM ${offlinePayment} WHERE ${offlinePayment.proofFileAssetId} = ${fileId})
   OR EXISTS (SELECT 1 FROM ${entryFile} WHERE ${entryFile.fileAssetId} = ${fileId})
   OR EXISTS (SELECT 1 FROM ${consentForm} WHERE ${consentForm.fileAssetId} = ${fileId})
   OR EXISTS (SELECT 1 FROM ${fileProcessing} WHERE ${fileProcessing.fileAssetId} = ${fileId})
@@ -68,6 +70,7 @@ export const QUARANTINED_FILES: RetentionPolicy = {
       .from(sql`(SELECT 1) AS one`);
     if (referenced) return "skipped";
 
+    if (!file.ownerUserId) return "skipped";
     const subjects = [{ type: "user", id: file.ownerUserId }];
     const holds = await db
       .select({ type: legalHold.subjectType, id: legalHold.subjectId })

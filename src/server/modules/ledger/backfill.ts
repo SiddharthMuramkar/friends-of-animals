@@ -1,8 +1,10 @@
-import { and, eq, gt, isNotNull, ne, notExists, sql } from "drizzle-orm";
+import { and, eq, gt, isNotNull, notExists, sql } from "drizzle-orm";
 
 import { authorize, type PolicyContext } from "../../access/can";
 import {
   donation,
+  auctionOffer,
+  paymentReviewCase,
   ledgerPosting,
   offlinePayment,
   paymentBatch,
@@ -18,6 +20,7 @@ import {
   postPaymentCapture,
   postRefund,
 } from "./consumers";
+import { postAuctionSale, postAuctionReview } from "./sources/auctions";
 import {
   captureSource,
   eligibleCapture,
@@ -29,7 +32,13 @@ const PAGE_SIZE = 100;
 
 async function postMissing(
   errors: ErrorReporter,
-  sourceType: "payment_batch" | "refund" | "donation" | "foreign_donation",
+  sourceType:
+    | "payment_batch"
+    | "refund"
+    | "donation"
+    | "foreign_donation"
+    | "auction_sale"
+    | "auction_review",
   nextPage: (after: string | undefined) => PromiseLike<{ id: string }[]>,
   post: (id: string) => Promise<{ outcome: string }>
 ): Promise<number> {
@@ -127,7 +136,7 @@ export async function backfillLedgerFromPayments(
         .from(refund)
         .where(
           and(
-            eq(refund.kind, "foreign_payment"),
+            sql`${refund.kind} IN ('foreign_payment', 'recurring_after_cancel')`,
             after === undefined ? undefined : gt(refund.id, after),
             notExists(
               db
@@ -135,7 +144,7 @@ export async function backfillLedgerFromPayments(
                 .from(ledgerPosting)
                 .where(
                   and(
-                    eq(ledgerPosting.sourceType, "foreign_donation"),
+                    sql`${ledgerPosting.sourceType} = CASE WHEN ${refund.kind} = 'recurring_after_cancel' THEN 'recurring_after_cancel' ELSE 'foreign_donation' END`,
                     eq(ledgerPosting.sourceId, refund.gatewayPaymentId)
                   )
                 )
@@ -145,6 +154,81 @@ export async function backfillLedgerFromPayments(
         .orderBy(refund.id)
         .limit(PAGE_SIZE),
     (refundId) => postForeignDonation(ctx, { refundId })
+  );
+  const auctionSalesPosted = await postMissing(
+    errors,
+    "auction_sale",
+    (after) =>
+      db
+        .select({ id: auctionOffer.id })
+        .from(auctionOffer)
+        .where(
+          and(
+            eq(auctionOffer.status, "paid"),
+            after === undefined ? undefined : gt(auctionOffer.id, after),
+            notExists(
+              db
+                .select({ id: ledgerPosting.id })
+                .from(ledgerPosting)
+                .where(
+                  and(
+                    eq(ledgerPosting.sourceType, "auction_sale"),
+                    eq(ledgerPosting.sourceId, sql`${auctionOffer.id}::text`)
+                  )
+                )
+            )
+          )
+        )
+        .orderBy(auctionOffer.id)
+        .limit(PAGE_SIZE),
+    (offerId) => db.transaction((tx) => postAuctionSale(tx, ctx, offerId))
+  );
+  const auctionReviewsPosted = await postMissing(
+    errors,
+    "auction_review",
+    (after) =>
+      db
+        .select({ id: paymentReviewCase.id })
+        .from(paymentReviewCase)
+        .innerJoin(paymentBatch, eq(paymentBatch.id, paymentReviewCase.batchId))
+        .where(
+          and(
+            eq(paymentBatch.purpose, "auction_sale"),
+            eq(paymentReviewCase.currency, "INR"),
+            gt(paymentReviewCase.amountMinor, 0n),
+            isNotNull(paymentReviewCase.gatewayPaymentId),
+            after === undefined ? undefined : gt(paymentReviewCase.id, after),
+            notExists(
+              db
+                .select({ id: ledgerPosting.id })
+                .from(ledgerPosting)
+                .where(
+                  and(
+                    eq(ledgerPosting.sourceType, "auction_review"),
+                    eq(
+                      ledgerPosting.sourceId,
+                      paymentReviewCase.gatewayPaymentId
+                    )
+                  )
+                )
+            )
+          )
+        )
+        .orderBy(paymentReviewCase.id)
+        .limit(PAGE_SIZE),
+    async (caseId) => {
+      const [row] = await db
+        .select({
+          paymentId: paymentReviewCase.gatewayPaymentId,
+          batchId: paymentReviewCase.batchId,
+        })
+        .from(paymentReviewCase)
+        .where(eq(paymentReviewCase.id, caseId));
+      if (!row?.paymentId) return { outcome: "ignored" };
+      return db.transaction((tx) =>
+        postAuctionReview(tx, ctx, row.paymentId!, row.batchId)
+      );
+    }
   );
   const refundsPosted = await postMissing(
     errors,
@@ -156,7 +240,7 @@ export async function backfillLedgerFromPayments(
         .where(
           and(
             eq(refund.status, "refunded"),
-            ne(refund.kind, "duplicate"),
+            sql`(${refund.kind} <> 'duplicate' OR EXISTS (SELECT 1 FROM ${paymentBatch} WHERE ${paymentBatch.id} = ${refund.batchId} AND ${paymentBatch.purpose} = 'auction_sale'))`,
             after === undefined ? undefined : gt(refund.id, after),
             notExists(
               db
@@ -175,7 +259,12 @@ export async function backfillLedgerFromPayments(
         .limit(PAGE_SIZE),
     (refundId) => postRefund(ctx, { refundId })
   );
-  return { capturesPosted, donationsPosted, foreignPosted, refundsPosted };
+  return {
+    capturesPosted: capturesPosted + auctionSalesPosted + auctionReviewsPosted,
+    donationsPosted,
+    foreignPosted,
+    refundsPosted,
+  };
 }
 
 export const reconcileLedgerSchedule: ScheduleDefinition = {

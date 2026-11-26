@@ -1,0 +1,10 @@
+ALTER TABLE "donation" ADD COLUMN "offline_method" "offline_payment_method";--> statement-breakpoint
+ALTER TABLE "donation" ADD COLUMN "offline_reference" text;--> statement-breakpoint
+ALTER TABLE "donation" ADD COLUMN "offline_received_on" date;--> statement-breakpoint
+ALTER TABLE "donation" ADD COLUMN "offline_proof_file_id" uuid;--> statement-breakpoint
+ALTER TABLE "donation" ADD COLUMN "offline_recorded_by" uuid;--> statement-breakpoint
+ALTER TABLE "donor" ADD COLUMN "pan_ciphertext" text;--> statement-breakpoint
+ALTER TABLE "donation" ADD CONSTRAINT "donation_offline_proof_file_id_file_asset_id_fk" FOREIGN KEY ("offline_proof_file_id") REFERENCES "public"."file_asset"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "donation" ADD CONSTRAINT "donation_offline_recorded_by_user_id_fk" FOREIGN KEY ("offline_recorded_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "donation" ADD CONSTRAINT "donation_offline_proof_unique" UNIQUE("offline_proof_file_id");--> statement-breakpoint
+ALTER TABLE "donation" ADD CONSTRAINT "donation_offline_details" CHECK (("donation"."origin" = 'offline_entry' AND "donation"."offline_method" IS NOT NULL AND "donation"."offline_reference" IS NOT NULL AND "donation"."offline_received_on" IS NOT NULL AND "donation"."offline_proof_file_id" IS NOT NULL AND "donation"."payment_batch_id" IS NULL) OR ("donation"."origin" <> 'offline_entry' AND "donation"."offline_method" IS NULL AND "donation"."offline_reference" IS NULL AND "donation"."offline_received_on" IS NULL AND "donation"."offline_proof_file_id" IS NULL AND "donation"."offline_recorded_by" IS NULL));

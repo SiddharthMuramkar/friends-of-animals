@@ -1,3 +1,48 @@
+import {
+  ambassadorApplicant,
+  ambassadorReviewers,
+  ambassadorDeclineValues,
+} from "../community/ambassadors/messages";
+import {
+  clubNoticeRecipients,
+  clubNoticeValues,
+  CLUB_NOTICE_VARIABLES,
+} from "../clubs/notices";
+import {
+  eventNoticeRecipients,
+  eventNoticeValues,
+  eventReminderRecipients,
+  EVENT_NOTICE_VARIABLES,
+  EVENT_CHANGE_VARIABLES,
+  EVENT_REGISTRATION_VARIABLES,
+} from "../events/notices";
+import {
+  offeredBuyer,
+  offerValues,
+  creatorRecipients,
+  schoolRecipients,
+  saleValues,
+} from "../auctions/messages";
+import {
+  certificateReadyRecipients,
+  reissueRecipients,
+  certificateReadyValues,
+  CERTIFICATE_READY_VARIABLES,
+} from "../certificates/messages";
+import {
+  PRIZE_VARIABLES,
+  prizeRecipients,
+  prizeValues,
+} from "../results/messages";
+import {
+  ARTWORK_VARIABLES,
+  artworkRecipients,
+  artworkValues,
+} from "../physical-artwork/messages";
+import {
+  VERIFICATION_VARIABLES,
+  verificationValues,
+} from "../verification/message-values";
 // Who a route's message goes to, and what each event lets a template say.
 //
 // A route row names an audience by key. Each audience turns an event into
@@ -29,6 +74,8 @@ import type { AppDb } from "../../db/app-db";
 import {
   competition,
   competitionTransitionBlock,
+  auctionBid,
+  auctionLot,
   institution,
   userRole,
 } from "../../db/schema";
@@ -99,6 +146,7 @@ import {
   communityManagers,
   DECLINED_VARIABLES,
   volunteerApplicant,
+  volunteerWorkAudience,
   volunteerGuardians,
 } from "../volunteers/message-audiences";
 import {
@@ -112,6 +160,10 @@ import {
   outcomeValues,
   SCHOOL_ROUND_OUTCOME_VARIABLES,
 } from "../school-round/family-outcomes";
+import {
+  overdueValues,
+  SCHOOL_ROUND_OVERDUE_VARIABLES,
+} from "../school-round/overdue";
 import type { AudienceMember } from "./domain/audience-member";
 
 /** The variables every message has about the person receiving it. */
@@ -139,6 +191,7 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "files.file_uploaded":
     case "files.processing_requested":
     case "files.video_processing_requested":
+    case "files.pdf_processing_requested":
     case "files.file_ready":
     case "files.file_processed":
     case "files.file_processing_failed":
@@ -177,10 +230,15 @@ function subjectUserOf(delivery: Delivery): string | null {
       // For whoever owes the deadline (`reminder_registrants`,
       // `reminder_contacts`), planned by the reminders handler (#84).
       return null;
+    case "judging.judge_invited":
     case "institution.coordinator_invited":
       // The invitee may have no account yet: the invitation goes to the
       // invited address by its own handler (#74), not by a route row.
       return null;
+    case "gallery.reported":
+    case "gallery.purge_requested":
+    case "gallery.purge_overdue":
+    case "gallery.purge_failed":
     case "safeguarding.report_submitted":
       // About a child, never about a user: only the leads hear of it.
       return null;
@@ -206,6 +264,12 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "payment.batch_captured":
       // Whoever started the payment gets the receipt (#77).
       return delivery.payload.payerUserId;
+    case "recurring_donation.activated":
+    case "recurring_donation.charge_failed":
+    case "recurring_donation.cancelled":
+    case "recurring_donation.refunded":
+    case "recurring_donation.payment_refused":
+    case "recurring_donation.cancel_requested":
     case "donation.captured":
     case "donation.foreign_payment_received":
     case "donation.refunded":
@@ -240,6 +304,8 @@ function subjectUserOf(delivery: Delivery): string | null {
       // The fan-out job and the authority's own email (#116); no route row
       // sends to a user for either.
       return null;
+    case "entry.foa_verified":
+    case "entry.sent_back":
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -269,23 +335,80 @@ function subjectUserOf(delivery: Delivery): string | null {
     case "privacy_request.erasure_approved":
       // The export and erasure jobs (#115b); no route row names them.
       return null;
+    case "club.decision_recorded":
     case "volunteer.guardian_approval_requested":
     case "volunteer.application_submitted":
     case "volunteer.application_approved":
     case "volunteer.application_declined":
-      // About an application (#123): `volunteer_applicant`,
+    case "volunteer.task_assigned":
+    case "volunteer.hours_approved":
+    case "volunteer.hours_rejected":
+      // About an application or service (#123/#124): `volunteer_applicant`,
       // `volunteer_guardians` and `community_managers` find who hears.
       return null;
+    case "competition_invitation.due":
+    case "survey.invitation_due":
     case "campaign.message_due":
       // The campaigns module sends it to its planned recipient (#126).
       return null;
+    case "artwork.verified":
+    case "artwork.discrepancy_raised":
+    case "artwork.discrepancy_resolved":
+    case "artwork.exhibited":
+    case "artwork.stored":
+    case "artwork.retained":
+    case "artwork.return_requested":
+    case "artwork.returned":
+    case "results.release_due":
+    case "results.prize_awarded":
+    case "stamping.requested":
+    case "event.places_changed":
+    case "event.published":
+    case "event.cancelled":
+    case "event.changed":
+    case "event.end_due":
+    case "event.registration_created":
+    case "event.registration_cancelled":
+    case "event.waitlist_promoted":
+    case "ambassador.application_submitted":
+    case "ambassador.application_approved":
+    case "ambassador.application_declined":
+    case "community.member_joined":
+    case "engagement.milestone_recorded":
+    case "certificate.archive_requested":
+    case "certificate.archive_expired":
+    case "certificate.reissued":
+    case "certificate.render":
+    case "certificates.ready":
+    case "results.published":
+    case "auction.lot_created":
+    case "auction.lot.open":
+    case "auction.lot.close":
+    case "auction.lot_opened":
+    case "auction.lot_closed":
+    case "auction.bid_outbid":
+    case "auction.offer_opened":
+    case "auction.offer.expire":
+    case "auction.sale_captured":
+    case "auction.lot_cancelled":
+    case "artwork.retain_unrequested":
+    case "artwork.requested":
+    case "artwork.dispatched":
+    case "artwork.received":
+    case "entry.replacement_live":
+    case "competition.submissions_closed":
     case "competition.school_judging_started":
     case "school_round.shortlist_finalised":
-      // Open the rounds and queue the families' messages (#89); no route
-      // row names them.
+    case "school_round.closed_on_behalf":
+      // Open the rounds and queue the families' messages (#89, #90); no
+      // route row names them.
+      return null;
+    case "school_round.overdue":
+      // For the school's coordinators (`institution_coordinators`, #90).
       return null;
     case "entry.school_shortlisted":
     case "entry.not_shortlisted":
+    case "registration.not_shortlisted":
       // The family contact isn't a user: their message goes by the school
       // round's own handler (#89), not by a route row.
       return null;
@@ -321,6 +444,29 @@ function adoptionApplicationOf(delivery: Delivery): string | null {
   }
 }
 
+function volunteerWorkOf(delivery: Delivery) {
+  switch (delivery.eventType) {
+    case "volunteer.task_assigned":
+      return {
+        type: "assignment",
+        assignmentId: delivery.payload.assignmentId,
+      } as const;
+    case "volunteer.hours_approved":
+      return {
+        type: "hours",
+        entryId: delivery.payload.entryId,
+        status: "approved",
+      } as const;
+    case "volunteer.hours_rejected":
+      return {
+        type: "hours",
+        entryId: delivery.payload.entryId,
+        status: "rejected",
+      } as const;
+    default:
+      return null;
+  }
+}
 /** The volunteer application an event is about (#123). */
 function volunteerApplicationOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
@@ -338,6 +484,8 @@ function volunteerApplicationOf(delivery: Delivery): string | null {
 function registrationOf(delivery: Delivery): string | null {
   switch (delivery.eventType) {
     case "registration.confirmed":
+    case "entry.foa_verified":
+    case "entry.sent_back":
     case "entry.submitted":
     case "entry.file_rejected":
     case "entry.file_failed":
@@ -359,10 +507,62 @@ function competitionOf(delivery: Delivery): string | null {
 
 export type { AudienceMember };
 
-type Audience = (db: AppDb, delivery: Delivery) => Promise<AudienceMember[]>;
+type Audience = (
+  db: AppDb,
+  delivery: Delivery,
+  cipher?: FieldCipher
+) => Promise<AudienceMember[]>;
 
 /** Each audience key a route may name, and the user ids it resolves to. */
 export const AUDIENCES = {
+  event_registrants: eventNoticeRecipients,
+  event_reminder_recipients: eventReminderRecipients,
+  content_managers: async (db) =>
+    (
+      await db
+        .selectDistinct({ userId: userRole.userId })
+        .from(userRole)
+        .where(
+          and(
+            eq(userRole.role, "content_manager"),
+            eq(userRole.scopeType, "global")
+          )
+        )
+    ).map((row) => row.userId),
+  certificate_reissued_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "certificate.reissued" && cipher
+      ? reissueRecipients(db, delivery.payload.certificateId, cipher)
+      : [],
+  auction_winner: async (db, delivery) =>
+    delivery.eventType === "auction.offer_opened"
+      ? offeredBuyer(db, delivery.payload.offerId)
+      : [],
+  auction_creator: async (db, delivery, cipher) =>
+    delivery.eventType === "auction.sale_captured" && cipher
+      ? creatorRecipients(db, delivery.payload.offerId, cipher)
+      : [],
+  auction_school: async (db, delivery) =>
+    delivery.eventType === "auction.sale_captured"
+      ? schoolRecipients(db, delivery.payload.offerId)
+      : [],
+  certificate_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "certificates.ready" && cipher
+      ? certificateReadyRecipients(db, delivery.payload, cipher)
+      : [],
+  prize_recipients: async (db, delivery, cipher) =>
+    delivery.eventType === "results.prize_awarded" && cipher
+      ? prizeRecipients(db, delivery.payload, cipher)
+      : [],
+  artwork_sender: async (db, delivery) =>
+    delivery.eventType === "artwork.requested" ||
+    delivery.eventType === "artwork.received"
+      ? artworkRecipients(
+          db,
+          delivery.payload.artworkId,
+          delivery.eventType === "artwork.received"
+        )
+      : [],
+
   /** The user the event is about: the new account, the one who withdrew. */
   subject_user: async (db, delivery) => {
     // The institution's receipt; an adult's own goes as individual_payer.
@@ -371,6 +571,16 @@ export const AUDIENCES = {
     }
     const userId = subjectUserOf(delivery);
     return userId ? [userId] : [];
+  },
+  /** The displaced bidder, not the new leader. Resolve at delivery time so
+   * an erased bid's former account cannot receive anything. */
+  outbid_bidder: async (db, delivery) => {
+    if (delivery.eventType !== "auction.bid_outbid") return [];
+    const [bid] = await db
+      .select({ userId: auctionBid.bidderUserId })
+      .from(auctionBid)
+      .where(eq(auctionBid.id, delivery.payload.previousBidId));
+    return bid?.userId ? [bid.userId] : [];
   },
   /** Whoever paid for their own registration (#78): their receipt. */
   individual_payer: async (db, delivery) =>
@@ -415,10 +625,14 @@ export const AUDIENCES = {
   /**
    * Everyone who acts for an institution registration's institution: its
    * coordinators and its authorised person (#80: its competition was
-   * cancelled).
+   * cancelled; #90: its school round is overdue).
    */
   institution_coordinators: async (db, delivery) =>
-    delivery.eventType === "institution_registration.competition_cancelled"
+    (delivery.eventType === "institution_registration.competition_cancelled" ||
+      delivery.eventType === "school_round.overdue" ||
+      delivery.eventType === "entry.foa_verified" ||
+      delivery.eventType === "entry.sent_back") &&
+    delivery.payload.institutionRegistrationId
       ? institutionCoordinators(db, delivery.payload.institutionRegistrationId)
       : [],
   /**
@@ -518,12 +732,34 @@ export const AUDIENCES = {
    * Whoever applied to volunteer (#123): an adult on every channel the
    * route names, a teen in the inbox only.
    */
+  ambassador_applicant: async (db, delivery) => {
+    switch (delivery.eventType) {
+      case "ambassador.application_submitted":
+      case "ambassador.application_approved":
+      case "ambassador.application_declined":
+        return ambassadorApplicant(db, delivery.payload.applicationId);
+      default:
+        return [];
+    }
+  },
+  ambassador_reviewers: async (db, delivery) =>
+    delivery.eventType === "ambassador.application_submitted"
+      ? ambassadorReviewers(db, delivery.payload.applicationId)
+      : [],
+  club_applicant: async (db, delivery) =>
+    delivery.eventType === "club.decision_recorded"
+      ? clubNoticeRecipients(db, delivery.payload.decisionId)
+      : [],
   volunteer_applicant: async (db, delivery) => {
+    const work = volunteerWorkOf(delivery);
+    if (work) return volunteerWorkAudience(db, work, false);
     const applicationId = volunteerApplicationOf(delivery);
     return applicationId ? volunteerApplicant(db, applicationId) : [];
   },
   /** A teen applicant's verified guardians (#123); nobody for an adult's. */
   volunteer_guardians: async (db, delivery) => {
+    const work = volunteerWorkOf(delivery);
+    if (work) return volunteerWorkAudience(db, work, true);
     const applicationId = volunteerApplicationOf(delivery);
     return applicationId ? volunteerGuardians(db, applicationId) : [];
   },
@@ -551,6 +787,8 @@ export const AUDIENCES = {
    * person it planned, on the consent the message rests on, so the generic
    * resolver grants no recipients.
    */
+  survey_invitation: async () => [],
+  competition_invitation: async () => [],
   campaign_recipient: async () => [],
 } satisfies Record<string, Audience>;
 
@@ -655,6 +893,13 @@ function reasonSentence(block: TransitionBlock): string {
           "and"
         ),
       });
+    case "school_rounds_unfinished":
+      return statusWords("blockReason.school_rounds_unfinished", {
+        unfinished: block.missing + block.open + block.overdue,
+        missing: block.missing,
+        open: block.open,
+        overdue: block.overdue,
+      });
   }
 }
 
@@ -668,6 +913,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   "files.file_uploaded": { names: [], load: async () => ({}) },
   "files.processing_requested": { names: [], load: async () => ({}) },
   "files.video_processing_requested": { names: [], load: async () => ({}) },
+  "files.pdf_processing_requested": { names: [], load: async () => ({}) },
   "files.file_ready": { names: [], load: async () => ({}) },
   "files.file_processed": { names: [], load: async () => ({}) },
   "files.file_processing_failed": { names: [], load: async () => ({}) },
@@ -699,6 +945,7 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: REMINDER_VARIABLES,
     load: (db, { payload }) => reminderValues(db, payload.reminderJobId),
   },
+  "judging.judge_invited": { names: [], load: async () => ({}) },
   "institution.coordinator_invited": { names: [], load: async () => ({}) },
   "directory.listing_submitted": { names: [], load: async () => ({}) },
   "directory.listing_verified": {
@@ -724,6 +971,10 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   // Nothing of the report: the alert says only that one came in (#116).
   "safeguarding.report_submitted": { names: [], load: async () => ({}) },
+  "gallery.reported": { names: [], load: async () => ({}) },
+  "gallery.purge_requested": { names: [], load: async () => ({}) },
+  "gallery.purge_overdue": { names: [], load: async () => ({}) },
+  "gallery.purge_failed": { names: [], load: async () => ({}) },
   "cms.post_scheduled": { names: [], load: async () => ({}) },
   "cms.post_published": { names: [], load: async () => ({}) },
   "rubric.published": { names: [], load: async () => ({}) },
@@ -751,6 +1002,12 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   // The donations module renders these itself (#106): only it can mint a
   // receipt link as the email goes. Declared so templates check out.
+  "recurring_donation.activated": { names: [], load: async () => ({}) },
+  "recurring_donation.charge_failed": { names: [], load: async () => ({}) },
+  "recurring_donation.cancelled": { names: [], load: async () => ({}) },
+  "recurring_donation.refunded": { names: [], load: async () => ({}) },
+  "recurring_donation.payment_refused": { names: [], load: async () => ({}) },
+  "recurring_donation.cancel_requested": { names: [], load: async () => ({}) },
   "donation.captured": {
     names: [
       "donation.amount",
@@ -810,6 +1067,85 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }) =>
       institutionCancellationValues(db, payload.institutionRegistrationId),
   },
+  "competition.submissions_closed": { names: [], load: async () => ({}) },
+  "entry.replacement_live": { names: [], load: async () => ({}) },
+  "artwork.requested": {
+    names: ARTWORK_VARIABLES,
+    load: (db, { payload }) => artworkValues(db, payload.artworkId),
+  },
+  "artwork.dispatched": { names: [], load: async () => ({}) },
+  "artwork.received": {
+    names: ARTWORK_VARIABLES,
+    load: (db, { payload }) => artworkValues(db, payload.artworkId),
+  },
+  "artwork.verified": { names: [], load: async () => ({}) },
+  "artwork.discrepancy_raised": { names: [], load: async () => ({}) },
+  "artwork.discrepancy_resolved": { names: [], load: async () => ({}) },
+  "artwork.exhibited": { names: [], load: async () => ({}) },
+  "artwork.stored": { names: [], load: async () => ({}) },
+  "artwork.retained": { names: [], load: async () => ({}) },
+  "artwork.return_requested": { names: [], load: async () => ({}) },
+  "artwork.returned": { names: [], load: async () => ({}) },
+  "results.release_due": { names: [], load: async () => ({}) },
+  "results.prize_awarded": {
+    names: PRIZE_VARIABLES,
+    load: (db, delivery) => prizeValues(db, delivery.payload),
+  },
+  "ambassador.application_submitted": { names: [], load: async () => ({}) },
+  "ambassador.application_approved": { names: [], load: async () => ({}) },
+  "ambassador.application_declined": {
+    names: ["decline.reason"],
+    load: (db, { payload }, cipher) =>
+      ambassadorDeclineValues(db, payload.applicationId, cipher),
+  },
+  "community.member_joined": { names: [], load: async () => ({}) },
+  "engagement.milestone_recorded": { names: [], load: async () => ({}) },
+  "results.published": { names: [], load: async () => ({}) },
+  "certificate.archive_requested": { names: [], load: async () => ({}) },
+  "certificate.archive_expired": { names: [], load: async () => ({}) },
+  "certificate.reissued": { names: [], load: async () => ({}) },
+  "stamping.requested": { names: [], load: async () => ({}) },
+  "certificate.render": { names: [], load: async () => ({}) },
+  "certificates.ready": {
+    names: CERTIFICATE_READY_VARIABLES,
+    load: (db, delivery) => certificateReadyValues(db, delivery.payload),
+  },
+  "auction.lot_created": { names: [], load: async () => ({}) },
+  "auction.lot.open": { names: [], load: async () => ({}) },
+  "auction.lot.close": { names: [], load: async () => ({}) },
+  "auction.lot_opened": { names: [], load: async () => ({}) },
+  "auction.lot_closed": { names: [], load: async () => ({}) },
+  "auction.bid_outbid": {
+    names: ["lot.code"],
+    load: async (db, { payload }): Promise<Record<string, string>> => {
+      const [row] = await db
+        .select({ code: auctionLot.lotCode })
+        .from(auctionBid)
+        .innerJoin(auctionLot, eq(auctionBid.lotId, auctionLot.id))
+        .where(eq(auctionBid.id, payload.previousBidId));
+      if (!row) return {};
+      return { "lot.code": row.code };
+    },
+  },
+  "auction.offer_opened": {
+    names: ["lot.code", "offer.link", "offer.deadline"],
+    load: (db, { payload }) => offerValues(db, payload.offerId),
+  },
+  "auction.offer.expire": { names: [], load: async () => ({}) },
+  "auction.sale_captured": {
+    names: ["lot.code"],
+    load: (db, { payload }) => saleValues(db, payload.offerId),
+  },
+  "auction.lot_cancelled": { names: [], load: async () => ({}) },
+  "artwork.retain_unrequested": { names: [], load: async () => ({}) },
+  "entry.foa_verified": {
+    names: VERIFICATION_VARIABLES,
+    load: (db, { payload }) => verificationValues(db, payload.verificationId),
+  },
+  "entry.sent_back": {
+    names: VERIFICATION_VARIABLES,
+    load: (db, { payload }) => verificationValues(db, payload.verificationId),
+  },
   "entry.submitted": {
     names: ENTRY_RECEIPT_VARIABLES,
     load: (db, { payload }) => entryValues(db, payload, true),
@@ -824,9 +1160,18 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
   },
   "competition.school_judging_started": { names: [], load: async () => ({}) },
   "school_round.shortlist_finalised": { names: [], load: async () => ({}) },
+  "school_round.closed_on_behalf": { names: [], load: async () => ({}) },
+  "school_round.overdue": {
+    names: SCHOOL_ROUND_OVERDUE_VARIABLES,
+    load: (db, { payload }) => overdueValues(db, payload.roundId),
+  },
   "entry.school_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,
     load: (db, { payload }) => outcomeValues(db, payload),
+  },
+  "registration.not_shortlisted": {
+    names: CONFIRMATION_VARIABLES,
+    load: (db, { payload }) => confirmationValues(db, payload.registrationId),
   },
   "entry.not_shortlisted": {
     names: SCHOOL_ROUND_OUTCOME_VARIABLES,
@@ -856,6 +1201,28 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: async (db, { payload }, cipher) =>
       (await announcementMessageFor({ db, cipher }, payload))?.values ?? {},
   },
+  "event.places_changed": { names: [], load: async () => ({}) },
+  "event.published": { names: [], load: async () => ({}) },
+  "event.end_due": { names: [], load: async () => ({}) },
+  "event.changed": { names: EVENT_CHANGE_VARIABLES, load: eventNoticeValues },
+  "event.cancelled": { names: EVENT_NOTICE_VARIABLES, load: eventNoticeValues },
+  "event.registration_created": {
+    names: EVENT_REGISTRATION_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.registration_cancelled": {
+    names: EVENT_REGISTRATION_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "event.waitlist_promoted": {
+    names: EVENT_REGISTRATION_VARIABLES,
+    load: eventNoticeValues,
+  },
+  "club.decision_recorded": {
+    names: CLUB_NOTICE_VARIABLES,
+    load: (db, { payload }, cipher) =>
+      clubNoticeValues(db, payload.decisionId, cipher),
+  },
   "volunteer.guardian_approval_requested": {
     names: APPLICATION_VARIABLES,
     load: (db, { payload }, cipher) =>
@@ -866,6 +1233,9 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
   },
+  "volunteer.task_assigned": { names: [], load: async () => ({}) },
+  "volunteer.hours_approved": { names: [], load: async () => ({}) },
+  "volunteer.hours_rejected": { names: [], load: async () => ({}) },
   "volunteer.application_approved": {
     names: APPLICATION_VARIABLES,
     load: (db, { payload }, cipher) =>
@@ -875,6 +1245,14 @@ export const EVENT_VARIABLES: { [T in EventType]: EventVariables<T> } = {
     names: DECLINED_VARIABLES,
     load: (db, { payload }, cipher) =>
       applicationValues(db, payload.applicationId, cipher),
+  },
+  "competition_invitation.due": {
+    names: ["invitation.link"],
+    load: async () => ({}),
+  },
+  "survey.invitation_due": {
+    names: ["survey.title", "survey.link"],
+    load: async () => ({}),
   },
   "campaign.message_due": {
     names: CAMPAIGN_VARIABLES,

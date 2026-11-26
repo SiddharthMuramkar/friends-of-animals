@@ -25,7 +25,7 @@ describe("dashboardLinks", () => {
       ])
     ).toEqual([
       { area: "member", section: "member", href: "/dashboard#member" },
-      { area: "admin", section: "admin", href: "/dashboard#admin" },
+      { area: "admin", section: "admin", href: "/admin" },
       {
         area: "institution",
         id: SCHOOL,
@@ -38,7 +38,7 @@ describe("dashboardLinks", () => {
         section: `institution-${OTHER_SCHOOL}`,
         href: `/dashboard#institution-${OTHER_SCHOOL}`,
       },
-      { area: "judge", section: "judge", href: "/dashboard#judge" },
+      { area: "judge", section: "judge", href: "/judge" },
       {
         area: "organisation",
         id: PARTNER,

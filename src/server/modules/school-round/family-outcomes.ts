@@ -26,14 +26,21 @@ import {
   institution,
   institutionRegistration,
   participantProfile,
+  registration,
   schoolRound,
   schoolRoundPick,
+  schoolRoundFamilyNotice,
 } from "../../db/schema";
 import { emitBatch } from "../../outbox/emit";
 import type { Delivery, OutboxDeps } from "../../outbox/handlers";
 import type { Clock } from "../../ports/clock";
-import { familyContactEmail } from "../registration/confirmation-message";
-import { loadPicks, loadRoundEntries } from "./store";
+import {
+  confirmationValues,
+  familyContactEmail,
+} from "../registration/confirmation-message";
+import { isSchoolRoundFinished } from "./domain/status";
+import { outcomesToTell, type ToldOutcome } from "./domain/outcome-changes";
+import { loadPicks, loadRoundEntries, loadRoundStudents } from "./store";
 
 /** The variables the two outcome templates may use, beyond the recipient's. */
 export const SCHOOL_ROUND_OUTCOME_VARIABLES = [
@@ -55,23 +62,80 @@ export async function queueFamilyOutcomes(
       .from(schoolRound)
       .where(eq(schoolRound.id, roundId))
       .for("update");
-    if (!round || round.status !== "finalised" || round.familiesNotifiedAt) {
+    if (
+      !round ||
+      !isSchoolRoundFinished(round.status) ||
+      round.familiesNotifiedAt
+    ) {
       return;
     }
     const entries = await loadRoundEntries(tx, round.institutionRegistrationId);
-    const picked = new Set(
-      (await loadPicks(tx, round.id)).map((pick) => pick.entryId)
+    const positions = new Map(
+      (await loadPicks(tx, round.id)).map((pick) => [
+        pick.entryId,
+        pick.position,
+      ])
     );
+    const previous = await tx
+      .select({
+        registrationId: schoolRoundFamilyNotice.registrationId,
+        outcome: schoolRoundFamilyNotice.outcome,
+        position: schoolRoundFamilyNotice.position,
+      })
+      .from(schoolRoundFamilyNotice)
+      .where(eq(schoolRoundFamilyNotice.roundId, round.id));
+    const next: (ToldOutcome & {
+      entryId: string | null;
+      registrationId: string;
+    })[] = entries.map(({ entryId, registrationId }) => ({
+      entryId,
+      registrationId,
+      outcome: positions.has(entryId) ? "shortlisted" : "not_shortlisted",
+      position: positions.get(entryId) ?? null,
+    }));
+    const [scope] = await tx
+      .select({ digitalScope: competition.digitalScope })
+      .from(competition)
+      .where(eq(competition.id, round.competitionId));
+    if (scope?.digitalScope === "shortlist_only") {
+      const students = await loadRoundStudents(
+        tx,
+        round.institutionRegistrationId
+      );
+      next.push(
+        ...students
+          .filter((student) => !student.entry)
+          .map(({ registrationId }) => ({
+            registrationId,
+            entryId: null,
+            outcome: "not_shortlisted" as const,
+            position: null,
+          }))
+      );
+    }
     await emitBatch(
       tx,
       deps.clock,
-      entries.map(({ entryId, registrationId }) => ({
-        type: picked.has(entryId)
-          ? ("entry.school_shortlisted" as const)
-          : ("entry.not_shortlisted" as const),
-        aggregate: { type: "entry" as const, id: entryId },
-        payload: { entryId, registrationId, roundId },
-      }))
+      outcomesToTell(previous, next).map(
+        ({ entryId, registrationId, outcome, position }) =>
+          entryId === null
+            ? {
+                type: "registration.not_shortlisted" as const,
+                aggregate: {
+                  type: "registration" as const,
+                  id: registrationId,
+                },
+                payload: { registrationId, roundId },
+              }
+            : {
+                type:
+                  outcome === "shortlisted"
+                    ? ("entry.school_shortlisted" as const)
+                    : ("entry.not_shortlisted" as const),
+                aggregate: { type: "entry" as const, id: entryId },
+                payload: { entryId, registrationId, roundId, position },
+              }
+      )
     );
     await tx
       .update(schoolRound)
@@ -138,15 +202,90 @@ export async function outcomeValues(
 /** Emails one entry's family its school round outcome. */
 export async function sendFamilyOutcome(
   deps: OutboxDeps,
-  delivery: Delivery<"entry.school_shortlisted" | "entry.not_shortlisted">
+  delivery: Delivery<
+    | "entry.school_shortlisted"
+    | "entry.not_shortlisted"
+    | "registration.not_shortlisted"
+  >
 ): Promise<void> {
-  const { registrationId } = delivery.payload;
-  const message = await familyContactEmail(deps, {
-    eventType: delivery.eventType,
-    registrationId,
-    // A refund (#80) or a cancellation since: nothing to send.
-    sendWhile: (status) => status === "confirmed",
-    values: () => outcomeValues(deps.db, delivery.payload),
+  const { registrationId, roundId } = delivery.payload;
+  await deps.db.transaction(async (tx) => {
+    // Hold the round so a reopen cannot invalidate the message while it is
+    // sent. Recheck the registration and pick, including no-entry outcomes.
+    const [round] = await tx
+      .select()
+      .from(schoolRound)
+      .where(eq(schoolRound.id, roundId))
+      .for("update");
+    if (!round || !isSchoolRoundFinished(round.status)) return;
+    const [student] = await tx
+      .select({
+        entryId: entry.id,
+        position: schoolRoundPick.position,
+        picked: schoolRoundPick.entryId,
+        digitalScope: competition.digitalScope,
+      })
+      .from(registration)
+      .innerJoin(competition, eq(competition.id, registration.competitionId))
+      .leftJoin(entry, eq(entry.registrationId, registration.id))
+      .leftJoin(
+        schoolRoundPick,
+        and(
+          eq(schoolRoundPick.entryId, entry.id),
+          eq(schoolRoundPick.roundId, roundId)
+        )
+      )
+      .where(
+        and(
+          eq(registration.id, registrationId),
+          eq(
+            registration.institutionRegistrationId,
+            round.institutionRegistrationId
+          ),
+          eq(registration.status, "confirmed")
+        )
+      );
+    if (!student) return;
+    const outcome = student.picked ? "shortlisted" : "not_shortlisted";
+    const position = student.position ?? null;
+    if ("entryId" in delivery.payload) {
+      if (
+        delivery.payload.entryId !== student.entryId ||
+        (delivery.eventType === "entry.school_shortlisted") !==
+          (outcome === "shortlisted") ||
+        (delivery.payload.position !== undefined &&
+          delivery.payload.position !== position)
+      )
+        return;
+    } else if (student.entryId || student.digitalScope !== "shortlist_only") {
+      return;
+    }
+    const [previous] = await tx
+      .select()
+      .from(schoolRoundFamilyNotice)
+      .where(eq(schoolRoundFamilyNotice.registrationId, registrationId));
+    if (previous?.outcome === outcome && previous.position === position) return;
+    const message = await familyContactEmail(
+      { ...deps, db: tx },
+      {
+        eventType: delivery.eventType,
+        registrationId,
+        sendWhile: (status) => status === "confirmed",
+        values: () =>
+          "entryId" in delivery.payload
+            ? outcomeValues(tx, delivery.payload)
+            : confirmationValues(tx, registrationId),
+      }
+    );
+    if (!message) return;
+    await deps.email.send(message, { deliveryId: delivery.id });
+    const toldAt = deps.clock.now();
+    await tx
+      .insert(schoolRoundFamilyNotice)
+      .values({ registrationId, roundId, outcome, position, toldAt })
+      .onConflictDoUpdate({
+        target: schoolRoundFamilyNotice.registrationId,
+        set: { outcome, position, toldAt },
+      });
   });
-  if (message) await deps.email.send(message, { deliveryId: delivery.id });
 }

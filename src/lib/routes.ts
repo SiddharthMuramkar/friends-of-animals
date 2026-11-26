@@ -1,8 +1,8 @@
 /**
  * The one registry of public routes. The header, footer and sitemap read it,
  * so a page that isn't here isn't linked. Labels live in messages/en-IN/nav.json
- * under nav.links.<id>. Spec modules that aren't built yet (gallery,
- * transparency, events, volunteer, auctions) stay out. Pages
+ * under nav.links.<id>. Spec modules that aren't built yet (
+ * events, volunteer) stay out. Pages
  * behind sign-in are in src/lib/app-routes.ts.
  */
 
@@ -43,6 +43,7 @@ const DEFINITIONS = {
     sitemap: { updated: UPDATED, priority: 0.9 },
   },
   competition: { path: "/competitions/[slug]", hue: "pink" },
+  competitionResults: { path: "/competitions/[slug]/results", hue: "pink" },
   /** The route chooser (#78): through a school, or as an individual adult. */
   participate: {
     path: "/participate",
@@ -64,6 +65,14 @@ const DEFINITIONS = {
     footer: "takePart",
     sitemap: { updated: UPDATED, priority: 0.8 },
   },
+  events: {
+    path: "/events",
+    hue: "green",
+    primaryNav: 4.5,
+    footer: "takePart",
+    sitemap: { updated: "2026-11-25", priority: 0.8 },
+  },
+  event: { path: "/events/[slug]", hue: "green" },
   /** The NGO directory's search (#128); listings are /ngos/<slug>. */
   ngos: {
     path: "/ngos",
@@ -87,6 +96,21 @@ const DEFINITIONS = {
     sitemap: { updated: "2026-11-24", priority: 0.7 },
   },
   adoptable: { path: "/adopt/[slug]", hue: "green" },
+  gallery: {
+    path: "/gallery",
+    hue: "pink",
+    footer: "takePart",
+    sitemap: { updated: "2026-11-25", priority: 0.8 },
+  },
+  galleryItem: { path: "/gallery/[itemId]", hue: "pink" },
+  galleryReport: { path: "/gallery/[itemId]/report", hue: "pink" },
+  auctions: {
+    path: "/auctions",
+    hue: "yellow",
+    footer: "organisation",
+    sitemap: { updated: "2026-11-25", priority: 0.6 },
+  },
+  auctionLot: { path: "/auctions/[lotCode]", hue: "yellow" },
   about: {
     path: "/about",
     hue: "blue",
@@ -202,7 +226,7 @@ export function sitemapRoutes(): (PublicRoute & {
 
 /** Concrete href for a dynamic route, e.g. routeHref("story", "kolam"). */
 export function slugHref(
-  id: "competition" | "story" | "adoptable",
+  id: "competition" | "competitionResults" | "story" | "adoptable" | "event",
   slug: string
 ): string {
   return ROUTES[id].path.replace("[slug]", encodeURIComponent(slug));

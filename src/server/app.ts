@@ -31,6 +31,10 @@ import { coordinatorsUseCases } from "./modules/institutions/coordinators";
 import { contactUseCases } from "./modules/contact";
 import { publicFormUseCases } from "./modules/public-forms";
 import { safeguardingUseCases } from "./modules/safeguarding";
+import { eventsUseCases } from "./modules/events";
+import { communityUseCases } from "./modules/community";
+import { certificateUseCases } from "./modules/certificates";
+import { resultsUseCases } from "./modules/results";
 import { judgingUseCases } from "./modules/judging";
 import { competitionTermsUseCases } from "./modules/competitions/terms";
 import { registrationUseCases } from "./modules/registration";
@@ -38,6 +42,7 @@ import { paymentsUseCases } from "./modules/payments";
 import { participantsUseCases } from "./modules/participants";
 import { guardiansUseCases } from "./modules/guardians";
 import { ledgerUseCases } from "./modules/ledger";
+import { transparencyUseCases } from "./modules/transparency";
 import { entriesUseCases } from "./modules/entries";
 import { announcementsUseCases } from "./modules/announcements";
 import { privacyUseCases } from "./modules/privacy";
@@ -52,9 +57,20 @@ import { volunteersUseCases } from "./modules/volunteers";
 import { remindersUseCases } from "./modules/reminders";
 import { campaignsUseCases } from "./modules/campaigns";
 import { schoolRoundUseCases } from "./modules/school-round";
+import { socialExportUseCases } from "./modules/social-export";
+import { galleryUseCases } from "./modules/gallery";
+import { auctionsUseCases } from "./modules/auctions";
+import { physicalArtworkUseCases } from "./modules/physical-artwork";
+import { verificationUseCases } from "./modules/verification";
+import { invitationsUseCases } from "./modules/invitations";
+import { surveysUseCases } from "./modules/surveys";
+import { reportsUseCases } from "./modules/reports";
+import { clubsUseCases } from "./modules/clubs";
 import { composeUseCases } from "./use-cases";
 
-const useCases = composeUseCases(
+// Keep each composition shallow enough for TypeScript's instantiation
+// ceiling; composing the groups still checks duplicate names across them.
+const coreUseCases = composeUseCases(
   identityUseCases,
   accessUseCases,
   auditUseCases,
@@ -73,12 +89,20 @@ const useCases = composeUseCases(
   contactUseCases,
   safeguardingUseCases,
   judgingUseCases,
+  resultsUseCases,
+  communityUseCases,
+  clubsUseCases,
+  eventsUseCases,
+  certificateUseCases,
   competitionTermsUseCases,
   registrationUseCases,
-  paymentsUseCases,
+  paymentsUseCases
+);
+const operationUseCases = composeUseCases(
   participantsUseCases,
   guardiansUseCases,
   ledgerUseCases,
+  transparencyUseCases,
   entriesUseCases,
   announcementsUseCases,
   privacyUseCases,
@@ -92,8 +116,17 @@ const useCases = composeUseCases(
   remindersUseCases,
   campaignsUseCases,
   institutionSubmissionsUseCases,
-  schoolRoundUseCases
+  schoolRoundUseCases,
+  verificationUseCases,
+  physicalArtworkUseCases,
+  auctionsUseCases,
+  galleryUseCases,
+  socialExportUseCases,
+  surveysUseCases,
+  invitationsUseCases,
+  reportsUseCases
 );
+const useCases = composeUseCases(coreUseCases, operationUseCases);
 
 /** Every use case, by name, bound to one actor. */
 export type UseCases = ReturnType<typeof useCases>;

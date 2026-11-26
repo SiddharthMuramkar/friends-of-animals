@@ -8,6 +8,8 @@
 // them, and erasure hands the institution to someone else first. The same
 // holds for directory_listing.owner_user_id (#127): erasure withdraws the
 // person's listings, or hands them to another representative, first.
+// A terminal listing may have no owner; the FK still rejects accidental
+// deletion before erasure has taken care of it.
 
 import { is } from "drizzle-orm";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
@@ -40,6 +42,7 @@ function referencesBlockingAccountDeletion(): string[] {
 describe("deleting an account", () => {
   it("is refused only by the references erasure deals with first (#115b)", () => {
     expect(referencesBlockingAccountDeletion()).toEqual([
+      "certificate.recipient_user_id (no action)",
       "consent_event.reviewer_user_id (no action)",
       "consent_form.reviewed_by_user_id (restrict)",
       "consent_form.uploaded_by_user_id (restrict)",

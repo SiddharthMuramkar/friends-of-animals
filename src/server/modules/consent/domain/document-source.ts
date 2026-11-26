@@ -41,7 +41,8 @@ export type SourceErrorCode =
   | "unclosed_fact"
   | "dangling_escape"
   /** The source parsed but the body breaks a rule the parser missed. */
-  | "invalid_document";
+  | "invalid_document"
+  | "auction_proceeds_invalid";
 
 /** `line` is 1-based, or null for the document as a whole. */
 export type SourceError = { line: number | null; code: SourceErrorCode };

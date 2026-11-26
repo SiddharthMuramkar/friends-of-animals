@@ -99,8 +99,8 @@
         },
         "results": {
           "label": "See the results",
-          "title": "Results pages are coming",
-          "body": "Results will be published here with first names and initials only. That page is being built."
+          "title": "Results published",
+          "body": "See the approved results with consented credits only."
         },
         "cancelled": {
           "label": "This competition was cancelled",
@@ -238,7 +238,8 @@
         "shortlist": "Your school judges its entries first. Only its shortlist is sent online to our judges.",
         "schools": "Each school sends up to {count, plural, one {# entry} other {# entries}} in each category and picks its own {positions, plural, one {winner} other {top # places}}."
       },
-      "loading": "Opening the competition"
+      "loading": "Opening the competition",
+      "liveResultsLink": "Results"
     }
   }
 }

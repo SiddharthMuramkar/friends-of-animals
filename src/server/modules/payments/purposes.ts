@@ -1,3 +1,8 @@
+import {
+  syncAuctionBatch,
+  acceptReviewedAuction,
+  settleAuctionRefund,
+} from "../auctions/payments";
 // What a payment batch pays for decides what its money does (#106). The
 // payments module keeps the one funnel every signal goes through (the
 // signature, the replay guard, the gateway's own record of the order and
@@ -45,7 +50,8 @@ export type PaymentPurposeHandler = {
     ctx: PurposeContext,
     batch: PaymentBatchRow,
     payments: readonly GatewayPayment[],
-    actorRole: Role | null
+    actorRole: Role | null,
+    observedAt: Date
   ): Promise<SyncOutcome>;
   acceptReviewed(
     tx: AppDb,
@@ -67,6 +73,12 @@ export function purposeHandler(
   purpose: Exclude<PaymentPurpose, "registration_fee">
 ): PaymentPurposeHandler {
   switch (purpose) {
+    case "auction_sale":
+      return {
+        sync: syncAuctionBatch,
+        acceptReviewed: acceptReviewedAuction,
+        refundSettled: settleAuctionRefund,
+      };
     case "donation":
       return {
         sync: syncDonationBatch,

@@ -9,6 +9,7 @@ import { createHarness } from "@/test/harness";
 
 import { SEED_COORDINATORS } from "./coordinators";
 import { SEED_INSTITUTIONS } from "./institutions";
+import { SEED_OBJECTIVES } from "./objectives";
 import { SEED_SCHOOL_ROUND } from "./school-round";
 
 const ROUND = {
@@ -22,6 +23,14 @@ describe("the school round seed", () => {
     await h.seed.preview();
     const coordinator = h.as(await h.signIn(SEED_COORDINATORS.coordinator));
 
+    const competition = await h
+      .as(h.visitor())
+      .getPublishedCompetition({ slug: "kinder-skies" });
+    expect(
+      competition!.keyDates
+        .find((date) => date.kind === "school_round_closes")!
+        .at.getTime()
+    ).toBeGreaterThan(h.clock.now().getTime());
     const view = await coordinator.getSchoolRound(ROUND);
 
     expect(view).toMatchObject({
@@ -87,7 +96,14 @@ describe("the school round seed", () => {
     await h.seed.preview();
 
     expect(await rows()).toEqual(first);
-    expect(first.rounds).toHaveLength(1);
-    expect(first.picks).toHaveLength(2);
+    expect(first.rounds).toHaveLength(3);
+    expect(first.picks).toHaveLength(3);
+    const objectiveRound = first.rounds.find(
+      (row) => row.competitionId === SEED_OBJECTIVES.competitionId
+    );
+    expect(objectiveRound).toMatchObject({ status: "finalised" });
+    expect(
+      first.picks.find((row) => row.roundId === objectiveRound!.id)
+    ).toMatchObject({ position: 1 });
   });
 });

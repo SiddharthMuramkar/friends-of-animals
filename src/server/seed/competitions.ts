@@ -131,6 +131,43 @@ export const SEED_SCHOOL_SUBMISSIONS_COMPETITION = {
     "Draw, paint or photograph a tree near your school and the birds that live in it.",
 } as const;
 
+export const SEED_ARTWORK_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000009301",
+  code: "ORIG27",
+  slug: "originals-for-animals",
+  name: "Originals for Animals",
+} as const;
+
+export const SEED_SCORING_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000096001",
+  code: "JURY27",
+  slug: "kindness-in-art",
+  name: "Kindness in Art",
+} as const;
+
+export const SEED_AUCTION_COMPETITION = {
+  id: "01938a00-0000-7000-8000-000000131000",
+  code: "AUCT27",
+  slug: "art-for-kindness",
+  name: "Art for kindness",
+} as const;
+
+/** Dedicated work-queue examples; never alter active judging demos. */
+export const SEED_REPORT_COMPETITIONS = [
+  {
+    id: "01938a00-0000-7000-8000-000000117001",
+    code: "RSLT27",
+    slug: "kindness-in-words",
+    name: "Kindness in Words",
+  },
+  {
+    id: "01938a00-0000-7000-8000-000000117002",
+    code: "CHECK27",
+    slug: "stories-for-animals",
+    name: "Stories for Animals",
+  },
+] as const;
+
 /**
  * The seeded competitions as of `now`. Every key date is whole days from
  * the seed day, at an IST time of day, so a date is never within a day of
@@ -168,6 +205,108 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
         },
       },
     },
+    {
+      id: SEED_ARTWORK_COMPETITION.id,
+      slug: SEED_ARTWORK_COMPETITION.slug,
+      status: "foa_judging",
+      publishedAt: daysAgo(260),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: SEED_ARTWORK_COMPETITION.code,
+        name: SEED_ARTWORK_COMPETITION.name,
+        theme: "Draw a safe place for the animals that live beside us.",
+        participation: "both",
+        disciplines: ["drawing"],
+        ageGroups: [...AGE_GROUPS, ADULT_AGE_GROUP],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "all_shortlisted" },
+        keyDates: {
+          registration_opens: ist(-220, "09:00"),
+          registration_closes: ist(-130, "23:59"),
+          submissions_close: ist(-60, "23:59"),
+          school_round_closes: ist(-30, "23:59"),
+        },
+      },
+    },
+    {
+      id: SEED_SCORING_COMPETITION.id,
+      slug: SEED_SCORING_COMPETITION.slug,
+      status: "foa_judging",
+      publishedAt: daysAgo(250),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: SEED_SCORING_COMPETITION.code,
+        name: SEED_SCORING_COMPETITION.name,
+        theme: "Show kindness to the animals that share our neighbourhood.",
+        participation: "individuals",
+        disciplines: ["drawing", "videography", "essay"],
+        ageGroups: [...AGE_GROUPS, ADULT_AGE_GROUP],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "not_required" },
+        keyDates: {
+          registration_opens: ist(-210, "09:00"),
+          registration_closes: ist(-120, "23:59"),
+          submissions_close: ist(-50, "23:59"),
+          school_round_closes: ist(-20, "23:59"),
+        },
+      },
+    },
+    {
+      ...SEED_AUCTION_COMPETITION,
+      status: "foa_judging",
+      publishedAt: daysAgo(230),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: SEED_AUCTION_COMPETITION.code,
+        name: SEED_AUCTION_COMPETITION.name,
+        theme: "Imagine a kind place for every animal.",
+        participation: "both",
+        digitalScope: "shortlist_only",
+        disciplines: ["drawing"],
+        ageGroups: [
+          { label: "6–12", minAge: 6, maxAge: 12 },
+          { label: "13–17", minAge: 13, maxAge: 17 },
+          ADULT_AGE_GROUP,
+        ],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "all_shortlisted" },
+        auctionPermitted: true,
+        publicDisplay: true,
+        keyDates: {
+          registration_opens: ist(-200, "09:00"),
+          registration_closes: ist(-110, "23:59"),
+          submissions_close: ist(-99, "23:59"),
+          school_round_closes: ist(-90, "23:59"),
+        },
+      },
+    },
+    ...SEED_REPORT_COMPETITIONS.map((seed, index): SeedCompetition => ({
+      ...seed,
+      status: "foa_judging",
+      publishedAt: daysAgo(225 - index),
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...COMMON,
+        code: seed.code,
+        name: seed.name,
+        theme:
+          "Write about one kind act for the animals in your neighbourhood.",
+        participation: "individuals",
+        disciplines: ["essay"],
+        ageGroups: [ADULT_AGE_GROUP],
+        ageCutoffDate: "2027-01-01",
+        physicalArtwork: { kind: "not_required" },
+        keyDates: {
+          registration_opens: ist(-190 + index, "09:00"),
+          registration_closes: ist(-120 + index, "23:59"),
+          submissions_close: ist(-45 + index, "23:59"),
+          school_round_closes: ist(-20 + index, "23:59"),
+        },
+      },
+    })),
     ...SEED_ENTRY_COMPETITIONS.map(
       ({ id, slug, ...fields }, index): SeedCompetition => ({
         id,
@@ -260,7 +399,9 @@ function seedCompetitionsAt(now: Date): readonly SeedCompetition[] {
           registration_opens: ist(-170, "09:00"),
           registration_closes: ist(-95, "23:59"),
           submissions_close: ist(-50, "23:59"),
-          school_round_closes: ist(-35, "23:59"),
+          // The school's seeded round is still open for its coordinator;
+          // #90 makes rounds overdue at this deadline.
+          school_round_closes: ist(10, "23:59"),
         },
       },
     },

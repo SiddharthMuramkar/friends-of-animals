@@ -163,7 +163,7 @@
       "submit": "Carry out this erasure",
       "pending": "Erasing…",
       "failures": {
-        "plan_changed": "The records changed after the erasure was approved, so it didn't run. Check the plan again and approve it.",
+        "plan_changed": "The records changed after the erasure was approved, so it could not finish. Check the plan again and approve it.",
         "erasure_disabled": "Erasures were switched off before this one ran. It didn't run."
       }
     },
@@ -175,17 +175,26 @@
       "guardian_record": "Guardian record",
       "uploads": "Own uploads",
       "entries": "Entries and their pictures",
+      "auction_bids": "Auction bidder links",
       "registrations": "Unpaid registrations",
       "guardian_links": "Guardian links and invitations",
+      "directory_listings": "Directory listings owned by the subject",
+      "directory_publication": "Public disclosure of directory listings",
       "profile": "Participant profile",
       "account": "Account",
       "kept_profile": "Participant profile with a paid registration",
       "paid_registrations": "Paid registrations",
       "payments": "Payments",
+      "donor_recognition": "Donor public disclosure choices",
+      "recurring_mandates": "Recurring donation mandates (stop future charges)",
+      "donation_records": "Donation, receipt and recurring mandate records",
       "children": "Children they look after",
       "consent_records": "Consent log and evidence",
       "audit_log": "Audit log entries",
-      "privacy_requests": "Privacy requests"
+      "privacy_requests": "Privacy requests",
+      "survey_feedback": "Survey invitations and answers",
+      "volunteer_service": "Volunteer assignments, hours and service certificates",
+      "community_history": "Community membership and private engagement history"
     },
     "bases": {
       "financial_floor": "Financial records: 8 years after the financial year",

@@ -23,6 +23,7 @@ const PERSON_KINDS = new Set([
   "consent_subject",
   "consent_giver",
   "guardian_contact",
+  "donor",
 ]);
 
 const sectioned = new Set(SECTIONS.map(sectionName));
@@ -44,6 +45,12 @@ describe("the export's coverage of the data inventory", () => {
     expect(uncovered).toEqual([]);
   });
 
+  it("withholds locked but unpublished rankings pending two-person result release", () => {
+    expect(NOT_EXPORTED.round_result).toBe("unpublished_judging_result");
+    expect(sectioned.has("round_result")).toBe(false);
+    expect(referenced.has("round_result")).toBe(false);
+  });
+
   it("names only tables that exist, each in one place", () => {
     for (const table of [...sectioned, ...Object.keys(NOT_EXPORTED)]) {
       expect(TABLES_BY_NAME.has(table), table).toBe(true);
@@ -63,6 +70,7 @@ describe("the export's coverage of the data inventory", () => {
       for (const listed of [
         ...section.owners,
         ...(section.withhold ?? []),
+        ...(section.include ?? []),
         ...Object.keys(section.decrypt ?? {}),
       ]) {
         expect(columns, `${name}.${listed}`).toContain(listed);
@@ -72,7 +80,8 @@ describe("the export's coverage of the data inventory", () => {
       )) {
         const handled =
           Object.hasOwn(section.decrypt ?? {}, column) ||
-          (section.withhold ?? []).includes(column);
+          (section.withhold ?? []).includes(column) ||
+          (section.include !== undefined && !section.include.includes(column));
         expect(handled, `${name}.${column}`).toBe(true);
       }
     }

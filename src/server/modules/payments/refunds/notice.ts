@@ -12,6 +12,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { AppDb } from "../../../db/app-db";
 import {
   competition,
+  auctionOffer,
   paymentBatch,
   paymentReviewCase,
   refund,
@@ -45,16 +46,19 @@ export async function refundValues(
       gatewayRefundId: refund.gatewayRefundId,
       manualReference: refund.manualReference,
       competitionName: competition.name,
+      lotCode: auctionOffer.lotCode,
     })
     .from(refund)
     .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
     // A donation's batch (#106) has no competition: finance's alert of a
     // failed refund says it was a donation.
     .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
+    .leftJoin(auctionOffer, eq(auctionOffer.batchId, paymentBatch.id))
     .where(eq(refund.id, refundId));
   if (!row) return {};
   return {
-    "competition.name": row.competitionName ?? forDonation("subjectName"),
+    "competition.name":
+      row.lotCode ?? row.competitionName ?? forDonation("subjectName"),
     "refund.amount": formatPaise(row.amountMinor),
     "refund.reference": row.gatewayRefundId ?? row.manualReference ?? "",
   };

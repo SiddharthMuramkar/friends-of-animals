@@ -1,5 +1,7 @@
 import type { NextRequest, NextResponse } from "next/server";
 
+import { publicEventSlugLookup } from "@/app/events/_lib/public-reads";
+import { publicAuctionLot } from "@/app/auctions/_lib/public-lot";
 import { adoptableSlugLookup } from "@/app/adopt/_lib/public-slugs";
 import { publicPostSlugLookup } from "@/app/blog/_lib/public-slugs";
 import { publishedSlugLookup } from "@/app/competitions/_lib/public-reader";
@@ -13,6 +15,14 @@ const handle = createProxy({
   isPublicPostSlug: publicPostSlugLookup,
   isPublicListingSlug: publicListingSlugLookup,
   isAdoptableSlug: adoptableSlugLookup,
+  isPublicAuctionLot: publicAuctionLot,
+  isPublicEventSlug: publicEventSlugLookup,
+  isPublicGalleryItem: async (itemId) => {
+    const { as } = await import("@/server/app");
+    const { PUBLIC_READER } =
+      await import("@/app/competitions/_lib/public-reader");
+    return (await as(PUBLIC_READER).getPublicGalleryItem({ itemId })) !== null;
+  },
 });
 
 export function proxy(request: NextRequest): Promise<NextResponse> {
@@ -21,6 +31,8 @@ export function proxy(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: [
+    "/verify",
+    "/verify/:path*",
     "/blog/:slug",
     "/competitions/:slug",
     "/account",
@@ -29,6 +41,7 @@ export const config = {
     "/admin/:path*",
     "/auth",
     "/auth/:path*",
+    "/clubs/:path*",
     "/dashboard",
     "/dashboard/:path*",
     "/institution",
@@ -41,7 +54,14 @@ export const config = {
     "/guardian/:path*",
     "/ngos/:slug",
     "/adopt/:slug",
+    "/auctions/:lotCode",
+    "/events/:slug",
+    "/gallery",
+    "/gallery/:path*",
+    "/gallery-report/:path*",
     "/ngos/register/:path*",
+    "/judge",
+    "/judge/:path*",
     "/organisation",
     "/organisation/:path*",
     "/consent/:path*",

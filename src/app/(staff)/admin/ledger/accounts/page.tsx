@@ -44,6 +44,7 @@ export default async function Page() {
     })),
     name: t("accounts.name"),
     publicLabel: t("accounts.publicLabel"),
+    publicLabelHint: t("accounts.publicLabelHint"),
     publicGroup: t("accounts.publicGroup"),
     chooseGroup: t("accounts.chooseGroup"),
     groups: PUBLIC_GROUPS.map((group) => ({

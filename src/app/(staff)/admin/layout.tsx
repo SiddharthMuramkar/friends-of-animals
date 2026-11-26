@@ -3,14 +3,25 @@ import { connection } from "next/server";
 import { Suspense, type ComponentProps } from "react";
 
 import {
+  ADMIN_HOME,
+  ADMIN_REPORTS,
+  ADMIN_SOCIAL_METRICS,
   ADMIN_ADOPTIONS,
+  ADMIN_AUCTIONS,
+  ADMIN_JUDGING_ROUNDS,
+  ADMIN_VERIFICATION,
+  ADMIN_ARTWORK,
+  ADMIN_CERTIFICATES,
   ADMIN_BREACHES,
   ADMIN_DONATIONS,
   ADMIN_CAMPAIGNS,
+  ADMIN_SURVEYS,
   ADMIN_LEDGER,
   ADMIN_PRIVACY,
   ADMIN_PRIVACY_REQUESTS,
   ADMIN_VOLUNTEERS,
+  ADMIN_COMMUNITY_MEMBERS,
+  ADMIN_EVENTS,
   APP_ROUTES,
 } from "@/lib/app-routes";
 import { env } from "@/env";
@@ -38,16 +49,25 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const nav = {
     label: t("label"),
     links: [
+      { href: ADMIN_HOME, label: t("home") },
       { href: APP_ROUTES.adminRoles, label: t("roles") },
       { href: APP_ROUTES.adminAudit, label: t("audit") },
       { href: ADMIN_BREACHES, label: t("breaches") },
+      { href: ADMIN_SURVEYS, label: t("surveys") },
       { href: ADMIN_CAMPAIGNS, label: t("campaigns") },
       ...(env().APP_ENV === "production"
         ? []
         : [{ href: APP_ROUTES.adminConsentForms, label: t("consentForms") }]),
       { href: ADMIN_PRIVACY, label: t("privacy") },
       { href: ADMIN_PRIVACY_REQUESTS, label: t("privacyRequests") },
+      { href: ADMIN_COMMUNITY_MEMBERS, label: t("community") },
+      { href: ADMIN_EVENTS, label: t("events") },
       { href: ADMIN_VOLUNTEERS, label: t("volunteers") },
+      { href: ADMIN_JUDGING_ROUNDS, label: t("judging") },
+      { href: ADMIN_VERIFICATION, label: t("verification") },
+      { href: ADMIN_ARTWORK, label: t("artwork") },
+      { href: ADMIN_CERTIFICATES, label: t("certificates") },
+      { href: ADMIN_AUCTIONS, label: t("auctions") },
       { href: ADMIN_ADOPTIONS, label: t("adoptions") },
     ],
   };
@@ -70,9 +90,35 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 
 async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
   const actor = await currentActor();
+  const access = actor.kind === "user" ? await as(actor).myAccess() : null;
+  const reports = access?.grants.some((g) =>
+    ["super_admin", "staff_admin", "finance", "competition_manager"].includes(
+      g.role
+    )
+  );
+  const tNav = await getTranslations("admin.nav");
+  const socialEditor = access?.grants.some(
+    (g) => g.role === "content_manager" && g.scope.type === "global"
+  );
+  const social = await getTranslations("objectiveReports");
+  const links = reports
+    ? [
+        nav.links[0]!,
+        { href: ADMIN_REPORTS, label: tNav("reports") },
+        ...nav.links.slice(1),
+      ]
+    : nav.links;
+  const reportLinks = socialEditor
+    ? [
+        ...links.slice(0, 1),
+        { href: ADMIN_SOCIAL_METRICS, label: social("socialTitle") },
+        ...links.slice(1),
+      ]
+    : links;
   const finance =
-    actor.kind === "user" && (await showLedgerNavigation(as(actor).myAccess));
-  if (!finance) return <AdminNav {...nav} />;
+    access !== null &&
+    (await showLedgerNavigation(() => Promise.resolve(access)));
+  if (!finance) return <AdminNav {...nav} links={reportLinks} />;
 
   const [t, donations] = await Promise.all([
     getTranslations("adminLedger.list"),
@@ -82,7 +128,7 @@ async function AdminNavWithLedger(nav: ComponentProps<typeof AdminNav>) {
     <AdminNav
       label={nav.label}
       links={[
-        ...nav.links,
+        ...reportLinks,
         { href: ADMIN_LEDGER, label: t("title") },
         // Finance's donations (#106).
         { href: ADMIN_DONATIONS, label: donations("nav") },

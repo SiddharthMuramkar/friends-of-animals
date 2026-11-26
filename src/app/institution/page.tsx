@@ -11,7 +11,11 @@ import { ButtonLink } from "@/components/site/button-link";
 import { ExplainState } from "@/components/site/explain-state";
 import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
-import { APP_ROUTES, institutionCompetitionsPath } from "@/lib/app-routes";
+import {
+  INSTITUTION_ARTWORK,
+  APP_ROUTES,
+  institutionCompetitionsPath,
+} from "@/lib/app-routes";
 import { formatPhoneNumber } from "@/lib/phone";
 import { ROUTES } from "@/lib/routes";
 import { as, currentActor } from "@/server/app";
@@ -92,6 +96,7 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
+  const artwork = await getTranslations("artwork");
   const { institution } = mine;
   return (
     <div className="mt-8 flex flex-col gap-8">
@@ -161,6 +166,9 @@ async function MyInstitution({ searchParams }: { searchParams: SearchParams }) {
               variant="secondary"
             >
               {registration("entry")}
+            </ButtonLink>
+            <ButtonLink href={INSTITUTION_ARTWORK} variant="secondary">
+              {artwork("title")}
             </ButtonLink>
           </div>
         ) : null}

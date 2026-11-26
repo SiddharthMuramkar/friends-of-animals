@@ -1,3 +1,13 @@
+import { withdrawSocialExportConsent } from "../modules/social-export/withdrawal";
+import type { CdnPurger } from "../ports/cdn-purger";
+import {
+  runGalleryPurge,
+  withdrawGalleryConsent,
+} from "../modules/gallery/purge";
+import { renderStamp } from "../modules/stamping";
+import { sendSaleFamilyLetter } from "../modules/auctions/messages";
+import { expireAuctionOffer } from "../modules/auctions/offers";
+import { sendRecurringCancel } from "../modules/donations/recurring/cancel";
 // What each handler named in ./events.ts SUBSCRIBERS does with a delivery.
 // A handler may run more than once for one delivery (a worker that dies
 // after the handler's work but before settling runs it again once the
@@ -11,16 +21,37 @@
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { recordPublishedEngagement } from "../modules/community/results";
+import { issueCertificates } from "../modules/certificates/issue";
+import {
+  buildInstitutionCertificateArchive,
+  expireInstitutionCertificateArchive,
+} from "../modules/certificates/archive";
+import { sendFamilyReissue } from "../modules/certificates/messages";
+import { renderCertificate } from "../modules/certificates/render";
+import type { PdfRenderer } from "../ports/pdf";
+import { publishResultsRelease } from "../modules/results/releases";
+import { sendFamilyPrize } from "../modules/results/messages";
+import {
+  runOpenLot,
+  runCloseLot,
+  runSettleClosedLot,
+  withdrawAuctionConsent,
+} from "../modules/auctions/lifecycle";
+import { retainUnrequested } from "../modules/physical-artwork/custody";
+import { openArtworkResultsWindow } from "../modules/physical-artwork/results-window";
 import type { Deps } from "../deps";
 import type { BlindIndex } from "../crypto/blind-index";
 import type { FieldCipher } from "../crypto/field-cipher";
 import type { AppDb } from "../db/app-db";
+import { sendJudgeInvitation } from "../modules/judging/invitation-message";
 import { sendCoordinatorInvitation } from "../modules/institutions/coordinators/invitation-message";
 import type { AppEnv } from "../../lib/site";
 import { deliverConsentLink } from "../modules/consent-links/delivery";
 import { dispatchEvent } from "../modules/notifications/dispatch";
 import { uploadKeyFor } from "../modules/files/domain/storage-key";
 import { processImageAsset } from "../modules/files/process-image";
+import { processPdfAsset } from "../modules/files/process-pdf";
 import { processVideoAsset } from "../modules/files/process-video";
 import { scanUploadedFile } from "../modules/files/scan-handler";
 import { sendContactAcknowledgement } from "../modules/contact/acknowledge";
@@ -48,6 +79,7 @@ import {
   sendReceiptLink,
   sendRefundNotice,
   sendThankYou,
+  sendRecurringNotice,
 } from "../modules/donations/messages";
 import { applyEntryFileOutcome } from "../modules/entries/apply-file-outcome";
 import { sendEntryReceiptToFamily } from "../modules/entries/family-receipt";
@@ -59,9 +91,20 @@ import {
   runExpireExport,
 } from "../modules/privacy/requests/subject-data/export";
 import { runExecuteErasure } from "../modules/privacy/requests/subject-data/erasure";
+import { refillPlaces } from "../modules/events/registrations";
+import { settleEndedEvent } from "../modules/events/end";
 import { runReminderJob } from "../modules/reminders/run-reminder";
 import { scheduleReminders } from "../modules/reminders/schedule-reminders";
+import { deliverCompetitionInvitation } from "../modules/invitations/deliver";
+import { queuePublishedInvitations } from "../modules/invitations/queue";
+import { deliverSurveyInvitation } from "../modules/surveys/deliver";
 import { deliverCampaignMessage } from "../modules/campaigns/deliver";
+import { runRoundDeadlineJob } from "../modules/school-round/overdue";
+import {
+  forwardOnSubmissionsClosed,
+  forwardLateEntry,
+} from "../modules/verification/forward-individual-entries";
+import { returnResubmission } from "../modules/verification/return-resubmission";
 import { openSchoolRounds } from "../modules/school-round/open-school-rounds";
 import {
   queueFamilyOutcomes,
@@ -79,6 +122,7 @@ import type { EventOf, EventType, HandlerName, SUBSCRIBERS } from "./events";
 
 /** What the relay and handlers run against; the worker can supply it. */
 export type OutboxDeps = {
+  cdn: CdnPurger;
   appEnv: AppEnv;
   db: AppDb;
   clock: Clock;
@@ -104,6 +148,7 @@ export type OutboxDeps = {
   scanner: MalwareScanner;
   /** Used only by the media queue's handlers, in worker-media. */
   media: MediaProcessor;
+  pdf: PdfRenderer;
   /** Sends approved refunds and reads them back (#80). */
   payments: PaymentGateway;
 } & Pick<Deps, "appEnv">;
@@ -135,6 +180,52 @@ type Handlers = {
 };
 
 export const HANDLERS: Handlers = {
+  "community.record_results": async (deps, { payload }) => {
+    await recordPublishedEngagement(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
+  "certificates.issue": async (deps, { payload }) => {
+    await issueCertificates(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
+  "gallery.withdraw_consent": withdrawGalleryConsent,
+  "social_export.withdraw_consent": withdrawSocialExportConsent,
+  "gallery.purge": (deps, { payload }) =>
+    runGalleryPurge(deps, payload.purgeId),
+  "certificates.build_archive": (deps, delivery) =>
+    buildInstitutionCertificateArchive(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      delivery.payload
+    ),
+  "certificates.expire_archive": (deps, delivery) =>
+    expireInstitutionCertificateArchive(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      delivery.payload
+    ),
+  "certificates.send_family_reissue": sendFamilyReissue,
+  "stamping.render": (deps, { payload }) => renderStamp(deps, payload),
+  "certificate.render": (deps, { payload }) =>
+    renderCertificate(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    ),
+  "results.publish": async (deps, delivery) => {
+    await publishResultsRelease(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      delivery.payload
+    );
+  },
+  "results.send_family_prize": sendFamilyPrize,
+  "verification.forward_individual_entries": (deps, { payload }) =>
+    forwardOnSubmissionsClosed(deps, payload),
+  "verification.forward_late_entry": (deps, { payload }) =>
+    forwardLateEntry(deps, payload),
+  "verification.return_resubmission": (deps, { payload }) =>
+    returnResubmission(deps, payload),
   "ledger.post_capture": async (deps, { payload }) => {
     await postPaymentCapture({ ...deps, actor: ledgerWorker }, payload);
   },
@@ -149,6 +240,13 @@ export const HANDLERS: Handlers = {
     await postForeignDonation({ ...deps, actor: ledgerWorker }, payload);
   },
   "donations.send_thank_you": sendThankYou,
+  "recurring_donations.cancel": async (deps, { payload }) => {
+    await sendRecurringCancel(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload.id
+    );
+  },
+  "recurring_donations.send_notice": sendRecurringNotice,
   "donations.send_receipt_link": sendReceiptLink,
   "donations.send_refund_notice": sendRefundNotice,
   // Sends the messages the event's route rows name (#69).
@@ -158,8 +256,11 @@ export const HANDLERS: Handlers = {
   "files.scan_file": (deps, { payload }) => scanUploadedFile(deps, payload),
   "files.process_image": (deps, delivery) => processImageAsset(deps, delivery),
   "files.process_video": (deps, delivery) => processVideoAsset(deps, delivery),
+  "files.process_pdf": (deps, delivery) => processPdfAsset(deps, delivery),
   "competitions.advance_status": (deps, { payload }) =>
     runStatusJob(deps, payload),
+  "judging.send_invitation": (deps, { payload }) =>
+    sendJudgeInvitation(deps, payload),
   "institutions.send_coordinator_invitation": (deps, { payload }) =>
     sendCoordinatorInvitation(deps, payload),
   // Emails a contact message's sender their reference (#113).
@@ -236,20 +337,75 @@ export const HANDLERS: Handlers = {
       );
     }
   },
+  "auctions.open_lot": (deps, { payload }) =>
+    runOpenLot(deps, payload).then(() => undefined),
+  "auctions.close_lot": (deps, { payload }) =>
+    runCloseLot(deps, payload).then(() => undefined),
+  "auctions.send_family_letter": sendSaleFamilyLetter,
+  "auctions.expire_offer": (deps, { payload }) =>
+    expireAuctionOffer(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    ).then(() => undefined),
+  "auctions.settle_closed": (deps, { payload }) =>
+    runSettleClosedLot(deps, payload).then(() => undefined),
+  "auctions.withdraw_consent": (deps, { payload }) =>
+    withdrawAuctionConsent(deps, payload),
+  "artwork.open_results_window": (deps, { payload }) =>
+    openArtworkResultsWindow(deps, payload),
+  "artwork.retain_unrequested": (deps, { payload }) =>
+    retainUnrequested(deps, payload),
+  "reminders.schedule_event": async (deps, { payload }) => {
+    await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "event", subjectId: payload.eventId }
+    );
+  },
+  "events.refill_places": async (deps, { payload }) =>
+    refillPlaces(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload.eventId
+    ),
+  "events.settle": async (deps, { payload }) => {
+    await settleEndedEvent(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
+  "reminders.schedule_artwork": async (deps, { payload }) => {
+    await scheduleReminders(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      { subjectType: "physical_artwork", subjectId: payload.artworkId }
+    );
+  },
   // Reminds whoever owes the deadline now (#84). Safe to repeat: each
   // message is claimed under the reminder's id.
   "reminders.run": (deps, { payload }) => runReminderJob(deps, payload),
   // One recipient's campaign message, on the consent it rests on (#126).
+  "surveys.deliver_invitation": deliverSurveyInvitation,
+  "invitations.deliver": deliverCompetitionInvitation,
+  "invitations.queue_published": async (deps, { payload }) => {
+    await queuePublishedInvitations(
+      { ...deps, actor: { kind: "system", process: "worker" } },
+      payload
+    );
+  },
   "campaigns.deliver_message": deliverCampaignMessage,
   // Opens the competition's school rounds (#89). Safe to repeat.
   "school_round.open_rounds": async (deps, { payload }) => {
     await openSchoolRounds(deps, payload);
+    // A refused move to FOA judging counted these rounds as missing (#90).
+    await retryBlockedMoves(deps, payload);
   },
   // Queues one outcome message per entry of a finalised round (#89), once.
   "school_round.queue_family_outcomes": (deps, { payload }) =>
     queueFamilyOutcomes(deps, payload),
   // Emails one entry's family its school round outcome (#89).
   "school_round.send_family_outcome": sendFamilyOutcome,
+  // At the shortlist deadline, makes unfinished school rounds overdue
+  // (#90). Safe to repeat: only open rounds move.
+  "school_round.mark_overdue": (deps, { payload }) =>
+    runRoundDeadlineJob(deps, payload),
 };
 
 /** Whether this code has a handler by that name. */

@@ -43,6 +43,42 @@ describe("the competitions seed", () => {
       }))
     ).toEqual([
       {
+        code: "KIND27",
+        slug: "kindness-in-action",
+        participation: "both",
+        status: "results_published",
+      },
+      {
+        code: "ORIG27",
+        slug: "originals-for-animals",
+        participation: "both",
+        status: "foa_judging",
+      },
+      {
+        code: "JURY27",
+        slug: "kindness-in-art",
+        participation: "individuals",
+        status: "foa_judging",
+      },
+      {
+        code: "AUCT27",
+        slug: "art-for-kindness",
+        participation: "both",
+        status: "results_published",
+      },
+      {
+        code: "RSLT27",
+        slug: "kindness-in-words",
+        participation: "individuals",
+        status: "foa_judging",
+      },
+      {
+        code: "CHECK27",
+        slug: "stories-for-animals",
+        participation: "individuals",
+        status: "foa_judging",
+      },
+      {
         code: "SKIES26",
         slug: "kinder-skies",
         participation: "institutions",
@@ -108,7 +144,7 @@ describe("the competitions seed", () => {
     ).toBeNull();
   });
 
-  it("seeds a global competition manager who sees all eight", async () => {
+  it("seeds a global competition manager who sees all fourteen", async () => {
     const h = await createHarness();
     await h.seed.preview();
     const manager = await h.signIn(SEED_COMPETITION_MANAGER);
@@ -118,11 +154,17 @@ describe("the competitions seed", () => {
     expect(listed.map((c) => c.status).sort()).toEqual([
       "cancelled",
       "draft",
+      "foa_judging",
+      "foa_judging",
+      "foa_judging",
+      "foa_judging",
       "published",
       "registration_closed",
       "registration_closed",
       "registration_closed",
       "registration_open",
+      "results_published",
+      "results_published",
       "school_judging",
     ]);
     expect(
@@ -149,6 +191,42 @@ describe("the competitions seed", () => {
           submissionsClosed: keyDates[2]!.at <= now,
         }))
       ).toEqual([
+        {
+          status: "results_published",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "foa_judging",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "foa_judging",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "results_published",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "foa_judging",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
+        {
+          status: "foa_judging",
+          openingPassed: true,
+          closingPassed: true,
+          submissionsClosed: true,
+        },
         {
           status: "school_judging",
           openingPassed: true,
@@ -259,7 +337,7 @@ describe("the competitions seed", () => {
         await h.as(manager).verifySecondFactor({ code: h.totpCode() }),
         account.email
       ).toEqual({ ok: true });
-      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(8);
+      expect(await h.as(manager).listCompetitionsForAdmin()).toHaveLength(14);
     }
   });
 
@@ -275,7 +353,7 @@ describe("the competitions seed", () => {
     expect(await h.db.select({ id: competition.id }).from(competition)).toEqual(
       ids
     );
-    expect(once).toMatchObject({ competitions: 8 });
+    expect(once).toMatchObject({ competitions: 14 });
   });
 });
 

@@ -53,6 +53,7 @@ export function CodeForm({
   signUpPath,
   emailPath,
   consentField,
+  next,
 }: {
   action: (previous: CodeFormView, formData: FormData) => Promise<CodeFormView>;
   channel: CodeChannel;
@@ -64,6 +65,7 @@ export function CodeForm({
   emailPath?: string;
   /** By email, to sign up: the optional messages consent box (#64). */
   consentField?: ReactNode;
+  next?: string | undefined;
 }) {
   const [view, formAction] = useActionState(action, START_VIEW);
   const { text } = view;
@@ -77,6 +79,7 @@ export function CodeForm({
   return (
     <form action={formAction} noValidate className="flex flex-col gap-6">
       <input type="hidden" name="intent" value={intent} />
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <input type="hidden" name="from" value={view.step} />
 
       {text.alert ? (

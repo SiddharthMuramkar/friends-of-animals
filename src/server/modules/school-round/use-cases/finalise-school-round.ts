@@ -16,7 +16,7 @@
 //    one audit row.
 //
 // The families hear by the event's handlers (../family-outcomes.ts). The
-// shortlist-only scope waits for #91, so it answers `shortlist_only`.
+// shortlist-only scope promotes each created entry once its file is live.
 //
 // Loads under plain Node: relative imports only, no "server-only".
 
@@ -28,17 +28,12 @@ import { schoolRound } from "../../../db/schema";
 import { invalidInput, type InvalidInput } from "../../../input";
 import { emit } from "../../../outbox/emit";
 import type { UseCaseContext } from "../../../use-cases";
-import { applySchoolRoundOutcome } from "../../entries/school-round-outcome";
 import { isConductCertified } from "../../institution-submissions/conduct";
-import { planFinalisation, type FinaliseBlocker } from "../domain/finalise";
+import type { FinaliseBlocker } from "../domain/finalise";
+import { applyFinalOutcomes } from "../apply-final-outcomes";
 import { JUDGING_STATEMENT_VERSION } from "../domain/judging-statement";
 import { assertSchoolRoundTransition } from "../domain/status";
-import {
-  loadPanel,
-  loadPicks,
-  loadRoundEntries,
-  recordRoundTransition,
-} from "../store";
+import { loadPanel, recordRoundTransition } from "../store";
 import { withLockedRound, type RoundRefusal } from "./editable-round";
 import { roundInput } from "./get-school-round";
 
@@ -76,41 +71,20 @@ export async function finaliseSchoolRound(
       role,
       userId,
     }): Promise<FinaliseSchoolRoundResult> => {
-      if (scope.competition.digitalScope !== "all_participants") {
-        return { ok: false, error: "shortlist_only" };
-      }
-      const entries = await loadRoundEntries(tx, scope.id, { lock: true });
-      const picks = await loadPicks(tx, round.id);
-      const plan = planFinalisation({
-        panelSize: (await loadPanel(tx, round.id)).length,
-        conductCertified: await isConductCertified(tx, scope.id),
-        judgingAttested,
-        entries: entries.map((each) => ({
-          entryId: each.entryId,
-          submitted: each.status === "submitted",
-        })),
-        picks,
-      });
-      if (!plan.ok) {
-        return {
-          ok: false,
-          error: "finalise_blocked",
-          blockers: plan.blockers,
-        };
-      }
       assertSchoolRoundTransition(round.status, "finalised");
-
-      const statusOf = new Map(
-        entries.map((each) => [each.entryId, each.status])
-      );
-      for (const outcome of plan.outcomes) {
-        await applySchoolRoundOutcome(tx, ctx, {
-          entryId: outcome.entryId,
-          from: statusOf.get(outcome.entryId)!,
-          statuses: outcome.statuses,
-          actorRole: role,
-        });
-      }
+      const applied = await applyFinalOutcomes(tx, ctx, {
+        roundId: round.id,
+        institutionRegistrationId: scope.id,
+        shortlistOnly: scope.competition.digitalScope === "shortlist_only",
+        role,
+        prerequisites: {
+          panelSize: (await loadPanel(tx, round.id)).length,
+          conductCertified: await isConductCertified(tx, scope.id),
+          judgingAttested,
+        },
+      });
+      if (!applied.ok) return applied;
+      const { shortlisted, notShortlisted } = applied;
       const now = ctx.clock.now();
       await tx
         .update(schoolRound)
@@ -138,10 +112,6 @@ export async function finaliseSchoolRound(
           institutionRegistrationId: scope.id,
         },
       });
-      const shortlisted = plan.outcomes.filter(
-        (outcome) => outcome.outcome === "shortlisted"
-      ).length;
-      const notShortlisted = plan.outcomes.length - shortlisted;
       await recordAudit(tx, ctx, {
         action: "school_round.finalised",
         entity: { type: "school_round", id: round.id },

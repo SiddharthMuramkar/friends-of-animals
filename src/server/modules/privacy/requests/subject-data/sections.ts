@@ -1,3 +1,4 @@
+import { AMBASSADOR_DECLINE_PURPOSE } from "../../../community/ambassadors/fields";
 // What a subject data export holds (#115b), table by table.
 //
 // The data inventory (../../inventory.ts) says which columns of which
@@ -22,6 +23,8 @@ import {
   getTableColumns,
   inArray,
   is,
+  isNotNull,
+  notInArray,
   or,
   sql,
   type SQL,
@@ -31,13 +34,36 @@ import { getTableConfig, PgTable, type PgColumn } from "drizzle-orm/pg-core";
 import * as schema from "../../../../db/schema";
 import {
   account,
+  communityMember,
+  surveyInvitation,
+  competitionInvitation,
+  eventRegistration,
+  engagementMilestone,
+  timelineEntry,
   auditLog,
   consentEvent,
   consentForm,
   consentLink,
+  donation,
+  donor,
+  receipt,
+  recurringDonation,
   entry,
   entryFile,
   entryTransition,
+  entryVerification,
+  physicalArtwork,
+  roundEntry,
+  roundAssignment,
+  judgeOnboarding,
+  artworkPhoto,
+  artworkCustodyEvent,
+  auctionLot,
+  auctionBid,
+  auctionOffer,
+  artworkDiscrepancy,
+  artworkReturnRequest,
+  artworkVerification,
   fileAsset,
   guardian,
   guardianInvitation,
@@ -50,6 +76,7 @@ import {
   offlinePayment,
   participantProfile,
   paymentBatch,
+  gatewayWebhookEvent,
   paymentBatchItem,
   paymentReviewCase,
   privacyRequest,
@@ -61,8 +88,16 @@ import {
   user,
   userRole,
 } from "../../../../db/schema";
+import { WORK_PURPOSES } from "../../../volunteers/work-fields";
+import {
+  DATE_OF_BIRTH_PURPOSE,
+  DECLINE_REASON_PURPOSE,
+} from "../../../volunteers/application-record";
+import { COMMUNITY_MEMBER_PURPOSE } from "../../../community/profile-fields";
 import { USER_PHONE } from "../../../../identity/stored-phone";
+import { DONOR_PURPOSE } from "../../../donations/donors";
 import { LINK_CONTACT } from "../../../consent-links/repository";
+import { ENTRY_FILE_PURPOSES } from "../../../files/domain/purposes";
 import { GUARDIAN_PURPOSE } from "../../../guardians/guardian-record";
 import {
   REQUESTED_GUARDIAN_NAME,
@@ -89,6 +124,8 @@ export type Section = {
   owners: readonly string[];
   /** Encrypted columns and the purpose each is decrypted for. */
   decrypt?: Readonly<Record<string, string>>;
+  /** Explicit export field allowlist (SQL names); new financial columns stay private by default. */
+  include?: readonly string[];
   /** Columns left out: sign-in secrets, keyed hashes, storage keys. */
   withhold?: readonly string[];
 };
@@ -112,6 +149,13 @@ const paidBatchesOf = (scope: SubjectScope) =>
 const registrationIdsOf = (scope: SubjectScope) =>
   sql`(SELECT ${registration.id} FROM ${registration} WHERE ${within(registration.participantProfileId, profiles(scope))})`;
 
+/** Ownership comes from the account link, never a matching email address. */
+const donorIdsOf = (scope: SubjectScope) =>
+  sql`(SELECT ${donor.id} FROM ${donor} WHERE ${within(donor.userId, users(scope))})`;
+
+const donationIdsOf = (scope: SubjectScope) =>
+  sql`(SELECT ${donation.id} FROM ${donation} WHERE ${donation.donorId} IN ${donorIdsOf(scope)})`;
+
 const PROFILE_DECRYPT = {
   dob_ciphertext: PROFILE_PURPOSE.dob,
   phone_ciphertext: PROFILE_PURPOSE.phone,
@@ -122,8 +166,105 @@ const PROFILE_DECRYPT = {
   address_ciphertext: PROFILE_PURPOSE.address,
 } as const;
 
+/** An uploader can act for another person; these assets belong to the participant. */
+export const PARTICIPANT_FILE_PURPOSES = [
+  ...ENTRY_FILE_PURPOSES,
+  "consent_form",
+  "artwork_condition_photo",
+  "certificate_pdf",
+] as const;
+
 /** The person's own rows, in the order the export lists them. */
 export const SECTIONS: readonly Section[] = [
+  {
+    table: schema.club,
+    where: (scope) => within(schema.club.applicantUserId, users(scope)),
+    owners: ["applicant_user_id"],
+  },
+  {
+    table: schema.clubDecision,
+    where: (scope) =>
+      sql`${schema.clubDecision.clubId} IN (SELECT ${schema.club.id} FROM ${schema.club} WHERE ${within(schema.club.applicantUserId, users(scope))})`,
+    owners: ["club_id"],
+    decrypt: { reason_ciphertext: "club_decision.reason" },
+    withhold: ["decided_by_user_id"],
+  },
+  {
+    table: schema.clubMembership,
+    where: (scope) => within(schema.clubMembership.userId, users(scope)),
+    owners: ["user_id"],
+  },
+  {
+    table: competitionInvitation,
+    where: (scope) =>
+      or(
+        within(competitionInvitation.participantProfileId, profiles(scope)),
+        within(competitionInvitation.recipientUserId, users(scope))
+      )!,
+    owners: ["participant_profile_id", "recipient_user_id"],
+    withhold: ["recipient_user_id"],
+  },
+  {
+    table: surveyInvitation,
+    where: (scope) => within(surveyInvitation.userId, users(scope)),
+    owners: ["user_id"],
+    withhold: ["token_hash"],
+  },
+  {
+    table: eventRegistration,
+    where: (scope) =>
+      or(
+        within(eventRegistration.subjectUserId, users(scope)),
+        within(eventRegistration.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    withhold: [
+      "registered_by_user_id",
+      "checked_in_by_user_id",
+      "waitlist_order",
+    ],
+  },
+  {
+    table: schema.ambassadorApplication,
+    where: (scope) =>
+      within(schema.ambassadorApplication.applicantUserId, users(scope)),
+    owners: ["applicant_user_id"],
+    decrypt: { decline_reason_ciphertext: AMBASSADOR_DECLINE_PURPOSE },
+    withhold: ["decided_by_user_id"],
+  },
+  {
+    table: communityMember,
+    where: (scope) =>
+      or(
+        within(communityMember.subjectUserId, users(scope)),
+        within(communityMember.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    decrypt: {
+      display_name_ciphertext: COMMUNITY_MEMBER_PURPOSE.displayName,
+      about_ciphertext: COMMUNITY_MEMBER_PURPOSE.about,
+    },
+    withhold: ["joined_by_user_id"],
+  },
+  {
+    table: engagementMilestone,
+    where: (scope) =>
+      or(
+        within(engagementMilestone.subjectUserId, users(scope)),
+        within(engagementMilestone.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+  },
+  {
+    table: timelineEntry,
+    where: (scope) =>
+      or(
+        within(timelineEntry.subjectUserId, users(scope)),
+        within(timelineEntry.subjectProfileId, profiles(scope))
+      )!,
+    owners: ["subject_user_id", "subject_profile_id"],
+    withhold: ["source_key"],
+  },
   {
     table: user,
     where: (scope) => within(user.id, users(scope)),
@@ -271,6 +412,81 @@ export const SECTIONS: readonly Section[] = [
     owners: ["participant_profile_id"],
   },
   {
+    table: schema.volunteerApplication,
+    where: (scope) =>
+      within(schema.volunteerApplication.applicantUserId, users(scope)),
+    owners: ["applicant_user_id"],
+    decrypt: {
+      date_of_birth_ciphertext: DATE_OF_BIRTH_PURPOSE,
+      decline_reason_ciphertext: DECLINE_REASON_PURPOSE,
+    },
+    withhold: ["guardian_user_id", "decided_by_user_id"],
+  },
+  {
+    table: schema.volunteerTask,
+    where: (scope) =>
+      within(schema.volunteerTask.createdByUserId, users(scope)),
+    owners: ["created_by_user_id"],
+    decrypt: {
+      title_ciphertext: WORK_PURPOSES.title,
+      description_ciphertext: WORK_PURPOSES.description,
+    },
+  },
+  {
+    table: schema.volunteerTaskAssignment,
+    where: (scope) =>
+      within(schema.volunteerTaskAssignment.volunteerUserId, users(scope)),
+    owners: ["volunteer_user_id"],
+    withhold: ["assigned_by_user_id"],
+  },
+  {
+    table: schema.volunteerHoursEntry,
+    where: (scope) =>
+      sql`${schema.volunteerHoursEntry.assignmentId} IN (SELECT ${schema.volunteerTaskAssignment.id} FROM ${schema.volunteerTaskAssignment} WHERE ${within(schema.volunteerTaskAssignment.volunteerUserId, users(scope))})`,
+    owners: ["assignment_id"],
+    decrypt: {
+      note_ciphertext: WORK_PURPOSES.note,
+      reject_reason_ciphertext: WORK_PURPOSES.reason,
+    },
+    withhold: ["decided_by_user_id"],
+  },
+  {
+    table: schema.galleryItem,
+    where: (scope) =>
+      sql`${schema.galleryItem.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
+    withhold: ["file_id", "consent_event_id"],
+  },
+  {
+    table: schema.socialExport,
+    where: (scope) =>
+      sql`${schema.socialExport.galleryItemId} IN (SELECT ${schema.galleryItem.id} FROM ${schema.galleryItem} WHERE ${schema.galleryItem.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["gallery_item_id"],
+    decrypt: { caption_ciphertext: "social_export.caption" },
+    withhold: [
+      "file_id",
+      "gallery_consent_event_id",
+      "social_consent_event_id",
+    ],
+  },
+  {
+    table: schema.certificate,
+    where: (scope) =>
+      or(
+        within(schema.certificate.participantProfileId, profiles(scope)),
+        within(schema.certificate.recipientUserId, users(scope))
+      )!,
+    owners: ["participant_profile_id", "recipient_user_id"],
+    withhold: ["revoked_by_user_id", "revoked_reason"],
+  },
+  {
+    table: schema.resultAward,
+    where: (scope) =>
+      sql`${schema.resultAward.entryId} IN ${entryIdsOf(scope)} AND ${schema.resultAward.releaseId} IN (SELECT ${schema.resultRelease.id} FROM ${schema.resultRelease} WHERE ${schema.resultRelease.status} = 'published')`,
+    owners: ["entry_id"],
+    withhold: ["suitable_for_auction"],
+  },
+  {
     table: entryFile,
     where: (scope) => sql`${entryFile.entryId} IN ${entryIdsOf(scope)}`,
     owners: ["entry_id"],
@@ -281,18 +497,143 @@ export const SECTIONS: readonly Section[] = [
     owners: ["entry_id"],
   },
   {
+    table: physicalArtwork,
+    where: (scope) => sql`${physicalArtwork.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id", "registration_id"],
+  },
+  {
+    table: roundEntry,
+    where: (scope) =>
+      or(
+        sql`${roundEntry.entryId} IN ${entryIdsOf(scope)}`,
+        within(roundEntry.admittedByUserId, users(scope))
+      )!,
+    owners: ["entry_id", "admitted_by_user_id"],
+    withhold: ["admitted_by_user_id"],
+  },
+  {
+    table: roundAssignment,
+    // A judge's assignments belong in their rights export, but the private
+    // source-entry and other staff identities must never pierce blind judging.
+    where: (scope) =>
+      or(
+        within(roundAssignment.judgeUserId, users(scope)),
+        within(roundAssignment.assignedByUserId, users(scope))
+      )!,
+    owners: ["judge_user_id", "assigned_by_user_id"],
+    withhold: ["entry_id", "judge_user_id", "assigned_by_user_id"],
+  },
+  {
+    table: judgeOnboarding,
+    where: (scope) => within(judgeOnboarding.judgeUserId, users(scope)),
+    owners: ["judge_user_id"],
+  },
+  {
+    table: auctionBid,
+    where: (scope) => within(auctionBid.bidderUserId, users(scope)),
+    owners: ["bidder_user_id"],
+  },
+  {
+    table: auctionLot,
+    where: (scope) =>
+      sql`${auctionLot.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id", "consent_event_id", "lot_code"],
+    withhold: ["created_by"],
+  },
+  {
+    table: artworkVerification,
+    where: (scope) =>
+      sql`${artworkVerification.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["verified_by"],
+  },
+  {
+    table: artworkPhoto,
+    where: (scope) =>
+      sql`${artworkPhoto.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["created_by"],
+  },
+  {
+    table: artworkCustodyEvent,
+    where: (scope) =>
+      sql`${artworkCustodyEvent.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["actor_user_id"],
+  },
+  {
+    table: artworkDiscrepancy,
+    where: (scope) =>
+      sql`${artworkDiscrepancy.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["raised_by", "resolved_by"],
+  },
+  {
+    table: artworkReturnRequest,
+    where: (scope) =>
+      sql`${artworkReturnRequest.artworkId} IN (SELECT ${physicalArtwork.id} FROM ${physicalArtwork} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
+    owners: ["artwork_id"],
+    withhold: ["requested_by"],
+  },
+  {
+    table: entryVerification,
+    where: (scope) => sql`${entryVerification.entryId} IN ${entryIdsOf(scope)}`,
+    owners: ["entry_id"],
+    withhold: ["decided_by_user_id", "resubmitted_by_user_id"],
+  },
+  {
     table: fileAsset,
     where: (scope) =>
       or(
-        within(fileAsset.ownerUserId, users(scope)),
+        and(
+          within(fileAsset.ownerUserId, users(scope)),
+          notInArray(fileAsset.purpose, [...PARTICIPANT_FILE_PURPOSES])
+        ),
+        sql`${fileAsset.id} IN (SELECT ${schema.certificate.pdfFileId} FROM ${schema.certificate} WHERE ${or(within(schema.certificate.participantProfileId, profiles(scope)), within(schema.certificate.recipientUserId, users(scope)))})`,
+        sql`${fileAsset.id} IN (SELECT ${artworkPhoto.fileAssetId} FROM ${artworkPhoto} INNER JOIN ${physicalArtwork} ON ${physicalArtwork.id} = ${artworkPhoto.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${entryFile.fileAssetId} FROM ${entryFile} WHERE ${entryFile.entryId} IN ${entryIdsOf(scope)})`,
         sql`${fileAsset.id} IN (SELECT ${consentForm.fileAssetId} FROM ${consentForm} WHERE ${within(consentForm.participantProfileId, profiles(scope))})`
       )!,
     owners: ["owner_user_id", "id"],
-    withhold: ["bucket", "storage_key"],
+    withhold: ["bucket", "storage_key", "owner_user_id"],
   },
   {
-    // A school's payment names many students: only the person's own items.
+    // The payment batch belongs to its payer. A participant whose fee was
+    // paid by someone else gets their own item, not the shared batch total.
+    table: paymentBatch,
+    where: (scope) => within(paymentBatch.payerUserId, users(scope)),
+    owners: ["payer_user_id"],
+  },
+  {
+    // Capture timing is payer data, not the artist's or the merely related
+    // registration's. Orders are unique only within their gateway.
+    table: gatewayWebhookEvent,
+    where: (scope) =>
+      and(
+        eq(gatewayWebhookEvent.type, "payment.captured"),
+        isNotNull(gatewayWebhookEvent.captureOccurredBy),
+        sql`EXISTS (SELECT 1 FROM ${paymentBatch} WHERE ${paymentBatch.gateway} = ${gatewayWebhookEvent.gateway} AND ${paymentBatch.gatewayOrderId} = ${gatewayWebhookEvent.orderId} AND ${paymentBatch.purpose} = 'auction_sale' AND ${within(paymentBatch.payerUserId, users(scope))})`
+      )!,
+    // The collector independently checks this pair against owned batches
+    // and supplies their local id. Neither provider identifier is exported.
+    owners: ["gateway", "order_id"],
+    include: ["capture_occurred_by"],
+  },
+  {
+    table: auctionOffer,
+    where: (scope) =>
+      or(
+        sql`${auctionOffer.bidId} IN (SELECT ${auctionBid.id} FROM ${auctionBid} WHERE ${within(auctionBid.bidderUserId, users(scope))})`,
+        sql`${auctionOffer.batchId} IN ${paidBatchesOf(scope)}`,
+        and(
+          eq(auctionOffer.status, "paid"),
+          sql`${auctionOffer.lotId} IN (SELECT ${auctionLot.id} FROM ${auctionLot} JOIN ${physicalArtwork} ON ${physicalArtwork.id}=${auctionLot.artworkId} WHERE ${physicalArtwork.entryId} IN ${entryIdsOf(scope)})`
+        )
+      )!,
+    owners: ["bid_id", "batch_id", "lot_id"],
+    decrypt: { address_ciphertext: "auction_offer.address" },
+  },
+  {
     table: paymentBatchItem,
     where: (scope) =>
       or(
@@ -300,15 +641,6 @@ export const SECTIONS: readonly Section[] = [
         sql`${paymentBatchItem.batchId} IN ${paidBatchesOf(scope)}`
       )!,
     owners: ["registration_id", "batch_id"],
-  },
-  {
-    table: paymentBatch,
-    where: (scope) =>
-      or(
-        within(paymentBatch.payerUserId, users(scope)),
-        sql`${paymentBatch.id} IN (SELECT ${paymentBatchItem.batchId} FROM ${paymentBatchItem} WHERE ${paymentBatchItem.registrationId} IN ${registrationIdsOf(scope)})`
-      )!,
-    owners: ["payer_user_id", "id"],
   },
   {
     table: offlinePayment,
@@ -325,6 +657,96 @@ export const SECTIONS: readonly Section[] = [
     table: refund,
     where: (scope) => sql`${refund.batchId} IN ${paidBatchesOf(scope)}`,
     owners: ["batch_id"],
+  },
+  {
+    table: donor,
+    where: (scope) => within(donor.userId, users(scope)),
+    owners: ["user_id"],
+    include: [
+      "id",
+      "user_id",
+      "type",
+      "name_ciphertext",
+      "email_ciphertext",
+      "pan_ciphertext",
+      "organisation_name",
+      "disclose_organisation",
+      "created_at",
+    ],
+    decrypt: {
+      name_ciphertext: DONOR_PURPOSE.name,
+      email_ciphertext: DONOR_PURPOSE.email,
+      pan_ciphertext: DONOR_PURPOSE.pan,
+    },
+  },
+  {
+    table: recurringDonation,
+    where: (scope) =>
+      or(
+        within(recurringDonation.userId, users(scope)),
+        sql`${recurringDonation.donorId} IN ${donorIdsOf(scope)}`
+      )!,
+    owners: ["user_id", "donor_id"],
+    include: [
+      "id",
+      "donor_id",
+      "user_id",
+      "amount_minor",
+      "status",
+      "show_on_wall",
+      "wall_name",
+      "next_charge_at",
+      "cancel_requested_at",
+      "cancel_requested_by",
+      "cancelled_at",
+      "cancelled_by",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  {
+    table: donation,
+    where: (scope) => sql`${donation.donorId} IN ${donorIdsOf(scope)}`,
+    owners: ["donor_id"],
+    // No checkout hash, gateway identifiers, or internal finance proof.
+    include: [
+      "id",
+      "donor_id",
+      "origin",
+      "status",
+      "amount_minor",
+      "currency",
+      "show_on_wall",
+      "wall_name",
+      "declared_adult",
+      "declared_indian_source",
+      "payment_batch_id",
+      "recurring_donation_id",
+      "expires_at",
+      "offline_method",
+      "offline_reference",
+      "offline_received_on",
+      "captured_at",
+      "created_at",
+      "updated_at",
+    ],
+  },
+  {
+    table: receipt,
+    where: (scope) => sql`${receipt.donationId} IN ${donationIdsOf(scope)}`,
+    owners: ["donation_id"],
+    // Frozen printed receipt, not the bearer links that open it.
+    include: [
+      "id",
+      "donation_id",
+      "fy",
+      "seq",
+      "number",
+      "issued_at",
+      "snapshot",
+      "template_version",
+      "cancelled_at",
+    ],
   },
   {
     table: privacyRequest,
@@ -360,7 +782,11 @@ export const SECTIONS: readonly Section[] = [
 
 /** Tables about people that the export leaves out, and why. */
 export const NOT_EXPORTED: Readonly<Record<string, string>> = {
+  gallery_report: "third_party_confidential_report",
+  certificate_ready_notice: "background_job",
+  certificate_archive: "mixed_subject_temporary_archive",
   verification: "sign_in_secret",
+  receipt_link: "receipt_bearer_link",
   otp_rate_limit: "keyed_hash_only",
   form_rate_limit: "keyed_hash_only",
   captured_message: "test_capture",
@@ -389,6 +815,17 @@ export const NOT_EXPORTED: Readonly<Record<string, string>> = {
   // Which coordinator picked an entry for a school's shortlist (#89): keyed
   // by the entry, with no id of its own to list.
   school_round_pick: "coordinator_pick",
+  // Which coordinator declared a shortlisted entry they created (#91):
+  // keyed by the entry, with no id of its own to list.
+  school_round_declaration: "coordinator_pick",
+  // Private judging assessments can name both a judge and a participant.
+  // An officer handles requests without identifying the other person or
+  // disclosing an unfinished result.
+  score_sheet: "confidential_judging_assessment",
+  criterion_score: "confidential_judging_assessment",
+  // Locking a round freezes the internal assessment; it does not publish
+  // a result. #99's two-person release can expose approved outcomes only.
+  round_result: "unpublished_judging_result",
   // Written when a person's data is erased: there is nothing left to export.
   erasure_record: "erasure_proof",
 };
@@ -422,7 +859,9 @@ export const REFERENCE_COLUMNS: readonly { table: string; column: string }[] =
       entry.subject.kind === "user" &&
       entry.subject.via === entry.column &&
       !Object.hasOwn(NOT_EXPORTED, entry.table) &&
-      !SECTION_OWNERS.has(`${entry.table}.${entry.column}`) &&
+      (!SECTION_OWNERS.has(`${entry.table}.${entry.column}`) ||
+        // Uploader-only files may belong to a participant, not the uploader.
+        (entry.table === "file_asset" && entry.column === "owner_user_id")) &&
       TABLES_BY_NAME.has(entry.table) &&
       "id" in getTableColumns(TABLES_BY_NAME.get(entry.table)!)
   ).map(({ table, column }) => ({ table, column }));

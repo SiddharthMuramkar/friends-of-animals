@@ -17,9 +17,18 @@ describe("the entries seed", () => {
     expect(entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
+          code: "ORIG27-E-5EED04",
+          status: "foa_verified",
+          checking: false,
+        }),
+        expect.objectContaining({
           code: "NEIGH27-E-5EEDA1",
           status: "submitted",
           checking: false,
+        }),
+        expect.objectContaining({
+          code: "AUCT27-E-5EED01",
+          status: "foa_verified",
         }),
         expect.objectContaining({
           code: "ROOF27-E-5EEDA2",
@@ -33,10 +42,10 @@ describe("the entries seed", () => {
         }),
       ])
     );
-    expect(entries).toHaveLength(3);
+    expect(entries).toHaveLength(5);
     expect(
       new Set(entries.map(({ registrationId }) => registrationId)).size
-    ).toBe(3);
+    ).toBe(5);
     // The rejected one can be tried again with another image.
     await expect(
       asha.getEntry({ code: "BIRDS27-E-5EEDA3" })
@@ -123,9 +132,17 @@ describe("the entries seed", () => {
           code: "BIRDS27-E-5EEDB2",
           status: "submitted",
         }),
+        expect.objectContaining({
+          code: "AUCT27-E-5EED03",
+          status: "foa_verified",
+        }),
+        expect.objectContaining({
+          code: "ORIG27-E-5EED05",
+          status: "foa_verified",
+        }),
       ])
     );
-    expect(entries).toHaveLength(2);
+    expect(entries).toHaveLength(4);
     const video = await ravi.getEntry({ code: "ROOF27-E-5EEDB1" });
     if (!video.ok) throw new Error("Missing seeded video");
     expect(video.entry).toMatchObject({

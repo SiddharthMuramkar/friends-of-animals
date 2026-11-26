@@ -28,14 +28,21 @@ const entityWithId = z.object({ id: z.string().min(1) });
 
 const eventBody = z.object({
   event: z.string().min(1),
+  created_at: z.unknown().optional(),
   payload: z
     .object({
       payment: z
         .object({
-          entity: z.object({ order_id: z.string().min(1).nullish() }),
+          entity: z.object({
+            order_id: z.string().min(1).nullish(),
+            id: z.unknown().optional(),
+            status: z.unknown().optional(),
+            captured: z.unknown().optional(),
+          }),
         })
         .optional(),
       order: z.object({ entity: entityWithId }).optional(),
+      subscription: z.object({ entity: entityWithId }).optional(),
       refund: z
         .object({
           entity: z.object({
@@ -79,11 +86,34 @@ export function readRazorpayWebhook(
   if (!parsed.success) return null;
   const { event, payload } = parsed.data;
   const refund = payload?.refund?.entity;
+  const payment = payload?.payment?.entity;
+  const eventAt = parsed.data.created_at;
+  // Razorpay gives event snapshots (not payment entity creation time).
+  // The top-level timestamp has one-second precision, so its last possible
+  // millisecond is the conservative upper bound. Missing or invalid fields
+  // still allow ordinary provider reconciliation, but give no timing proof.
+  const capture =
+    event === "payment.captured" &&
+    payment?.order_id &&
+    typeof payment.id === "string" &&
+    payment.id.length > 0 &&
+    payment.status === "captured" &&
+    payment.captured === true &&
+    typeof eventAt === "number" &&
+    Number.isSafeInteger(eventAt) &&
+    eventAt > 0 &&
+    eventAt < 8_640_000_000_000
+      ? { paymentId: payment.id, occurredBy: new Date(eventAt * 1000 + 999) }
+      : undefined;
   return {
     eventId: createHash("sha256").update(rawBody).digest("hex"),
     type: event,
     orderId:
       payload?.payment?.entity.order_id ?? payload?.order?.entity.id ?? null,
+    ...(payload?.subscription
+      ? { subscriptionId: payload.subscription.entity.id }
+      : {}),
+    ...(capture ? { capture } : {}),
     ...(refund
       ? { refund: { refundId: refund.id, paymentId: refund.payment_id } }
       : {}),

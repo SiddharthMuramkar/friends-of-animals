@@ -16,10 +16,11 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function Page() {
+export default function Page({ searchParams }: PageProps<"/sign-in">) {
   return (
     <AuthPage
       intent="sign-in"
+      searchParams={searchParams}
       art={
         // The crow who carries your code, beside the form from md.
         <Illustration

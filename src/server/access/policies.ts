@@ -18,12 +18,18 @@ import { COORDINATORS_POLICY } from "../modules/institutions/coordinators/policy
 import { CONTACT_POLICY } from "../modules/contact/access-policy";
 import { PUBLIC_FORMS_POLICY } from "../modules/public-forms/access-policy";
 import { SAFEGUARDING_POLICY } from "../modules/safeguarding/policy";
+import { EVENTS_POLICY } from "../modules/events/policy";
+import { CLUBS_POLICY } from "../modules/clubs/policy";
+import { COMMUNITY_POLICY } from "../modules/community/policy";
+import { CERTIFICATES_POLICY } from "../modules/certificates/policy";
+import { RESULTS_POLICY } from "../modules/results/policy";
 import { JUDGING_POLICY } from "../modules/judging/policy";
 import { COMPETITION_TERMS_POLICY } from "../modules/competitions/terms/policy";
 import { PAYMENTS_POLICY } from "../modules/payments/policy";
 import { PARTICIPANTS_POLICY } from "../modules/participants/policy";
 import { GUARDIANS_POLICY } from "../modules/guardians/policy";
 import { LEDGER_POLICY } from "../modules/ledger/policy";
+import { TRANSPARENCY_POLICY } from "../modules/transparency/policy";
 import { ENTRIES_POLICY } from "../modules/entries/policy";
 import { ANNOUNCEMENTS_POLICY } from "../modules/announcements/policy";
 import { PRIVACY_POLICY } from "../modules/privacy/policy";
@@ -35,12 +41,21 @@ import { DIRECTORY_POLICY } from "../modules/directory/policy";
 import { ADOPTION_POLICY } from "../modules/adoption/policy";
 import { VOLUNTEERS_POLICY } from "../modules/volunteers/policy";
 import { REMINDERS_POLICY } from "../modules/reminders/policy";
+import { INVITATIONS_POLICY } from "../modules/invitations/policy";
+import { SURVEYS_POLICY } from "../modules/surveys/policy";
 import { CAMPAIGNS_POLICY } from "../modules/campaigns/policy";
 import { SCHOOL_ROUND_POLICY } from "../modules/school-round/policy";
+import { PHYSICAL_ARTWORK_POLICY } from "../modules/physical-artwork/policy";
+import { VERIFICATION_POLICY } from "../modules/verification/policy";
+import { SOCIAL_EXPORT_POLICY } from "../modules/social-export/policy";
+import { GALLERY_POLICY } from "../modules/gallery/policy";
+import { AUCTIONS_POLICY } from "../modules/auctions/policy";
+import { REPORTS_POLICY } from "../modules/reports/policy";
 import { ACCESS_POLICY } from "./domain/access-policy";
 import { composePolicies } from "./domain/policy";
 
-export const POLICY = composePolicies(
+// Keep the type-level duplicate check shallow as the platform grows.
+const corePolicy = composePolicies(
   IDENTITY_POLICY,
   ACCESS_POLICY,
   SECOND_FACTOR_POLICY,
@@ -58,11 +73,19 @@ export const POLICY = composePolicies(
   CONTACT_POLICY,
   SAFEGUARDING_POLICY,
   JUDGING_POLICY,
+  RESULTS_POLICY,
+  COMMUNITY_POLICY,
+  CLUBS_POLICY,
+  EVENTS_POLICY,
+  CERTIFICATES_POLICY,
   COMPETITION_TERMS_POLICY,
-  PAYMENTS_POLICY,
+  PAYMENTS_POLICY
+);
+const operationPolicy = composePolicies(
   PARTICIPANTS_POLICY,
   GUARDIANS_POLICY,
   LEDGER_POLICY,
+  TRANSPARENCY_POLICY,
   ENTRIES_POLICY,
   ANNOUNCEMENTS_POLICY,
   PRIVACY_POLICY,
@@ -73,9 +96,19 @@ export const POLICY = composePolicies(
   ADOPTION_POLICY,
   VOLUNTEERS_POLICY,
   REMINDERS_POLICY,
+  SURVEYS_POLICY,
+  INVITATIONS_POLICY,
   CAMPAIGNS_POLICY,
   INSTITUTION_SUBMISSIONS_POLICY,
-  SCHOOL_ROUND_POLICY
+  SCHOOL_ROUND_POLICY,
+  VERIFICATION_POLICY,
+  PHYSICAL_ARTWORK_POLICY,
+  GALLERY_POLICY,
+  SOCIAL_EXPORT_POLICY,
+  AUCTIONS_POLICY,
+  REPORTS_POLICY
 );
+
+export const POLICY = composePolicies(corePolicy, operationPolicy);
 
 export type Action = keyof typeof POLICY;

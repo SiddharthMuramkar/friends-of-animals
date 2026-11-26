@@ -9,6 +9,7 @@ import { CMS_DOCUMENT_KEYS } from "../server/modules/cms/domain/documents";
  */
 export const APP_ROUTES = {
   accountSessions: "/account/sessions",
+  accountAuctions: "/account/auctions",
   accountInbox: "/account/inbox",
   accountNotifications: "/account/notifications",
   accountSecurity: "/account/security",
@@ -26,6 +27,9 @@ export const APP_ROUTES = {
   adminCompetitions: "/admin/competitions",
   adminNewCompetition: "/admin/competitions/new",
   adminCms: "/admin/cms",
+  adminGallery: "/admin/gallery",
+  adminSocialExport: "/admin/social-export",
+  adminGalleryReports: "/admin/gallery/reports",
   adminTemplates: "/admin/templates",
   institutionRegister: "/institutions/register",
   myInstitution: "/institution",
@@ -100,9 +104,22 @@ export function adminPaymentReviewCasePath(caseId: string): string {
  * Refunds (#80): the finance queue and each refund's page. Listed with
  * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
  */
+/** Role-scoped home and aggregate competition reports (#117). */
+export const ADMIN_HOME = "/admin";
+export const ADMIN_REPORTS = "/admin/reports";
+export const ADMIN_OBJECTIVES = `${ADMIN_REPORTS}/objectives`;
+export const ADMIN_SOCIAL_METRICS = `${ADMIN_REPORTS}/social`;
+export const adminQueuePath = (key: string) =>
+  `/admin/queues/${encodeURIComponent(key)}`;
+export const adminCompetitionReportPath = (code: string) =>
+  `${ADMIN_REPORTS}/competitions/${encodeURIComponent(code)}`;
+export const adminCompetitionReportCsvPath = (code: string) =>
+  `${adminCompetitionReportPath(code)}/export.csv`;
+
 export const ADMIN_REFUNDS = "/admin/refunds";
 
 export const ADMIN_LEDGER = "/admin/ledger";
+export const ADMIN_AUCTION_PROCEEDS = `${ADMIN_LEDGER}/auction-proceeds`;
 export const ADMIN_LEDGER_ACCOUNTS = `${ADMIN_LEDGER}/accounts`;
 export const ADMIN_NEW_LEDGER_ENTRY = `${ADMIN_LEDGER}/entries/new`;
 /** Period lock, two-approver requests, budgets and the accountant's export (#109). */
@@ -140,6 +157,14 @@ export function adminRefundPath(refundId: string): string {
 
 /** Finance's donations (#106): the list and each donation's page. */
 export const ADMIN_DONATIONS = "/admin/donations";
+export const ADMIN_OFFLINE_DONATION = `${ADMIN_DONATIONS}/offline` as const;
+export const ADMIN_RECURRING_DONATIONS = "/admin/donations/recurring";
+export const DASHBOARD_DONATIONS = "/dashboard/donations";
+export const MONTHLY_CHECKOUT_ROUTE = "/donate/checkout/monthly/[id]";
+export const recurringDonationPath = (id: string) =>
+  `${DASHBOARD_DONATIONS}/recurring/${encodeURIComponent(id)}`;
+export const monthlyCheckoutPath = (id: string) =>
+  `/donate/checkout/monthly/${encodeURIComponent(id)}`;
 
 export function adminDonationPath(donationId: string): string {
   return `${ADMIN_DONATIONS}/${encodeURIComponent(donationId)}`;
@@ -150,8 +175,40 @@ export function adminDonationPath(donationId: string): string {
  * teen's, and the community team's queue. Listed with APP_ROUTE_TEMPLATES
  * rather than in APP_ROUTES, like the payments pages.
  */
+export const DASHBOARD_EVENTS = "/dashboard/events";
+export const ADMIN_EVENTS = "/admin/events";
+export const ADMIN_NEW_EVENT = "/admin/events/new";
+export const adminEventPath = (id: string) =>
+  `${ADMIN_EVENTS}/${encodeURIComponent(id)}`;
+export const eventRegistrationsPath = (id: string) =>
+  `${adminEventPath(id)}/registrations`;
+export const eventCheckInPath = (id: string) =>
+  `${adminEventPath(id)}/check-in`;
+export const guardianChildEventsPath = (id: string) =>
+  `${guardianChildPath(id)}/events`;
+export const CLUB_APPLY = "/clubs/apply";
+export const DASHBOARD_CLUBS = "/dashboard/clubs";
+export const ADMIN_CLUBS = "/admin/community/clubs";
+export const clubPath = (id: string) =>
+  `${DASHBOARD_CLUBS}/${encodeURIComponent(id)}`;
+export const adminClubPath = (id: string) =>
+  `${ADMIN_CLUBS}/${encodeURIComponent(id)}`;
+export const DASHBOARD_AMBASSADORS = "/dashboard/ambassadors";
+export const ADMIN_AMBASSADORS = "/admin/community/ambassadors";
+export const DASHBOARD_COMMUNITY = "/dashboard/community";
+export const DASHBOARD_TIMELINE = "/dashboard/timeline";
+export const ADMIN_COMMUNITY_MEMBERS = "/admin/community/members";
+export function guardianChildTimelinePath(childId: string): string {
+  return `${guardianChildPath(childId)}/timeline`;
+}
+
 export const DASHBOARD_VOLUNTEER = "/dashboard/volunteer";
 export const ADMIN_VOLUNTEERS = "/admin/volunteers";
+export const ADMIN_VOLUNTEER_TASKS = `${ADMIN_VOLUNTEERS}/tasks`;
+export const ADMIN_VOLUNTEER_HOURS = `${ADMIN_VOLUNTEERS}/hours`;
+export const DASHBOARD_VOLUNTEER_TASKS = `${DASHBOARD_VOLUNTEER}/tasks`;
+export const DASHBOARD_VOLUNTEER_HOURS = `${DASHBOARD_VOLUNTEER}/hours`;
+export const DASHBOARD_VOLUNTEER_CERTIFICATE = `${DASHBOARD_VOLUNTEER}/certificate`;
 
 export function adminVolunteerApplicationPath(applicationId: string): string {
   return `${ADMIN_VOLUNTEERS}/${encodeURIComponent(applicationId)}`;
@@ -239,6 +296,48 @@ export function adoptionApplicationsPath(
  * public stories page, /adopt/stories, is in src/lib/routes.ts.
  */
 export const DASHBOARD_ADOPTIONS = "/dashboard/adoptions";
+export const ADMIN_JUDGING_ROUNDS = "/admin/judging/rounds";
+export const JUDGE_DASHBOARD = "/judge";
+export const JUDGE_INVITATIONS_PREFIX = "/judge/invitations";
+export const adminJudgingRoundPath = (id: string) =>
+  `${ADMIN_JUDGING_ROUNDS}/${encodeURIComponent(id)}`;
+export const judgeInvitationPath = (token: string) =>
+  `${JUDGE_INVITATIONS_PREFIX}/${encodeURIComponent(token)}`;
+export const judgeRoundPath = (id: string) =>
+  `${JUDGE_DASHBOARD}/rounds/${encodeURIComponent(id)}`;
+export const judgeEntryPath = (id: string, entryCode: string) =>
+  `${judgeRoundPath(id)}/entries/${encodeURIComponent(entryCode)}`;
+export const judgeOnboardingPath = (id: string) =>
+  `${JUDGE_DASHBOARD}/rounds/${encodeURIComponent(id)}/onboarding`;
+export const isJudgeInvitationPage = (path: string) =>
+  fitsTemplate(path, `${JUDGE_INVITATIONS_PREFIX}/[token]`);
+
+/** Public request-time verification, never signed in or cached. */
+export const CERTIFICATE_VERIFY_PREFIX = "/verify";
+export const GALLERY_REPORT_PREFIX = "/gallery-report";
+export const ADMIN_CERTIFICATES = "/admin/certificates";
+export const MY_CERTIFICATES = "/dashboard/certificates";
+export const ADMIN_ARTWORK = "/admin/artwork";
+export const ADMIN_ARTWORK_DISCREPANCIES = "/admin/artwork/discrepancies";
+export const INSTITUTION_ARTWORK = "/institution/artwork";
+export const MY_ARTWORK = "/dashboard/artwork";
+export const adminArtworkPath = (artworkCode: string) =>
+  `${ADMIN_ARTWORK}/${encodeURIComponent(artworkCode)}`;
+
+export const adminArtworkVerifyPath = (artworkCode: string) =>
+  `${adminArtworkPath(artworkCode)}/verify`;
+
+export const ADMIN_VERIFICATION = "/admin/verification";
+export function adminVerificationEntryPath(entryId: string): string {
+  return `${ADMIN_VERIFICATION}/${encodeURIComponent(entryId)}`;
+}
+
+export const ADMIN_AUCTIONS = "/admin/auctions";
+export const ADMIN_AUCTIONS_NEW = "/admin/auctions/lots/new";
+export const adminAuctionLotPath = (lotId: string) =>
+  `${ADMIN_AUCTIONS}/lots/${encodeURIComponent(lotId)}`;
+export const auctionLotPath = (lotCode: string) =>
+  `/auctions/${encodeURIComponent(lotCode)}`;
 export const ADMIN_ADOPTIONS = "/admin/adoptions";
 
 export function myAdoptionApplicationPath(applicationId: string): string {
@@ -260,12 +359,32 @@ export function adminAdoptionApplicationPath(applicationId: string): string {
  */
 export const ADOPTION_STORIES_PATH = "/adopt/stories";
 
+/** Published ledger figures (#110); kept out of the shared client registry. */
+export const TRANSPARENCY_PATH = "/transparency";
+export function transparencyYearPath(fy: string): string {
+  return `${TRANSPARENCY_PATH}?fy=${encodeURIComponent(fy)}`;
+}
+
 /** An adoptable animal's public page. */
 export function adoptableAnimalPath(slug: string): string {
   return `/adopt/${encodeURIComponent(slug)}`;
 }
 
 /** Campaigns to consented segments (#126): the list, the composer, each one. */
+export const ADMIN_SURVEYS = "/admin/surveys";
+export const DASHBOARD_INVITATIONS = "/dashboard/invitations";
+export const DASHBOARD_SURVEYS = "/dashboard/surveys";
+export const FEEDBACK_PREFIX = "/feedback";
+export function adminSurveyPath(id: string) {
+  return `${ADMIN_SURVEYS}?competitionId=${encodeURIComponent(id)}`;
+}
+export function surveyAnswerPath(id: string) {
+  return `${DASHBOARD_SURVEYS}?competitionId=${encodeURIComponent(id)}`;
+}
+export function feedbackPath(token: string) {
+  return `${FEEDBACK_PREFIX}/${encodeURIComponent(token)}`;
+}
+
 export const ADMIN_CAMPAIGNS = "/admin/campaigns";
 export const ADMIN_NEW_CAMPAIGN = `${ADMIN_CAMPAIGNS}/new`;
 
@@ -282,6 +401,14 @@ export function adminBatchRefundPath(batchId: string): string {
  * Where a super admin cancels a competition (#80). Listed with
  * APP_ROUTE_TEMPLATES rather than in APP_ROUTES, like the payments pages.
  */
+export function adminSchoolRoundsPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/school-rounds`;
+}
+
+export function adminCompetitionResultsPath(competitionId: string): string {
+  return `/admin/competitions/${encodeURIComponent(competitionId)}/results`;
+}
+
 export function adminCompetitionCancelPath(competitionId: string): string {
   return `/admin/competitions/${encodeURIComponent(competitionId)}/cancel`;
 }
@@ -425,7 +552,10 @@ export function donationCheckoutPath(donationId: string, token: string) {
 }
 
 export function isDonationCheckoutPage(pathname: string): boolean {
-  return fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE);
+  return (
+    fitsTemplate(pathname, DONATION_CHECKOUT_ROUTE) ||
+    fitsTemplate(pathname, MONTHLY_CHECKOUT_ROUTE)
+  );
 }
 
 /** A donation's thank-you page (#106), for the same token's holder. */
@@ -453,10 +583,13 @@ export function receiptPath(token: string): string {
  * and its headers come with these documents only (./csp-sources.ts,
  * ./security-headers.ts).
  */
+export const AUCTION_CHECKOUT_ROUTE = "/account/auctions/[lotCode]";
 export const CHECKOUT_ROUTES = [
+  AUCTION_CHECKOUT_ROUTE,
   PAY_FEES_ROUTE,
   PAY_MY_REGISTRATION_ROUTE,
   DONATION_CHECKOUT_ROUTE,
+  MONTHLY_CHECKOUT_ROUTE,
 ] as const;
 
 /** A payment batch's status and receipt (#77). */
@@ -509,8 +642,41 @@ export function studentImportFilePath(
  * app directory: each `[name]` stands for one path segment.
  */
 export const APP_ROUTE_TEMPLATES = [
+  ADMIN_HOME,
+  ADMIN_REPORTS,
+  ADMIN_OBJECTIVES,
+  ADMIN_SOCIAL_METRICS,
+  "/admin/reports/objectives/export.csv",
+  "/admin/reports/social/export.csv",
+  "/admin/queues/[key]",
+  "/admin/reports/competitions/[code]",
+  "/admin/reports/competitions/[code]/export.csv",
+  ADMIN_JUDGING_ROUNDS,
+  "/admin/judging/rounds/new",
+  "/admin/judging/rounds/[id]",
+  "/admin/judging/rounds/[id]/judges",
+  "/admin/judging/rounds/[id]/pool",
+  "/admin/judging/rounds/[id]/assignments",
+  "/admin/judging/rounds/[id]/conflicts",
+  "/admin/judging/rounds/[id]/rankings",
+  JUDGE_DASHBOARD,
+  "/judge/rounds/[id]/onboarding",
+  "/judge/rounds/[id]",
+  "/judge/rounds/[id]/entries/[entryCode]",
+
+  ADMIN_CERTIFICATES,
+  MY_CERTIFICATES,
+  ADMIN_ARTWORK,
+  "/admin/artwork/[artworkCode]",
+  "/admin/artwork/[artworkCode]/verify",
+  ADMIN_ARTWORK_DISCREPANCIES,
+  INSTITUTION_ARTWORK,
+  MY_ARTWORK,
+  ADMIN_VERIFICATION,
+  "/admin/verification/[id]",
   "/admin/consent-forms/[id]",
   "/admin/competitions/[id]/edit",
+  "/admin/competitions/[id]/results",
   "/admin/competitions/[id]/preview",
   "/admin/competitions/[id]/terms",
   "/admin/competitions/[id]/announcements",
@@ -522,6 +688,7 @@ export const APP_ROUTE_TEMPLATES = [
   "/admin/safeguarding/[id]",
   "/admin/blog/[id]",
   "/admin/competitions/[id]/rubrics",
+  "/admin/competitions/[id]/school-rounds",
   "/admin/competitions/[id]/rubrics/[discipline]",
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY,
@@ -537,12 +704,21 @@ export const APP_ROUTE_TEMPLATES = [
   ADMIN_BREACHES,
   "/admin/breaches/[id]",
   ADMIN_DONATIONS,
+  ADMIN_OFFLINE_DONATION,
+  ADMIN_RECURRING_DONATIONS,
   "/admin/donations/[id]",
+  DASHBOARD_DONATIONS,
+  "/dashboard/donations/recurring/[id]",
+  ADMIN_SURVEYS,
+  "/admin/surveys/export.csv",
+  DASHBOARD_SURVEYS,
+  DASHBOARD_INVITATIONS,
   ADMIN_CAMPAIGNS,
   ADMIN_NEW_CAMPAIGN,
   "/admin/campaigns/[id]",
   "/admin/payments/batches/[id]/refund",
   ADMIN_LEDGER,
+  ADMIN_AUCTION_PROCEEDS,
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_NEW_LEDGER_ENTRY,
   ADMIN_LEDGER_PERIODS,
@@ -572,12 +748,38 @@ export const APP_ROUTE_TEMPLATES = [
   "/guardian/children/[id]/consents",
   "/guardian/children/[id]/consents/history",
   "/guardian/children/[id]/volunteer",
+  DASHBOARD_EVENTS,
+  ADMIN_EVENTS,
+  ADMIN_NEW_EVENT,
+  "/admin/events/[id]",
+  "/admin/events/[id]/registrations",
+  "/admin/events/[id]/check-in",
+  "/guardian/children/[id]/events",
+  CLUB_APPLY,
+  DASHBOARD_CLUBS,
+  `${DASHBOARD_CLUBS}/[clubId]`,
+  ADMIN_CLUBS,
+  `${ADMIN_CLUBS}/[clubId]`,
+  DASHBOARD_AMBASSADORS,
+  ADMIN_AMBASSADORS,
+  DASHBOARD_COMMUNITY,
+  DASHBOARD_TIMELINE,
+  ADMIN_COMMUNITY_MEMBERS,
+  "/guardian/children/[id]/timeline",
   DASHBOARD_VOLUNTEER,
   ADMIN_VOLUNTEERS,
+  ADMIN_VOLUNTEER_TASKS,
+  `${ADMIN_VOLUNTEER_TASKS}/new`,
+  `${ADMIN_VOLUNTEER_TASKS}/[taskId]`,
+  ADMIN_VOLUNTEER_HOURS,
+  DASHBOARD_VOLUNTEER_TASKS,
+  DASHBOARD_VOLUNTEER_HOURS,
+  DASHBOARD_VOLUNTEER_CERTIFICATE,
   "/admin/volunteers/[id]",
   PAY_MY_REGISTRATION_ROUTE,
   PAY_FEES_ROUTE,
   PAYMENT_BATCH_ROUTE,
+  AUCTION_CHECKOUT_ROUTE,
   NGO_REGISTER,
   MY_LISTINGS,
   "/organisation/[id]",
@@ -592,6 +794,9 @@ export const APP_ROUTE_TEMPLATES = [
   "/dashboard/adoptions",
   "/dashboard/adoptions/[id]",
   "/dashboard/adoptions/apply/[slug]",
+  ADMIN_AUCTIONS,
+  ADMIN_AUCTIONS_NEW,
+  "/admin/auctions/lots/[lotId]",
   "/admin/adoptions",
   "/admin/adoptions/[id]",
 ] as const;
@@ -635,12 +840,14 @@ export const SIGNED_IN_PREFIXES = [
   "/admin",
   "/auth",
   "/dashboard",
+  "/clubs",
   "/institution",
   "/institutions/register",
   "/participant",
   "/guardian",
   "/ngos/register",
   "/organisation",
+  JUDGE_DASHBOARD,
 ] as const;
 
 export function isSignedInPath(pathname: string): boolean {

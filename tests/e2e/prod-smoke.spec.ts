@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { TRANSPARENCY_PATH } from "../../src/lib/app-routes";
 import { ROUTES } from "../../src/lib/routes";
 import { expectAccessible, expectAccessibleInDark } from "./support/a11y";
 import { onlyPolicy } from "./support/csp";
@@ -14,9 +15,12 @@ import { onlyPolicy } from "./support/csp";
 const PRODUCTION_APEX = "friendsofanimals.dev";
 
 /** Every public page in src/lib/routes.ts that production serves. */
-const PUBLIC_PAGES = Object.values(ROUTES)
-  .filter((route) => !route.path.includes("[") && !("nonProduction" in route))
-  .map((route) => route.path);
+const PUBLIC_PAGES = [
+  ...Object.values(ROUTES)
+    .filter((route) => !route.path.includes("[") && !("nonProduction" in route))
+    .map((route) => route.path),
+  TRANSPARENCY_PATH,
+];
 
 /** Cookie names of common analytics tools. The site sets none of them. */
 const ANALYTICS_COOKIE =

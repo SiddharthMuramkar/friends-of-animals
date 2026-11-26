@@ -1,3 +1,4 @@
+import { withAuctionShare } from "../modules/consent/domain/auction-proceeds";
 // Consent seed data (#64): version 1 of the privacy notice, the terms and
 // the messages consent, published by the seeded super admin, so previews
 // show versioned legal pages and ask for consent at sign-up; and (#82)
@@ -81,6 +82,33 @@ const SEED_DOCUMENTS: ReadonlyArray<{
     title: draft.title,
     body: { short: draft.short, sections: draft.sections },
   })),
+  ...(["judge_conduct", "judge_confidentiality"] as const).map((purpose) => ({
+    purpose,
+    title:
+      purpose === "judge_conduct"
+        ? "Sample judge code of conduct (HR-39)"
+        : "Sample judge confidentiality terms (HR-39)",
+    body: {
+      short: [
+        ["Preview sample only. FOA must approve the final wording before use."],
+      ],
+      sections: [
+        {
+          id: "sample-terms",
+          title: "Sample terms",
+          blocks: [
+            {
+              p: [
+                purpose === "judge_conduct"
+                  ? "Judge fairly and respectfully. Declare conflicts of interest and follow safeguarding procedures."
+                  : "Keep entries and judging deliberations private. Do not seek or disclose the identity of participants.",
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  })),
   // An adopter's consents (#130), drafts too (HR-61).
   ...Object.entries(ADOPTION_CONSENT_DRAFTS).map(([purpose, draft]) => ({
     purpose: purpose as keyof typeof ADOPTION_CONSENT_DRAFTS,
@@ -111,8 +139,12 @@ export async function seedConsent(deps: SeedDeps): Promise<void> {
         purpose,
         version: 1,
         title,
-        body: parsed.body,
-        publishedAt: now,
+        body:
+          purpose === "auction"
+            ? withAuctionShare(parsed.body, 0)
+            : parsed.body,
+        publishedAt:
+          purpose === "auction" ? new Date(+now - 200 * 86400000) : now,
         publishedByUserId: publisher.id,
       })
       .onConflictDoNothing();

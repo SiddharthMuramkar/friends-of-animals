@@ -173,6 +173,13 @@ const BREACH_RECORD = {
  * A volunteer application (#123): a closed one that wasn't approved goes a
  * year after it closed; an approved one stays while the person volunteers.
  */
+const AMBASSADOR_APPLICATION_RECORD = {
+  policy: "ambassadorApplications",
+  periodKey: "ambassadorApplications",
+  basis:
+    "Private evidence of an ambassador application and its decision; approved decisions support an earned milestone (HR-31 and HR-57).",
+  toConfirm: true,
+} as const;
 const VOLUNTEER_APPLICATION_RECORD = {
   policy: "volunteerApplications",
   periodKey: "volunteerApplications",
@@ -642,6 +649,11 @@ const GUARDIAN_INVITATION_RECIPIENT = {
   via: "kind + contact_hash",
 } as const;
 
+const ambassadorApplication = rowsOf("ambassador_application", {
+  subject: { kind: "user", via: "applicant_user_id" },
+  retention: AMBASSADOR_APPLICATION_RECORD,
+  onExpiry: "delete_row",
+});
 const volunteerApplication = rowsOf("volunteer_application", {
   subject: { kind: "user", via: "applicant_user_id" },
   retention: VOLUNTEER_APPLICATION_RECORD,
@@ -735,7 +747,331 @@ function entryFile(
   };
 }
 
+const JUDGING_RECORD = {
+  policy: "judgingRecords",
+  periodKey: "judgingRecords",
+  basis:
+    "FOA reviews judge invitations, declarations and conflicts and records their round assignments",
+  toConfirm: true,
+} as const;
+const judgeInvite = rowsOf("judge_invitation", {
+  subject: { kind: "invitee", via: "email_hash" },
+  retention: JUDGING_RECORD,
+  onExpiry: "delete_row",
+});
+const judgeDeclaration = rowsOf("judge_onboarding", {
+  subject: { kind: "user", via: "judge_user_id" },
+  retention: JUDGING_RECORD,
+  onExpiry: "delete_row",
+});
+const judgeConflictRecord = rowsOf("judge_conflict", {
+  subject: { kind: "user", via: "judge_user_id" },
+  retention: JUDGING_RECORD,
+  onExpiry: "delete_row",
+});
+const CERTIFICATE_RECORD = {
+  policy: "certificateRecords",
+  periodKey: "certificateRecords",
+  basis:
+    "Preserve verified recognition and its private PDF until the subject's records are legally erased",
+  toConfirm: true,
+} as const;
+const VOLUNTEER_SERVICE = {
+  policy: "volunteerService",
+  periodKey: "volunteerService",
+  basis:
+    "Recognise approved service and preserve the private history of tasks and hours until erasure",
+  toConfirm: true,
+} as const;
+const COMMUNITY_HISTORY = {
+  policy: "communityHistory",
+  periodKey: "communityHistory",
+  basis: "The person's private engagement journey, including earned milestones",
+  toConfirm: true,
+} as const;
+const LEFT_MEMBER_PROFILE = {
+  policy: "communityMembers",
+  periodKey: "communityMembers",
+  basis:
+    "Keeping the member profile available while active, then clearing its identifying text after departure",
+  toConfirm: true,
+} as const;
+function communitySubjectField(
+  table: string,
+  column: "subject_user_id" | "subject_profile_id"
+): InventoryField {
+  return rowsOf(table, {
+    subject: {
+      kind: column === "subject_user_id" ? "user" : "participant_profile",
+      via: column,
+    },
+    retention: COMMUNITY_HISTORY,
+    onExpiry: "delete_row",
+  })(column, "identity");
+}
+function communityField(
+  table: string,
+  column: string,
+  category: PersonalDataCategory,
+  profileText = false
+): InventoryField {
+  return rowsOf(table, {
+    subject: {
+      kind: "community_subject",
+      via: "subject_user_id or subject_profile_id",
+    },
+    retention: profileText ? LEFT_MEMBER_PROFILE : COMMUNITY_HISTORY,
+    onExpiry: profileText ? "set_null" : "delete_row",
+  })(column, category);
+}
+
+const CLUB_APPLICATION_RECORD = {
+  policy: "clubApplications",
+  periodKey: "clubApplications",
+  basis:
+    "Preserve private application evidence for a limited time after the club ends",
+  toConfirm: true,
+} as const;
+const CLUB_DECISION_RECORD = {
+  ...CLUB_APPLICATION_RECORD,
+  policy: "clubDecisions",
+} as const;
+const CLUB_MEMBERSHIP_RECORD = {
+  policy: "clubMemberships",
+  periodKey: "clubMemberships",
+  basis:
+    "Keep club membership evidence for a limited period after leaving; private timeline remains until erasure",
+  toConfirm: true,
+} as const;
 const INVENTORY_FIELDS: readonly InventoryField[] = [
+  ...["applicant_user_id", "applicant_kind", "applicant_verified"].map(
+    (column) =>
+      rowsOf("club", {
+        subject: { kind: "user", via: "applicant_user_id" },
+        retention: CLUB_APPLICATION_RECORD,
+        onExpiry: column === "applicant_user_id" ? "set_null" : "retain",
+      })(column, column === "applicant_user_id" ? "identity" : "content")
+  ),
+  ...[
+    "club_id",
+    "user_id",
+    "role",
+    "affiliation_verified",
+    "joined_at",
+    "left_at",
+  ].map((column) =>
+    rowsOf("club_membership", {
+      subject: { kind: "user", via: "user_id" },
+      retention: CLUB_MEMBERSHIP_RECORD,
+      onExpiry: "delete_row",
+    })(column, column === "user_id" ? "identity" : "content")
+  ),
+  actorColumn("club_decision", "decided_by_user_id", CLUB_DECISION_RECORD),
+  rowsOf("club_decision", {
+    subject: { kind: "user", via: "club_id -> club.applicant_user_id" },
+    retention: CLUB_DECISION_RECORD,
+    onExpiry: "set_null",
+  })("reason_ciphertext", "content"),
+  // Private community history follows the account/profile; text left after
+  // departure is cleared by the configured 365-day policy.
+  ...[
+    "community_member",
+    "engagement_milestone",
+    "timeline_entry",
+    "event_registration",
+  ].flatMap((table) => [
+    communitySubjectField(table, "subject_user_id"),
+    communitySubjectField(table, "subject_profile_id"),
+  ]),
+  actorColumn("community_member", "joined_by_user_id", COMMUNITY_HISTORY),
+  actorColumn("event", "created_by_user_id", COMMUNITY_HISTORY),
+  actorColumn("event_registration", "registered_by_user_id", COMMUNITY_HISTORY),
+  actorColumn("event_registration", "checked_in_by_user_id", COMMUNITY_HISTORY),
+  communityField("event_registration", "event_id", "technical"),
+  communityField("event_registration", "status", "content"),
+  communityField("event_registration", "registered_at", "technical"),
+  communityField("event_registration", "waitlist_order", "technical"),
+  communityField("event_registration", "waitlisted_at", "technical"),
+  communityField("event_registration", "promoted_at", "technical"),
+  communityField("event_registration", "cancelled_at", "technical"),
+  communityField("event_registration", "checked_in_at", "technical"),
+  communityField(
+    "community_member",
+    "display_name_ciphertext",
+    "identity",
+    true
+  ),
+  communityField("community_member", "about_ciphertext", "content", true),
+  communityField("engagement_milestone", "kind", "content"),
+  communityField("engagement_milestone", "source_id", "technical"),
+  communityField("timeline_entry", "kind", "content"),
+  communityField("timeline_entry", "ref_id", "technical"),
+  communityField("timeline_entry", "source_key", "technical"),
+  communityField("timeline_entry", "milestone_id", "technical"),
+  ...[
+    "participant_profile_id",
+    "registration_id",
+    "number",
+    "name_snapshot",
+    "award_position",
+    "award_label",
+    "type",
+    "revoked_reason",
+    "pdf_file_id",
+  ].map((c) =>
+    rowsOf("certificate", {
+      subject: {
+        kind: "participant_profile",
+        via: "participant_profile_id or recipient_user_id for service certificates",
+      },
+      retention: CERTIFICATE_RECORD,
+      onExpiry: "delete_row",
+    })(
+      c,
+      c === "name_snapshot" || c === "participant_profile_id"
+        ? "identity"
+        : "content"
+    )
+  ),
+  rowsOf("certificate", {
+    subject: { kind: "user", via: "recipient_user_id" },
+    retention: VOLUNTEER_SERVICE,
+    onExpiry: "delete_row",
+  })("recipient_user_id", "identity"),
+  rowsOf("certificate", {
+    subject: {
+      kind: "user",
+      via: "recipient_user_id or participant_profile_id",
+    },
+    retention: VOLUNTEER_SERVICE,
+    onExpiry: "delete_row",
+  })("approved_minutes_snapshot", "content"),
+  actorColumn("certificate", "revoked_by_user_id", STAFF_RECORD),
+  ...["title_ciphertext", "description_ciphertext"].map((c) =>
+    rowsOf("volunteer_task", {
+      subject: { kind: "user", via: "created_by_user_id" },
+      retention: VOLUNTEER_SERVICE,
+      onExpiry: "retain",
+    })(c, "content")
+  ),
+  actorColumn("volunteer_task", "created_by_user_id", VOLUNTEER_SERVICE),
+  rowsOf("volunteer_task_assignment", {
+    subject: { kind: "user", via: "volunteer_user_id" },
+    retention: VOLUNTEER_SERVICE,
+    onExpiry: "delete_row",
+  })("volunteer_user_id", "identity"),
+  actorColumn(
+    "volunteer_task_assignment",
+    "assigned_by_user_id",
+    VOLUNTEER_SERVICE
+  ),
+  ...[
+    "minutes",
+    "worked_on",
+    "note_ciphertext",
+    "reject_reason_ciphertext",
+  ].map((c) =>
+    rowsOf("volunteer_hours_entry", {
+      subject: {
+        kind: "user",
+        via: "assignment_id → volunteer_task_assignment.volunteer_user_id",
+      },
+      retention: VOLUNTEER_SERVICE,
+      onExpiry: "delete_row",
+    })(c, "content")
+  ),
+  actorColumn("volunteer_hours_entry", "decided_by_user_id", VOLUNTEER_SERVICE),
+  ...["certificate_ids", "profile_ids", "storage_key"].map((c) =>
+    rowsOf("certificate_archive", {
+      subject: { kind: "participant_profile", via: "profile_ids" },
+      retention: {
+        policy: "files",
+        periodKey: "certificateArchives",
+        basis:
+          "A temporary copy of private certificates for their institution's coordinators",
+        toConfirm: true,
+      },
+      onExpiry: "delete_row",
+    })(c, "technical")
+  ),
+  rowsOf("certificate_ready_notice", {
+    subject: { kind: "user", via: "recipient_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("recipient_user_id", "identity"),
+  ...[
+    "created_by_user_id",
+    "opened_by_user_id",
+    "cancelled_by_user_id",
+    "locked_by_user_id",
+  ].map((c) => actorColumn("judging_round", c, STAFF_RECORD)),
+  actorColumn("result_release", "prepared_by_user_id", STAFF_RECORD),
+  actorColumn("result_release", "approved_by_user_id", STAFF_RECORD),
+  ...[
+    "outcome",
+    "award_position",
+    "award_band",
+    "prize",
+    "suitable_for_auction",
+  ].map((c) =>
+    rowsOf("result_award", {
+      subject: ENTRY_PARTICIPANT,
+      retention: JUDGING_RECORD,
+      onExpiry: "delete_row",
+    })(c, "content")
+  ),
+  actorColumn("round_entry", "admitted_by_user_id", STAFF_RECORD),
+  ...[
+    "code",
+    "rank",
+    "score_numerator",
+    "score_denominator",
+    "outcome",
+    "award_position",
+    "suitable_for_auction",
+  ].map((c) =>
+    rowsOf("round_result", {
+      subject: ENTRY_PARTICIPANT,
+      retention: JUDGING_RECORD,
+      onExpiry: "delete_row",
+    })(c, c === "code" ? "identity" : "content")
+  ),
+  actorColumn("round_assignment", "assigned_by_user_id", STAFF_RECORD),
+  rowsOf("round_assignment", {
+    subject: { kind: "user", via: "judge_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("judge_user_id", "identity"),
+  rowsOf("score_sheet", {
+    subject: { kind: "user", via: "judge_user_id" },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("judge_user_id", "identity"),
+  rowsOf("score_sheet", {
+    subject: ENTRY_PARTICIPANT,
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("comment", "content"),
+  rowsOf("criterion_score", {
+    subject: {
+      kind: "participant_profile",
+      via: "score_sheet_id → score_sheet.entry_id → entry.participant_profile_id",
+    },
+    retention: JUDGING_RECORD,
+    onExpiry: "delete_row",
+  })("value", "content"),
+  judgeInvite("email_ciphertext", "contact"),
+  judgeInvite("email_hash", "technical"),
+  judgeInvite("token_ciphertext", "technical", { onExpiry: "set_null" }),
+  actorColumn("judge_invitation", "invited_by_user_id", STAFF_RECORD),
+  judgeInvite("accepted_user_id", "identity"),
+  judgeDeclaration("judge_user_id", "identity"),
+  judgeDeclaration("conflict_statement", "content"),
+  judgeDeclaration("conduct_consent_event_id", "technical"),
+  judgeDeclaration("confidentiality_consent_event_id", "technical"),
+  judgeConflictRecord("judge_user_id", "identity"),
+  judgeConflictRecord("note", "content"),
+  actorColumn("judge_conflict", "created_by_user_id", STAFF_RECORD),
   // Accounts (#57, #58)
   user("name", "identity"),
   user("email", "contact"),
@@ -869,7 +1205,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     rowsOf("file_derivative", {
       subject: {
         kind: "user",
-        via: "file_asset_id → file_asset.owner_user_id",
+        via: "file_asset_id → file_asset.owner_user_id or certificate.pdf_file_id → certificate.participant_profile_id or certificate.recipient_user_id",
       },
       retention: WHILE_FILE_KEPT,
       onExpiry: "delete_row",
@@ -957,7 +1293,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   listing("status_reason", "content"),
   listing("owner_user_id", "identity", {
     subject: { kind: "user", via: "owner_user_id" },
-    onExpiry: "retain",
+    onExpiry: "set_null",
   }),
   actorColumn("directory_listing", "status_changed_by_user_id", WHILE_LISTED),
   // Adoption listings (#129): an animal fostered by an individual is
@@ -1080,6 +1416,8 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     WHILE_REGISTRATION_KEPT
   ),
   actorColumn("school_round", "finalised_by_user_id", WHILE_REGISTRATION_KEPT),
+  // Who closed an overdue round on the school's behalf (#90).
+  actorColumn("school_round", "closed_by_user_id", WHILE_REGISTRATION_KEPT),
   actorColumn(
     "school_round_pick",
     "picked_by_user_id",
@@ -1088,6 +1426,12 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn(
     "school_round_transition",
     "actor_user_id",
+    WHILE_REGISTRATION_KEPT
+  ),
+  // Who made a shortlisted entry's declarations (#91).
+  actorColumn(
+    "school_round_declaration",
+    "declared_by_user_id",
     WHILE_REGISTRATION_KEPT
   ),
   {
@@ -1146,6 +1490,19 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   // Fee payments (#77). Webhook events keep no body: it carries the payer's
   // email and phone.
   payment("payment_batch", "payer_user_id")("payer_user_id", "identity"),
+  // Signed auction capture evidence is a retained financial reference, not
+  // the webhook body or payer contact. Its fingerprint matches provider truth.
+  ...(["capture_payment_fingerprint", "capture_occurred_by"] as const).map(
+    (column) =>
+      rowsOf("gateway_webhook_event", {
+        subject: {
+          kind: "payer",
+          via: "(gateway, order_id) → payment_batch.(gateway, gateway_order_id) → payer_user_id",
+        },
+        retention: PAYMENT_RECORD,
+        onExpiry: "retain",
+      })(column, "technical")
+  ),
   // Offline payments and payments needing review (#79).
   payment("offline_payment", "batch_id")("reference", "financial", {
     onExpiry: "tombstone",
@@ -1329,6 +1686,48 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   consentLink("institution_registration_id", "technical"),
   consentLink("competition_id", "technical"),
   actorColumn("consent_link", "sent_by_user_id", COMPETITION_CONSENT_RECORD),
+  // Social export captions and consent references belong to the artist and
+  // cascade with their gallery item. Credit is never persisted here.
+  ...[
+    "gallery_item_id",
+    "gallery_consent_event_id",
+    "social_consent_event_id",
+    "file_id",
+    "caption_ciphertext",
+  ].map((column) =>
+    rowsOf("social_export", {
+      subject: {
+        kind: "participant_profile",
+        via: "gallery_item_id → gallery_item.entry_id → entry.participant_profile_id",
+      },
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(column, column === "caption_ciphertext" ? "content" : "identity")
+  ),
+  // Gallery curation is attached to the entry; erasure cascades to the item
+  // and its encrypted reports. Purge bookkeeping contains only route IDs.
+  ...["entry_id", "consent_event_id", "file_id", "title", "story"].map(
+    (column) =>
+      rowsOf("gallery_item", {
+        subject: ENTRY_PARTICIPANT,
+        retention: ENTRY_RECORD,
+        onExpiry: "delete_row",
+      })(
+        column,
+        column === "title" || column === "story" ? "content" : "identity"
+      )
+  ),
+  ...["details_ciphertext", "contact_ciphertext"].map((column) =>
+    rowsOf("gallery_report", {
+      subject: {
+        kind: "participant_profile",
+        via: "item_id → gallery_item.entry_id → entry.participant_profile_id",
+      },
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(column, column === "details_ciphertext" ? "content" : "contact")
+  ),
+  actorColumn("gallery_report", "handled_by_user_id", STAFF_RECORD),
   // Competition entries (#85): the work, its uploads and its history.
   entry("code", "identity"),
   entry("registration_id", "identity"),
@@ -1370,6 +1769,172 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     })(column, "technical")
   ),
   actorColumn("entry_transition", "actor_user_id", ENTRY_RECORD),
+  rowsOf("entry_verification", {
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+  })("entry_id", "technical"),
+  rowsOf("entry_verification", {
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+  })("reason_text", "content"),
+  actorColumn("entry_verification", "decided_by_user_id", ENTRY_RECORD),
+  actorColumn("entry_verification", "resubmitted_by_user_id", ENTRY_RECORD),
+  ...(
+    [
+      "entry_id",
+      "registration_id",
+      "institution_registration_id",
+      "artwork_code",
+      "courier_name",
+      "tracking_number",
+    ] as const
+  ).map((column) =>
+    rowsOf("physical_artwork", {
+      subject: ENTRY_PARTICIPANT,
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(
+      column,
+      column === "courier_name" || column === "tracking_number"
+        ? "content"
+        : "identity"
+    )
+  ),
+  actorColumn("physical_artwork", "requested_by", ENTRY_RECORD),
+  actorColumn("physical_artwork", "dispatched_by", ENTRY_RECORD),
+  actorColumn("physical_artwork", "received_by", ENTRY_RECORD),
+  rowsOf("physical_artwork", {
+    subject: ENTRY_PARTICIPANT,
+    retention: ENTRY_RECORD,
+    onExpiry: "delete_row",
+  })("storage_location", "content"),
+  ...(
+    [
+      ["artwork_verification", ["artwork_id", "condition_notes", "material"]],
+      ["artwork_photo", ["artwork_id", "file_asset_id"]],
+      ["artwork_discrepancy", ["artwork_id", "notes", "resolution"]],
+      ["artwork_custody_event", ["artwork_id", "location", "return_via"]],
+      ["artwork_return_request", ["artwork_id", "via"]],
+    ] as const
+  ).flatMap(([table, columns]) =>
+    columns.map((column) =>
+      rowsOf(table, {
+        subject: {
+          kind: "participant_profile",
+          via: "artwork_id → physical_artwork.entry_id → entry.participant_profile_id",
+        },
+        retention: ENTRY_RECORD,
+        onExpiry: "delete_row",
+      })(
+        column,
+        column === "artwork_id" || column === "file_asset_id"
+          ? "technical"
+          : "content"
+      )
+    )
+  ),
+  actorColumn("artwork_verification", "verified_by", ENTRY_RECORD),
+  actorColumn("artwork_photo", "created_by", ENTRY_RECORD),
+  actorColumn("artwork_discrepancy", "raised_by", ENTRY_RECORD),
+  actorColumn("artwork_discrepancy", "resolved_by", ENTRY_RECORD),
+  actorColumn(
+    "artwork_custody_event",
+    "actor_user_id",
+    ENTRY_RECORD,
+    "delete_row"
+  ),
+  actorColumn("artwork_return_request", "requested_by", ENTRY_RECORD),
+  // Auction lots (#131): a creator's submitted work and auction consent.
+  ...(
+    [
+      "artwork_id",
+      "consent_event_id",
+      "lot_code",
+      "story",
+      "cancellation_reason",
+    ] as const
+  ).map((column) =>
+    rowsOf("auction_lot", {
+      subject: {
+        kind: "participant_profile",
+        via: "artwork_id → physical_artwork.entry_id → entry.participant_profile_id",
+      },
+      retention: ENTRY_RECORD,
+      onExpiry: "delete_row",
+    })(
+      column,
+      column === "story" || column === "cancellation_reason"
+        ? "content"
+        : "technical"
+    )
+  ),
+  actorColumn("auction_lot", "created_by", ENTRY_RECORD),
+  ...(
+    ["bidder_user_id", "amount_paise", "declaration_version", "lot_id"] as const
+  ).map((column) =>
+    rowsOf("auction_bid", {
+      subject: { kind: "user", via: "bidder_user_id" },
+      retention: {
+        policy: "auctionBids",
+        periodKey: "auctionBids",
+        basis:
+          "Records the buyer's accepted bids and adult declaration, so FOA can settle a lot and answer disputes. The account link is cleared when the bidder is erased; the price history cannot be lowered by erasure.",
+        toConfirm: true,
+      },
+      onExpiry: column === "bidder_user_id" ? "set_null" : "retain",
+    })(
+      column,
+      column === "bidder_user_id"
+        ? "identity"
+        : column === "amount_paise"
+          ? "financial"
+          : "technical"
+    )
+  ),
+  // Auction offer financial evidence outlives account and artwork links.
+  ...(
+    [
+      "lot_id",
+      "bid_id",
+      "batch_id",
+      "lot_code",
+      "amount_paise",
+      "creator_share_bps",
+    ] as const
+  ).map((column) =>
+    rowsOf("auction_offer", {
+      subject: {
+        kind: "payer",
+        via: "bid_id → auction_bid.bidder_user_id; batch_id → payment_batch.payer_user_id",
+      },
+      retention: PAYMENT_RECORD,
+      onExpiry: "retain",
+    })(
+      column,
+      column === "amount_paise" || column === "creator_share_bps"
+        ? "financial"
+        : "technical"
+    )
+  ),
+  ...(["address_ciphertext", "courier", "tracking_number"] as const).map(
+    (column) =>
+      rowsOf("auction_offer", {
+        subject: {
+          kind: "payer",
+          via: "bid_id → auction_bid.bidder_user_id; batch_id → payment_batch.payer_user_id",
+        },
+        retention: {
+          policy: "auctionBids",
+          periodKey: "auctionBids",
+          basis:
+            "Delivery details are used only for fulfilment; the encrypted address is removed on confirmed receipt and all delivery contact details are removed on erasure.",
+          toConfirm: true,
+        },
+        onExpiry: "set_null",
+      })(column, column === "address_ciphertext" ? "contact" : "technical")
+  ),
   // Announcements to registrants (#84): help contacts and staff accounts.
   {
     table: "announcement",
@@ -1383,6 +1948,43 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   actorColumn("announcement", "sent_by", ANNOUNCEMENT_RECORD),
   // Campaigns (#126): staff accounts, and each message's recipient and the
   // consents it rested on.
+  ...(
+    [
+      ["user_id", "identity"],
+      ["survey_id", "technical"],
+      ["answers", "content"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("survey_invitation", {
+      subject: { kind: "user", via: "user_id" },
+      retention: {
+        policy: "surveyResponses",
+        periodKey: "surveyResponses",
+        basis:
+          "FOA can invite each person once and count their feedback; individual records expire after the survey closes",
+        toConfirm: true,
+      },
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
+  ...(
+    [
+      ["participant_profile_id", "identity"],
+      ["competition_id", "technical"],
+      ["release_id", "technical"],
+      ["accepted_actions", "content"],
+      ["created_at", "technical"],
+      ["status", "technical"],
+      ["trigger", "technical"],
+    ] as const
+  ).map(([column, category]) =>
+    rowsOf("competition_invitation", {
+      subject: { kind: "participant_profile", via: "participant_profile_id" },
+      retention: COMMUNITY_HISTORY,
+      onExpiry: "delete_row",
+    })(column, category)
+  ),
+  actorColumn("competition_invitation", "recipient_user_id", COMMUNITY_HISTORY),
   actorColumn("campaign", "created_by", CAMPAIGN_RECORD),
   actorColumn("campaign", "sent_by", CAMPAIGN_RECORD),
   rowsOf("campaign_recipient", {
@@ -1420,6 +2022,7 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
       ["email_ciphertext", "contact", "retain"],
       ["email_hash", "contact", "retain"],
       ["organisation_name", "identity", "retain"],
+      ["pan_ciphertext", "financial", "retain"],
     ] as const
   ).map(([column, category, onExpiry]) =>
     rowsOf("donor", {
@@ -1433,12 +2036,26 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
     retention: DONATION_RECORD,
     onExpiry: "set_null",
   })("wall_name", "identity"),
+  ...(["offline_reference", "offline_proof_file_id"] as const).map((column) =>
+    rowsOf("donation", {
+      subject: { kind: "donor", via: "donor_id" },
+      retention: DONATION_RECORD,
+      onExpiry: "retain",
+    })(column, "financial")
+  ),
+  actorColumn("donation", "offline_recorded_by", DONATION_RECORD),
   rowsOf("receipt", {
     subject: { kind: "donor", via: "donation_id" },
     retention: DONATION_RECORD,
     onExpiry: "retain",
   })("snapshot", "identity"),
   actorColumn("receipt_link", "created_by_user_id", DONATION_RECORD),
+  rowsOf("recurring_donation", {
+    subject: { kind: "donor", via: "donor_id" },
+    retention: DONATION_RECORD,
+    onExpiry: "set_null",
+  })("wall_name", "identity"),
+  actorColumn("recurring_donation", "user_id", DONATION_RECORD),
   // Privacy rights requests (#115): who asked about whom, and the words
   // the requester and the grievance officer wrote, encrypted.
   privacyRequestColumn("subject_id", "identity"),
@@ -1476,6 +2093,14 @@ const INVENTORY_FIELDS: readonly InventoryField[] = [
   ),
   // Volunteer applications (#123): the applicant's answers and the record
   // of who vetted them.
+  ambassadorApplication("applicant_user_id", "identity"),
+  ambassadorApplication("decline_reason_ciphertext", "content"),
+  actorColumn(
+    "ambassador_application",
+    "decided_by_user_id",
+    AMBASSADOR_APPLICATION_RECORD,
+    "delete_row"
+  ),
   volunteerApplication("applicant_user_id", "identity"),
   volunteerApplication("participant_profile_id", "identity"),
   volunteerApplication("date_of_birth_ciphertext", "demographic"),

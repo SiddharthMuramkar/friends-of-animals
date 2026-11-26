@@ -8,6 +8,8 @@ import {
   SEED_ENTRY_COMPETITIONS,
   SEED_SCHOOL_SUBMISSIONS_COMPETITION,
 } from "./competitions";
+import { SEED_EVENTS } from "./events";
+import { SEED_SCHOOL_ROUND } from "./school-round";
 
 // #84 84b AC11: the preview seed plans the seeded live competitions'
 // submission reminders, as publishing would, sends nothing now, and runs
@@ -22,6 +24,7 @@ async function planned(h: Awaited<ReturnType<typeof createHarness>>) {
       id: reminderJob.id,
       subjectId: reminderJob.subjectId,
       offsetHours: reminderJob.offsetHours,
+      name: reminderJob.reminderName,
       status: reminderJob.status,
     })
     .from(reminderJob)
@@ -29,7 +32,7 @@ async function planned(h: Awaited<ReturnType<typeof createHarness>>) {
 }
 
 describe("the reminders seed", () => {
-  it("plans two submission reminders for each live competition with a deadline ahead", async () => {
+  it("plans submission, school shortlist and artwork dispatch reminders at their seeded deadlines", async () => {
     const h = await createHarness();
 
     await h.seed.preview();
@@ -39,21 +42,46 @@ describe("the reminders seed", () => {
       NEIGH27,
       PUBLISHED,
       ...SEED_ENTRY_COMPETITIONS.map(({ id }) => id),
+      // Already judging, so only the future shortlist deadline remains.
+      SEED_SCHOOL_ROUND.competitionId,
       // Open for the school's submissions (#87).
       SEED_SCHOOL_SUBMISSIONS_COMPETITION.id,
     ].toSorted();
     expect(
-      rows.map(({ subjectId, offsetHours, status }) => [
+      rows.map(({ subjectId, offsetHours, status, name }) => [
         subjectId,
+        name,
         offsetHours,
         status,
       ])
-    ).toEqual(
-      subjects.flatMap((id) => [
-        [id, 72, "scheduled"],
-        [id, 24, "scheduled"],
-      ])
-    );
+    ).toEqual([
+      ...subjects.flatMap((id) => [
+        ...(id === SEED_SCHOOL_ROUND.competitionId
+          ? []
+          : [
+              [id, "entry_submission_due", 72, "scheduled"],
+              [id, "entry_submission_due", 24, "scheduled"],
+            ]),
+        ...([
+          NEIGH27,
+          SEED_SCHOOL_SUBMISSIONS_COMPETITION.id,
+          SEED_SCHOOL_ROUND.competitionId,
+        ].includes(id)
+          ? [
+              [id, "school_round_shortlist_due", 72, "scheduled"],
+              [id, "school_round_shortlist_due", 24, "scheduled"],
+            ]
+          : []),
+      ]),
+      [
+        "01938a00-0000-7000-8000-000000093033",
+        "artwork_dispatch_due",
+        72,
+        "scheduled",
+      ],
+      [SEED_EVENTS.campaign.id, "event_starts", 24, "scheduled"],
+      [SEED_EVENTS.campaign.id, "event_starts", 2, "scheduled"],
+    ]);
     const due = await h.db
       .select({ availableAt: outbox.availableAt })
       .from(outbox)

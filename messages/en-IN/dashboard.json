@@ -19,15 +19,26 @@
       "organisation": "Organisation {id}"
     },
     "member": {
+      "donations": "My donations",
       "body": "Your competition entries, certificates and donations will show here as those parts of the site open.",
       "sessions": "See where you're signed in",
       "children": "Your children, as a parent or guardian",
       "directory": "Your listing in FOA's NGO directory",
       "volunteer": "Volunteer with Friends of Animals",
       "adoptions": "Your adoption applications",
-      "privacy": "Your privacy requests: see, correct or erase your data"
+      "privacy": "Your privacy requests: see, correct or erase your data",
+      "auctions": "My auction purchases",
+      "community": "Your community",
+      "ambassadors": "FOA Ambassadors",
+      "clubs": "FOA clubs",
+      "timeline": "Engagement timeline",
+      "events": "My event registrations",
+      "surveys": "Feedback surveys",
+      "invitations": "Competition invitations"
     },
     "admin": {
+      "gallery": "Gallery curation",
+      "socialExport": "Social media export",
       "body": "Tools for Friends of Animals staff. Each one checks that your role allows it.",
       "roles": "Roles",
       "audit": "Audit log",
@@ -38,14 +49,22 @@
       "ledger": "Ledger",
       "directory": "Directory listings",
       "volunteers": "Volunteer applications",
+      "verification": "FOA verification",
       "adoptions": "Adoption applications",
-      "privacyRequests": "Privacy requests"
+      "privacyRequests": "Privacy requests",
+      "judging": "Judging rounds",
+      "auctions": "Auction lots",
+      "community": "Community members",
+      "ambassadors": "Ambassador applications",
+      "clubs": "Club review",
+      "events": "Manage events"
     },
     "institution": {
       "body": "Your institution's own page, for students and entries, comes later. Your role there is already set."
     },
     "judge": {
-      "body": "The entries you're asked to judge will show here when judging opens."
+      "body": "Complete your judge onboarding for each FOA round.",
+      "rounds": "Your judging rounds"
     },
     "organisation": {
       "body": "Your listing in FOA's NGO directory. Keep it up to date and send FOA proof.",

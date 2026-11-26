@@ -320,11 +320,30 @@ purpose is the donation, and has exactly one Receipt once captured. Adults
 only; foreign money is returned while FOA isn't registered under FCRA.
 _Avoid_: Contribution, gift record, payment
 
+**Recurring donation**:
+A signed-in adult's monthly mandate with the payment gateway. Each
+successful charge is a separate Donation with its own Receipt. The donor
+can request immediate cancellation; any captured charge after that
+request is returned and receives no Receipt.
+_Avoid_: Subscription gift, membership fee
+
 **Donor**:
 Who gave a Donation, as they gave it: a person, or a company or CSR partner
 with a contact person, which chooses whether its name may be shown in
 public. A guest donor has no account.
 _Avoid_: Supporter, patron, sponsor
+
+**Donor wall**:
+The public thanks to individuals who chose to have their name shown for a
+Donation. It shows only the chosen name, not the person's amount or contact.
+It thanks them for published donations that have not been fully returned.
+_Avoid_: Donor list, donor database
+
+**Organisation disclosure**:
+A company's or CSR partner's choice when giving a Donation to show its name
+and give the public its total for the published months of the financial year.
+A gift for which it chose privacy is not added to its disclosed total.
+_Avoid_: Donor wall opt-in (that is an individual's choice)
 
 **Receipt**:
 The numbered record of a captured Donation: FOA-RCPT, the financial year and
@@ -586,8 +605,10 @@ _Avoid_: Jury (FOA's judges), judges (alone)
 **Shortlist**:
 The entries a school picks, per Category, to go on to FOA judging, up to the
 competition's shortlist size. It is a draft until the School round is
-finalised; finalising makes each Entry school-shortlisted or not
-shortlisted.
+finalised. Under the all-participants scope, finalising makes each Entry
+school-shortlisted or not shortlisted. Under shortlist-only scope, the
+coordinator creates an Entry already school-shortlisted for each pick;
+students not picked have no Entry.
 _Avoid_: Selection, finalists
 
 **School position**:
@@ -648,7 +669,7 @@ The work a participant submits for a competition registration; a registration
 has at most one. On the School route the student's coordinator submits it.
 
 **Entry ID**
-The reference assigned to an entry when its first upload is confirmed, or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
+The reference assigned to an entry when its first upload is confirmed (including a shortlisted entry created by the coordinator during the School round), or its first typed essay is saved, such as `NEIGH27-E-7K3QZ9`.
 
 **Live file**
 The entry’s current work (an image, a video, or an essay typed or as a PDF) after it passes its safety and processing checks. A typed essay has none to pass and is live as soon as it is saved.
@@ -659,13 +680,212 @@ A new upload for a submitted entry. The live file stays in place until the new u
 **Digital submission scope**:
 Which of a competition's school-route participants send their work to FOA as
 a digital upload: all of them (the default), or only the entries on each
-school's shortlist.
+school's shortlist. Under shortlist-only scope, the coordinator creates
+those entries during the School round. Each goes to FOA once both its upload
+passes the checks and the round is finalised; this scope never applies to
+individual registrations.
 _Avoid_: Submission mode, upload policy
 
 **Submission roster**:
 A coordinator's list of every student of one Institution registration, with
 each student's Entry status and what the coordinator can do for them next.
 _Avoid_: Entries dashboard, student list
+
+## FOA judging
+
+**Judging round**:
+A competition’s FOA round, at a city/district, state, national or global level, with its own pinned published rubrics, award scheme, and physical-artwork rule.
+
+**Judge onboarding**:
+A round-scoped judge’s acceptance of the code of conduct and confidentiality terms, followed by a conflict declaration; all are required before an assignment or a blind entry read.
+
+**Round entry source**:
+The rule for selecting candidates for a Judging round: FOA-verified entries or the advancing Round outcomes of one source round in the same competition once it locks. Links cannot form a loop; they need not visit every judging level.
+
+**Chained judging levels**:
+Judging rounds linked by their Round entry sources. Each round has independent pins, awards, judges, physical requirements and scores. A round with no non-cancelled successor is a terminal round.
+
+**Round pool**:
+The FOA-verified entries a round admits from its Round entry source. A physical round additionally needs a physically ready artwork. Only a pooled entry may be assigned.
+
+**Assignment**:
+One pooled entry allocated to one ready judge, provided their declared and live conflicts do not apply.
+
+**Blind entry view**:
+The assigned Entry’s code, discipline, category, age group and derived work, without personal details or the Entry's title, description or statement.
+
+**Score sheet**:
+One assigned judge’s scores against the round’s pinned Rubric and optional comment. A sheet is complete when every criterion has a score. Changes save incrementally; clearing a score makes the sheet incomplete again.
+
+**Round ranking**:
+A ranking of entries within one discipline and age group of a Judging round,
+by the exact average of judges' complete weighted Score sheets. Ties use
+criterion means, median sheet total, then shared rank. A locked round's rank
+and score are stored as an immutable snapshot.
+
+**Round lock**:
+The closing of an open Judging round when every assigned Score sheet is
+complete and eligible, or a Staff admin records a reason for overriding
+that requirement. No scores, assignments or round settings can be changed
+thereafter.
+
+**Round outcome**:
+A Competition manager's recognition of a ranked entry in a locked Judging
+round: winner, runner-up, finalist, special mention or none. An award
+position belongs to the round's award scheme; suitability for auction is a
+separate flag and never a substitute for auction consent. Winners,
+runners-up and finalists can advance to a subsequent Judging round.
+
+**Results release**:
+An immutable recognition snapshot from an explicitly selected locked final
+Judging round, including prize and delivery instructions. A Competition manager
+prepares it for a different authorised Staff member to approve with Step-up.
+Only the worker publishes the approved release at or after its scheduled instant.
+
+**Public results**:
+The recognition from a published Results release for which the participant's or
+guardian's current public-display consent allows a public credit. No assessment,
+entry code or original work is published here; withdrawn credit disappears on
+subsequent reads.
+
+**Certificate**:
+A numbered recognition of a participant's eligible participation, school merit,
+finalist status, winning or runner-up award (or later volunteer service).
+Its validity begins at issuance, independently of PDF readiness. The private PDF
+carries a QR linking to public verification; its number is never a credential.
+A revoked or replaced number never becomes valid again.
+
+**Certificate number**:
+A unique random `FOA-C-{YY}-{10}` code, dated by India's calendar at issue time.
+Anyone may check its validity; a PDF download needs the participant's or a
+verified linked guardian's own session.
+
+**Certificate correction**:
+A Competition manager's reasoned revocation or reissue. Reissue corrects the
+printed recipient name while preserving the earned recognition; it creates
+a new Certificate number and permanently ends the old one.
+
+**Institution certificate ZIP**:
+A short-lived private archive of the current issued, rendered certificates
+for the pupils of one Institution registration. The worker creates it,
+and the coordinator or authorised person gets a Signed URL only while their
+institution and the entire archive manifest are still eligible.
+
+**Stamped copy**:
+A metadata-free private File derivative carrying the approved Friends of Animals
+mark, made from the safe resized copy of an entry image or a rasterized issued
+Certificate PDF. Gallery and social variants require their own live consent to
+be delivered. A Certificate share image is downloadable by its own holder or
+verified linked guardian; it is not a public gallery asset.
+
+**Gallery item**:
+A content manager's reviewed presentation of a finished Entry. Its opaque public
+ID names the presentation, not the participant or private file. Publication binds
+the current public-display consent grant and live image; a withdrawal unpublishes
+it and a moderator may hide it. Restoring it never publishes without fresh review.
+_Avoid_: Entry, original artwork, public file asset
+
+**Public credit**:
+The participant's name and, for a minor, only separately opted-in school and city,
+computed from current consent. A minor's name defaults to first name plus surname
+initial. It is derived, never copied into the Gallery item or social export queue.
+_Avoid_: Full profile, artist identity snapshot
+
+**Social export**:
+A content manager's preparation of a published Gallery item for manual posting
+on FOA's social channels. It requires a separate current social-media consent,
+a social Stamped copy, reviewed caption and live Public credit. It is pending
+until the manager records that it was posted. Withdrawing either required
+permission or hiding the Gallery item retires the export; permission given
+again requires a new export.
+_Avoid_: Automatic post, original artwork, gallery image download
+
+**Gallery purge**:
+A durable request to evict the gallery's public routes when a credit is withdrawn
+or an item leaves publication. The item's live eligibility is checked even before
+that request runs; the private Stamped copy is not itself a cacheable public object.
+
+## Physical artwork
+
+**Physical artwork**:
+The original work that FOA asks a verified Entry's sender to courier after digital verification. Each has one Artwork ID (for example `ORIG27-A-4P5X9R`), dispatch deadline, and a custody status independent of the Entry's digital status.
+
+**Sender**:
+The school coordinators for an institution registration or the participant or verified guardian for an individual registration. The sender records the courier name and tracking number; FOA records receipt.
+
+**Dispatch**:
+The sender's manual record that the parcel has been sent. FOA may receive a parcel even without recorded dispatch.
+
+**Condition photo**:
+A private File bound to one Physical artwork, taken by an FOA verifier to record front, back and detail condition; delivered only to authorised staff through a Signed URL after a clean Scan.
+
+**Discrepancy**:
+An open inspection record that identifies a mismatch or missing evidence. Resolving it returns the work to received, not verified; it must pass inspection again.
+
+**Custody event**:
+An append-only record of a physical artwork's receipt, move, exhibition, storage, retention or return. Its current status is independent of the Entry.
+
+**Physically ready for judging**:
+A verified original still held by FOA (verified, on exhibition or retained). An absent, received, discrepant or returned original cannot enter a physical Round.
+
+**Return window**:
+The period beginning when Results are actually published, not when the competition is scheduled. Adult creators, verified guardians and the institution's coordinator may request the original back during it. Unrequested verified work is then retained.
+
+## Auctions
+
+**Auction lot**:
+One original Physical artwork reserved by FOA for an auction, with current
+auction Consent, a public story, starting and reserve prices in INR, an opening
+time, a closing time, and a Lot code. A minor's public credit is at most their
+first name and last initial.
+
+**Auction manager**:
+The Staff role that creates, schedules or cancels Auction lots.
+
+**Lot code**:
+A public code identifying one Auction lot, such as `LOT-27-8H3TZ`. It is
+independent of the private Artwork ID.
+
+**Auction reservation**:
+An unfinished Auction lot’s exclusive hold on its original, only after the
+results return window closes. It prevents another lot and conflicting custody
+moves without changing the physical status; a timely family return defeats a
+legacy premature hold.
+Cancelling, settling unsold or relisting releases the original; selling it
+keeps that hold permanently.
+
+**Bid**:
+A signed-in adult Buyer's binding offer of an exact INR amount on an open
+Auction lot. The first bid is at least its starting price; every later bid
+raises the highest accepted bid by at least the minimum increment.
+_Avoid_: Cart, order, pledge
+
+**Buyer**:
+An adult User who bids on an Auction lot. A Buyer whose bid meets reserve
+and wins the lot is offered payment; a bid itself is not a payment.
+_Avoid_: Donor, bidder profile
+
+**Anti-sniping window**:
+The final interval of an open Auction lot in which an accepted Bid extends
+its closing time by the interval's full duration, giving other Buyers a
+chance to respond.
+_Avoid_: Grace period, overtime
+
+**Payment offer**:
+A winning Buyer’s exclusive opportunity to pay their accepted Bid before an
+exact deadline. On expiry the next qualifying distinct Buyer receives an offer
+only after reconciliation finds no payable or unresolved captured payment;
+when candidates run out, the original can be relisted as a new Auction lot.
+Neither a Bid nor an expired offer transfers the artwork.
+
+**Auction sale**:
+The accepted full captured INR payment for one live Payment offer. The sale’s
+pinned, acknowledged auction Consent version determines the proceeds policy,
+which splits exact paise into FOA income and creator shares payable. The original remains exclusively committed to the Buyer.
+
+**Auction delivery**:
+The fulfilment of an Auction sale, from the Buyer’s private delivery address
+through dispatch and delivery, to confirmed receipt.
 
 ## Files
 
@@ -809,6 +1029,78 @@ A few end-to-end journeys per milestone, run in a browser against a pull
 request's preview deployment.
 _Avoid_: E2E suite, UI tests
 
+## Community and engagement
+
+**Community member**:
+A person who has joined the FOA community, including a child whose verified
+guardian joined on their behalf. A User may be a Member without being a
+Community member.
+_Avoid_: Member (on its own), follower
+
+**Member profile**:
+A Community member's private display name and optional introduction.
+
+**Engagement ladder**:
+FOA's six milestones: Participant, School winner, FOA finalist, Community
+member, Volunteer and Ambassador. It is a record of milestones reached,
+not a requirement to complete them in order.
+
+**Engagement milestone**:
+A rung of the Engagement ladder a person has earned. Competition milestones
+are earned per competition; Community member, Volunteer and Ambassador are
+earned once in a person's journey. Leaving the community does not undo an
+earned milestone.
+
+**Engagement timeline**:
+A person's private dated history of their competitions, recognitions,
+community life, events and volunteering. A Guardian sees the journey of
+each linked child separately from their own.
+
+**Post-competition invitation**:
+A private optional invitation after actual result publication, sent once to a
+consenting adult participant or the verified Guardian who currently consents
+for a child. Each selected opportunity is recorded as interest, not enrolment
+or an earned Engagement milestone.
+
+**FOA club**:
+A lasting student or teacher group at a verified Institution, proposed through
+an application and approved by a Community manager. A suspended club still
+holds a place in the Institution's configured club limit; an approved club
+accepts members. A club does not grant staff or school-record access.
+
+**Club membership**:
+A Community member's dated stint in an approved FOA club. Joining and leaving
+are separate dated Engagement timeline facts; rejoining creates a new stint.
+Membership and applicant identities are private, and self-attested affiliation
+is distinct from a verified school registration or scoped institution role.
+
+**Ambassador application**:
+A private request by an eligible adult Community member to represent FOA. It
+is Submitted, then Approved or Declined by a Community manager (a decline
+requires a reason the person is told). The settings define eligibility; the
+same checks apply again when approving. An approval earns the Ambassador
+Engagement milestone once, not a new permission-bearing role.
+
+## Events and campaigns
+
+**Event**:
+A scheduled FOA activity people attend. An Event of kind campaign is a
+community activity, not a Campaign message sent to a Segment.
+
+**Organiser**:
+A content or community manager who publishes Events, manages registrations
+and checks attendees in.
+
+**Event registration**:
+A private place on an Event, for the attendee (their own account or a
+distinct linked participant profile). Registered and Checked in hold a
+place. Waitlisted waits in booking order; a freed place promotes the next
+person automatically. Cancelled and No-show are terminal.
+
+**Check-in**:
+An Organiser's confirmation of actual attendance at an Event, which
+appears on the attendee's Engagement timeline.
+
 ## Volunteering
 
 **Volunteer**:
@@ -822,6 +1114,20 @@ free, and their acceptance of the safeguarding declaration and the code of
 conduct. A 14- to 17-year-old's waits for their verified guardian's
 approval before a community manager approves or declines it.
 _Avoid_: Signup, volunteer form, registration
+
+**Volunteer task**:
+A work item the community team drafts, publishes, assigns and follows
+through to completion. Its assignment history identifies individual
+volunteers, separately from the task's shared status.
+
+**Volunteer hours entry**:
+A volunteer's integer minutes of service performed on one Indian calendar
+date against an actual assignment. Only approved entries count toward
+service totals and engagement.
+
+**Volunteer service certificate**:
+A numbered, verifiable Certificate snapshot of the volunteer's approved
+service minutes at the time of issue. Not a competition award.
 
 ## Taking part
 
@@ -855,3 +1161,23 @@ The code that names one person who takes part in competitions, such as
 FOA-P-277K3M9Q. It identifies them to FOA and is never a way to sign in.
 _Avoid_: Participant number, registration number (that names one
 registration)
+
+**Feedback survey**:
+A competition manager's short questionnaire about a competition once its
+results have been published. FOA reports answers as aggregate results.
+
+**Survey invitation**:
+An offer to give feedback to an eligible adult participant, guardian or
+coordinator with current communication consent. A person with several
+qualifying links receives one invitation and can give one answer.
+
+## Reports and analytics
+
+**Objective reporting period**:
+A pair of inclusive Indian calendar dates over which FOA measures its
+objectives from retained domain facts. Not a frozen snapshot of past records.
+
+**Social metric snapshot**:
+A dated observation of aggregate metrics for one FOA social channel,
+recorded by a content manager. Missing metrics are unreported, not zero;
+reach across overlapping audiences is not a unique total.

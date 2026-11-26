@@ -16,6 +16,12 @@ export const COMPETITION_STATUSES = [
   "registration_open",
   "registration_closed",
   "school_judging",
+  /**
+   * FOA verifies and judges what the schools sent on (#90 makes the move,
+   * at the shortlist deadline, once every school round is finished).
+   */
+  "foa_judging",
+  "results_published",
   /** Called off by a super admin (#80): every paid fee goes back. Final. */
   "cancelled",
 ] as const;
@@ -27,7 +33,11 @@ export type CompetitionStatus = (typeof COMPETITION_STATUSES)[number];
  * schedule (the worker, acting as the system) when a key date arrives, or
  * a cancellation (a super admin behind step-up, #80).
  */
-export type TransitionCause = "manager" | "schedule" | "cancellation";
+export type TransitionCause =
+  | "manager"
+  | "schedule"
+  | "cancellation"
+  | "results";
 
 /**
  * The allowed moves, each with the one cause that may make it. A pair that
@@ -50,7 +60,10 @@ const TRANSITIONS: {
     school_judging: "schedule",
     cancelled: "cancellation",
   },
-  school_judging: { cancelled: "cancellation" },
+  // Guarded (#90): no school round may be unfinished.
+  school_judging: { foa_judging: "schedule", cancelled: "cancellation" },
+  foa_judging: { results_published: "results", cancelled: "cancellation" },
+  results_published: {},
   cancelled: {},
 };
 

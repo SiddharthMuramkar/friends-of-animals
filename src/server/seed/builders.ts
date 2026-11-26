@@ -13,6 +13,7 @@ import {
 import { uuidv7 } from "../ids";
 import { normaliseEmailAddress } from "../ports/email";
 import { ensureGrant } from "./access";
+import { eventBuilder } from "./events";
 import { competitionBuilder } from "./competitions";
 import { directoryListingBuilder, pincodeCentresBuilder } from "./directory";
 import { guardianBuilder } from "./guardians";
@@ -103,6 +104,7 @@ export function seedFunctions(seeders: readonly Seeder[]) {
         ensureSeedAuthenticator(deps, user.id),
       /** A complete competition (draft unless told), no audit entry. */
       competition: competitionBuilder(deps),
+      event: eventBuilder(deps),
       /** An institution registered for a competition: no checks, no message. */
       institutionRegistration: institutionRegistrationBuilder(deps),
       /**

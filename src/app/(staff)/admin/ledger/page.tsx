@@ -9,6 +9,7 @@ import { SiteLink } from "@/components/site/site-link";
 import { TableScroller } from "@/components/site/table-scroller";
 import {
   ADMIN_LEDGER,
+  ADMIN_AUCTION_PROCEEDS,
   ADMIN_LEDGER_ACCOUNTS,
   ADMIN_LEDGER_APPROVALS,
   ADMIN_LEDGER_BUDGETS,
@@ -93,6 +94,9 @@ export default async function Page({
         </ButtonLink>
         <ButtonLink href={ADMIN_LEDGER_BUDGETS} variant="secondary">
           {t("list.budgets")}
+        </ButtonLink>
+        <ButtonLink href={ADMIN_AUCTION_PROCEEDS} variant="secondary">
+          {t("list.auctionProceeds")}
         </ButtonLink>
         <ButtonLink href={ADMIN_LEDGER_EXPORT} variant="secondary">
           {t("list.export")}

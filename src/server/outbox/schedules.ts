@@ -1,3 +1,4 @@
+import { recurringExpirySchedule } from "../modules/donations/recurring/cancel";
 // Scheduled jobs: status flips, reminders, retention, nightly copies (#55).
 // The VPS worker registers each one as a pg-boss schedule in
 // single-database mode (#61's worker runtime); previews run none, and a
@@ -7,6 +8,7 @@
 //
 // Loads under plain Node (the worker): no "server-only", no Next imports.
 
+import { essayPdfBackfillSchedule } from "../modules/files/backfill-essay-pdfs";
 import { offsiteCopySchedule } from "../modules/offsite-copy/schedule";
 import { reconcileLedgerSchedule } from "../modules/ledger/backfill";
 import { expireFinanceRequestsSchedule } from "../modules/ledger/approvals";
@@ -49,10 +51,12 @@ export type ScheduleDefinition = {
 
 export const SCHEDULES: readonly ScheduleDefinition[] = [
   offsiteCopySchedule,
+  essayPdfBackfillSchedule,
   reconcileLedgerSchedule,
   expireFinanceRequestsSchedule,
   retentionSweepSchedule,
   expireDonationsSchedule,
+  recurringExpirySchedule,
   flagOverdueSchedule,
   remindersSyncSchedule,
 ];

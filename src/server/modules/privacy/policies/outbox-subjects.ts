@@ -3,7 +3,15 @@ import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 
 import type { AppDb } from "../../../db/app-db";
 import {
+  surveyInvitation,
+  competitionInvitation,
   campaignRecipient,
+  communityMember,
+  club,
+  clubDecision,
+  event,
+  eventRegistration,
+  engagementMilestone,
   cmsPost,
   competition,
   consentEvent,
@@ -39,6 +47,52 @@ type AggregateSource = {
 // The aggregate links that identify people or institutions in the event.
 // Read them in batches alongside payload subjects, which can outlive the links.
 const aggregateSources = {
+  club_decision: {
+    table: clubDecision,
+    subjects: [
+      ["user", clubDecision.decidedByUserId],
+      [
+        "user",
+        sql`(SELECT ${club.applicantUserId} FROM ${club} WHERE ${club.id}=${clubDecision.clubId})`,
+      ],
+    ],
+  },
+  event: { table: event, subjects: [["user", event.createdByUserId]] },
+  event_registration: {
+    table: eventRegistration,
+    subjects: [
+      ["user", eventRegistration.subjectUserId],
+      ["participant_profile", eventRegistration.subjectProfileId],
+      ["user", eventRegistration.registeredByUserId],
+      ["user", eventRegistration.checkedInByUserId],
+    ],
+  },
+  community_member: {
+    table: communityMember,
+    subjects: [
+      ["user", communityMember.subjectUserId],
+      ["participant_profile", communityMember.subjectProfileId],
+      ["user", communityMember.joinedByUserId],
+    ],
+  },
+  engagement_milestone: {
+    table: engagementMilestone,
+    subjects: [
+      ["user", engagementMilestone.subjectUserId],
+      ["participant_profile", engagementMilestone.subjectProfileId],
+    ],
+  },
+  competition_invitation: {
+    table: competitionInvitation,
+    subjects: [
+      ["user", competitionInvitation.recipientUserId],
+      ["participant_profile", competitionInvitation.participantProfileId],
+    ],
+  },
+  survey_invitation: {
+    table: surveyInvitation,
+    subjects: [["user", surveyInvitation.userId]],
+  },
   campaign_recipient: {
     table: campaignRecipient,
     subjects: [["user", campaignRecipient.userId]],

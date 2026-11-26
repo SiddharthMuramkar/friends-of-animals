@@ -1,0 +1,149 @@
+import { SiteLink } from "@/components/site/site-link";
+import { Suspense } from "react";
+import { connection } from "next/server";
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/site/heading";
+import { Section } from "@/components/site/section";
+import { buttonStyles } from "@/components/site/button-link";
+import { as } from "@/server/app";
+import { PUBLIC_READER } from "../competitions/_lib/public-reader";
+import { ArtworkCards } from "./_artwork";
+export async function generateMetadata() {
+  const t = await getTranslations("gallery");
+  return {
+    title: t("title"),
+    description: t("lead"),
+    robots: { index: false, follow: false },
+  };
+}
+export default async function Page({ searchParams }: PageProps<"/gallery">) {
+  const t = await getTranslations("gallery");
+  return (
+    <Section
+      hue="pink"
+      tone="tint"
+      width="wide"
+      className="min-h-svh pt-10 sm:pt-14"
+    >
+      <PageHeader title={t("title")} lead={t("lead")} />
+      <Suspense
+        fallback={
+          <output className="mt-8 block min-h-120 text-ink-muted">
+            {t("loading")}
+          </output>
+        }
+      >
+        <Gallery searchParams={searchParams} />
+      </Suspense>
+    </Section>
+  );
+}
+async function Gallery({
+  searchParams,
+}: Pick<PageProps<"/gallery">, "searchParams">) {
+  await connection();
+  const [query, t] = await Promise.all([
+    searchParams,
+    getTranslations("gallery"),
+  ]);
+  const filters = Object.fromEntries(
+    ["competition", "discipline", "category", "recognition", "cursor"].flatMap(
+      (k) => (typeof query[k] === "string" && query[k] ? [[k, query[k]]] : [])
+    )
+  );
+  const api = as(PUBLIC_READER);
+  const page = await api.listPublicGallery(filters);
+  const choices = {
+    competition: page.facets.competition.map(({ slug, name }) => [slug, name]),
+    discipline: page.facets.discipline.map((value) => [value, value]),
+    category: page.facets.category.map((value) => [value, value]),
+    recognition: page.facets.recognition.map((value) => [
+      value,
+      value === "none" ? t("notAwarded") : value.replaceAll("_", " "),
+    ]),
+  };
+  const more = page.nextCursor
+    ? new URLSearchParams({ ...filters, cursor: page.nextCursor }).toString()
+    : null;
+  return (
+    <section className="mt-8" aria-labelledby="gallery-stories">
+      <h2 id="gallery-stories" className="text-h3 text-ink">
+        {t("displayTitle")}
+      </h2>
+      <details
+        open={Object.keys(filters).some((key) => key !== "cursor")}
+        className="mt-4 rounded-2xl border border-border bg-surface p-4"
+      >
+        <summary
+          id="gallery-filter-label"
+          className="font-semibold cursor-pointer min-h-11 flex items-center"
+        >
+          {t("filter")}
+        </summary>
+        <form
+          method="get"
+          aria-labelledby="gallery-filter-label"
+          className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        >
+          {(
+            [
+              ["competition", "competition"],
+              ["discipline", "discipline"],
+              ["category", "filterCategory"],
+              ["recognition", "recognition"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key} className="grid gap-1">
+              <label
+                htmlFor={`filter-${key}`}
+                className="font-semibold text-sm"
+              >
+                {t(label)}
+              </label>
+              <select
+                id={`filter-${key}`}
+                name={key}
+                defaultValue={filters[key] ?? ""}
+                className="min-h-12 min-w-0 rounded-xl border-2 border-border-strong bg-background px-3 text-ink"
+              >
+                <option value="">{t("all")}</option>
+                {filters[key] &&
+                !choices[key].some(([value]) => value === filters[key]) ? (
+                  <option value={filters[key]}>{t("unavailableFilter")}</option>
+                ) : null}
+                {choices[key].map(([value, label]) => (
+                  <option value={value} key={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+          <button
+            className={buttonStyles({ variant: "secondary" })}
+            type="submit"
+          >
+            {t("filter")}
+          </button>
+          <SiteLink
+            prefetch={false}
+            href="/gallery"
+            className={buttonStyles({ variant: "quiet" })}
+          >
+            {t("clear")}
+          </SiteLink>
+        </form>
+      </details>
+      <ArtworkCards items={page.items} />
+      {more ? (
+        <SiteLink
+          prefetch={false}
+          className={buttonStyles({ variant: "secondary", className: "mt-6" })}
+          href={`/gallery?${more}`}
+        >
+          {t("next")}
+        </SiteLink>
+      ) : null}
+    </section>
+  );
+}

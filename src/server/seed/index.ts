@@ -19,7 +19,13 @@ import { seedConsentForms } from "./consent-forms";
 import { seedConsentLinks } from "./consent-links";
 import { seedConsentLinkTemplates } from "./consent-link-templates";
 import { seedContact } from "./contact";
-import { seedDonations } from "./donations";
+import { seedRecurringDonations } from "./recurring-donations";
+import {
+  seedDonations,
+  seedTransparencyDonations,
+  seedObjectiveDonation,
+} from "./donations";
+import { seedOfflineDonations } from "./offline-donations";
 import { seedDirectory } from "./directory";
 import { seedAdoption } from "./adoption";
 import { seedAdoptionApplications } from "./adoption-applications";
@@ -33,6 +39,7 @@ import { seedLedger } from "./ledger";
 import { seedLedgerPeriods } from "./ledger-periods";
 import { seedBudgets } from "./ledger-budgets";
 import { seedIdentity } from "./identity";
+import { seedJudgingRounds } from "./judging-rounds";
 import { seedJudging } from "./judging";
 import { seedSafeguarding } from "./safeguarding";
 import { seedInstitutions } from "./institutions";
@@ -46,8 +53,24 @@ import { seedPosts } from "./posts";
 import { importRepoStories } from "./posts-import";
 import { seedPrivacy } from "./privacy";
 import { seedSecondFactor } from "./second-factor";
+import { seedEvents } from "./events";
+import { seedClubs } from "./clubs";
+import { seedAmbassadors } from "./ambassadors";
+import { seedObjectives } from "./objectives";
+import { seedCommunity } from "./community";
+import { seedCertificates } from "./certificates";
+import { seedReports } from "./reports";
+import { seedCompetitionInvitations } from "./competition-invitations";
+import { seedSurveys } from "./surveys";
+import { seedResults } from "./results";
+import { seedGallery } from "./gallery";
+import { seedSocialExport } from "./social-export";
+import { seedAuctions } from "./auctions";
+import { seedPhysicalArtwork } from "./physical-artwork";
 import { seedReminders } from "./reminders";
+import { seedScoring } from "./scoring";
 import { seedSettings } from "./settings";
+import { seedVolunteerWork } from "./volunteer-work";
 import { seedVolunteers } from "./volunteers";
 import type { Seeder } from "./types";
 
@@ -110,6 +133,10 @@ const seeders: readonly Seeder[] = [
   seedGuardians,
   // Before the ledger seed, whose reconcile posts its donations (#106).
   seedDonations,
+  seedOfflineDonations,
+  seedRecurringDonations,
+  seedTransparencyDonations,
+  seedObjectiveDonation,
   seedLedger,
   // After the ledger seed: its postings are in open months (#109).
   seedLedgerPeriods,
@@ -117,9 +144,26 @@ const seeders: readonly Seeder[] = [
   // After the guardians seed: their children's consents, registered for
   // NEIGH27 (#82).
   seedChildConsents,
+  seedPhysicalArtwork,
+  seedAuctions,
+  seedResults,
+  seedSurveys,
+  seedCompetitionInvitations,
+  seedGallery,
+  seedSocialExport,
+  seedReports,
+  seedCommunity,
+  seedClubs,
+  seedEvents,
+  seedCertificates,
+  seedScoring,
+  seedJudgingRounds,
   // After the consent and guardians seeds: the declarations and the
   // linked teen (#123).
   seedVolunteers,
+  seedVolunteerWork,
+  seedAmbassadors,
+  seedObjectives,
   // After the adoption and consent seeds: applications on the seeded
   // animals, on version 1 of the adopter's consents (#130).
   seedAdoptionApplications,

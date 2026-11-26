@@ -79,6 +79,25 @@ describe("the participants seed", () => {
         registrationNumber: "NEIGH27-R-5EEDA1",
         amountDue: null,
       }),
+      expect.objectContaining({
+        competition: { name: "Art for kindness", slug: "art-for-kindness" },
+        route: "individual",
+        status: "confirmed",
+        participantCode: "FOA-P-265EED01",
+        registrationNumber: "AUCT27-R-5EED01",
+        amountDue: null,
+      }),
+      expect.objectContaining({
+        competition: {
+          name: "Originals for Animals",
+          slug: "originals-for-animals",
+        },
+        route: "individual",
+        status: "confirmed",
+        participantCode: "FOA-P-265EED01",
+        registrationNumber: "ORIG27-R-5EED04",
+        amountDue: null,
+      }),
     ]);
     expect(ravis).toEqual(
       expect.arrayContaining([
@@ -97,9 +116,18 @@ describe("the participants seed", () => {
           status: "confirmed",
           registrationNumber: "BIRDS27-R-5EEDB1",
         }),
+        expect.objectContaining({
+          status: "confirmed",
+          registrationNumber: "AUCT27-R-5EED03",
+        }),
+        // His physical artwork awaiting discrepancy resolution (#94).
+        expect.objectContaining({
+          status: "confirmed",
+          registrationNumber: "ORIG27-R-5EED05",
+        }),
       ])
     );
-    expect(ravis).toHaveLength(3);
+    expect(ravis).toHaveLength(5);
     const [batch] = await h.db.select().from(paymentBatch);
     expect(
       (await h.db.select().from(paymentBatch)).filter(

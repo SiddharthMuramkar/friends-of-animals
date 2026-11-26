@@ -1,0 +1,18 @@
+{
+  "certificatePdf": {
+    "title": {
+      "participation": "Certificate of participation",
+      "school_merit": "School merit certificate",
+      "finalist": "Finalist certificate",
+      "winner": "Winner certificate",
+      "runner_up": "Runner-up certificate",
+      "volunteer_service": "Certificate of volunteer service"
+    },
+    "presented": "Presented to",
+    "recognition": "In recognition of taking part in",
+    "volunteer": "In recognition of volunteer service to Friends of Animals",
+    "verify": "Scan to verify this certificate",
+    "sample": "Sample signatory — design awaiting FOA approval",
+    "approvedService": "Approved volunteer service: {hours} h {minutes} min"
+  }
+}

@@ -16,6 +16,7 @@ import { authorize } from "../../access/can";
 import {
   competition,
   donation,
+  auctionOffer,
   institution,
   paymentBatch,
   paymentBatchItem,
@@ -60,6 +61,7 @@ export type PaymentReviewCaseItem = {
   purpose: PaymentPurpose;
   /** The donation a donation's batch pays for; null for fees. */
   donationId: string | null;
+  auctionLotCode?: string;
   resolution: {
     outcome: PaymentReviewOutcome;
     resolvedAt: Date;
@@ -110,6 +112,7 @@ const ITEM_COLUMNS = {
   competitionName: competition.name,
   purpose: paymentBatch.purpose,
   donationId: donation.id,
+  auctionLotCode: auctionOffer.lotCode,
 };
 
 type ItemRow = Awaited<ReturnType<typeof caseQuery>>[number];
@@ -140,6 +143,7 @@ function itemOf(row: ItemRow): PaymentReviewCaseItem {
     competitionName: row.competitionName,
     purpose: row.purpose,
     donationId: row.donationId,
+    ...(row.auctionLotCode ? { auctionLotCode: row.auctionLotCode } : {}),
     resolution:
       row.outcome !== null && row.resolvedAt !== null
         ? {
@@ -161,6 +165,7 @@ function caseQuery(ctx: UseCaseContext) {
       // A donation's batch (#106) has no competition.
       .leftJoin(competition, eq(competition.id, paymentBatch.competitionId))
       .leftJoin(donation, eq(donation.paymentBatchId, paymentBatch.id))
+      .leftJoin(auctionOffer, eq(auctionOffer.batchId, paymentBatch.id))
       .leftJoin(institution, eq(institution.id, paymentBatch.institutionId))
       .leftJoin(payerUser, eq(payerUser.id, paymentBatch.payerUserId))
   );

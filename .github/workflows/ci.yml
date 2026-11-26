@@ -84,8 +84,10 @@ jobs:
   # The slowest shard sets the wall time of every PR run, and a crowded
   # shard slows every file in it: at 94 files a shard (eight shards, #55
   # part 1) the seed tests ran past Vitest's 5 s limit. Ten keeps a shard
-  # near 75 files. Change the name, the matrix and the --shard total
-  # together.
+  # near 75 files. PGlite migration and preview seed tests compete for the
+  # runner's CPU and memory; run one test file at a time within each shard,
+  # while keeping the ten shards parallel. Change the name, the matrix and
+  # the --shard total together.
   vitest:
     name: Vitest (shard ${{ matrix.shard }}/10)
     runs-on: ubuntu-latest
@@ -101,7 +103,7 @@ jobs:
       - uses: ./.github/actions/setup
       - env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm exec vitest run --shard="$SHARD/10"
+        run: pnpm exec vitest run --shard="$SHARD/10" --maxWorkers=1
 
   integrity:
     name: Test integrity
@@ -251,6 +253,13 @@ jobs:
       matrix:
         project: [desktop, mobile]
         shard: [1, 2, 3]
+        include:
+          # A whole ledger period is locked by #110. Neither that lock nor
+          # the test donations can be shared with other payment journeys.
+          - project: transparency-desktop
+            shard: 1
+          - project: transparency-mobile
+            shard: 1
     services:
       postgres:
         image: postgres:18.7-trixie
@@ -370,7 +379,15 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           PROJECT: ${{ matrix.project }}
           SHARD: ${{ matrix.shard }}
-        run: pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3"
+        run: |
+          if [[ "$PROJECT" == transparency-* ]]; then
+            pnpm test:e2e --project="$PROJECT" --workers=1
+          else
+            # Each shard runs an app, Postgres and Chromium on the same
+            # CI runner. Keep journeys serial within a shard while
+            # the six shards run in parallel; races use test:pg below.
+            pnpm test:e2e --project="$PROJECT" --shard="$SHARD/3" --workers=1
+          fi
 
       - name: Server log
         if: failure()

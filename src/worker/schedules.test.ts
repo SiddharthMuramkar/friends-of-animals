@@ -1,3 +1,5 @@
+import { FakeCdnPurger } from "@/test/fakes/cdn-purger";
+import { FakePdfRenderer } from "@/test/fakes/pdf";
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
@@ -76,6 +78,8 @@ const deps = {
   files: { bucket: "local", keyPrefix: "local/" },
   scanner: new FakeMalwareScanner(),
   media: unconfiguredMedia,
+  cdn: new FakeCdnPurger(),
+  pdf: new FakePdfRenderer(),
   payments: unconfiguredPaymentGateway,
   auth: {},
   errors: new FakeErrorReporter(),

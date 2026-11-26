@@ -18,7 +18,7 @@ export type StoredListing = ListingDetails & {
   id: string;
   slug: string;
   status: ListingStatus;
-  ownerUserId: string;
+  ownerUserId: string | null;
   statusReason: string | null;
 };
 

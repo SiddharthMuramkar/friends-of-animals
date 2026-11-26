@@ -36,7 +36,8 @@
         "adoption_application": "Adopter who applied",
         "user": "Account holder",
         "visitor": "Visitor",
-        "held_subject": "Account, participant or institution under the hold"
+        "held_subject": "Account, participant or institution under the hold",
+        "community_subject": "Community member or participant"
       },
       "kept": "Default retention",
       "categories": {
@@ -94,6 +95,7 @@
         "consentLinkContacts": "90 days after the link is answered, revoked or expires",
         "consentLinkSecrets": "Until the link is used, revoked or expires",
         "entries": "3 years after the competition ends",
+        "auctionBids": "While the auction lot is kept, then 3 years after final settlement; the bidder link is cleared earlier on account erasure",
         "entryMedia": "Until 90 days after the competition ends",
         "entryUploadGrants": "Until the upload URL expires after 10 minutes and cleanup runs",
         "entryPendingText": "Until the replacement passes, fails or is superseded",
@@ -101,12 +103,39 @@
         "donationRecords": "8 years after the end of the financial year of the donation",
         "campaigns": "While the campaign's records are kept",
         "releasedLegalHolds": "While the hold is in force, then 365 days after it is released",
+        "ambassadorApplications": "365 days after a decline; open and approved applications remain until subject erasure",
         "volunteerApplications": "365 days after a declined or withdrawn application closes. An approved application stays while the person volunteers",
         "adoptionApplications": "2 years after the application closes. One behind a published success story stays while the story is up",
         "privacyRequests": "While the request is open, then 3 years after it is closed",
-        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored"
+        "erasureRecords": "Kept as the proof of an erasure, so it can be done again if a backup is restored",
+        "judgingRecords": "90 days after the round’s results (provisional; invitation link cleared on response)",
+        "certificateArchives": "Up to 24 hours after requesting a ZIP, unless held as evidence; a revoked certificate invalidates its ZIP immediately",
+        "communityHistory": "Until erasure of the account or participant profile",
+        "clubApplications": "While open, then 730 days after closure",
+        "clubMemberships": "While active, then 730 days after leaving",
+        "communityMembers": "While active, then 365 days after departure",
+        "volunteerService": "Until erasure of the account or participant profile; shared task instructions remain as operational records",
+        "certificateRecords": "While the certificate is retained for verification, until subject erasure",
+        "surveyResponses": "365 days after the survey closes"
       },
       "purposes": {
+        "club": {
+          "applicant_user_id": "Identify the applicant who started the club.",
+          "applicant_kind": "Record the applicant’s claimed student or teacher affiliation.",
+          "applicant_verified": "Distinguish a verified affiliation from a self-attested affiliation."
+        },
+        "club_membership": {
+          "club_id": "Identify the club a person joined.",
+          "user_id": "Identify the member’s own account.",
+          "role": "Record the member’s claimed student or teacher affiliation.",
+          "affiliation_verified": "Distinguish verified membership affiliation from a self-attestation.",
+          "joined_at": "Date the person joined this club.",
+          "left_at": "Date the person left this club."
+        },
+        "club_decision": {
+          "decided_by_user_id": "Identify the person who made the club decision.",
+          "reason_ciphertext": "Private decision explanation for the applicant and community team."
+        },
         "account": {
           "access_token": "A sign-in provider's access token for the person, when one is used",
           "account_id": "The person's id at the sign-in provider (their own account id for email codes)",
@@ -269,6 +298,12 @@
           "pending_text": "Keeps a replacement's proposed text with the image being checked",
           "receipt_title": "Keeps the adult participant's receipt tied to the submitted title",
           "essay_body": "Keeps the essay a participant typed as their entry, for review and judging"
+        },
+        "entry_verification": {
+          "entry_id": "Connect the verification decision to the submitted entry.",
+          "reason_text": "Explain to the participant or coordinator what needs to be corrected.",
+          "decided_by_user_id": "Record the verifier responsible for the decision.",
+          "resubmitted_by_user_id": "Record who resubmitted the entry."
         },
         "entry_transition": {
           "entry_id": "Associates a change in status with the participant's entry",
@@ -443,6 +478,10 @@
           "state": "Locates the participant for regional rounds and reports",
           "student_ref": "The school's own roll number, so the school recognises the student and FOA spots the same student entered twice"
         },
+        "gateway_webhook_event": {
+          "capture_payment_fingerprint": "Matches a signed capture snapshot to the provider-refetched payment without keeping raw webhook content or payer contact.",
+          "capture_occurred_by": "Records the signed event’s latest possible occurrence instant so a winning auction payment can be reconciled against its deadline."
+        },
         "payment_batch": {
           "payer_user_id": "Records who paid an institution's fees, or an adult their own (#78), so the receipt reaches them and FOA can answer a query about the payment"
         },
@@ -455,16 +494,24 @@
           "name_ciphertext": "The donor's name, or an organisation's contact person, printed on the receipt",
           "email_ciphertext": "Where the donor's receipt link and messages about the donation go",
           "email_hash": "Finds the donor's receipt when they ask for a new link with their email, without storing it readably",
-          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that"
+          "organisation_name": "A company's or CSR partner's name, printed on its receipt and shown in public only if it chose that",
+          "pan_ciphertext": "The donor’s PAN, collected while 80G is enabled and encrypted at rest"
         },
         "donation": {
-          "wall_name": "The name the donor chose to appear under on the public donor wall"
+          "wall_name": "The name the donor chose to appear under on the public donor wall",
+          "offline_reference": "The cheque, bank transfer or cash receipt reference for the donation",
+          "offline_proof_file_id": "Links the donation to its private proof of payment, readable only by finance",
+          "offline_recorded_by": "Names the finance account that recorded the offline donation"
         },
         "receipt": {
           "snapshot": "The receipt as issued, with the donor's name, frozen so it never changes"
         },
         "receipt_link": {
           "created_by_user_id": "Who asked for a receipt link: the donor's account, or finance"
+        },
+        "recurring_donation": {
+          "wall_name": "The name the monthly donor chose to appear under on the public donor wall",
+          "user_id": "Links the monthly mandate to its donor's account so they can see and cancel it"
         },
         "refund": {
           "decided_by": "Who in finance approved or rejected a refund, so FOA can answer for it",
@@ -500,7 +547,11 @@
         },
         "school_round": {
           "judging_attested_by_user_id": "Records which coordinator attested the school judging",
-          "finalised_by_user_id": "Records which coordinator finalised the school shortlist"
+          "finalised_by_user_id": "Records which coordinator finalised the school shortlist",
+          "closed_by_user_id": "Records which competition manager closed an overdue school round on the school's behalf"
+        },
+        "school_round_declaration": {
+          "declared_by_user_id": "Records which coordinator made the declarations for a shortlisted entry they created"
         },
         "school_round_pick": {
           "picked_by_user_id": "Records which coordinator picked the entry for the school shortlist"
@@ -568,6 +619,11 @@
           "consent_event_id": "The adopter's consent to share the story",
           "published_by_user_id": "The adoption coordinator who published the story"
         },
+        "ambassador_application": {
+          "applicant_user_id": "Identifies the member applying to represent FOA",
+          "decline_reason_ciphertext": "The community manager's reason for declining, shared privately with the applicant (encrypted)",
+          "decided_by_user_id": "Identifies the community manager who reviewed the application"
+        },
         "volunteer_application": {
           "applicant_user_id": "Links the application to the person who applied, so they can follow it and FOA can grant them the volunteer role",
           "participant_profile_id": "The participant profile the date of birth came from: a teen's, kept by their guardian, or an adult's own",
@@ -597,6 +653,240 @@
           "subject_id": "Names the account or child's profile that was erased",
           "user_ids": "Names every account the erasure covered, so it can be done again after a backup is restored",
           "profile_ids": "Names every participant profile the erasure covered, for the same reason"
+        },
+        "judging_round": {
+          "created_by_user_id": "Records who created a judging round",
+          "opened_by_user_id": "Records who opened a judging round",
+          "cancelled_by_user_id": "Records who cancelled a judging round",
+          "locked_by_user_id": "Records who locked a judging round and its ranking"
+        },
+        "round_entry": {
+          "admitted_by_user_id": "Records who admitted an entry to a round"
+        },
+        "round_assignment": {
+          "assigned_by_user_id": "Records who assigned an entry",
+          "judge_user_id": "Identifies the judge assigned to the entry"
+        },
+        "score_sheet": {
+          "judge_user_id": "Identifies the assigned judge who scored the work",
+          "comment": "Keeps a judge’s private evaluation of the participant’s work"
+        },
+        "criterion_score": {
+          "value": "Records the score given to work against a pinned rubric criterion"
+        },
+        "judge_invitation": {
+          "email_ciphertext": "Encrypted address where the invitation is sent",
+          "email_hash": "Matches repeated invitations and verified invitees",
+          "token_ciphertext": "Encrypted link used to deliver the invitation",
+          "invited_by_user_id": "Records who invited the judge",
+          "accepted_user_id": "Identifies the judge who accepted the invitation"
+        },
+        "judge_onboarding": {
+          "judge_user_id": "Identifies the judge who completed onboarding",
+          "conflict_statement": "Records the declared conflicts of interest for staff review",
+          "conduct_consent_event_id": "Links the accepted code of conduct",
+          "confidentiality_consent_event_id": "Links the accepted confidentiality terms"
+        },
+        "judge_conflict": {
+          "judge_user_id": "Identifies the judge with the conflict",
+          "note": "Staff notes on the declared conflict",
+          "created_by_user_id": "Records who flagged the conflict"
+        },
+        "physical_artwork": {
+          "entry_id": "Links the original artwork to its verified digital entry.",
+          "registration_id": "Identifies the sender's registration.",
+          "institution_registration_id": "Identifies the school responsible for dispatch.",
+          "artwork_code": "Identifies the parcel throughout custody.",
+          "courier_name": "Records the courier used to dispatch the artwork.",
+          "tracking_number": "Tracks the parcel and resolves delivery discrepancies.",
+          "requested_by": "Identifies the staff member who requested the original.",
+          "dispatched_by": "Identifies the sender who recorded dispatch.",
+          "received_by": "Identifies the staff member who recorded receipt.",
+          "storage_location": "Records where staff can locate the participant’s original work."
+        },
+        "artwork_verification": {
+          "artwork_id": "Links the verification to the creator’s original work.",
+          "condition_notes": "Records condition observations or damage on receipt.",
+          "material": "Records the material of the creator’s artwork.",
+          "verified_by": "Identifies the staff member who verified the original."
+        },
+        "artwork_photo": {
+          "artwork_id": "Binds private condition photos to the creator’s artwork.",
+          "file_asset_id": "Identifies the staff-only condition photo recording the original.",
+          "created_by": "Identifies the verifier who uploaded the condition photo."
+        },
+        "artwork_discrepancy": {
+          "artwork_id": "Identifies the original work with an open discrepancy.",
+          "notes": "Explains the discrepancy found during inspection.",
+          "resolution": "Records the resolution of a discrepancy in the original work.",
+          "raised_by": "Identifies the staff member who discovered the discrepancy.",
+          "resolved_by": "Identifies the staff member who resolved the discrepancy."
+        },
+        "artwork_custody_event": {
+          "artwork_id": "Identifies the original work moved or returned by FOA.",
+          "location": "The location where staff stored or exhibited the creator’s original.",
+          "return_via": "Records the recipient name or courier and tracking number on return.",
+          "actor_user_id": "Identifies the staff member responsible for a custody event."
+        },
+        "artwork_return_request": {
+          "artwork_id": "Identifies the original work a family asks FOA to return.",
+          "via": "Records how FOA returned the requested original.",
+          "requested_by": "Identifies the creator, guardian or coordinator who requested a return."
+        },
+        "auction_bid": {
+          "bidder_user_id": "Links an accepted bid to the account that placed it",
+          "amount_paise": "Records the exact bid amount, in INR paise",
+          "declaration_version": "Records the version of the adult and binding bid statement that the bidder accepted",
+          "lot_id": "Identifies the lot on which the bidder placed the bid"
+        },
+        "auction_lot": {
+          "artwork_id": "Links an auction lot to the creator’s original artwork.",
+          "consent_event_id": "Links the auction consent evidence used to establish eligibility.",
+          "lot_code": "Identifies the artwork’s public auction lot.",
+          "story": "Describes the artist’s original work and its inspiration.",
+          "cancellation_reason": "Records why the creator’s lot stopped.",
+          "created_by": "Identifies the auction manager who created the lot."
+        },
+        "round_result": {
+          "code": "Identifies the participant’s ranked entry",
+          "rank": "Records the participant’s place in the locked category ranking",
+          "score_numerator": "Records the exact numerator of the participant’s locked weighted score",
+          "score_denominator": "Records the exact denominator of the participant’s locked weighted score",
+          "outcome": "Records the recognition awarded to the participant’s entry",
+          "award_position": "Records the position within the round’s award scheme",
+          "suitable_for_auction": "Records the manager’s assessment of the work’s auction suitability, independently of consent"
+        },
+        "certificate": {
+          "participant_profile_id": "Participant who earned the certificate.",
+          "registration_id": "Competition registration that earned the certificate.",
+          "number": "Unique number used to verify the certificate.",
+          "name_snapshot": "Name printed on the issued private certificate.",
+          "award_position": "Place recognised on the certificate.",
+          "award_label": "Award label recognised on the certificate.",
+          "type": "Type of achievement the certificate recognises.",
+          "revoked_reason": "Reason staff revoked or corrected a certificate.",
+          "pdf_file_id": "Private PDF generated from the certificate.",
+          "revoked_by_user_id": "Staff member who revoked or corrected the certificate.",
+          "recipient_user_id": "Identifies an adult volunteer who earned the service certificate",
+          "approved_minutes_snapshot": "Records the exact approved service minutes at the time of issue"
+        },
+        "certificate_archive": {
+          "certificate_ids": "Private certificates in the institution’s temporary ZIP.",
+          "profile_ids": "Participants whose PDFs are in the ZIP, so FOA can remove the ZIP upon erasure.",
+          "storage_key": "Location of the private ZIP; never sent as a public URL."
+        },
+        "certificate_ready_notice": {
+          "recipient_user_id": "Account notified once its certificates were ready."
+        },
+        "result_release": {
+          "prepared_by_user_id": "Staff member who prepared the competition results release.",
+          "approved_by_user_id": "Second staff member who approved the competition results release."
+        },
+        "result_award": {
+          "outcome": "Recognition in the prepared or published results.",
+          "award_position": "Award place in the locked final round results.",
+          "suitable_for_auction": "Recognition suitable for auction, separate from consent.",
+          "award_band": "Award band in the results release.",
+          "prize": "Prize attached to the awarded recognition."
+        },
+        "auction_offer": {
+          "lot_id": "Links the offer to the original auction lot while it exists.",
+          "bid_id": "Links the offer to the accepted bid while that record exists.",
+          "batch_id": "Links payment evidence to the offer.",
+          "lot_code": "Identifies the sale for accounting and dispute resolution.",
+          "amount_paise": "Exact INR paise offered and captured.",
+          "creator_share_bps": "Snapshot of the competition creator proceeds policy in basis points.",
+          "address_ciphertext": "Encrypted buyer delivery address, removed when receipt is confirmed.",
+          "courier": "Courier used to send the original artwork.",
+          "tracking_number": "Courier tracking number for fulfilment and delivery confirmation."
+        },
+        "event": {
+          "created_by_user_id": "The organiser account that created the event."
+        },
+        "event_registration": {
+          "subject_user_id": "The attendee's own account",
+          "subject_profile_id": "The attendee's participant profile",
+          "registered_by_user_id": "The account booking a place",
+          "checked_in_by_user_id": "The organiser confirming attendance",
+          "event_id": "The event the person registered for",
+          "status": "Whether the person has a place, waits, cancels, attends or is absent",
+          "registered_at": "When the person booked",
+          "waitlisted_at": "When the person began waiting",
+          "waitlist_order": "The order in which this person joined the queue",
+          "promoted_at": "When a place was confirmed",
+          "cancelled_at": "When the booking was cancelled",
+          "checked_in_at": "When the person's attendance was recorded"
+        },
+        "community_member": {
+          "subject_user_id": "The account whose private FOA journey this belongs to",
+          "subject_profile_id": "The participant whose private FOA journey this belongs to",
+          "joined_by_user_id": "The account that joined the member to the community",
+          "display_name_ciphertext": "The member’s private display name",
+          "about_ciphertext": "The member’s optional private introduction"
+        },
+        "engagement_milestone": {
+          "subject_user_id": "The account whose private FOA journey this belongs to",
+          "subject_profile_id": "The participant whose private FOA journey this belongs to",
+          "kind": "The earned rung on the person’s engagement ladder",
+          "source_id": "The actual domain fact from which the milestone was earned"
+        },
+        "timeline_entry": {
+          "subject_user_id": "The account whose private FOA journey this belongs to",
+          "subject_profile_id": "The participant whose private FOA journey this belongs to",
+          "kind": "The type of event in the person’s engagement history",
+          "ref_id": "The activity or record in the person’s journey",
+          "source_key": "A stable key that prevents repeated entries for the same activity",
+          "milestone_id": "The earned milestone represented by this timeline entry"
+        },
+        "social_export": {
+          "gallery_item_id": "Links a private social export to the reviewed gallery item",
+          "gallery_consent_event_id": "Binds the export to the exact public-display grant",
+          "social_consent_event_id": "Binds the export to the distinct social-media grant",
+          "file_id": "Identifies the authorised source for the social stamp",
+          "caption_ciphertext": "Stores editable social caption text securely"
+        },
+        "volunteer_task": {
+          "title_ciphertext": "Private title of a work item created by the community team",
+          "description_ciphertext": "Private work instructions",
+          "created_by_user_id": "Records which manager created the task"
+        },
+        "volunteer_task_assignment": {
+          "volunteer_user_id": "Identifies the volunteer assigned to a task",
+          "assigned_by_user_id": "Records which manager assigned the task"
+        },
+        "volunteer_hours_entry": {
+          "minutes": "Service minutes logged by a volunteer",
+          "worked_on": "Date on which the service was performed",
+          "note_ciphertext": "Volunteer’s description of completed work",
+          "reject_reason_ciphertext": "Manager’s explanation for declining logged hours",
+          "decided_by_user_id": "Records which manager reviewed the hours"
+        },
+        "gallery_item": {
+          "entry_id": "Links the curated item to the participant’s submitted work",
+          "consent_event_id": "Records the public-display permission used to curate the item",
+          "file_id": "Identifies the approved private source of the public stamped copy",
+          "title": "Reviewed public title or draft title before publication",
+          "story": "Reviewed public story before publication"
+        },
+        "gallery_report": {
+          "details_ciphertext": "Stores the reporter’s concern about a gallery item securely",
+          "contact_ciphertext": "Lets the content manager contact the reporter if they supplied an address",
+          "handled_by_user_id": "Records which staff member handled the report"
+        },
+        "competition_invitation": {
+          "participant_profile_id": "Identify the participant whose invitation this is.",
+          "competition_id": "Identify the competition whose results prompted this invitation.",
+          "release_id": "Verify the immutable publication that prompted this invitation.",
+          "accepted_actions": "Record the participant's chosen engagement opportunities.",
+          "created_at": "Record when the participant was invited.",
+          "status": "Record whether the invitation was sent or skipped.",
+          "trigger": "Distinguish a publication invitation from the approved pilot backfill.",
+          "recipient_user_id": "Identify the consenting adult or verified guardian who received the invitation."
+        },
+        "survey_invitation": {
+          "user_id": "The person invited to answer once",
+          "survey_id": "The competition survey they were invited to answer",
+          "answers": "The person’s selected answers, reported only in aggregate"
         }
       }
     },
@@ -677,6 +967,10 @@
         "breachRecords": {
           "name": "Breach log",
           "rule": "Kept while the breach is open, then deleted, with its timeline and notices, 5 years after it is closed."
+        },
+        "ambassadorApplications": {
+          "name": "Declined ambassador applications",
+          "rule": "Deleted {days, plural, one {# day} other {# days}} after decline, unless legally held. Open and approved applications remain until subject erasure."
         },
         "volunteerApplications": {
           "name": "Closed volunteer applications",
@@ -782,6 +1076,10 @@
           "name": "Competition entries",
           "rule": "3 years after the competition ends. No daily job yet."
         },
+        "auctionBids": {
+          "name": "Auction bids",
+          "rule": "Kept with the auction lot until 3 years after final settlement (no daily job yet). Erasure clears the account link without lowering the accepted bid history. Paid-sale records follow the financial record floor."
+        },
         "entryMedia": {
           "name": "Entry images",
           "rule": "Until 90 days after the competition ends. No daily job yet."
@@ -813,6 +1111,42 @@
         "erasureRecords": {
           "name": "Erasure records",
           "rule": "Kept as the proof of each erasure. They hold ids only, never a name or a contact."
+        },
+        "judgingRecords": {
+          "name": "Judging records",
+          "rule": "Provisional: 90 days after the round’s results, pending counsel and the results workflow. Invitation links are cleared on response."
+        },
+        "communityHistory": {
+          "name": "Community history",
+          "rule": "Kept in the private journey until the account or participant profile is erased."
+        },
+        "clubApplications": {
+          "name": "Closed club applications",
+          "rule": "Applicant links are cleared {days, plural, one {# day} other {# days}} after a club ends."
+        },
+        "clubDecisions": {
+          "name": "Closed club decision notes",
+          "rule": "Private decision notes and reviewer links are cleared {days, plural, one {# day} other {# days}} after a club ends."
+        },
+        "clubMemberships": {
+          "name": "Former club memberships",
+          "rule": "Private membership records are deleted {days, plural, one {# day} other {# days}} after a member leaves. Engagement timeline entries stay until erasure."
+        },
+        "communityMembers": {
+          "name": "Former member profiles",
+          "rule": "A departed member’s display name and introduction are removed {days, plural, one {# day} other {# days}} after departure. Earned milestones stay until erasure."
+        },
+        "volunteerService": {
+          "name": "Volunteer service",
+          "rule": "Private task assignments, hours and service certificates remain until subject erasure. Shared task instructions remain operational records."
+        },
+        "certificateRecords": {
+          "name": "Certificate records",
+          "rule": "Numbered recognition and private generated bytes remain until subject erasure (subject to legal holds)."
+        },
+        "surveyResponses": {
+          "name": "Competition feedback",
+          "rule": "Each invitation and its answers are deleted {days, plural, one {# day} other {# days}} after the survey closes."
         }
       }
     },

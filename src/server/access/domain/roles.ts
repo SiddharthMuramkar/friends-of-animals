@@ -28,6 +28,8 @@ export const ROLES = [
   "safeguarding_lead",
   /** FOA's grievance officer (#115): answers privacy rights requests; global only. */
   "grievance_officer",
+  /** Checks entries that reach FOA and verifies them or sends them back (#92); global only. */
+  "foa_verifier",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -37,6 +39,7 @@ export const SCOPE_TYPES = [
   "institution",
   "competition",
   "organisation",
+  "round",
 ] as const;
 
 export type ScopeType = (typeof SCOPE_TYPES)[number];
@@ -63,7 +66,7 @@ export const ROLE_SCOPE_TYPES: Readonly<Record<Role, readonly ScopeType[]>> = {
   guardian: ["global"],
   institution_admin: ["institution"],
   institution_coordinator: ["institution"],
-  judge: ["global", "competition"],
+  judge: ["global", "competition", "round"],
   volunteer: ["global", "organisation"],
   organisation_representative: ["organisation"],
   staff_admin: ["global"],
@@ -76,6 +79,7 @@ export const ROLE_SCOPE_TYPES: Readonly<Record<Role, readonly ScopeType[]>> = {
   adoption_coordinator: ["global", "organisation"],
   safeguarding_lead: ["global"],
   grievance_officer: ["global"],
+  foa_verifier: ["global"],
 };
 
 /** FOA's own people. Staff roles need a second factor (#60). */
@@ -90,6 +94,7 @@ const STAFF_ROLES: ReadonlySet<Role> = new Set<Role>([
   "adoption_coordinator",
   "safeguarding_lead",
   "grievance_officer",
+  "foa_verifier",
 ]);
 
 export function isStaffRole(role: Role): boolean {
@@ -100,7 +105,7 @@ export function isStaffRole(role: Role): boolean {
 export const scopeSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("global") }),
   z.strictObject({
-    type: z.enum(["institution", "competition", "organisation"]),
+    type: z.enum(["institution", "competition", "organisation", "round"]),
     id: z.uuid(),
   }),
 ]);

@@ -10,8 +10,7 @@
 #   runner   Next.js standalone server on :3000, as a non-root user.
 #   migrate  Applies pending Drizzle migrations (`pnpm db:migrate`), then exits.
 #   worker   The VPS background worker (src/worker/main.ts), as a non-root user.
-#   worker-media  The media queue's worker (images with sharp, videos with
-#            ffmpeg), as a non-root user.
+#   worker-media  The media queue's worker (sharp, ffmpeg and Poppler), as a non-root user.
 
 ARG NODE_IMAGE=node:26-trixie-slim
 
@@ -81,19 +80,23 @@ COPY src ./src
 USER node
 CMD ["node", "--import", "tsx", "src/worker/main.ts"]
 
-# ---- worker-media: isolated image and video processing (#85, #86) -----------
+# ---- worker-media: isolated image, video and essay PDF processing -----------
 # Only this image has ffmpeg and ffprobe, for video entries (#86): Debian's
 # build, with libx264 (GPL) for the H.264 copies. Self-hosted use
 # distributes nothing, so the GPL asks nothing of us here (HR-36 notes it).
+# Poppler rasterises essay PDFs into safe blind-judging copies (#96).
 FROM worker AS worker-media
 USER root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends ffmpeg poppler-utils fonts-liberation fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
-# `pnpm test:media` runs the ffmpeg adapter's contract against this ffmpeg:
+# `pnpm test:media` runs the video and PDF contracts against these tools:
 #   docker run --rm <a worker-media image> pnpm test:media
 COPY vitest.config.ts vitest.media.config.ts ./
 COPY fixtures/media ./fixtures/media
+COPY public/brand/foa-logo.svg ./public/brand/foa-logo.svg
+COPY public/brand/foa-logo-watermark*.png ./public/brand/
+COPY public/brand/apple-touch-icon.png ./public/brand/apple-touch-icon.png
 USER node
 CMD ["node", "--import", "tsx", "src/worker-media/main.ts"]
 

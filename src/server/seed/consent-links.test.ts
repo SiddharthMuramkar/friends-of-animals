@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import { consentEvent, consentLink, outbox } from "@/server/db/schema";
 import { createHarness } from "@/test/harness";
 
+import { seedConsentLinks } from "./consent-links";
 import { SEED_REGISTRATIONS, SEED_STUDENTS } from "./registration";
 
 it("seeds answered, pending and expired school links once and sends nothing", async () => {
@@ -51,7 +52,15 @@ it("seeds answered, pending and expired school links once and sends nothing", as
       .where(eq(outbox.eventType, "consent.link_sent"))
   ).toHaveLength(0);
   const recorded = await events();
-  await h.seed.preview();
+  // The first preview proves the integrated seed wiring; exercise the
+  // consent-link seeder itself again to check its idempotence.
+  await seedConsentLinks(h.deps);
   expect(JSON.stringify(await links()) === JSON.stringify(before)).toBe(true);
   expect(await events()).toEqual(recorded);
+  expect(
+    await h.db
+      .select()
+      .from(outbox)
+      .where(eq(outbox.eventType, "consent.link_sent"))
+  ).toHaveLength(0);
 });

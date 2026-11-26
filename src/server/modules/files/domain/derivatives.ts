@@ -10,6 +10,11 @@
 //
 // Pure: no I/O, no "server-only", so the worker and tests can load it.
 
+import {
+  STAMP_SETTINGS,
+  type StampedKind,
+} from "../../stamping/domain/variants";
+
 /** Each kind of derived copy, by the name stored with it. */
 export const DERIVATIVE_KINDS = {
   /** Lists, cards and the participant's own dashboard. */
@@ -40,17 +45,38 @@ export const VIDEO_DERIVATIVE_KINDS = {
 
 export type VideoDerivativeKind = keyof typeof VIDEO_DERIVATIVE_KINDS;
 
-/** Any stored derivative: an image's copy or a video's. */
-export type StoredDerivativeKind = DerivativeKind | VideoDerivativeKind;
+/** A PDF essay's raster-only blind-judging copy (#96). */
+export const PDF_DERIVATIVE_KIND = "pdf_clean" as const;
+export type PdfDerivativeKind = typeof PDF_DERIVATIVE_KIND;
 
-/** Every stored derivative kind, for input checks. */
-export const STORED_DERIVATIVE_KINDS = [
+/** Derivatives with a picture size, for the existing image/video viewers. */
+export type VisualDerivativeKind = DerivativeKind | VideoDerivativeKind;
+
+/** Any stored derivative. */
+export type StoredDerivativeKind =
+  | VisualDerivativeKind
+  | PdfDerivativeKind
+  | StampedKind;
+
+/** Image/video kinds, for input checks for dimension-bearing viewers. */
+export const VISUAL_DERIVATIVE_KINDS = [
   ...(Object.keys(DERIVATIVE_KINDS) as DerivativeKind[]),
   ...(Object.keys(VIDEO_DERIVATIVE_KINDS) as VideoDerivativeKind[]),
+] as [VisualDerivativeKind, ...VisualDerivativeKind[]];
+
+export const STORED_DERIVATIVE_KINDS = [
+  ...VISUAL_DERIVATIVE_KINDS,
+  PDF_DERIVATIVE_KIND,
+  ...Object.values(STAMP_SETTINGS).map((settings) => settings.kind),
 ] as [StoredDerivativeKind, ...StoredDerivativeKind[]];
 
 /** The file extension a derivative of `kind` is stored and served with. */
 export function derivativeExtension(kind: StoredDerivativeKind): string {
+  if (kind === PDF_DERIVATIVE_KIND) return "pdf";
+  const stamped = Object.values(STAMP_SETTINGS).find(
+    (settings) => settings.kind === kind
+  );
+  if (stamped) return stamped.extension;
   return Object.hasOwn(VIDEO_DERIVATIVE_KINDS, kind)
     ? VIDEO_DERIVATIVE_KINDS[kind as VideoDerivativeKind].extension
     : "webp";

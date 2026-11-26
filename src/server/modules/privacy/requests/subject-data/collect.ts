@@ -14,11 +14,12 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import type { FieldCipher } from "../../../../crypto/field-cipher";
 import type { AppDb } from "../../../../db/app-db";
 import type { ObjectStorage } from "../../../../ports/storage";
-import { assertRowsBelongToSubject } from "./guard";
+import { assertRowsBelongToSubject, auctionCaptureBatchId } from "./guard";
 import type { SubjectScope } from "./scope";
 import {
   columnNamed,
   NOT_EXPORTED,
+  PARTICIPANT_FILE_PURPOSES,
   REFERENCE_COLUMNS,
   SECTIONS,
   sectionName,
@@ -26,9 +27,8 @@ import {
 } from "./sections";
 
 /** The upload purposes whose bytes go in the export: the person's own work and forms. */
-const FILE_PURPOSES_WITH_BYTES = new Set([
-  "entry_image",
-  "consent_form",
+const FILE_PURPOSES_WITH_BYTES = new Set<string>([
+  ...PARTICIPANT_FILE_PURPOSES,
   "test_upload",
 ]);
 
@@ -39,6 +39,10 @@ const EXTENSIONS: Readonly<Record<string, string>> = {
   "image/heic": "heic",
   "image/heif": "heif",
   "application/pdf": "pdf",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/3gpp": "3gp",
+  "video/webm": "webm",
 };
 
 export type ExportFile = {
@@ -96,26 +100,125 @@ export async function collectSubjectData(
 }> {
   const { db, cipher, storage } = deps;
   const { scope } = input;
+  const userIds = new Set<string>(scope.userIds);
   const allowed = new Set<string>([...scope.userIds, ...scope.profileIds]);
   const sections: ExportDocument["sections"] = {};
   const fileRows: Record<string, unknown>[] = [];
+  // Capture evidence follows the exact gateway/order pair of a verified
+  // payer's auction batch, not a general set of acceptable local IDs.
+  const paidBatches: Record<string, unknown>[] = [];
+  const auctionBatchIds = new Set<string>();
+  // File ownership follows a previously validated entry, signed form, or
+  // custody photo, not the school coordinator or guardian who uploaded it.
+  const participantFileIds = new Set<string>();
+  const participantPurposes = new Set<string>(PARTICIPANT_FILE_PURPOSES);
 
   for (const section of SECTIONS) {
     const name = sectionName(section);
     const raw = (
       await db.select().from(section.table).where(section.where(scope))
     ).map((row) => bySqlName(section.table, row));
-    assertRowsBelongToSubject(name, raw, section.owners, allowed);
+    const evidenceBatchIds =
+      name === "gateway_webhook_event"
+        ? raw.map((row) => auctionCaptureBatchId(row, paidBatches, userIds))
+        : undefined;
+    if (name === "payment_batch") {
+      assertRowsBelongToSubject(name, raw, section.owners, userIds);
+      paidBatches.push(...raw);
+      for (const row of raw) {
+        if (row.purpose === "auction_sale" && typeof row.id === "string")
+          auctionBatchIds.add(row.id);
+      }
+    } else if (name === "file_asset") {
+      for (const row of raw) {
+        const participantFile = participantPurposes.has(String(row.purpose));
+        assertRowsBelongToSubject(
+          name,
+          [row],
+          participantFile ? ["id"] : ["owner_user_id"],
+          participantFile ? participantFileIds : userIds
+        );
+      }
+    } else if (!evidenceBatchIds) {
+      assertRowsBelongToSubject(name, raw, section.owners, allowed);
+    }
+    if (["entry_file", "consent_form", "artwork_photo"].includes(name)) {
+      for (const row of raw) {
+        if (typeof row.file_asset_id === "string") {
+          participantFileIds.add(row.file_asset_id);
+        }
+      }
+    }
+    if (name === "certificate") {
+      for (const row of raw)
+        if (typeof row.pdf_file_id === "string")
+          participantFileIds.add(row.pdf_file_id);
+    }
     for (const row of raw) {
       if (typeof row.id === "string") allowed.add(row.id);
     }
     if (name === "file_asset") fileRows.push(...raw);
     if (raw.length === 0) continue;
     const withheld = new Set(section.withhold ?? []);
-    sections[name] = raw.map((row) => {
-      const out: Record<string, unknown> = {};
+    const included = section.include && new Set(section.include);
+    sections[name] = raw.map((row, i) => {
+      const out: Record<string, unknown> = evidenceBatchIds
+        ? { batch_id: evidenceBatchIds[i] }
+        : {};
+      const auctionFinancial =
+        (name === "payment_batch" && row.purpose === "auction_sale") ||
+        (["payment_review_case", "refund"].includes(name) &&
+          typeof row.batch_id === "string" &&
+          auctionBatchIds.has(row.batch_id));
+      // A paid sale belongs to its creator as well as its buyer, but its
+      // delivery address, tracking and payment links are exclusively the buyer's.
+      const creatorOnlyAuction =
+        name === "auction_offer" &&
+        ![row.bid_id, row.batch_id].some(
+          (id) => typeof id === "string" && allowed.has(id)
+        );
+      const recipientOnlyInvitation =
+        name === "competition_invitation" &&
+        !scope.profileIds.includes(String(row.participant_profile_id));
       for (const [column, value] of Object.entries(row)) {
-        if (withheld.has(column)) continue;
+        if (
+          recipientOnlyInvitation &&
+          [
+            "participant_profile_id",
+            "competition_id",
+            "release_id",
+            "accepted_actions",
+            "trigger",
+          ].includes(column)
+        )
+          continue;
+        if (
+          creatorOnlyAuction &&
+          [
+            "bid_id",
+            "batch_id",
+            "address_ciphertext",
+            "courier",
+            "tracking_number",
+          ].includes(column)
+        )
+          continue;
+        // Keep own financial amounts, decisions and local batch references;
+        // provider identifiers and internal refund keys are not needed to
+        // convey the auction capture evidence or its reviewed outcome.
+        if (
+          auctionFinancial &&
+          [
+            "gateway_order_id",
+            "gateway_payment_id",
+            "gateway_refund_id",
+            "dashboard_refund_reference",
+            "idempotency_key",
+          ].includes(column)
+        )
+          continue;
+        if (withheld.has(column) || (included && !included.has(column)))
+          continue;
         const purpose = section.decrypt?.[column];
         if (purpose !== undefined) {
           out[column.replace(/_ciphertext$/, "")] =

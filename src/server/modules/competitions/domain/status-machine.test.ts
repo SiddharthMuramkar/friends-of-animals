@@ -11,12 +11,16 @@ import {
 // Every ordered pair of statuses, with who may make the move. A pair that
 // is not listed here is forbidden for everyone.
 const ALLOWED: Record<string, TransitionCause> = {
+  "foa_judging->results_published": "results",
   "draft->published": "manager",
   "published->registration_open": "schedule",
   "registration_open->registration_closed": "schedule",
   // Only once every enabled discipline has a published rubric (#88): the
   // guard runs where the move is made (../transition-guards.ts).
   "registration_closed->school_judging": "schedule",
+  // At the shortlist deadline, only once every school round is finished
+  // (#90): the guard runs where the move is made.
+  "school_judging->foa_judging": "schedule",
   // A super admin cancels a competition from any status but cancelled
   // (#80); nothing leaves cancelled.
   "draft->cancelled": "cancellation",
@@ -24,9 +28,10 @@ const ALLOWED: Record<string, TransitionCause> = {
   "registration_open->cancelled": "cancellation",
   "registration_closed->cancelled": "cancellation",
   "school_judging->cancelled": "cancellation",
+  "foa_judging->cancelled": "cancellation",
 };
 
-const CAUSES = ["manager", "schedule", "cancellation"] as const;
+const CAUSES = ["manager", "schedule", "cancellation", "results"] as const;
 
 const PAIRS = COMPETITION_STATUSES.flatMap((from) =>
   COMPETITION_STATUSES.map((to) => [from, to] as const)
@@ -40,6 +45,8 @@ describe("the competition status machine", () => {
       "registration_open",
       "registration_closed",
       "school_judging",
+      "foa_judging",
+      "results_published",
       "cancelled",
     ]);
   });
@@ -73,7 +80,7 @@ describe("the competition status machine", () => {
 
   it("reaches cancelled only by a cancellation, and never leaves it", () => {
     for (const from of COMPETITION_STATUSES) {
-      if (from === "cancelled") continue;
+      if (from === "cancelled" || from === "results_published") continue;
       expect(transitionCause(from, "cancelled")).toBe("cancellation");
       expect(canTransition(from, "cancelled", "manager")).toBe(false);
       expect(canTransition(from, "cancelled", "schedule")).toBe(false);

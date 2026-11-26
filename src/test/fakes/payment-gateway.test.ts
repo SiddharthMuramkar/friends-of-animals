@@ -8,6 +8,7 @@ paymentGatewayContract("FakePaymentGateway", async () => {
   const gateway = new FakePaymentGateway();
   return {
     gateway,
+    signedCaptureTiming: true,
     capture: async (orderId, amount) => gateway.capture(orderId, { amount }),
     webhook: (event, options) => gateway.webhook(event, options),
   };

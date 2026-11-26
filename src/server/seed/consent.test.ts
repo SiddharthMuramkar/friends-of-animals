@@ -8,6 +8,7 @@ import {
   SEED_TERMS_COMPETITIONS,
   seedCompetitionTerms,
 } from "./competition-terms";
+import { seedAuctions } from "./auctions";
 import { seedCompetitions } from "./competitions";
 import { seedConsent } from "./consent";
 import { SEED_GUARDIANS, seedGuardians } from "./guardians";
@@ -136,9 +137,19 @@ describe("the guardian consents seed (#82)", () => {
         documentId: view.communications.document.id,
       })
     ).toEqual({ ok: true, changed: true });
+    await seedAuctions(h.deps);
+    const prior = await guardian.childConsentHistory({
+      childId: child.profileId,
+    });
+    // A first full preview now also supplies gallery-specific sample grants;
+    // the previously recorded communication/auction history must survive.
+    await h.seed.preview();
     const history = await guardian.childConsentHistory({
       childId: child.profileId,
     });
+    if (!prior.ok || !history.ok)
+      throw new Error("Missing child consent history");
+    expect(history.events).toEqual(expect.arrayContaining(prior.events));
 
     for (let run = 0; run < 2; run++) {
       await h.seed.preview();
@@ -146,7 +157,11 @@ describe("the guardian consents seed (#82)", () => {
       const registrations = await guardian.listMyRegistrations();
       expect(
         registrations.filter((each) => each.participantName === child.fullName)
-      ).toMatchObject([{ status: "pending_guardian", heldFor: "consent" }]);
+      ).toMatchObject([
+        { status: "pending_guardian", heldFor: "consent" },
+        { status: "confirmed", competition: { slug: "art-for-kindness" } },
+        { status: "confirmed", competition: { slug: "originals-for-animals" } },
+      ]);
       expect(
         await guardian.childConsentHistory({ childId: child.profileId })
       ).toEqual(history);

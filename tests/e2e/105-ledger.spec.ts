@@ -229,7 +229,7 @@ test("category creation refuses duplicate field values", async ({
   );
   await expect(summary).toBeFocused();
   await expect(form.getByLabel("Public label")).toHaveAccessibleDescription(
-    "Use up to 80 characters for the public label."
+    "Shown on the transparency page. Use a category label, not a donor name or other personal details. Leave blank to show the public group. Use up to 80 characters for the public label."
   );
   await expect(
     page.getByRole("heading", { name: "Duplicate label test" })

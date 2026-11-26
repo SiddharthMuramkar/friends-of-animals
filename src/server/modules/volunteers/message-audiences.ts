@@ -10,7 +10,7 @@
 //
 // Loads under plain Node (the worker): relative imports only.
 
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, inArray } from "drizzle-orm";
 
 import type { FieldCipher } from "../../crypto/field-cipher";
 import type { AppDb } from "../../db/app-db";
@@ -19,6 +19,9 @@ import {
   user,
   userRole,
   volunteerApplication,
+  volunteerTaskAssignment,
+  volunteerHoursEntry,
+  volunteerTask,
 } from "../../db/schema";
 import { verifiedGuardianIds } from "../guardians/domain/minor-audience";
 import { guardianLinksByProfile } from "../guardians/participant-audience";
@@ -118,4 +121,61 @@ export async function applicationValues(
           ),
         }),
   };
+}
+
+/** Work alerts are generic inbox notices, resolved against current live facts.
+ * Never send a note, rejection reason, task title or minor's details offsite. */
+export async function volunteerWorkAudience(
+  db: AppDb,
+  fact:
+    | { type: "assignment"; assignmentId: string }
+    | { type: "hours"; entryId: string; status: "approved" | "rejected" },
+  guardian: boolean
+): Promise<AudienceMember[]> {
+  const [row] =
+    fact.type === "assignment"
+      ? await db
+          .select({ uid: volunteerTaskAssignment.volunteerUserId })
+          .from(volunteerTaskAssignment)
+          .innerJoin(
+            volunteerTask,
+            eq(volunteerTask.id, volunteerTaskAssignment.taskId)
+          )
+          .where(
+            and(
+              eq(volunteerTaskAssignment.id, fact.assignmentId),
+              isNull(volunteerTaskAssignment.unassignedAt),
+              inArray(volunteerTask.status, ["assigned", "in_progress", "done"])
+            )
+          )
+      : await db
+          .select({ uid: volunteerTaskAssignment.volunteerUserId })
+          .from(volunteerHoursEntry)
+          .innerJoin(
+            volunteerTaskAssignment,
+            eq(volunteerTaskAssignment.id, volunteerHoursEntry.assignmentId)
+          )
+          .where(
+            and(
+              eq(volunteerHoursEntry.id, fact.entryId),
+              eq(volunteerHoursEntry.status, fact.status)
+            )
+          );
+  if (!row) return [];
+  if (!guardian) return [{ userId: row.uid, channels: "in_app_only" }];
+  const [profile] = await db
+    .select({ id: participantProfile.id })
+    .from(participantProfile)
+    .where(
+      and(
+        eq(participantProfile.loginUserId, row.uid),
+        eq(participantProfile.ownerKind, "guardian")
+      )
+    );
+  if (!profile) return [];
+  const links = await guardianLinksByProfile(db, [profile.id]);
+  return verifiedGuardianIds(links.get(profile.id) ?? []).map((userId) => ({
+    userId,
+    channels: "in_app_only",
+  }));
 }

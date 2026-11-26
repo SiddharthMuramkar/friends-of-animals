@@ -9,6 +9,12 @@
 // Loads under plain Node (the seed script): no "server-only", no "@/"
 // imports.
 
+import {
+  DEFAULT_MEMBERSHIP_DAYS,
+  ADULT_AGE_FLOOR,
+  DEFAULT_QUALIFICATION,
+  qualificationSetting,
+} from "../community/ambassadors/domain/eligibility";
 import { CODE_REQUEST_LIMITS } from "../../identity/settings";
 import {
   DEFAULT_APPROVAL_EXPIRY_DAYS,
@@ -30,6 +36,7 @@ import {
   VOLUNTEER_AGE_RULE_BOUNDS,
   VOLUNTEER_AGE_RULE_DEFAULTS,
 } from "../volunteers/domain/eligibility";
+import { RESUBMISSION_DAYS } from "../verification/domain/decide";
 import {
   booleanSetting,
   integerSetting,
@@ -92,6 +99,23 @@ export const SETTINGS = {
     max: 5000,
     unit: "texts",
   }),
+  // Provisional FOA product thresholds (HR-57); no minor application flow.
+  "ambassadors.minMembershipDays": integerSetting({
+    default: DEFAULT_MEMBERSHIP_DAYS,
+    min: 0,
+    max: 3650,
+    unit: "days",
+  }),
+  "ambassadors.minAgeYears": integerSetting({
+    default: ADULT_AGE_FLOOR,
+    min: ADULT_AGE_FLOOR,
+    max: 100,
+    unit: "years",
+  }),
+  "ambassadors.qualifyingMilestones": {
+    ...textSetting({ default: DEFAULT_QUALIFICATION, maxLength: 80 }),
+    schema: qualificationSetting,
+  },
   // Organisation facts. Off until FOA holds 80G (HR-16) and is registered
   // under FCRA; they gate tax receipts and foreign donations (M5).
   "org.has80G": booleanSetting({ default: false }),
@@ -109,6 +133,7 @@ export const SETTINGS = {
   // runs and previews, which pay through the test checkout. The amounts
   // and the expiry are defaults FOA confirms (HR-51).
   "donations.enabled": booleanSetting({ default: false }),
+  "donations.recurringEnabled": booleanSetting({ default: false }),
   // Whether someone without an account may give.
   "donations.allowGuest": booleanSetting({ default: true }),
   "donations.minAmountRupees": integerSetting({
@@ -193,6 +218,17 @@ export const SETTINGS = {
   // still names its payer. Off deletes the account; the payment rows stay
   // either way (HR-30, HR-47).
   "privacy.erasureKeepsPayerAccount": booleanSetting({ default: true }),
+  // Clubs (#121): keep off until safeguarding sign-off (HR-55).
+  // The cap is provisional (HR-57).
+  "clubs.enabled": booleanSetting({ default: false }),
+  "clubs.maxPerInstitution": integerSetting({
+    default: 1,
+    min: 1,
+    max: 20,
+    unit: "clubs",
+  }),
+  "surveys.enabled": booleanSetting({ default: false }),
+  "invitations.enabled": booleanSetting({ default: false }),
   // Volunteers (#123). Applying stays closed until FOA's safeguarding lead
   // and counsel sign M6 off (HR-55) and police checks are in place
   // (HR-38); local runs and previews are seeded open. The age rules are
@@ -220,6 +256,80 @@ export const SETTINGS = {
   // and the hourly reminder sync plans any new time.
   "reminders.entrySubmissionDueFirstHours": reminderHours(72),
   "reminders.entrySubmissionDueSecondHours": reminderHours(24),
+  "reminders.schoolRoundShortlistDueFirstHours": reminderHours(72),
+  "reminders.schoolRoundShortlistDueSecondHours": reminderHours(24),
+  "reminders.eventStartsFirstHours": reminderHours(24),
+  "reminders.eventStartsSecondHours": reminderHours(2),
+  // Physical artwork (#93), HR-40: no requests until FOA supplies the address.
+  "artwork.dispatchDays": integerSetting({
+    default: 14,
+    min: 3,
+    max: 60,
+    unit: "days",
+  }),
+  // HR-63: auctioning original art is opt-in after FOA and counsel approve.
+  "gallery.withdrawalPurgeMinutes": integerSetting({
+    default: 15,
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  }),
+  "gallery.reportsPerIpPerHour": integerSetting({
+    default: 10,
+    min: 1,
+    max: 100,
+    unit: "reports",
+  }),
+  "auctions.enabled": booleanSetting({ default: false }),
+  // FOA may adjust both defaults without deploying. No production auctions
+  // until the sale terms and eligibility have been approved (HR-63).
+  "auctions.minIncrementPaise": integerSetting({
+    default: 5000,
+    min: 1,
+    max: 100_000_000,
+    unit: "paise",
+  }),
+  "auctions.antiSnipingWindowMinutes": integerSetting({
+    default: 5,
+    min: 0,
+    max: 60,
+    unit: "minutes",
+  }),
+  "auctions.paymentWindowHours": integerSetting({
+    default: 72,
+    min: 1,
+    max: 336,
+    unit: "hours",
+  }),
+  "auctions.maxPaymentOffers": integerSetting({
+    default: 3,
+    min: 1,
+    max: 10,
+    unit: "offers",
+  }),
+  "artwork.returnWindowDays": integerSetting({
+    default: 30,
+    min: 1,
+    max: 365,
+    unit: "days",
+  }),
+  "artwork.dispatchReminderLeadHours": reminderHours(72),
+  "artwork.packagingInstructions": textSetting({
+    default:
+      "Protect the original work with suitable packaging and mark it with the Artwork ID.",
+    maxLength: 2000,
+  }),
+  "artwork.shippingPayer": booleanSetting({ default: false }), // false: sender pays; true: FOA pays
+  "org.foaFacilityAddress": textSetting({ default: "", maxLength: 500 }),
+  // FOA verification (#92): how long a sent-back entry stays open for its
+  // resubmission, counted from the send-back. The owner's default is 7
+  // days (2026-11-19); FOA confirms it (HR-37).
+  "entries.resubmissionDays": integerSetting({
+    default: RESUBMISSION_DAYS.default,
+    min: RESUBMISSION_DAYS.min,
+    max: RESUBMISSION_DAYS.max,
+    unit: "days",
+  }),
   // Retention (#114). Off until a super admin turns it on: the daily sweep
   // then deletes and anonymises expired records; while off it only counts
   // them (a dry run, still audited). Every period waits for counsel
@@ -266,6 +376,21 @@ export const SETTINGS = {
   }),
   "retention.volunteerApplicationsDays": retentionDays(
     RETENTION_PERIODS.volunteerApplications
+  ),
+  "retention.ambassadorApplicationsDays": retentionDays(
+    RETENTION_PERIODS.ambassadorApplications
+  ),
+  "retention.clubMembershipsDays": retentionDays(
+    RETENTION_PERIODS.clubMemberships
+  ),
+  "retention.clubApplicationsDays": retentionDays(
+    RETENTION_PERIODS.clubApplications
+  ),
+  "retention.surveyResponsesDays": retentionDays(
+    RETENTION_PERIODS.surveyResponses
+  ),
+  "retention.communityMembersDays": retentionDays(
+    RETENTION_PERIODS.communityMembers
   ),
   "retention.adoptionApplicationsDays": retentionDays(
     RETENTION_PERIODS.adoptionApplications

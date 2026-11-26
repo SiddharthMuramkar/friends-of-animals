@@ -97,7 +97,7 @@ function postForeignFact(
   return postToLedger(tx, ctx, {
     source: fact.source,
     occurredAt: fact.occurredAt,
-    description: postingDescription("foreign_donation"),
+    description: postingDescription(fact.source.type),
     lines: foreignDonationLines(fact),
   });
 }
@@ -108,7 +108,13 @@ type Returned = NonNullable<Awaited<ReturnType<typeof readProcessedRefund>>>;
 type Original = {
   posting: PostedEntry;
   competitionId?: string;
-  description: "refund" | "donation_refund" | "foreign_refund";
+  description:
+    | "refund"
+    | "donation_refund"
+    | "foreign_refund"
+    | "recurring_late_refund"
+    | "auction_review_refund"
+    | "auction_refund";
 };
 
 async function originalOf(
@@ -121,17 +127,45 @@ async function originalOf(
     .select({ purpose: paymentBatch.purpose })
     .from(paymentBatch)
     .where(eq(paymentBatch.id, returned.batchId));
+  if (batch?.purpose === "auction_sale") {
+    const source =
+      returned.kind === "duplicate"
+        ? {
+            type: "auction_review" as const,
+            id: returned.gatewayPaymentId ?? "",
+          }
+        : { type: "auction_sale" as const, id: "" };
+    if (returned.kind !== "duplicate")
+      throw new Error(
+        "Direct sale refunds require an approved auction financial adjustment"
+      );
+    const posting = await findSourcePosting(tx, source);
+    if (!posting)
+      throw new Error(
+        "Auction review refund is missing its original liability"
+      );
+    return {
+      posting: { outcome: "duplicate", ...posting },
+      description: "auction_review_refund",
+    };
+  }
   if (batch?.purpose === "donation") {
-    const donationId = await donationOfBatch(tx, returned.batchId);
-    if (!donationId) throw new Error("Donation refund has no donation");
-    if (returned.kind === "foreign_payment") {
+    if (
+      returned.kind === "foreign_payment" ||
+      returned.kind === "recurring_after_cancel"
+    ) {
       const fact = await readForeignDonation(tx, refundId);
       if (!fact) throw new Error("Foreign refund has no foreign payment");
       return {
         posting: await postForeignFact(tx, ctx, fact),
-        description: "foreign_refund",
+        description:
+          returned.kind === "recurring_after_cancel"
+            ? "recurring_late_refund"
+            : "foreign_refund",
       };
     }
+    const donationId = await donationOfBatch(tx, returned.batchId);
+    if (!donationId) throw new Error("Donation refund has no donation");
     const fact = await readDonation(tx, donationId);
     if (!fact) throw new Error("Donation refund has no captured donation");
     if (

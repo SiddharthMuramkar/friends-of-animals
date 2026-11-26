@@ -18,7 +18,9 @@ type CountdownKey =
   | "closes"
   | "closesDue"
   | "entriesClose"
-  | "entriesCloseDue";
+  | "entriesCloseDue"
+  | "shortlistsClose"
+  | "shortlistsCloseDue";
 
 export type CountdownIntl = {
   t: (key: CountdownKey, values?: { at: string; relative: string }) => string;
@@ -30,12 +32,16 @@ export type CountdownIntl = {
 
 /** The messages for each status the schedule can move a competition to. */
 const KEYS: Record<
-  Exclude<CompetitionStatus, "draft" | "published" | "cancelled">,
+  Exclude<
+    CompetitionStatus,
+    "draft" | "published" | "cancelled" | "results_published"
+  >,
   { scheduled: CountdownKey; due: CountdownKey }
 > = {
   registration_open: { scheduled: "opens", due: "opensDue" },
   registration_closed: { scheduled: "closes", due: "closesDue" },
   school_judging: { scheduled: "entriesClose", due: "entriesCloseDue" },
+  foa_judging: { scheduled: "shortlistsClose", due: "shortlistsCloseDue" },
 };
 
 /** The countdown sentence for `change`, or null when nothing is ahead. */
@@ -48,7 +54,8 @@ export function countdownText(
     !change ||
     change.to === "draft" ||
     change.to === "published" ||
-    change.to === "cancelled"
+    change.to === "cancelled" ||
+    change.to === "results_published"
   ) {
     return null;
   }

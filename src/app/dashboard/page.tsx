@@ -1,5 +1,7 @@
 import { Clock } from "lucide-react";
 import type { Metadata } from "next";
+import { ButtonLink } from "@/components/site/button-link";
+import { MY_ARTWORK, MY_CERTIFICATES } from "@/lib/app-routes";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
@@ -9,16 +11,33 @@ import { PageHeader, SectionHeading } from "@/components/site/heading";
 import { Section } from "@/components/site/section";
 import { SiteLink } from "@/components/site/site-link";
 import {
+  ADMIN_HOME,
   ADMIN_ADOPTIONS,
+  ADMIN_AUCTIONS,
+  ADMIN_JUDGING_ROUNDS,
+  JUDGE_DASHBOARD,
+  ADMIN_VERIFICATION,
   ADMIN_DIRECTORY,
   ADMIN_LEDGER,
   ADMIN_PAYMENTS_REVIEW,
   ADMIN_PRIVACY_REQUESTS,
   ADMIN_REFUNDS,
   ADMIN_VOLUNTEERS,
+  ADMIN_COMMUNITY_MEMBERS,
+  ADMIN_EVENTS,
+  DASHBOARD_EVENTS,
+  DASHBOARD_SURVEYS,
+  DASHBOARD_INVITATIONS,
+  DASHBOARD_COMMUNITY,
+  DASHBOARD_AMBASSADORS,
+  ADMIN_AMBASSADORS,
+  DASHBOARD_CLUBS,
+  ADMIN_CLUBS,
+  DASHBOARD_TIMELINE,
   APP_ROUTES,
   MY_PRIVACY_REQUESTS,
   DASHBOARD_ADOPTIONS,
+  DASHBOARD_DONATIONS,
   DASHBOARD_VOLUNTEER,
   institutionCompetitionsPath,
   judgingGuidePath,
@@ -96,6 +115,11 @@ async function Areas() {
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
   // Adoption coordinators handle adoption applications (#130).
+  const verifier = grants.some((grant) => grant.role === "foa_verifier");
+  const gallery = grants.some((g) =>
+    ["content_manager", "staff_admin", "super_admin"].includes(g.role)
+  );
+  const auction = grants.some((g) => g.role === "auction_manager");
   const adoption = grants.some(
     (grant) => grant.role === "adoption_coordinator"
   );
@@ -104,12 +128,25 @@ async function Areas() {
       grant.role === "competition_manager" ||
       (grant.role === "super_admin" && grant.scope.type === "global")
   );
+  const managesEvents = grants.some(
+    (g) => g.role === "content_manager" || g.role === "community_manager"
+  );
+  const artwork = await getTranslations("artwork");
+  const certificates = await getTranslations("certificates");
   const links = dashboardLinks(dashboards);
   const name = (link: DashboardLink) =>
     t(`areas.${link.area}`, { id: link.id ?? "" });
 
   return (
     <div className="mt-8 flex flex-col gap-8">
+      <div className="flex flex-wrap gap-3">
+        <ButtonLink href={MY_CERTIFICATES} variant="secondary">
+          {certificates("title")}
+        </ButtonLink>
+        <ButtonLink href={MY_ARTWORK} variant="secondary">
+          {artwork("title")}
+        </ButtonLink>
+      </div>
       {/* The switcher: each area is a link, so the URL says which one is
           open and nothing else has to remember it. */}
       <nav aria-label={t("switcher")}>
@@ -118,6 +155,7 @@ async function Areas() {
             <li key={link.section} className="max-w-full">
               <SiteLink
                 href={link.href}
+                prefetch={link.area === "admin" ? false : undefined}
                 className="inline-flex min-h-11 max-w-full items-center rounded-full border-2 border-border-strong bg-surface px-4 py-1.5 font-semibold text-ink wrap-anywhere hover:border-ink"
               >
                 {name(link)}
@@ -140,7 +178,9 @@ async function Areas() {
               title={name(link)}
               className="min-w-0 wrap-anywhere"
             />
-            <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
+            {link.area !== "judge" && link.area !== "admin" ? (
+              <Chip icon={<Clock aria-hidden="true" />}>{t("comingSoon")}</Chip>
+            ) : null}
           </div>
           <AreaBody
             area={link.area}
@@ -152,7 +192,11 @@ async function Areas() {
             directory={directory}
             competitions={competitions}
             community={community}
+            managesEvents={managesEvents}
             adoption={adoption}
+            gallery={gallery}
+            auction={auction}
+            verifier={verifier}
           />
           {link.area === "institution" ? <JudgingGuides /> : null}
         </section>
@@ -171,7 +215,11 @@ async function AreaBody({
   directory,
   competitions,
   community,
+  managesEvents,
   adoption,
+  auction,
+  gallery,
+  verifier,
 }: {
   area: DashboardLink["area"];
   id?: string;
@@ -182,17 +230,26 @@ async function AreaBody({
   directory: boolean;
   competitions: boolean;
   community: boolean;
+  managesEvents: boolean;
   adoption: boolean;
+  auction: boolean;
+  gallery: boolean;
+  verifier: boolean;
 }) {
-  const [t, registration] = await Promise.all([
+  const [t, registration, adminHome] = await Promise.all([
     getTranslations("dashboard"),
     getTranslations("institutionRegistration.competitions"),
+    getTranslations("adminHome"),
   ]);
   const links = (items: { href: string; label: string }[]): ReactNode => (
     <ul className="mt-3 flex flex-col">
       {items.map((item) => (
         <li key={item.href}>
-          <SiteLink href={item.href} className={LINK}>
+          <SiteLink
+            href={item.href}
+            prefetch={item.href === ADMIN_HOME ? false : undefined}
+            className={LINK}
+          >
             {item.label}
           </SiteLink>
         </li>
@@ -208,9 +265,21 @@ async function AreaBody({
             { href: APP_ROUTES.guardian, label: t("member.children") },
             { href: MY_PRIVACY_REQUESTS, label: t("member.privacy") },
             { href: MY_LISTINGS, label: t("member.directory") },
+            { href: DASHBOARD_COMMUNITY, label: t("member.community") },
+            { href: DASHBOARD_AMBASSADORS, label: t("member.ambassadors") },
+            { href: DASHBOARD_CLUBS, label: t("member.clubs") },
+            { href: DASHBOARD_TIMELINE, label: t("member.timeline") },
+            { href: DASHBOARD_SURVEYS, label: t("member.surveys") },
+            { href: DASHBOARD_INVITATIONS, label: t("member.invitations") },
+            { href: DASHBOARD_EVENTS, label: t("member.events") },
             { href: DASHBOARD_VOLUNTEER, label: t("member.volunteer") },
             { href: DASHBOARD_ADOPTIONS, label: t("member.adoptions") },
+            { href: DASHBOARD_DONATIONS, label: t("member.donations") },
+            { href: APP_ROUTES.accountAuctions, label: t("member.auctions") },
           ])
+        : null}
+      {area === "judge"
+        ? links([{ href: JUDGE_DASHBOARD, label: t("judge.rounds") }])
         : null}
       {area === "organisation" && id
         ? links([{ href: myListingPath(id), label: t("organisation.listing") }])
@@ -225,6 +294,7 @@ async function AreaBody({
         : null}
       {area === "admin"
         ? links([
+            { href: ADMIN_HOME, label: adminHome("title") },
             { href: APP_ROUTES.adminRoles, label: t("admin.roles") },
             { href: APP_ROUTES.adminAudit, label: t("admin.audit") },
             ...(competitions
@@ -233,6 +303,7 @@ async function AreaBody({
                     href: APP_ROUTES.adminCompetitions,
                     label: t("admin.competitions"),
                   },
+                  { href: ADMIN_JUDGING_ROUNDS, label: t("admin.judging") },
                 ]
               : []),
             ...(lead
@@ -267,8 +338,34 @@ async function AreaBody({
             ...(finance
               ? [{ href: ADMIN_LEDGER, label: t("admin.ledger") }]
               : []),
+            ...(managesEvents
+              ? [{ href: ADMIN_EVENTS, label: t("admin.events") }]
+              : []),
             ...(community
-              ? [{ href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") }]
+              ? [
+                  {
+                    href: ADMIN_COMMUNITY_MEMBERS,
+                    label: t("admin.community"),
+                  },
+                  { href: ADMIN_VOLUNTEERS, label: t("admin.volunteers") },
+                  { href: ADMIN_CLUBS, label: t("admin.clubs") },
+                  { href: ADMIN_AMBASSADORS, label: t("admin.ambassadors") },
+                ]
+              : []),
+            ...(verifier
+              ? [{ href: ADMIN_VERIFICATION, label: t("admin.verification") }]
+              : []),
+            ...(gallery
+              ? [
+                  { href: APP_ROUTES.adminGallery, label: t("admin.gallery") },
+                  {
+                    href: APP_ROUTES.adminSocialExport,
+                    label: t("admin.socialExport"),
+                  },
+                ]
+              : []),
+            ...(auction
+              ? [{ href: ADMIN_AUCTIONS, label: t("admin.auctions") }]
               : []),
             ...(adoption
               ? [{ href: ADMIN_ADOPTIONS, label: t("admin.adoptions") }]

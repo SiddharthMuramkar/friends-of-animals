@@ -1,3 +1,7 @@
+import {
+  STAMP_VARIANTS,
+  type StampVariant,
+} from "../modules/stamping/domain/variants";
 // The domain events use cases emit, and which handlers each one goes to.
 // Adding an event: add it to `DomainEvent`, give it a payload schema in
 // EVENT_PAYLOADS, and list its handlers in SUBSCRIBERS (each name then
@@ -48,7 +52,26 @@ type DirectoryListingEvent<T extends `directory.${string}`> = {
   payload: { listingId: string; userId: string };
 };
 
+/** One verification decision on an entry (#92). */
+type EntryVerificationPayload = {
+  entryId: string;
+  registrationId: string;
+  /** The school route's institution registration; null on the individual route. */
+  institutionRegistrationId: string | null;
+  verificationId: string;
+};
+
 export type DomainEvent =
+  | {
+      type: "community.member_joined";
+      aggregate: { type: "community_member"; id: string };
+      payload: { memberId: string };
+    }
+  | {
+      type: "engagement.milestone_recorded";
+      aggregate: { type: "engagement_milestone"; id: string };
+      payload: { milestoneId: string };
+    }
   /** A listing was registered, or renamed and sent back for review. */
   | DirectoryListingEvent<"directory.listing_submitted">
   /** FOA verified it: it is public, and its owner represents it. */
@@ -111,9 +134,15 @@ export type DomainEvent =
       payload: { fileId: string };
     }
   | {
+      /** A clean essay PDF needs a safe blind-judging copy (#96). */
+      type: "files.pdf_processing_requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string };
+    }
+  | {
       /**
        * The scan passed a file that gets no derivatives: it is ready as
-       * stored (an essay's PDF, #86).
+       * stored (a payment proof, for example).
        */
       type: "files.file_ready";
       aggregate: { type: "file_asset"; id: string };
@@ -249,6 +278,11 @@ export type DomainEvent =
       payload: { reminderJobId: string };
     }
   | {
+      type: "judging.judge_invited";
+      aggregate: { type: "judge_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       /** An authorised person invited a coordinator (#74). */
       type: "institution.coordinator_invited";
       aggregate: { type: "institution_invitation"; id: string };
@@ -344,16 +378,285 @@ export type DomainEvent =
       };
     }
   | {
+      /**
+       * A competition manager closed an overdue school round on the
+       * school's behalf (#90), applying its saved picks. Not
+       * shortlist-finalised: only the school finalises. Each family is
+       * told the outcome as after finalising.
+       */
+      type: "school_round.closed_on_behalf";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /**
+       * The shortlist deadline passed with the school round unfinished
+       * (#90): its coordinators are told it is overdue.
+       */
+      type: "school_round.overdue";
+      aggregate: { type: "school_round"; id: string };
+      payload: {
+        roundId: string;
+        competitionId: string;
+        institutionRegistrationId: string;
+      };
+    }
+  | {
+      /**
+       * A competition's submissions closed (#92): its status job for the
+       * submissions_close key date ran. Individual entries go on to FOA.
+       */
+      type: "competition.submissions_closed";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      type: "artwork.requested";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.dispatched";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string; late: boolean };
+    }
+  | {
+      type: "artwork.received";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string; dispatchRecorded: boolean };
+    }
+  | {
+      type: "artwork.verified";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.discrepancy_raised";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.discrepancy_resolved";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.exhibited";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.stored";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.retained";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.return_requested";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "artwork.returned";
+      aggregate: { type: "physical_artwork"; id: string };
+      payload: { artworkId: string };
+    }
+  | {
+      type: "results.release_due";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string; releaseId: string };
+    }
+  | {
+      type: "results.prize_awarded";
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        entryId: string;
+        registrationId: string;
+      };
+    }
+  | {
+      /** Actual public release, emitted transactionally by Results (#99). */
+      type: "results.published";
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        publishedAt: string;
+      };
+    }
+  | {
+      type: "gallery.reported";
+      aggregate: { type: "gallery_report"; id: string };
+      payload: { reportId: string };
+    }
+  | {
+      type: "gallery.purge_overdue";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
+      type: "gallery.purge_failed";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
+      type: "gallery.purge_requested";
+      aggregate: { type: "gallery_purge"; id: string };
+      payload: { purgeId: string };
+    }
+  | {
+      type: "stamping.requested";
+      aggregate: { type: "file_asset"; id: string };
+      payload: { fileId: string; variant: StampVariant };
+    }
+  | {
+      type: "certificate.render";
+      aggregate: { type: "certificate"; id: string };
+      payload: { certificateId: string };
+    }
+  | {
+      type: "certificate.archive_requested";
+      aggregate: { type: "certificate_archive"; id: string };
+      payload: { archiveId: string };
+    }
+  | {
+      type: "certificate.archive_expired";
+      aggregate: { type: "certificate_archive"; id: string };
+      payload: { archiveId: string };
+    }
+  | {
+      type: "certificate.reissued";
+      aggregate: { type: "certificate"; id: string };
+      payload: { certificateId: string };
+    }
+  | {
+      type: "certificates.ready";
+      aggregate: { type: "competition"; id: string };
+      payload: {
+        competitionId: string;
+        releaseId: string;
+        recipientUserId: string;
+      };
+    }
+  | {
+      type: "auction.lot_created";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot.open";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot.close";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot_opened";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.lot_closed";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "auction.bid_outbid";
+      aggregate: { type: "auction_bid"; id: string };
+      payload: { previousBidId: string };
+    }
+  | {
+      type: "auction.offer_opened";
+      aggregate: { type: "auction_offer"; id: string };
+      payload: { offerId: string };
+    }
+  | {
+      type: "auction.offer.expire";
+      aggregate: { type: "auction_offer"; id: string };
+      payload: { offerId: string };
+    }
+  | {
+      type: "auction.sale_captured";
+      aggregate: { type: "auction_offer"; id: string };
+      payload: { offerId: string };
+    }
+  | {
+      type: "auction.lot_cancelled";
+      aggregate: { type: "auction_lot"; id: string };
+      payload: { lotId: string };
+    }
+  | {
+      type: "artwork.retain_unrequested";
+      aggregate: { type: "competition"; id: string };
+      payload: { competitionId: string };
+    }
+  | {
+      /**
+       * An FOA verifier verified an entry (#92). The participant or their
+       * guardian is told; on the school route, its coordinators.
+       */
+      type: "entry.foa_verified";
+      aggregate: { type: "entry"; id: string };
+      payload: EntryVerificationPayload;
+    }
+  | {
+      /**
+       * An FOA verifier sent an entry back with a reason (#92); whoever can
+       * resubmit it is told the reason and the deadline.
+       */
+      type: "entry.sent_back";
+      aggregate: { type: "entry"; id: string };
+      payload: EntryVerificationPayload;
+    }
+  | {
+      /**
+       * A replacement file of a sent-back entry went live (#92): the entry
+       * returns to FOA if it was resubmitted with that file.
+       */
+      type: "entry.replacement_live";
+      aggregate: { type: "entry"; id: string };
+      payload: { entryId: string; entryFileId: string };
+    }
+  | {
       /** An entry was shortlisted in a finalised school round (#89). */
       type: "entry.school_shortlisted";
       aggregate: { type: "entry"; id: string };
-      payload: { entryId: string; registrationId: string; roundId: string };
+      payload: {
+        entryId: string;
+        registrationId: string;
+        roundId: string;
+        position?: number | null;
+      };
     }
   | {
       /** An entry was not shortlisted in a finalised school round (#89). */
       type: "entry.not_shortlisted";
       aggregate: { type: "entry"; id: string };
-      payload: { entryId: string; registrationId: string; roundId: string };
+      payload: {
+        entryId: string;
+        registrationId: string;
+        roundId: string;
+        position?: number | null;
+      };
+    }
+  | {
+      /** A confirmed student was not shortlisted, and had no entry (#91). */
+      type: "registration.not_shortlisted";
+      aggregate: { type: "registration"; id: string };
+      payload: { registrationId: string; roundId: string };
     }
   | {
       /** An institution registered for a competition (#75). */
@@ -401,6 +704,36 @@ export type DomainEvent =
       type: "donation.refunded";
       aggregate: { type: "donation"; id: string };
       payload: { donationId: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.activated";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.charge_failed";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.cancelled";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.refunded";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
+    }
+  | {
+      type: "recurring_donation.payment_refused";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string; refundId: string };
+    }
+  | {
+      type: "recurring_donation.cancel_requested";
+      aggregate: { type: "recurring_donation"; id: string };
+      payload: { id: string };
     }
   | {
       /** A donor asked for a new receipt link by email (#106). The token
@@ -551,6 +884,16 @@ export type DomainEvent =
       };
     }
   | {
+      type: "competition_invitation.due";
+      aggregate: { type: "competition_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
+      type: "survey.invitation_due";
+      aggregate: { type: "survey_invitation"; id: string };
+      payload: { invitationId: string };
+    }
+  | {
       /**
        * One recipient's message of a sent campaign (#126) is due. The
        * handler checks the consent it rests on again before it goes.
@@ -585,14 +928,81 @@ export type DomainEvent =
       aggregate: { type: "institution_registration"; id: string };
       payload: { institutionRegistrationId: string; competitionId: string };
     }
+  | {
+      type: "event.places_changed";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.published";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.cancelled";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string };
+    }
+  | {
+      type: "event.changed";
+      aggregate: { type: "event"; id: string };
+      payload: {
+        eventId: string;
+        changes: "time" | "place" | "time_and_place";
+        startMoved: boolean;
+      };
+    }
+  | {
+      type: "event.end_due";
+      aggregate: { type: "event"; id: string };
+      payload: { eventId: string; endsAt: string };
+    }
+  | {
+      type: "event.registration_created";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string; status: "registered" | "waitlisted" };
+    }
+  | {
+      type: "event.waitlist_promoted";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string };
+    }
+  | {
+      type: "event.registration_cancelled";
+      aggregate: { type: "event_registration"; id: string };
+      payload: { registrationId: string };
+    }
   // Volunteer applications (#123): a 14- to 17-year-old applied and their
   // guardians are asked; an application reached the community team; a
   // community manager approved it (the volunteer role is granted) or
   // declined it with a reason.
+  | AmbassadorApplicationEvent<"ambassador.application_submitted">
+  | AmbassadorApplicationEvent<"ambassador.application_approved">
+  | AmbassadorApplicationEvent<"ambassador.application_declined">
+  | {
+      type: "club.decision_recorded";
+      aggregate: { type: "club_decision"; id: string };
+      payload: { decisionId: string };
+    }
   | VolunteerApplicationEvent<"volunteer.guardian_approval_requested">
   | VolunteerApplicationEvent<"volunteer.application_submitted">
   | VolunteerApplicationEvent<"volunteer.application_approved">
   | VolunteerApplicationEvent<"volunteer.application_declined">
+  | {
+      type: "volunteer.task_assigned";
+      aggregate: { type: "volunteer_task_assignment"; id: string };
+      payload: { assignmentId: string };
+    }
+  | {
+      type: "volunteer.hours_approved";
+      aggregate: { type: "volunteer_hours_entry"; id: string };
+      payload: { entryId: string };
+    }
+  | {
+      type: "volunteer.hours_rejected";
+      aggregate: { type: "volunteer_hours_entry"; id: string };
+      payload: { entryId: string };
+    }
   // Adoption applications (#130): one was made, the coordinator moved it,
   // the applicant withdrew it, or the animal's listing closed. The
   // applicant, the listing organisation and the coordinators are told.
@@ -604,6 +1014,12 @@ export type DomainEvent =
   | AdoptionApplicationEvent<"adoption.application_declined">
   | AdoptionApplicationEvent<"adoption.application_withdrawn">
   | AdoptionApplicationEvent<"adoption.application_listing_closed">;
+
+type AmbassadorApplicationEvent<T extends `ambassador.${string}`> = {
+  type: T;
+  aggregate: { type: "ambassador_application"; id: string };
+  payload: { applicationId: string };
+};
 
 /** Something happened to a volunteer application (#123). Ids only. */
 type VolunteerApplicationEvent<T extends `volunteer.${string}`> = {
@@ -632,8 +1048,15 @@ const SCHOOL_ROUND_OUTCOME_EVENT = z.object({
   entryId: z.uuid(),
   registrationId: z.uuid(),
   roundId: z.uuid(),
+  position: z.int().min(1).nullable().optional(),
 });
 
+const ENTRY_VERIFICATION_EVENT = z.object({
+  entryId: z.uuid(),
+  registrationId: z.uuid(),
+  institutionRegistrationId: z.uuid().nullable(),
+  verificationId: z.uuid(),
+});
 const ADOPTION_APPLICATION = z.object({ applicationId: z.uuid() });
 
 const INSTITUTION_DECIDED = z.object({
@@ -648,6 +1071,26 @@ const INSTITUTION_DECIDED = z.object({
  * can't carry personal data into the table.
  */
 export const EVENT_PAYLOADS = {
+  "event.places_changed": z.object({ eventId: z.uuid() }),
+  "event.published": z.object({ eventId: z.uuid() }),
+  "event.cancelled": z.object({ eventId: z.uuid() }),
+  "event.changed": z.object({
+    eventId: z.uuid(),
+    changes: z.enum(["time", "place", "time_and_place"]),
+    startMoved: z.boolean(),
+  }),
+  "event.end_due": z.object({ eventId: z.uuid(), endsAt: z.iso.datetime() }),
+  "event.registration_created": z.object({
+    registrationId: z.uuid(),
+    status: z.enum(["registered", "waitlisted"]),
+  }),
+  "event.waitlist_promoted": z.object({ registrationId: z.uuid() }),
+  "event.registration_cancelled": z.object({ registrationId: z.uuid() }),
+  "ambassador.application_submitted": z.object({ applicationId: z.uuid() }),
+  "ambassador.application_approved": z.object({ applicationId: z.uuid() }),
+  "ambassador.application_declined": z.object({ applicationId: z.uuid() }),
+  "community.member_joined": z.object({ memberId: z.uuid() }),
+  "engagement.milestone_recorded": z.object({ milestoneId: z.uuid() }),
   "consent.form_reviewed": z.object({
     formId: z.uuid(),
     uploaderUserId: z.uuid(),
@@ -665,6 +1108,7 @@ export const EVENT_PAYLOADS = {
   }),
   "files.processing_requested": z.object({ fileId: z.uuid() }),
   "files.video_processing_requested": z.object({ fileId: z.uuid() }),
+  "files.pdf_processing_requested": z.object({ fileId: z.uuid() }),
   "files.file_ready": z.object({ fileId: z.uuid() }),
   "files.file_processed": z.object({ fileId: z.uuid() }),
   "files.file_processing_failed": z.object({
@@ -710,6 +1154,7 @@ export const EVENT_PAYLOADS = {
   "competition.key_dates_changed": z.object({ competitionId: z.uuid() }),
   "competition.cancelled": z.object({ competitionId: z.uuid() }),
   "reminder.due": z.object({ reminderJobId: z.uuid() }),
+  "judging.judge_invited": z.object({ invitationId: z.uuid() }),
   "institution.coordinator_invited": z.object({ invitationId: z.uuid() }),
   "contact_message.received": z.object({ messageId: z.uuid() }),
   "safeguarding.report_submitted": z.object({ reportId: z.uuid() }),
@@ -739,8 +1184,88 @@ export const EVENT_PAYLOADS = {
     competitionId: z.uuid(),
     institutionRegistrationId: z.uuid(),
   }),
+  "school_round.closed_on_behalf": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "school_round.overdue": z.object({
+    roundId: z.uuid(),
+    competitionId: z.uuid(),
+    institutionRegistrationId: z.uuid(),
+  }),
+  "competition.submissions_closed": z.object({ competitionId: z.uuid() }),
+  "artwork.requested": z.object({ artworkId: z.uuid() }),
+  "artwork.dispatched": z.object({ artworkId: z.uuid(), late: z.boolean() }),
+  "artwork.received": z.object({
+    artworkId: z.uuid(),
+    dispatchRecorded: z.boolean(),
+  }),
+  "artwork.verified": z.object({ artworkId: z.uuid() }),
+  "artwork.discrepancy_raised": z.object({ artworkId: z.uuid() }),
+  "artwork.discrepancy_resolved": z.object({ artworkId: z.uuid() }),
+  "artwork.exhibited": z.object({ artworkId: z.uuid() }),
+  "artwork.stored": z.object({ artworkId: z.uuid() }),
+  "artwork.retained": z.object({ artworkId: z.uuid() }),
+  "artwork.return_requested": z.object({ artworkId: z.uuid() }),
+  "artwork.returned": z.object({ artworkId: z.uuid() }),
+  "results.release_due": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+  }),
+  "results.prize_awarded": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    entryId: z.uuid(),
+    registrationId: z.uuid(),
+  }),
+  "results.published": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    publishedAt: z.iso.datetime(),
+  }),
+  "gallery.reported": z.object({ reportId: z.uuid() }),
+  "gallery.purge_overdue": z.object({ purgeId: z.uuid() }),
+  "gallery.purge_failed": z.object({ purgeId: z.uuid() }),
+  "gallery.purge_requested": z.object({ purgeId: z.uuid() }),
+  "stamping.requested": z.object({
+    fileId: z.uuid(),
+    variant: z.enum(STAMP_VARIANTS),
+  }),
+  "certificate.render": z.object({ certificateId: z.uuid() }),
+  "certificate.archive_requested": z.object({ archiveId: z.uuid() }),
+  "certificate.archive_expired": z.object({ archiveId: z.uuid() }),
+  "certificate.reissued": z.object({ certificateId: z.uuid() }),
+  "certificates.ready": z.object({
+    competitionId: z.uuid(),
+    releaseId: z.uuid(),
+    recipientUserId: z.uuid(),
+  }),
+  "auction.lot_created": z.object({ lotId: z.uuid() }),
+  "auction.lot.open": z.object({ lotId: z.uuid() }),
+  "auction.lot.close": z.object({ lotId: z.uuid() }),
+  "auction.lot_opened": z.object({ lotId: z.uuid() }),
+  "auction.lot_closed": z.object({ lotId: z.uuid() }),
+  "auction.bid_outbid": z.object({
+    previousBidId: z.uuid(),
+  }),
+  "auction.offer_opened": z.object({ offerId: z.uuid() }),
+  "auction.offer.expire": z.object({ offerId: z.uuid() }),
+  "auction.sale_captured": z.object({ offerId: z.uuid() }),
+  "auction.lot_cancelled": z.object({ lotId: z.uuid() }),
+  "artwork.retain_unrequested": z.object({ competitionId: z.uuid() }),
+  "entry.foa_verified": ENTRY_VERIFICATION_EVENT,
+  "entry.sent_back": ENTRY_VERIFICATION_EVENT,
+  "entry.replacement_live": z.object({
+    entryId: z.uuid(),
+    entryFileId: z.uuid(),
+  }),
   "entry.school_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
   "entry.not_shortlisted": SCHOOL_ROUND_OUTCOME_EVENT,
+  "registration.not_shortlisted": z.object({
+    registrationId: z.uuid(),
+    roundId: z.uuid(),
+  }),
   "payment.batch_captured": z.object({
     batchId: z.uuid(),
     payerUserId: z.uuid().nullable(),
@@ -754,6 +1279,15 @@ export const EVENT_PAYLOADS = {
     donationId: z.uuid(),
     refundId: z.uuid(),
   }),
+  "recurring_donation.activated": z.object({ id: z.uuid() }),
+  "recurring_donation.charge_failed": z.object({ id: z.uuid() }),
+  "recurring_donation.cancelled": z.object({ id: z.uuid() }),
+  "recurring_donation.refunded": z.object({ id: z.uuid() }),
+  "recurring_donation.payment_refused": z.object({
+    id: z.uuid(),
+    refundId: z.uuid(),
+  }),
+  "recurring_donation.cancel_requested": z.object({ id: z.uuid() }),
   "receipt.link_requested": z.object({ receiptId: z.uuid() }),
   "guardian.teen_invited": z.object({ invitationId: z.uuid() }),
   "refund.approved": z.object({ refundId: z.uuid() }),
@@ -793,6 +1327,8 @@ export const EVENT_PAYLOADS = {
     overdue: z.int().min(1),
     assignedToYou: z.int().min(0),
   }),
+  "competition_invitation.due": z.object({ invitationId: z.uuid() }),
+  "survey.invitation_due": z.object({ invitationId: z.uuid() }),
   "campaign.message_due": z.object({
     campaignId: z.uuid(),
     recipientId: z.uuid(),
@@ -807,10 +1343,14 @@ export const EVENT_PAYLOADS = {
     institutionRegistrationId: z.uuid(),
     competitionId: z.uuid(),
   }),
+  "club.decision_recorded": z.object({ decisionId: z.uuid() }),
   "volunteer.guardian_approval_requested": VOLUNTEER_APPLICATION,
   "volunteer.application_submitted": VOLUNTEER_APPLICATION,
   "volunteer.application_approved": VOLUNTEER_APPLICATION,
   "volunteer.application_declined": VOLUNTEER_APPLICATION,
+  "volunteer.task_assigned": z.object({ assignmentId: z.uuid() }),
+  "volunteer.hours_approved": z.object({ entryId: z.uuid() }),
+  "volunteer.hours_rejected": z.object({ entryId: z.uuid() }),
   "adoption.application_submitted": ADOPTION_APPLICATION,
   "adoption.application_under_review": ADOPTION_APPLICATION,
   "adoption.application_in_contact": ADOPTION_APPLICATION,
@@ -843,12 +1383,31 @@ export function parseStoredEventPayload(
  * none.
  */
 export const SUBSCRIBERS = {
+  "event.places_changed": ["events.refill_places"],
+  "event.published": ["reminders.schedule_event"],
+  "event.cancelled": ["reminders.schedule_event", "notifications.dispatch"],
+  "event.changed": ["reminders.schedule_event", "notifications.dispatch"],
+  "event.end_due": ["events.settle"],
+  "event.registration_created": ["notifications.dispatch"],
+  "event.waitlist_promoted": ["notifications.dispatch"],
+  "event.registration_cancelled": ["notifications.dispatch"],
+  // No route sends a message for these yet; the domain facts are durable.
+  "ambassador.application_submitted": ["notifications.dispatch"],
+  "ambassador.application_approved": ["notifications.dispatch"],
+  "ambassador.application_declined": ["notifications.dispatch"],
+  "community.member_joined": ["notifications.dispatch"],
+  "engagement.milestone_recorded": ["notifications.dispatch"],
   "consent.form_reviewed": ["notifications.dispatch"],
   "identity.user_signed_up": ["notifications.dispatch"],
   "files.file_uploaded": ["files.scan_file"],
   // The modules that act on a withdrawal (gallery, social, auctions,
   // campaigns: #119, #126, #131) add their handlers here.
-  "consent.withdrawn": ["notifications.dispatch"],
+  "consent.withdrawn": [
+    "notifications.dispatch",
+    "auctions.withdraw_consent",
+    "gallery.withdraw_consent",
+    "social_export.withdraw_consent",
+  ],
   "consent.link_sent": ["consent_links.deliver"],
   // files.process_image runs in worker-media only: the media queue
   // (./queues.ts). An entry's file follows each step of its own (#85):
@@ -861,6 +1420,11 @@ export const SUBSCRIBERS = {
   // files.process_video runs in worker-media only, like process_image (#86).
   "files.video_processing_requested": [
     "files.process_video",
+    "entries.apply_file_outcome",
+  ],
+  // Essay PDF rasterisation also runs only in worker-media (#96).
+  "files.pdf_processing_requested": [
+    "files.process_pdf",
     "entries.apply_file_outcome",
   ],
   // A file that needs no derivatives is ready once its scan passes (#86).
@@ -878,7 +1442,13 @@ export const SUBSCRIBERS = {
   // The participant's, or their guardian's, messages go by route row (#85).
   // A school's student's family contact isn't a user: their receipt goes
   // by its own handler (#87).
-  "entry.submitted": ["notifications.dispatch", "entries.send_family_receipt"],
+  // An individual entry submitted after submissions closed goes on to FOA
+  // at once (#92).
+  "entry.submitted": [
+    "notifications.dispatch",
+    "entries.send_family_receipt",
+    "verification.forward_late_entry",
+  ],
   "entry.file_rejected": ["notifications.dispatch"],
   "entry.file_failed": ["notifications.dispatch"],
   // The owner hears FOA's decisions by route row (#127). No route names
@@ -892,7 +1462,11 @@ export const SUBSCRIBERS = {
   "institution.rejected": ["notifications.dispatch"],
   "institution.suspended": ["notifications.dispatch"],
   "institution.reinstated": ["notifications.dispatch"],
-  "competitions.key_date_scheduled": ["competitions.advance_status"],
+  // The shortlist deadline also makes unfinished school rounds overdue (#90).
+  "competitions.key_date_scheduled": [
+    "competitions.advance_status",
+    "school_round.mark_overdue",
+  ],
   // Each keeps the competition's reminders in step with it (#84).
   "competition.published": ["reminders.schedule"],
   "competition.key_dates_changed": ["reminders.schedule"],
@@ -901,6 +1475,7 @@ export const SUBSCRIBERS = {
   "reminder.due": ["reminders.run"],
   // An invitee has no account yet, so no route row can name them: the
   // invitation goes to the invited address itself (#74).
+  "judging.judge_invited": ["judging.send_invitation"],
   "institution.coordinator_invited": [
     "institutions.send_coordinator_invitation",
   ],
@@ -921,12 +1496,80 @@ export const SUBSCRIBERS = {
   "competition.disciplines_changed": ["competitions.retry_blocked_moves"],
   // The competition's school rounds open (#89).
   "competition.school_judging_started": ["school_round.open_rounds"],
+  // Individual entries go on to FOA when submissions close (#92).
+  "competition.submissions_closed": ["verification.forward_individual_entries"],
+  // The participant, guardian or coordinators hear by route row (#92).
+  "artwork.requested": ["notifications.dispatch", "reminders.schedule_artwork"],
+  "artwork.dispatched": ["reminders.schedule_artwork"],
+  "artwork.received": ["notifications.dispatch", "reminders.schedule_artwork"],
+  "artwork.verified": ["notifications.dispatch"],
+  "artwork.discrepancy_raised": ["notifications.dispatch"],
+  "artwork.discrepancy_resolved": ["notifications.dispatch"],
+  "artwork.exhibited": ["notifications.dispatch"],
+  "artwork.stored": ["notifications.dispatch"],
+  "artwork.retained": ["notifications.dispatch"],
+  "artwork.return_requested": ["notifications.dispatch"],
+  "artwork.returned": ["notifications.dispatch"],
+  "results.release_due": ["results.publish"],
+  "results.prize_awarded": [
+    "notifications.dispatch",
+    "results.send_family_prize",
+  ],
+  "results.published": [
+    "invitations.queue_published",
+    "artwork.open_results_window",
+    "certificates.issue",
+    "community.record_results",
+  ],
+  "gallery.reported": ["notifications.dispatch"],
+  "gallery.purge_overdue": ["notifications.dispatch"],
+  "gallery.purge_failed": ["notifications.dispatch"],
+  "gallery.purge_requested": ["gallery.purge"],
+  "stamping.requested": ["stamping.render"],
+  "certificate.render": ["certificate.render"],
+  "certificate.archive_requested": ["certificates.build_archive"],
+  "certificate.archive_expired": ["certificates.expire_archive"],
+  "certificate.reissued": [
+    "notifications.dispatch",
+    "certificates.send_family_reissue",
+  ],
+  "certificates.ready": ["notifications.dispatch"],
+  "artwork.retain_unrequested": ["artwork.retain_unrequested"],
+  "auction.lot_created": ["notifications.dispatch"],
+  "auction.lot.open": ["auctions.open_lot"],
+  "auction.lot.close": ["auctions.close_lot"],
+  "auction.lot_opened": ["notifications.dispatch"],
+  "auction.lot_closed": ["auctions.settle_closed"],
+  "auction.bid_outbid": ["notifications.dispatch"],
+  "auction.offer_opened": ["notifications.dispatch"],
+  "auction.offer.expire": ["auctions.expire_offer"],
+  "auction.sale_captured": [
+    "notifications.dispatch",
+    "auctions.send_family_letter",
+  ],
+  "auction.lot_cancelled": ["notifications.dispatch"],
+
+  "entry.foa_verified": ["notifications.dispatch"],
+  "entry.sent_back": ["notifications.dispatch"],
+  // A resubmitted file went live: the entry returns to FOA (#92).
+  "entry.replacement_live": ["verification.return_resubmission"],
   // Each family is told the outcome, one event per entry (#89).
-  "school_round.shortlist_finalised": ["school_round.queue_family_outcomes"],
+  // A finished round also retries the refused move to FOA judging (#90).
+  "school_round.shortlist_finalised": [
+    "school_round.queue_family_outcomes",
+    "competitions.retry_blocked_moves",
+  ],
+  "school_round.closed_on_behalf": [
+    "school_round.queue_family_outcomes",
+    "competitions.retry_blocked_moves",
+  ],
+  // Its coordinators hear by route row (`institution_coordinators`, #90).
+  "school_round.overdue": ["notifications.dispatch"],
   // The family contact isn't a user: the message goes by the school
   // round's own handler, by its `family_contact` route (#89).
   "entry.school_shortlisted": ["school_round.send_family_outcome"],
   "entry.not_shortlisted": ["school_round.send_family_outcome"],
+  "registration.not_shortlisted": ["school_round.send_family_outcome"],
   // The principal is a contact on the institution, not a user, so no
   // route row can name them: the message goes by its own handler (#75).
   "registration.institution_registered": ["registration.notify_principal"],
@@ -945,6 +1588,12 @@ export const SUBSCRIBERS = {
   "donation.captured": ["donations.send_thank_you", "ledger.post_donation"],
   "donation.foreign_payment_received": ["ledger.post_foreign_donation"],
   "donation.refunded": ["donations.send_refund_notice"],
+  "recurring_donation.activated": ["recurring_donations.send_notice"],
+  "recurring_donation.charge_failed": ["recurring_donations.send_notice"],
+  "recurring_donation.cancelled": ["recurring_donations.send_notice"],
+  "recurring_donation.refunded": ["recurring_donations.send_notice"],
+  "recurring_donation.payment_refused": ["ledger.post_foreign_donation"],
+  "recurring_donation.cancel_requested": ["recurring_donations.cancel"],
   "receipt.link_requested": ["donations.send_receipt_link"],
   // The teen may have no account yet, so no route row can name them: the
   // invitation goes to the invited address by its own handler (#81).
@@ -980,6 +1629,8 @@ export const SUBSCRIBERS = {
   "privacy_request.erasure_approved": ["privacy.execute_erasure"],
   // The campaigns module plans its own channels on the consent each
   // message rests on, with its route's template (#126).
+  "survey.invitation_due": ["surveys.deliver_invitation"],
+  "competition_invitation.due": ["invitations.deliver"],
   "campaign.message_due": ["campaigns.deliver_message"],
   // The family contact isn't a user: their message goes by its own
   // handler, as the confirmation's does; an adult's own and a minor's
@@ -992,10 +1643,14 @@ export const SUBSCRIBERS = {
   "institution_registration.competition_cancelled": ["notifications.dispatch"],
   // The applicant, their guardians and the community team are told by
   // route row (#123).
+  "club.decision_recorded": ["notifications.dispatch"],
   "volunteer.guardian_approval_requested": ["notifications.dispatch"],
   "volunteer.application_submitted": ["notifications.dispatch"],
   "volunteer.application_approved": ["notifications.dispatch"],
   "volunteer.application_declined": ["notifications.dispatch"],
+  "volunteer.task_assigned": ["notifications.dispatch"],
+  "volunteer.hours_approved": ["notifications.dispatch"],
+  "volunteer.hours_rejected": ["notifications.dispatch"],
   // The applicant, the listing organisation's representatives and the
   // coordinators are told by route row (#130).
   "adoption.application_submitted": ["notifications.dispatch"],

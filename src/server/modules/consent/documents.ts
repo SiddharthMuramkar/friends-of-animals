@@ -30,6 +30,7 @@ import {
   parseConsentDocumentSource,
   type SourceError,
 } from "./domain/document-source";
+import { explicitAuctionShare } from "./domain/auction-proceeds";
 import { DOCUMENT_PURPOSES, type ConsentPurpose } from "./domain/purposes";
 import { insertConsentDocumentVersion } from "./insert-version";
 import { documentVersions, latestDocument } from "./repository";
@@ -79,6 +80,14 @@ export type PreviewConsentDocumentResult =
   | PublishedByCms
   | { ok: false; error: "invalid_source"; errors: SourceError[] };
 
+function invalidAuctionProceeds() {
+  return {
+    ok: false,
+    error: "invalid_source",
+    errors: [{ line: null, code: "auction_proceeds_invalid" }],
+  } satisfies { ok: false; error: "invalid_source"; errors: SourceError[] };
+}
+
 const purposeInput = z.object({ purpose: z.enum(DOCUMENT_PURPOSES) });
 
 const previewInput = purposeInput.extend({
@@ -104,9 +113,11 @@ export async function previewConsentDocument(
     return { ok: false, error: "published_by_cms" };
   }
   const parsed = parseConsentDocumentSource(source);
-  return parsed.ok
-    ? { ok: true, body: parsed.body }
-    : { ok: false, error: "invalid_source", errors: parsed.errors };
+  if (!parsed.ok)
+    return { ok: false, error: "invalid_source", errors: parsed.errors };
+  const body =
+    purpose === "auction" ? explicitAuctionShare(parsed.body) : parsed.body;
+  return body ? { ok: true, body } : invalidAuctionProceeds();
 }
 
 /**
@@ -128,6 +139,9 @@ export async function publishConsentDocument(
   if (!parsed.ok) {
     return { ok: false, error: "invalid_source", errors: parsed.errors };
   }
+  const body =
+    purpose === "auction" ? explicitAuctionShare(parsed.body) : parsed.body;
+  if (!body) return invalidAuctionProceeds();
   const now = ctx.clock.now();
 
   return ctx.db.transaction(async (tx) => {
@@ -144,7 +158,7 @@ export async function publishConsentDocument(
       {
         purpose,
         title,
-        body: parsed.body,
+        body,
         // The messages consent rests on the privacy page (#111): it
         // records the page's published revision, once there is one. A
         // competition's terms (#72) rest on no page.

@@ -11,6 +11,7 @@ import { normaliseEmailAddress } from "../../ports/email";
 export const DONOR_PURPOSE = {
   name: "donor.name",
   email: "donor.email",
+  pan: "donor.pan",
 } as const;
 
 /** The blind index of an email address, as `donor.email_hash` stores it. */

@@ -54,3 +54,34 @@ export * from "./adoption-applications";
 export * from "./campaigns";
 export * from "./volunteers";
 export * from "./school-round";
+
+export * from "./recurring-donations";
+export * from "./verification";
+export * from "./judging-rounds";
+export * from "./judging-judges";
+
+export * from "./physical-artwork";
+
+export * from "./scoring";
+export * from "./artwork-custody";
+export * from "./auctions";
+
+export * from "./round-results";
+
+export * from "./results";
+
+export * from "./community";
+export * from "./certificates";
+
+export * from "./volunteer-work";
+export * from "./events";
+export * from "./gallery";
+export * from "./clubs";
+export * from "./surveys";
+
+export * from "./social-export";
+export * from "./competition-invitations";
+
+export * from "./ambassadors";
+
+export * from "./social-snapshots";

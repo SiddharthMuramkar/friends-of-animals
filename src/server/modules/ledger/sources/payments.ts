@@ -145,6 +145,7 @@ export async function readProcessedRefund(db: AppDb, refundId: string) {
   const [row] = await db
     .select({
       batchId: refund.batchId,
+      purpose: paymentBatch.purpose,
       kind: refund.kind,
       gatewayPaymentId: refund.gatewayPaymentId,
       manualMethod: refund.manualMethod,
@@ -154,10 +155,12 @@ export async function readProcessedRefund(db: AppDb, refundId: string) {
       occurredAt: refund.refundedAt,
     })
     .from(refund)
+    .innerJoin(paymentBatch, eq(paymentBatch.id, refund.batchId))
     .where(and(eq(refund.id, refundId), eq(refund.status, "refunded")));
   // A duplicate returns money held in review. It did not capture this
   // batch's fees, so there is no original ledger entry to reverse (HR-47).
-  if (!row || row.kind === "duplicate") return undefined;
+  if (!row || (row.kind === "duplicate" && row.purpose !== "auction_sale"))
+    return undefined;
   if (!row.occurredAt || row.currency !== "INR")
     throw new Error("Invalid processed refund for ledger");
   return { ...row, occurredAt: row.occurredAt };
